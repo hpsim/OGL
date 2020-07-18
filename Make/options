@@ -1,0 +1,5 @@
+EXE_INC = \
+	-I$/usr/local/include
+
+LIB_LIBS = \
+	-lginkgo
