@@ -1,0 +1,179 @@
+/*---------------------------------------------------------------------------*\
+License
+    This file is part of OGL.
+
+    OGL is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::GKOCG
+
+Author: Gregor Olenik <go@hpsim.de>
+
+SourceFiles
+    GKOCG.C
+
+\*---------------------------------------------------------------------------*/
+
+#ifndef GKOCG_H
+#define GKOCG_H
+
+#include "lduMatrix.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+/*---------------------------------------------------------------------------*\
+                           Class GKOCG Declaration
+\*---------------------------------------------------------------------------*/
+
+class GKOBaseSolver :
+    public lduMatrix::solver
+{
+public:
+    // Some shortcuts
+    using IndexType = label;
+    using vec = gko::matrix::Dense<scalar>;
+    using mtx = gko::matrix::Coo<scalar>;
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+    using cg = gko::solver::Cg<scalar>;
+
+private:
+
+    // executor where Ginkgo will perform the computation
+    std::shared_ptr<gko::Executor> exec_;
+
+    // executor of the application
+    std::shared_ptr<gko::Executor> app_exec_;
+
+    label nCells_;
+
+    label nNeighbours_;
+
+    label nElems_;
+
+    // for now a copy of the OF matrix is stored
+    // to keep values contiguous in memory
+public:
+
+    std::vector<scalar> sorting_idxs_;
+
+    mutable std::vector<scalar> values_;
+
+    mutable std::vector<label> col_idxs_;
+
+    mutable std::vector<label> row_idxs_;
+
+    // std::unique_ptr<
+    //     gko::matrix::Coo<scalar>,
+    //     std::default_delete<gko::matrix::Coo<scalar> >
+    // > gkomatrix_;
+
+
+
+
+public:
+    //- Construct from matrix components and solver controls
+    GKOBaseSolver
+    (
+        const word& fieldName,
+        const lduMatrix& matrix,
+        const FieldField<Field, scalar>& interfaceBouCoeffs,
+        const FieldField<Field, scalar>& interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList& interfaces,
+        const dictionary& solverControls
+        );
+
+    void compute_sorting_idxs();
+
+    std::shared_ptr<gko::Executor> exec() const { return exec_;};
+
+    std::shared_ptr<gko::Executor> app_exec() const { return app_exec_;};
+
+    const label nCells() const {return nCells_;};
+
+    const label nElems() const {return nElems_;};
+
+    const std::vector<scalar>& vals() const {return values_;};
+
+    const std::vector<label>& col_idx() const {return col_idxs_;};
+
+    const std::vector<label>& row_idx() const {return row_idxs_;};
+
+    void update_GKOMatrix() const;
+
+    void sort_GKOMatrix() const;
+
+};
+
+class GKOCG
+:
+    public GKOBaseSolver
+{
+    // Private Member Functions
+
+        //- Disallow default bitwise copy construct
+        GKOCG(const GKOCG&);
+
+        //- Disallow default bitwise assignment
+        void operator=(const GKOCG&);
+
+public:
+
+    //- Runtime type information
+    TypeName("GKOCG");
+
+
+    // Constructors
+
+        //- Construct from matrix components and solver controls
+        GKOCG
+        (
+            const word& fieldName,
+            const lduMatrix& matrix,
+            const FieldField<Field, scalar>& interfaceBouCoeffs,
+            const FieldField<Field, scalar>& interfaceIntCoeffs,
+            const lduInterfaceFieldPtrsList& interfaces,
+            const dictionary& solverControls
+        );
+
+
+    //- Destructor
+    virtual ~GKOCG()
+    {}
+
+
+    // Member Functions
+
+        //- Solve the matrix with this solver
+        virtual solverPerformance solve
+        (
+            scalarField& psi,
+            const scalarField& source,
+            const direction cmpt=0
+        ) const;
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
+
+// ************************************************************************* //
