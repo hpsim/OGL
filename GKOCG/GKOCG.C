@@ -50,6 +50,7 @@ Foam::GKOBaseSolver::GKOBaseSolver
 {
     // create executors
     auto executor_string = controlDict_.lookupOrDefault("executor", word("reference"));
+    auto app_executor_string = controlDict_.lookupOrDefault("app_executor", word("reference"));
 
     const auto omp = gko::OmpExecutor::create();
 
@@ -60,8 +61,8 @@ Foam::GKOBaseSolver::GKOBaseSolver
         {"reference", gko::ReferenceExecutor::create()}};
 
     exec_ = exec_map.at(executor_string);
+    app_exec_ = exec_map.at(app_executor_string);
 
-    app_exec_= exec_map["omp"];
 
     // resize matrix
     nCells_ = matrix.diag().size();
@@ -121,17 +122,18 @@ void Foam::GKOBaseSolver::update_GKOMatrix() const {
 
 
     // fill vectors unsorted
+    for (IndexType i = 0; i < nNeighbours_;  ++i) {
+        values_.push_back(matrix().lower()[i]);
+        row_idxs_.push_back(matrix().lduAddr().lowerAddr()[i]);
+        col_idxs_.push_back(matrix().lduAddr().upperAddr()[i]);
+    }
+
     for (IndexType i = 0; i < nCells_; ++i) {
         values_.push_back(matrix().diag()[i]);
         col_idxs_.push_back(i);
         row_idxs_.push_back(i);
     }
 
-    for (IndexType i = 0; i < nNeighbours_;  ++i) {
-        values_.push_back(matrix().lower()[i]);
-        row_idxs_.push_back(matrix().lduAddr().lowerAddr()[i]);
-        col_idxs_.push_back(matrix().lduAddr().upperAddr()[i]);
-    }
 
     for (IndexType i = 0; i < nNeighbours_; ++i) {
         values_.push_back(matrix().upper()[i]);
@@ -218,21 +220,32 @@ Foam::solverPerformance Foam::GKOCG::solve
         lduMatrix::preconditioner::getName(controlDict_) + typeName,
         fieldName_
     );
+    solverPerf.initialResidual() = 1.0;
 
     auto b = vec::create(
         exec(),
         gko::dim<2>(nCells(), 1),
-        val_array::view(exec(), nCells(), const_cast<scalar *>(&source[0])),
+        val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0])),
         1);
 
     auto x = vec::create(
-        exec(),
+        app_exec(),
         gko::dim<2>(nCells(), 1),
-        val_array::view(exec(), nCells(), &psi[0]),
+        val_array::view(app_exec(), nCells(), &psi[0]),
         1);
 
+    auto start_update = std::chrono::steady_clock::now();
     update_GKOMatrix();
+    auto end_update = std::chrono::steady_clock::now();
+    std::cout <<  "Gingko update: " <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_update -
+                                                              start_update).count() << " ms\n";
+    auto start_sort = std::chrono::steady_clock::now();
     sort_GKOMatrix();
+    auto end_sort = std::chrono::steady_clock::now();
+    std::cout <<  "Gingko sort: " <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_sort -
+                                                              start_sort).count() << " ms\n";
 
     // Generate solver
     auto solver_gen =
@@ -253,21 +266,25 @@ Foam::solverPerformance Foam::GKOCG::solve
 
     auto gkomatrix = gko::give(mtx::create(exec(),
         gko::dim<2>(nCells()),
-        val_array::view(exec(), nElems(), &values_[0]),
-        idx_array::view(exec(), nElems(), &col_idxs_[0]),
-        idx_array::view(exec(), nElems(), &row_idxs_[0])));
+        val_array::view(app_exec(), nElems(), &values_[0]),
+        idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+        idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
+    auto start_solve = std::chrono::steady_clock::now();
     auto solver = solver_gen->generate(gko::give(gkomatrix));
 
     // Solve system
     solver->apply(gko::lend(b), gko::lend(x));
+    auto end_solve = std::chrono::steady_clock::now();
+    std::cout <<  "Gingko Solver: " <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_solve -
+                                                              start_solve).count() << " ms\t";
 
     auto one = gko::initialize<vec>({1.0}, exec());
     auto neg_one = gko::initialize<vec>({-1.0}, exec());
     auto res = gko::initialize<vec>({0.0}, exec());
     b->compute_norm2(lend(res));
 
-    solverPerf.initialResidual() = 1.0;
     solverPerf.finalResidual() =  1.0;
     solverPerf.nIterations() =  logger->get_iters();
 
