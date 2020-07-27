@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOCG_H
 #define GKOCG_H
 
-#include "lduMatrix.H"
+#include "GKOBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -38,86 +38,6 @@ namespace Foam
 /*---------------------------------------------------------------------------*\
                            Class GKOCG Declaration
 \*---------------------------------------------------------------------------*/
-
-class GKOBaseSolver :
-    public lduMatrix::solver
-{
-public:
-    // Some shortcuts
-    using IndexType = label;
-    using vec = gko::matrix::Dense<scalar>;
-    using mtx = gko::matrix::Coo<scalar>;
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
-    using cg = gko::solver::Cg<scalar>;
-
-private:
-
-    // executor where Ginkgo will perform the computation
-    std::shared_ptr<gko::Executor> exec_;
-
-    // executor of the application
-    std::shared_ptr<gko::Executor> app_exec_;
-
-    label nCells_;
-
-    label nNeighbours_;
-
-    label nElems_;
-
-    // for now a copy of the OF matrix is stored
-    // to keep values contiguous in memory
-public:
-
-    std::vector<scalar> sorting_idxs_;
-
-    mutable std::vector<scalar> values_;
-
-    mutable std::vector<label> col_idxs_;
-
-    mutable std::vector<label> row_idxs_;
-
-    // std::unique_ptr<
-    //     gko::matrix::Coo<scalar>,
-    //     std::default_delete<gko::matrix::Coo<scalar> >
-    // > gkomatrix_;
-
-
-
-
-public:
-    //- Construct from matrix components and solver controls
-    GKOBaseSolver
-    (
-        const word& fieldName,
-        const lduMatrix& matrix,
-        const FieldField<Field, scalar>& interfaceBouCoeffs,
-        const FieldField<Field, scalar>& interfaceIntCoeffs,
-        const lduInterfaceFieldPtrsList& interfaces,
-        const dictionary& solverControls
-        );
-
-    void compute_sorting_idxs();
-
-    std::shared_ptr<gko::Executor> exec() const { return exec_;};
-
-    std::shared_ptr<gko::Executor> app_exec() const { return app_exec_;};
-
-    const label nCells() const {return nCells_;};
-
-    const label nElems() const {return nElems_;};
-
-    const std::vector<scalar>& vals() const {return values_;};
-
-    const std::vector<label>& col_idx() const {return col_idxs_;};
-
-    const std::vector<label>& row_idx() const {return row_idxs_;};
-
-    void update_GKOMatrix() const;
-
-    void sort_GKOMatrix() const;
-
-};
 
 class GKOCG
 :
