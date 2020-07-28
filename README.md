@@ -16,7 +16,7 @@ the `controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
     
-and that `libGinkgo.so` can be found.
+and that `libginkgo.so` can be found.
 
 # Usage
 
