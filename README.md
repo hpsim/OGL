@@ -11,12 +11,12 @@ OGL has the following requirements
 
 # Compilation
 
-OGL can be compiled using "wmake" in the main folder. Make sure that
-the "controlDict" includes the "OGL.so" file:
+OGL can be compiled using `wmake` in the main folder. Make sure that
+the `controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
     
-and that "libGinkgo.so" can be found.
+and that `libGinkgo.so` can be found.
 
 # Usage
 
