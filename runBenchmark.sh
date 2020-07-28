@@ -4,7 +4,7 @@
 setSolver(){
     echo "Setting solver"
     baseFolder=$PWD
-    cd Tests/$1
+    cd $1
     sed "s/p{}/$2/g" system/fvSolutionTMP > system/fvSolution
     cd $baseFolder
 }
@@ -13,23 +13,28 @@ setSolver(){
 deriveCase(){
     baseFolder=$PWD
     echo "Deriving case " $1 $2
-    cd Tests
     mkdir -p $1
     cp -r pitzDailyBase $1/$2
     cd $baseFolder
 }
 
+setCells() {
+    echo "Setting Cells $1"
+    sed -i "s/180/$1/g" system/blockMeshDict
+}
+
 # Copy Pitzdaily base case
 generateBaseCase() {
-    FILE=Tests/pitzDailyBase/system/controlDict
+    FILE=pitzDailyBase/system/controlDict
     baseFolder=$PWD
     if [ ! -f "$FILE" ]; then
         echo "Preparing base case"
-        mkdir -p Tests
-        cp -r $FOAM_TUTORIALS/incompressible/pisoFoam/LES/pitzDaily/ Tests/pitzDailyBase
+        cp -r $FOAM_TUTORIALS/incompressible/pisoFoam/LES/pitzDaily/ pitzDailyBase
 
         echo "Meshing base case"
-        cd Tests/pitzDailyBase && blockMesh > blockMesh.log
+        cd pitzDailyBase
+        setCells $1
+        blockMesh > blockMesh.log
 
         echo "add OGL.so"
         echo 'libs ("libOGL.so");' >> system/controlDict
@@ -47,9 +52,10 @@ generateBaseCase() {
 
 runSolver() {
     baseFolder=$PWD
-    cd Tests/$1
-    echo "Starting solver"
-    pisoFoam | tee log | grep "Time ="
+    cd $1
+    echo "Starting solver" $baseFolder
+    pisoFoam | tee solver.log | grep "Time ="
+    tail -n 20 solver.log | grep "ExecutionTime" > performance.log
     cd $baseFolder
 }
 
@@ -75,13 +81,37 @@ basePGKOCGOMP(){
     runSolver "p/$solver"
 }
 
+generatePerformanceLog(){
+    mkdir -p stats
+    timestamp=$(date +%s)
+
+    lscpu | grep "Modelname" > stats/stats$timestamp.txt
+    lspci | grep "VGA" >> stats/stats%timestamp.txt
+    git log | head -n 1 >>  stats/stats%timestamp.txt
+    find Tests -name "performance.log" -exec echo {} \; -exec cat {}  \;
+}
 
 # run symmetric solver
+mkdir -p Tests
 
-generateBaseCase
+cd Tests
 
-basePGKOCGOMP
-basePOFCG
-basePGKOCG
+for number in 10 50 100 200
+do
+echo $number
+    mkdir -p $number
+    cd $number
 
+    generateBaseCase $number
+    basePGKOCGOMP
+    basePOFCG
+    basePGKOCG
+
+    generatePerformanceLog
+
+    cd ..
+done
+
+cd ..
+exit 0
 
