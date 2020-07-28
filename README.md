@@ -22,4 +22,7 @@ and that `libginkgo.so` can be found.
 
 OGL solver support the same syntax as the default OpenFOAM solver. Thus, to use a CG solver you can simply replace "PCG" by "GKOCG". In order to run either with CUDA, HIP, or OMP support set the "executor" to cuda, hip, or omp in your solver dictionary. 
 
+Currently the following solver are supported
+
+- CG with and without block Jacobi preconditioner
 
