@@ -68,6 +68,68 @@ private:
                            Class GKOCG Declaration
 \*---------------------------------------------------------------------------*/
 
+class GKOCGFactory {
+
+private:
+
+    // executor where Ginkgo will perform the computation
+    std::shared_ptr<gko::Executor> exec_;
+
+    const label maxIterI_;
+
+    const scalar toleranceI_;
+
+    const word preconditioner_;
+
+public:
+
+    GKOCGFactory(
+        std::shared_ptr<gko::Executor> exec,
+        label maxIter,
+        scalar tolerance,
+        word preconditioner
+        ):
+        exec_(exec),
+        maxIterI_(maxIter),
+        toleranceI_(tolerance),
+        preconditioner_(preconditioner)
+    {};
+
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory> >
+    create_solver() const {
+        if (preconditioner_ == "none") return create_default();
+        if (preconditioner_ == "BJ") return create_BJ();
+    };
+
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory> >
+    create_default() const {
+    return gko::solver::Cg<scalar>::build()
+        .with_criteria(
+            gko::stop::Iteration::build().with_max_iters(maxIterI_).on(exec_),
+            gko::stop::ResidualNormReduction<scalar>::build()
+            .with_reduction_factor(toleranceI_)
+            .on(exec_))
+        .on(exec_);
+    };
+
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory> >
+    create_BJ() const {
+        using bj = gko::preconditioner::Jacobi<>;
+        return gko::solver::Cg<scalar>::build()
+            .with_criteria(
+                gko::stop::Iteration::build().with_max_iters(maxIterI_).on(exec_),
+                gko::stop::ResidualNormReduction<scalar>::build()
+                .with_reduction_factor(toleranceI_)
+                .on(exec_))
+            .with_preconditioner(bj::build().with_max_block_size(8u).on(exec_))
+            .on(exec_);
+    };
+
+};
+
 class GKOBaseSolver :
     public lduMatrix::solver
 {

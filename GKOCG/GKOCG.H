@@ -39,9 +39,11 @@ namespace Foam
                            Class GKOCG Declaration
 \*---------------------------------------------------------------------------*/
 
+
 class GKOCG
 :
-    public GKOBaseSolver
+    public GKOBaseSolver,
+    public GKOCGFactory
 {
     // Private Member Functions
 

@@ -59,12 +59,13 @@ Foam::GKOCG::GKOCG
         interfaceIntCoeffs,
         interfaces,
         solverControls
-    )
-{
-
-
-
-}
+        ),
+    GKOCGFactory(
+        exec(),
+        maxIter_,
+        tolerance_,
+        controlDict_.lookupOrDefault("preconditioner", word("none")))
+{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -101,14 +102,7 @@ Foam::solverPerformance Foam::GKOCG::solve
     SIMPLE_TIME(sort, sort_GKOMatrix();)
 
     // Generate solver
-    auto solver_gen =
-        cg::build()
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(maxIter_).on(exec()),
-                    gko::stop::ResidualNormReduction<scalar>::build()
-                    .with_reduction_factor(tolerance_)
-                .on(exec()))
-        .on(exec());
+    auto solver_gen = create_solver();
 
     // Instantiate a ResidualLogger logger.
     auto logger = std::make_shared<IterationLogger>(exec());

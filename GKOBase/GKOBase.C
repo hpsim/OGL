@@ -85,7 +85,7 @@ void Foam::GKOBaseSolver::compute_sorting_idxs() {
   // sort indexes based on comparing values in v
   // using std::stable_sort instead of std::sort
   // to avoid unnecessary index re-orderings
-  // when v contains elements of equal values 
+  // when v contains elements of equal values
   stable_sort(sorting_idxs_.begin(), sorting_idxs_.end(),
        [this](size_t i1, size_t i2) {return row_idxs_[i1] < row_idxs_[i2];});
 }
@@ -105,6 +105,7 @@ void Foam::GKOBaseSolver::sort_GKOMatrix() const {
         values_[i] = tmp_values[j];
         col_idxs_[i] = tmp_col_idxs[j];
         row_idxs_[i] = tmp_row_idxs[j];
+        // std::cout << "elem " << i << ": " << row_idxs_[i] << " " << col_idxs_[i] << std::endl;
     }
 }
 
