@@ -66,7 +66,6 @@ basePOFCG(){
     runSolver "p/$solver"
 }
 
-
 basePGKOCG(){
     solver="GKOCG"
     deriveCase "p" "$solver"
@@ -77,9 +76,17 @@ basePGKOCG(){
 basePGKOCGOMP(){
     solver="GKOCGOMP"
     deriveCase "p" "$solver"
-    setSolver  "p/$solver" "p{solver GKOCG;tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;maxIter 10000; executor omp;}"
+    setSolver  "p/$solver" "p{solver GKOCG;tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;maxIter 10000;app_executor omp; executor omp;}"
     runSolver "p/$solver"
 }
+
+basePGKOCUDA(){
+    solver="GKOCGOMP"
+    deriveCase "p" "$solver"
+    setSolver  "p/$solver" "p{solver GKOCG;tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;maxIter 10000; app_executor omp; executor cuda;}"
+    runSolver "p/$solver"
+}
+
 
 generatePerformanceLog(){
     mkdir -p stats
@@ -106,6 +113,7 @@ echo $number
     basePGKOCGOMP
     basePOFCG
     basePGKOCG
+    basePGKOCUDA
 
     generatePerformanceLog
 
