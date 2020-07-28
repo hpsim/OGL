@@ -91,23 +91,14 @@ Foam::solverPerformance Foam::GKOCG::solve
         1);
 
     auto x = vec::create(
-        app_exec(),
+        exec(),
         gko::dim<2>(nCells(), 1),
         val_array::view(app_exec(), nCells(), &psi[0]),
         1);
 
-    auto start_update = std::chrono::steady_clock::now();
-    update_GKOMatrix();
-    auto end_update = std::chrono::steady_clock::now();
-    std::cout <<  "Gingko update: " <<
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_update -
-                                                              start_update).count() << " ms\n";
-    auto start_sort = std::chrono::steady_clock::now();
-    sort_GKOMatrix();
-    auto end_sort = std::chrono::steady_clock::now();
-    std::cout <<  "Gingko sort: " <<
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_sort -
-                                                              start_sort).count() << " ms\n";
+    SIMPLE_TIME(update_matrix, update_GKOMatrix();)
+
+    SIMPLE_TIME(sort, sort_GKOMatrix();)
 
     // Generate solver
     auto solver_gen =
@@ -132,15 +123,10 @@ Foam::solverPerformance Foam::GKOCG::solve
         idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
         idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
-    auto start_solve = std::chrono::steady_clock::now();
     auto solver = solver_gen->generate(gko::give(gkomatrix));
 
     // Solve system
-    solver->apply(gko::lend(b), gko::lend(x));
-    auto end_solve = std::chrono::steady_clock::now();
-    std::cout <<  "Gingko Solver: " <<
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_solve -
-                                                              start_solve).count() << " ms\t";
+    SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x)); )
 
     auto one = gko::initialize<vec>({1.0}, exec());
     auto neg_one = gko::initialize<vec>({-1.0}, exec());

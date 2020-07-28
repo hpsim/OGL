@@ -28,6 +28,15 @@ SourceFiles
 #ifndef GKOBase_H
 #define GKOBase_H
 
+#define SIMPLE_TIME(NAME, F)  \
+    auto start_##NAME = std::chrono::steady_clock::now() ; \
+    F \
+    auto end_##NAME = std::chrono::steady_clock::now(); \
+    std::cout <<  "Gingko " #NAME " : " << \
+        std::chrono::duration_cast< \
+        std::chrono::milliseconds>(end_##NAME - start_##NAME).count() << " ms\n";
+
+
 #include "lduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
