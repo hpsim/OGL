@@ -37,6 +37,9 @@ namespace Foam
 
     lduMatrix::solver::addsymMatrixConstructorToTable<GKOBiCGStab>
         addGKOBiCGStabSymMatrixConstructorToTable_;
+
+    lduMatrix::solver::addasymMatrixConstructorToTable<GKOBiCGStab>
+    addGKOBiCGStabAsymMatrixConstructorToTable_;
 }
 
 
