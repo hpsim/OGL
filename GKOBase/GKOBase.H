@@ -125,18 +125,18 @@ public:
 
         const auto omp = gko::OmpExecutor::create();
 
-        std::map<std::string, std::shared_ptr<gko::Executor>> exec_map{
-            {"omp", omp},
-            {"cuda", gko::CudaExecutor::create(0, omp, true)},
-            {"hip", gko::HipExecutor::create(0, omp, true)},
-            {"reference", gko::ReferenceExecutor::create()}};
+        std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>> exec_map{
+            {"omp", [&omp]{return omp;}},
+            {"cuda", [&omp]{return gko::CudaExecutor::create(0, omp, true);}},
+            {"hip", [&omp]{return gko::HipExecutor::create(0, omp, true);}},
+            {"reference", [&omp]{return gko::ReferenceExecutor::create();}}};
 
-        exec_ = exec_map.at(executor_string);
+        exec_ = exec_map.at(executor_string)();
 
         if (executor_string == app_executor_string) {
             app_exec_ = exec_;
         } else {
-            app_exec_ = exec_map.at(app_executor_string);
+            app_exec_ = exec_map.at(app_executor_string)();
         }
 
         // resize matrix
