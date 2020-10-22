@@ -69,8 +69,8 @@ public:
             .with_criteria(
                 gko::stop::Iteration::build().with_max_iters(maxIterI_).on(
                     exec),
-                gko::stop::ResidualNormReduction<scalar>::build()
-                    .with_reduction_factor(toleranceI_)
+                gko::stop::AbsoluteResidualNorm<scalar>::build()
+                    .with_tolerance(toleranceI_)
                     .on(exec))
             .on(exec);
     };
