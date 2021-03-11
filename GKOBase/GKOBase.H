@@ -223,6 +223,7 @@ public:
         for (label i = 0; i < nElems_; i++) tmp_col_idxs[i] = col_idxs_[i];
         for (label i = 0; i < nElems_; i++) tmp_row_idxs[i] = row_idxs_[i];
 
+        // TODO parallelise
         for (label i = 0; i < nElems_; i++) {
             label j = sorting_idxs_[i];
             values_[i] = tmp_values[j];
@@ -281,11 +282,7 @@ public:
                         val_array::view(app_exec(), nElems(), &values_[0]),
                         idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
                         idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
-
-        auto gkomatrix_clone = gko::clone(gkomatrix);
-        auto x_clone = gko::clone(x);
-        auto b_clone = gko::clone(b);
-
+        // TODO refactor this to separate function
         if (export_) {
             std::string fn_mtx{fieldName() + "_A.mtx"};
             std::ofstream stream{fn_mtx};
@@ -303,6 +300,9 @@ public:
             gko::write(stream_x, x.get());
         }
 
+        auto gkomatrix_clone = gko::clone(gkomatrix);
+        auto x_clone = gko::clone(x);
+        auto b_clone = gko::clone(b);
 
         solverPerf.initialResidual() = compute_residual(
             gko::lend(gkomatrix_clone), gko::lend(x_clone), gko::lend(b_clone));

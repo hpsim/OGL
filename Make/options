@@ -1,5 +1,6 @@
 EXE_INC = \
-	-I$/usr/local/include
+	-I/home/kit/scc/nq7776/code/ginkgo/build/include \
+	-L/home/kit/scc/nq7776/code/ginkgo/build/lib
 
 LIB_LIBS = \
 	-lginkgo
