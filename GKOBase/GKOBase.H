@@ -254,12 +254,13 @@ public:
             lduMatrix::preconditioner::getName(controlDict_) + typeName,
             fieldName_);
 
-        auto b = vec::create(exec(), gko::dim<2>(nCells(), 1),
-                             val_array::view(app_exec(), nCells(),
-                                             const_cast<scalar *>(&source[0])),
+        auto psi_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0]));
+
+        auto b = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
+                             psi_view,
                              1);
 
-        auto x = vec::create(exec(), gko::dim<2>(nCells(), 1),
+        auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
                              val_array::view(app_exec(), nCells(), &psi[0]), 1);
 
         SIMPLE_TIME(update_matrix, update_GKOMatrix();)
@@ -282,6 +283,7 @@ public:
                         val_array::view(app_exec(), nElems(), &values_[0]),
                         idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
                         idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
+
         // TODO refactor this to separate function
         if (export_) {
             std::string fn_mtx{fieldName() + "_A.mtx"};
@@ -300,20 +302,20 @@ public:
             gko::write(stream_x, x.get());
         }
 
-        auto gkomatrix_clone = gko::clone(gkomatrix);
-        auto x_clone = gko::clone(x);
         auto b_clone = gko::clone(b);
 
         solverPerf.initialResidual() = compute_residual(
-            gko::lend(gkomatrix_clone), gko::lend(x_clone), gko::lend(b_clone));
+            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
         auto solver = solver_gen->generate(gko::give(gkomatrix));
 
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
+        b_clone->copy_from(gko::lend(b));
         solverPerf.finalResidual() = compute_residual(
-            gko::lend(gkomatrix_clone), gko::lend(x), gko::lend(b));
+            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
+
 
         solverPerf.nIterations() = logger->get_iters();
 
