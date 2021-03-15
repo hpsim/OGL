@@ -254,14 +254,15 @@ public:
             lduMatrix::preconditioner::getName(controlDict_) + typeName,
             fieldName_);
 
-        auto psi_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0]));
+        auto psi_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&psi[0]));
+        auto source_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0]));
 
         auto b = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
-                             psi_view,
+                             source_view,
                              1);
 
         auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
-                             val_array::view(app_exec(), nCells(), &psi[0]), 1);
+                             psi_view, 1);
 
         SIMPLE_TIME(update_matrix, update_GKOMatrix();)
 
@@ -316,6 +317,8 @@ public:
         solverPerf.finalResidual() = compute_residual(
             gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
+        auto x_view  = val_array::view(app_exec(), nCells(), x->get_values());
+        psi_view = x_view;
 
         solverPerf.nIterations() = logger->get_iters();
 
