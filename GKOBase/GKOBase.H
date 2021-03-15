@@ -125,11 +125,15 @@ public:
 
         const auto omp = gko::OmpExecutor::create();
 
-        std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>> exec_map{
-            {"omp", [&omp]{return omp;}},
-            {"cuda", [&omp]{return gko::CudaExecutor::create(0, omp, true);}},
-            {"hip", [&omp]{return gko::HipExecutor::create(0, omp, true);}},
-            {"reference", [&omp]{return gko::ReferenceExecutor::create();}}};
+        std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>>
+            exec_map{
+                {"omp", [&omp] { return omp; }},
+                {"cuda",
+                 [&omp] { return gko::CudaExecutor::create(0, omp, true); }},
+                {"hip",
+                 [&omp] { return gko::HipExecutor::create(0, omp, true); }},
+                {"reference",
+                 [&omp] { return gko::ReferenceExecutor::create(); }}};
 
         exec_ = exec_map.at(executor_string)();
 
@@ -149,6 +153,8 @@ public:
         update_GKOMatrix();
 
         compute_sorting_idxs();
+
+        sort_GKOMatrix();
     };
 
     void compute_sorting_idxs()
@@ -254,15 +260,15 @@ public:
             lduMatrix::preconditioner::getName(controlDict_) + typeName,
             fieldName_);
 
-        auto psi_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&psi[0]));
-        auto source_view = val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0]));
+        auto psi_view = val_array::view(app_exec(), nCells(),
+                                        const_cast<scalar *>(&psi[0]));
+        auto source_view = val_array::view(app_exec(), nCells(),
+                                           const_cast<scalar *>(&source[0]));
 
-        auto b = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
-                             source_view,
-                             1);
+        auto b =
+            vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
 
-        auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1),
-                             psi_view, 1);
+        auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
         SIMPLE_TIME(update_matrix, update_GKOMatrix();)
 
@@ -313,12 +319,21 @@ public:
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
-        b_clone->copy_from(gko::lend(b));
-        solverPerf.finalResidual() = compute_residual(
-            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
-        auto x_view  = val_array::view(app_exec(), nCells(), x->get_values());
+        auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
+        auto x_clone =
+            vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
         psi_view = x_view;
+        b_clone->copy_from(gko::lend(b));
+        auto ginkgo_host_matrix = gko::give(
+            mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
+                        val_array::view(app_exec(), nElems(), &values_[0]),
+                        idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+                        idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
+
+        solverPerf.finalResidual() =
+            compute_residual(gko::lend(ginkgo_host_matrix), gko::lend(x_clone),
+                             gko::lend(b_clone));
 
         solverPerf.nIterations() = logger->get_iters();
 
