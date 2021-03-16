@@ -117,6 +117,7 @@ public:
                             interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory(controlDict_)
     {
+        Info << "GKOBase ctr" << endl;
         // create executors
         auto executor_string =
             controlDict_.lookupOrDefault("executor", word("reference"));
@@ -150,15 +151,16 @@ public:
 
         export_ = controlDict_.lookupOrDefault<bool>("export", false);
 
-        update_GKOMatrix();
+        SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
 
-        compute_sorting_idxs();
+        SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
 
-        sort_GKOMatrix();
+        SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix ();)
     };
 
     void compute_sorting_idxs()
     {
+        Info << "sorting idxs() " << endl;
         // initialize original index locations
         sorting_idxs_.resize(nElems_);
         iota(sorting_idxs_.begin(), sorting_idxs_.end(), 0);
@@ -221,6 +223,7 @@ public:
 
     void sort_GKOMatrix() const
     {
+        Info << "sorting matrix() " << endl;
         std::vector<scalar> tmp_values(nElems_);
         std::vector<scalar> tmp_col_idxs(nElems_);
         std::vector<scalar> tmp_row_idxs(nElems_);
@@ -270,10 +273,6 @@ public:
 
         auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
-        SIMPLE_TIME(update_matrix, update_GKOMatrix();)
-
-        SIMPLE_TIME(sort, sort_GKOMatrix();)
-
         // Generate solver
         auto solver_gen = this->create_solver(exec());
 
@@ -319,21 +318,20 @@ public:
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
-
         auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
         auto x_clone =
             vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
         psi_view = x_view;
         b_clone->copy_from(gko::lend(b));
-        auto ginkgo_host_matrix = gko::give(
-            mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
-                        val_array::view(app_exec(), nElems(), &values_[0]),
-                        idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
-                        idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
+        // auto ginkgo_host_matrix = gko::give(
+        //     mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
+        //                 val_array::view(app_exec(), nElems(), &values_[0]),
+        //                 idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+        //                 idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
-        solverPerf.finalResidual() =
-            compute_residual(gko::lend(ginkgo_host_matrix), gko::lend(x_clone),
-                             gko::lend(b_clone));
+        // solverPerf.finalResidual() =
+        //     compute_residual(gko::lend(ginkgo_host_matrix), gko::lend(x_clone),
+        //                      gko::lend(b_clone));
 
         solverPerf.nIterations() = logger->get_iters();
 
