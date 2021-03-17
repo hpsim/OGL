@@ -38,51 +38,20 @@ class GKOCGFactory {
 private:
     // executor where Ginkgo will perform the computation
 
-    const label maxIterI_;
-
-    // TODO implement min iter
-    const label minIterI_;
-
-    const scalar toleranceI_;
-
-    const scalar relTol_;
-
     const word preconditioner_;
 
 public:
     GKOCGFactory(const dictionary &controlDict_)
-        : maxIterI_(controlDict_.lookupOrDefault("maxIter", label(1000))),
-          minIterI_(controlDict_.lookupOrDefault("minIter", label(0))),
-          toleranceI_(controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
-          relTol_(controlDict_.lookupOrDefault("relTol", scalar(1e-6))),
-          preconditioner_(
+        : preconditioner_(
               controlDict_.lookupOrDefault("preconditioner", word("none"))){};
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec) const
-    {
-        auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
-                                  .with_tolerance(toleranceI_)
-                                  .on(exec);
-
+    create_solver(
+        std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec{};
-
-        // NOTE currently minIter
-        if (minIterI_ == 0) {
-            auto max_iter_stop =
-                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
-                    exec);
-            criterion_vec.push_back(gko::share(tolerance_stop));
-            criterion_vec.push_back(gko::share(max_iter_stop));
-        } else {
-            auto max_iter_stop =
-                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
-                    exec);
-            criterion_vec.push_back(gko::share(max_iter_stop));
-        }
-
+            criterion_vec) const
+    {
         if (preconditioner_ == "none")
             return create_default(exec, criterion_vec);
         if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);

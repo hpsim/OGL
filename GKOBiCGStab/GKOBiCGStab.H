@@ -56,22 +56,24 @@ public:
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
                     std::default_delete<gko::solver::Bicgstab<double>::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec) const
+    create_solver(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec) const
     {
-        if (preconditioner_ == "none") return create_default(exec);
+        if (preconditioner_ == "none")
+            return create_default(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
                     std::default_delete<gko::solver::Bicgstab<double>::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec) const
     {
         return gko::solver::Bicgstab<scalar>::build()
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(maxIterI_).on(
-                    exec),
-                gko::stop::AbsoluteResidualNorm<scalar>::build()
-                    .with_tolerance(toleranceI_)
-                    .on(exec))
+            .with_criteria(criterion_vec)
             .on(exec);
     };
 
@@ -93,7 +95,6 @@ public:
 };
 
 
-
 class GKOBiCGStab : public GKOBaseSolver<GKOBiCGStabFactory> {
     // Private Member Functions
 
@@ -111,10 +112,10 @@ public:
 
     //- Construct from matrix components and solver controls
     GKOBiCGStab(const word &fieldName, const lduMatrix &matrix,
-          const FieldField<Field, scalar> &interfaceBouCoeffs,
-          const FieldField<Field, scalar> &interfaceIntCoeffs,
-          const lduInterfaceFieldPtrsList &interfaces,
-          const dictionary &solverControls)
+                const FieldField<Field, scalar> &interfaceBouCoeffs,
+                const FieldField<Field, scalar> &interfaceIntCoeffs,
+                const lduInterfaceFieldPtrsList &interfaces,
+                const dictionary &solverControls)
         : GKOBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                         interfaceIntCoeffs, interfaces, solverControls){};
 
@@ -127,10 +128,10 @@ public:
     //- Solve the matrix with this solver
 
     virtual solverPerformance solve(scalarField &psi, const scalarField &source,
-                                    const direction cmpt = 0) const {
+                                    const direction cmpt = 0) const
+    {
         return solve_impl(this->typeName, psi, source, cmpt);
     }
-
 };
 
 

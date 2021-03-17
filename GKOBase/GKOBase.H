@@ -80,6 +80,15 @@ public:
     using cg = gko::solver::Cg<scalar>;
 
 private:
+    const label maxIterI_;
+
+    // TODO implement min iter
+    const label minIterI_;
+
+    const scalar toleranceI_;
+
+    const scalar relTol_;
+
     // executor where Ginkgo will perform the computation
     std::shared_ptr<gko::Executor> exec_;
 
@@ -115,7 +124,11 @@ public:
                   const dictionary &solverControls)
         : lduMatrix::solver(fieldName, matrix, interfaceBouCoeffs,
                             interfaceIntCoeffs, interfaces, solverControls),
-          SolverFactory(controlDict_)
+          SolverFactory(controlDict_),
+          maxIterI_(controlDict_.lookupOrDefault("maxIter", label(1000))),
+          minIterI_(controlDict_.lookupOrDefault("minIter", label(0))),
+          toleranceI_(controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
+          relTol_(controlDict_.lookupOrDefault("relTol", scalar(1e-6)))
     {
         Info << "GKOBase ctr" << endl;
         // create executors
@@ -155,7 +168,7 @@ public:
 
         SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
 
-        SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix ();)
+        SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
     };
 
     void compute_sorting_idxs()
@@ -273,8 +286,30 @@ public:
 
         auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
+        auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
+                                  .with_tolerance(toleranceI_)
+                                  .on(exec());
+
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec{};
+
+        // NOTE currently minIter
+        // TODO move to base class
+        if (minIterI_ == 0) {
+            auto max_iter_stop =
+                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
+                    exec());
+            criterion_vec.push_back(gko::share(tolerance_stop));
+            criterion_vec.push_back(gko::share(max_iter_stop));
+        } else {
+            auto max_iter_stop =
+                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
+                    exec());
+            criterion_vec.push_back(gko::share(max_iter_stop));
+        }
+
         // Generate solver
-        auto solver_gen = this->create_solver(exec());
+        auto solver_gen = this->create_solver(exec(), criterion_vec);
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(exec());
@@ -327,10 +362,12 @@ public:
         //     mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
         //                 val_array::view(app_exec(), nElems(), &values_[0]),
         //                 idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
-        //                 idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
+        //                 idx_array::view(app_exec(), nElems(),
+        //                 &row_idxs_[0])));
 
         // solverPerf.finalResidual() =
-        //     compute_residual(gko::lend(ginkgo_host_matrix), gko::lend(x_clone),
+        //     compute_residual(gko::lend(ginkgo_host_matrix),
+        //     gko::lend(x_clone),
         //                      gko::lend(b_clone));
 
         solverPerf.nIterations() = logger->get_iters();
