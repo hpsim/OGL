@@ -40,14 +40,21 @@ private:
 
     const label maxIterI_;
 
+    // TODO implement min iter
+    const label minIterI_;
+
     const scalar toleranceI_;
+
+    const scalar relTol_;
 
     const word preconditioner_;
 
 public:
     GKOCGFactory(const dictionary &controlDict_)
         : maxIterI_(controlDict_.lookupOrDefault("maxIter", label(1000))),
+          minIterI_(controlDict_.lookupOrDefault("minIter", label(0))),
           toleranceI_(controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
+          relTol_(controlDict_.lookupOrDefault("relTol", scalar(1e-6))),
           preconditioner_(
               controlDict_.lookupOrDefault("preconditioner", word("none"))){};
 
@@ -55,37 +62,53 @@ public:
                     std::default_delete<gko::solver::Cg<double>::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec) const
     {
-        if (preconditioner_ == "none") return create_default(exec);
-        if (preconditioner_ == "BJ") return create_BJ(exec);
+        auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
+                                  .with_tolerance(toleranceI_)
+                                  .on(exec);
+
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec{};
+
+        // NOTE currently minIter
+        if (minIterI_ == 0) {
+            auto max_iter_stop =
+                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
+                    exec);
+            criterion_vec.push_back(gko::share(tolerance_stop));
+            criterion_vec.push_back(gko::share(max_iter_stop));
+        } else {
+            auto max_iter_stop =
+                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
+                    exec);
+            criterion_vec.push_back(gko::share(max_iter_stop));
+        }
+
+        if (preconditioner_ == "none")
+            return create_default(exec, criterion_vec);
+        if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec) const
     {
         return gko::solver::Cg<scalar>::build()
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(maxIterI_).on(
-                    exec),
-            gko::stop::AbsoluteResidualNorm<scalar>::build()
-                .with_tolerance(toleranceI_)
-                .on(exec))
+            .with_criteria(criterion_vec)
             .on(exec);
     };
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
-    create_BJ(std::shared_ptr<gko::Executor> exec) const
+    create_BJ(std::shared_ptr<gko::Executor> exec,
+              std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+                  criterion_vec) const
     {
-
         using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Cg<scalar>::build()
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(maxIterI_).on(
-                    exec),
-                gko::stop::ResidualNormReduction<scalar>::build()
-                    .with_reduction_factor(toleranceI_)
-                    .on(exec))
+            .with_criteria(criterion_vec)
             .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
             .on(exec);
     };
@@ -129,10 +152,10 @@ public:
     //- Solve the matrix with this solver
 
     virtual solverPerformance solve(scalarField &psi, const scalarField &source,
-                                    const direction cmpt = 0) const {
+                                    const direction cmpt = 0) const
+    {
         return solve_impl(this->typeName, psi, source, cmpt);
     }
-
 };
 
 
