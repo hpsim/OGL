@@ -112,6 +112,7 @@ class Case:
     def __init__(
         self, test_base=None, of_solver="dnsFoam", solver="CG", executor="of", base_case=None, resolution=32, results=None, iterations=100, is_base_case=False
     ):
+        self.variable=None
         self.is_base_case=is_base_case
         self.test_base = test_base
         self.of_base_case = "boxTurb16"
@@ -123,13 +124,6 @@ class Case:
         self.iterations = iterations
         self.base_case_path = base_case
         self.results_accumulator = results
-        self.results_accumulator.set_case(
-            domain=executor[0],
-            executor=executor[2],
-            solver=solver,
-            number_of_iterations=self.iterations,
-            resolution=resolution,
-        )
 
     def create(self):
         print("create")
@@ -171,6 +165,13 @@ class Case:
     def run(self, results_accumulator):
         if self.is_base_case:
             return
+        self.results_accumulator.set_case(
+            domain=self.executor[0],
+            executor=self.executor[2],
+            solver=self.solver,
+            number_of_iterations=self.iterations,
+            resolution=self.resolution,
+        )
         accumulated_time = 0
         max_time = 2 * 60
         while accumulated_time < max_time:
@@ -292,6 +293,7 @@ class ValueSetter():
 
     def run(self, case):
         setattr(case, self.prop, self.value)
+        setattr(case, "variable" , self.value)
 
 
 if __name__ == "__main__":
@@ -301,7 +303,7 @@ if __name__ == "__main__":
     # TODO replace by class
     executor = [("base", "", "")]
 
-    solver = ["CG"]
+    solver = ["CG", "BiCGStab"]
 
     preconditioner = []  # "none", "Jacobi"]
 
@@ -318,4 +320,4 @@ if __name__ == "__main__":
         executor.append(("GKO", "GKO", "OMP"))
 
     resolution_study("number_of_cells", executor, solver, arguments)
-    iters_study("number_of_iters", executor, solver, arguments)
+    iterations("number_of_iters", executor, solver, arguments)
