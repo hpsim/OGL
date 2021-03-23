@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOCG_H
 #define GKOCG_H
 
-#include "GKOBase.H"
+#include "GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -88,7 +88,7 @@ public:
 \*---------------------------------------------------------------------------*/
 
 
-class GKOCG : public GKOBaseSolver<GKOCGFactory> {
+class GKOCG : public GKOlduBaseSolver<GKOCGFactory> {
     // Private Member Functions
 
 public:
@@ -109,7 +109,7 @@ public:
           const FieldField<Field, scalar> &interfaceIntCoeffs,
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
-        : GKOBaseSolver(fieldName, matrix, interfaceBouCoeffs,
+        : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                         interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor

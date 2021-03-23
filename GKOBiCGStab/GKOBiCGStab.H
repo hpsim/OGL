@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOBiCGStab_H
 #define GKOBiCGStab_H
 
-#include "GKOBase.H"
+#include "GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -95,7 +95,7 @@ public:
 };
 
 
-class GKOBiCGStab : public GKOBaseSolver<GKOBiCGStabFactory> {
+class GKOBiCGStab : public GKOlduBaseSolver<GKOBiCGStabFactory> {
     // Private Member Functions
 
 public:
@@ -116,7 +116,7 @@ public:
                 const FieldField<Field, scalar> &interfaceIntCoeffs,
                 const lduInterfaceFieldPtrsList &interfaces,
                 const dictionary &solverControls)
-        : GKOBaseSolver(fieldName, matrix, interfaceBouCoeffs,
+        : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                         interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
