@@ -110,10 +110,19 @@ def ensure_path(path):
 
 class Case:
     def __init__(
-        self, test_base=None, of_solver="dnsFoam", solver="CG", executor="of", base_case=None, resolution=32, results=None, iterations=100, is_base_case=False
+        self,
+        test_base=None,
+        of_solver="dnsFoam",
+        solver="CG",
+        executor="of",
+        base_case=None,
+        resolution=32,
+        results=None,
+        iterations=100,
+        is_base_case=False,
     ):
-        self.variable=None
-        self.is_base_case=is_base_case
+        self.variable = None
+        self.is_base_case = is_base_case
         self.test_base = test_base
         self.of_base_case = "boxTurb16"
         self.fields = "p"
@@ -124,12 +133,13 @@ class Case:
         self.iterations = iterations
         self.base_case_path = base_case
         self.results_accumulator = results
+        self.init_time = 0
 
     def create(self):
         print("create")
         # first check if base case
         if self.is_base_case:
-            print("is base case", self.base_case_path )
+            print("is base case", self.base_case_path)
             setup_base_case(self.base_case_path, self.resolution)
             return
 
@@ -156,8 +166,7 @@ class Case:
         solver_str = (
             "p{"
             + "solver {};tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;minIter {}; maxIter 10000;".format(
-                matrix_solver,
-                self.iterations
+                matrix_solver, self.iterations
             )
         )
         sed(fn, "p{}", solver_str)
@@ -174,11 +183,13 @@ class Case:
         )
         accumulated_time = 0
         max_time = 2 * 60
-        while accumulated_time < max_time:
+        iters = 0
+        while accumulated_time < max_time and iters < 10:
+            iters += 1
             start = datetime.datetime.now()
             ret = check_output([self.of_solver], cwd=self.path / "boxTurb16")
             end = datetime.datetime.now()
-            run_time = (end - start).total_seconds()
+            run_time = (end - start).total_seconds() - self.init_time
             self.results_accumulator.add(run_time)
             accumulated_time += run_time
         print(ret)
@@ -187,6 +198,7 @@ class Case:
 def setup_base_case(test_path, cells):
     """ """
     import os
+
     print("set up base case")
 
     test_path = test_path / str(cells)
@@ -206,8 +218,8 @@ def setup_base_case(test_path, cells):
 
     controlDict = base_case_system_folder / "controlDict"
     add_libOGL_so(controlDict)
-    set_end_time(controlDict, 1.0)
-    set_deltaT(controlDict, 1.0)
+    set_end_time(controlDict, 0.1)
+    set_deltaT(controlDict, 0.01)
 
     fvSolution = base_case_system_folder / "fvSolution"
     clear_solver_settings(fvSolution)
@@ -217,7 +229,7 @@ def setup_base_case(test_path, cells):
 
 
 def build_parameter_study(test_path, results, executor, solver, setter):
-    for (e,s,n) in product(executor, solver, setter):
+    for (e, s, n) in product(executor, solver, setter):
         print(e, s, n.prop, n.value)
         # check if path exist and clean is set
         path = test_path / Path(e[0] + e[2]) / str(n.value)
@@ -229,13 +241,13 @@ def build_parameter_study(test_path, results, executor, solver, setter):
             skip = False
         if exist and not clean:
             skip = True
-        is_base_case=False
-        base_case_path = test_path /  Path("base") / Path("p") / str(n.value)
+        is_base_case = False
+        base_case_path = test_path / Path("base") / Path("p") / str(n.value)
 
         if e[0] == "base":
             print("is base case")
-            base_case_path=test_path /  Path("base") / Path("p")
-            is_base_case=True
+            base_case_path = test_path / Path("base") / Path("p")
+            is_base_case = True
 
         if not skip:
             case = Case(
@@ -244,7 +256,7 @@ def build_parameter_study(test_path, results, executor, solver, setter):
                 executor=e,
                 base_case=base_case_path,
                 results=results,
-                is_base_case=is_base_case
+                is_base_case=is_base_case,
             )
             n.run(case)
             case.create()
@@ -285,15 +297,15 @@ def iterations(name, executor, solver, arguments):
 
     build_parameter_study(test_path, results, executor, solver, n_setters)
 
-class ValueSetter():
 
+class ValueSetter:
     def __init__(self, prop, value):
-            self.prop = prop
-            self.value = value
+        self.prop = prop
+        self.value = value
 
     def run(self, case):
         setattr(case, self.prop, self.value)
-        setattr(case, "variable" , self.value)
+        setattr(case, "variable", self.value)
 
 
 if __name__ == "__main__":
