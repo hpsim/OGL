@@ -2,5 +2,6 @@ lduMatrix/GKOlduBase/GKOlduBase.C
 lduMatrix/GKOCG/GKOCG.C
 lduMatrix/GKOBiCGStab/GKOBiCGStab.C
 LduMatrix/GKOLduBase/GKOLduBase.C
+LduMatrix/GKOACG/GKOACG.C
 
 LIB = $(FOAM_USER_LIBBIN)/libOGL
