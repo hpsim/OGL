@@ -108,7 +108,6 @@ public:
               this->controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)))
     {
-        Info << "GKOLduBase ctr" << endl;
         // create executors
         auto executor_string =
             this->controlDict_.lookupOrDefault("executor", word("reference"));
@@ -204,7 +203,6 @@ public:
 
     virtual SolverPerformance<Type> solve_impl(Field<Type> &psi) const
     {
-        Info << __FILE__ << endl;
         // --- Setup class containing solver performance data
         // Implement
         word preconditionerName(this->controlDict_.lookup("preconditioner"));
