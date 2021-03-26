@@ -112,14 +112,16 @@ class Case:
     def __init__(
         self,
         test_base=None,
-        of_solver="dnsFoam",
         solver="CG",
-        executor="of",
+        executor=None,
         base_case=None,
         resolution=32,
         results=None,
         iterations=100,
         is_base_case=False,
+        of_tutorial_domain="DNS",
+        of_solver="dnsFoam",
+        of_tutorial_case="boxTurb16",
     ):
         self.variable = None
         self.is_base_case = is_base_case
@@ -127,42 +129,82 @@ class Case:
         self.of_base_case = "boxTurb16"
         self.fields = "p"
         self.resolution = resolution
-        self.of_solver = of_solver
         self.executor = executor
         self.solver = solver
         self.iterations = iterations
-        self.base_case_path = base_case
+        self.base_case_path_ = base_case
         self.results_accumulator = results
         self.init_time = 0
-
-    def create(self):
-        print("create")
-        # first check if base case
-        if self.is_base_case:
-            print("is base case", self.base_case_path)
-            setup_base_case(self.base_case_path, self.resolution)
-            return
-
-        ensure_path(self.path)
-        self.copy_base(self.base_case_path / self.of_base_case, self.path)
-        self.set_matrix_solver(self.of_base_case)
+        self.of_solver = of_solver
+        self.of_tutorial_case = of_tutorial_case
+        self.of_tutorial_domain = of_tutorial_domain
 
     @property
-    def path(self):
+    def system_folder(self):
+        return self.path / "system"
+
+    @property
+    def controlDict(self):
+        return self.system_folder / "controlDict"
+
+    @property
+    def blockMeshDict(self):
+        return self.system_folder / "blockMeshDict"
+
+    @property
+    def fvSolution(self):
+        return self.system_folder / "fvSolution"
+
+    def create(self):
+        ensure_path(self.parent_path)
+        self.copy_base(self.base_case_path, self.parent_path)
+        if self.is_base_case:
+            new_cells = "{} {} {}".format(
+                self.resolution, self.resolution, self.resolution
+            )
+            set_cells(self.blockMeshDict, "16 16 16", new_cells)
+            add_libOGL_so(self.controlDict)
+            set_end_time(self.controlDict, 0.1)
+            set_deltaT(self.controlDict, 0.01)
+            clear_solver_settings(self.fvSolution)
+            print("Meshing", self.path)
+            check_output(["blockMesh"], cwd=self.path)
+            return
+
+        self.set_matrix_solver(self.fvSolution)
+
+    @property
+    def base_case_path(self):
+        if self.is_base_case:
+            foam_tutorials = Path(os.environ["FOAM_TUTORIALS"])
+            return (
+                foam_tutorials
+                / self.of_tutorial_domain
+                / self.of_solver
+                / self.of_tutorial_case
+            )
+        return self.base_case_path_ / self.of_base_case
+
+    @property
+    def parent_path(self):
         return (
             Path(self.test_base)
-            / Path(self.executor[0] + self.executor[2])
+            / Path(self.executor.local_path)
             / self.fields
             / str(self.resolution)
         )
+
+    @property
+    def path(self):
+        return self.parent_path / str(self.of_tutorial_case)
 
     def copy_base(self, src, dst):
         print("copying base case", src, dst)
         check_output(["cp", "-r", src, dst])
 
-    def set_matrix_solver(self, case):
-        fn = self.path / case / "system" / "fvSolution"
-        matrix_solver = self.executor[1] + self.solver
+    def set_matrix_solver(self, fn):
+        print("setting solver", fn)
+        matrix_solver = self.executor.prefix + self.solver
         solver_str = (
             "p{"
             + "solver {};tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;minIter {}; maxIter 10000;".format(
@@ -175,8 +217,8 @@ class Case:
         if self.is_base_case:
             return
         self.results_accumulator.set_case(
-            domain=self.executor[0],
-            executor=self.executor[2],
+            domain=self.executor.domain,
+            executor=self.executor.executor,
             solver=self.solver,
             number_of_iterations=self.iterations,
             resolution=self.resolution,
@@ -187,52 +229,17 @@ class Case:
         while accumulated_time < max_time and iters < 10:
             iters += 1
             start = datetime.datetime.now()
-            ret = check_output([self.of_solver], cwd=self.path / "boxTurb16")
+            ret = check_output([self.of_solver], cwd=self.path)
             end = datetime.datetime.now()
             run_time = (end - start).total_seconds() - self.init_time
             self.results_accumulator.add(run_time)
             accumulated_time += run_time
-        print(ret)
-
-
-def setup_base_case(test_path, cells):
-    """ """
-    import os
-
-    print("set up base case")
-
-    test_path = test_path / str(cells)
-    print(str(test_path))
-    ensure_path(test_path)
-    foam_tutorials = Path(os.environ["FOAM_TUTORIALS"])
-    case_name = "boxTurb16"
-    foam_base_location = foam_tutorials / "DNS" / "dnsFoam" / case_name
-    base_case = test_path / case_name
-    base_case_system_folder = base_case / "system"
-    print("copying {} to {}".format(foam_base_location, test_path))
-    check_output(["cp", "-r", foam_base_location, test_path])
-
-    new_cells = "{} {} {}".format(cells, cells, cells)
-    blockMeshDict = base_case_system_folder / "blockMeshDict"
-    set_cells(blockMeshDict, "16 16 16", new_cells)
-
-    controlDict = base_case_system_folder / "controlDict"
-    add_libOGL_so(controlDict)
-    set_end_time(controlDict, 0.1)
-    set_deltaT(controlDict, 0.01)
-
-    fvSolution = base_case_system_folder / "fvSolution"
-    clear_solver_settings(fvSolution)
-
-    print("Meshing", base_case)
-    check_output(["blockMesh"], cwd=base_case)
 
 
 def build_parameter_study(test_path, results, executor, solver, setter):
     for (e, s, n) in product(executor, solver, setter):
-        print(e, s, n.prop, n.value)
         # check if path exist and clean is set
-        path = test_path / Path(e[0] + e[2]) / str(n.value)
+        path = test_path / e.local_path / str(n.value)
         exist = os.path.isdir(path)
         skip = False
         clean = arguments["--clean"]
@@ -244,9 +251,8 @@ def build_parameter_study(test_path, results, executor, solver, setter):
         is_base_case = False
         base_case_path = test_path / Path("base") / Path("p") / str(n.value)
 
-        if e[0] == "base":
+        if e.domain == "base":
             print("is base case")
-            base_case_path = test_path / Path("base") / Path("p")
             is_base_case = True
 
         if not skip:
@@ -271,7 +277,7 @@ def resolution_study(name, executor, solver, arguments):
 
     results = Results(arguments["--report"])
 
-    number_of_cells = [8, 16, 32]  # , 64, 128]
+    number_of_cells = [8, 16, 32]
 
     if arguments["--large-cases"]:
         number_of_cells += [64, 128]
@@ -289,7 +295,7 @@ def iterations(name, executor, solver, arguments):
 
     results = Results(arguments["--report"])
 
-    number_of_iters = [10, 100, 1000]  # , 64, 128]
+    number_of_iters = [10, 100, 1000]
 
     n_setters = []
     for n in number_of_iters:
@@ -308,28 +314,42 @@ class ValueSetter:
         setattr(case, "variable", self.value)
 
 
+class Executor:
+    def __init__(self, domain, solver_prefix, executor=None, cmd_prefix=None):
+        self.domain = domain
+        self.prefix = solver_prefix
+        self.executor = executor
+        self.cmd_prefix = cmd_prefix
+
+    @property
+    def local_path(self):
+        path = self.domain
+        if self.executor:
+            path += self.executor
+        return Path(path)
+
+
 if __name__ == "__main__":
 
     arguments = docopt(__doc__, version="runBench 0.1")
 
-    # TODO replace by class
-    executor = [("base", "", "")]
+    executor = [Executor("base", "", "")]
 
     solver = ["CG", "BiCGStab"]
 
-    preconditioner = []  # "none", "Jacobi"]
+    preconditioner = []
 
     if arguments["--cuda"]:
-        executor.append(("GKO", "GKO", "CUDA"))
+        executor.append(Executor("GKO", "GKO", "CUDA"))
 
     if arguments["--of"]:
-        executor.append(("OF", "P", ""))
+        executor.append(Executor("OF", "P", ""))
 
     if arguments["--ref"]:
-        executor.append(("GKO", "GKO", "ref"))
+        executor.append(Executor("GKO", "GKO", "ref"))
 
     if arguments["--omp"]:
-        executor.append(("GKO", "GKO", "OMP"))
+        executor.append(Executor("GKO", "GKO", "OMP"))
 
     resolution_study("number_of_cells", executor, solver, arguments)
     iterations("number_of_iters", executor, solver, arguments)

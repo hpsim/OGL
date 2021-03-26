@@ -28,15 +28,7 @@ SourceFiles
 #ifndef GKO_LDUBase_H
 #define GKO_LDUBase_H
 
-#define SIMPLE_TIME(NAME, F)                                            \
-    auto start_##NAME = std::chrono::steady_clock::now();               \
-    F auto end_##NAME = std::chrono::steady_clock::now();               \
-    std::cout << "Gingko " #NAME " : "                                  \
-              << std::chrono::duration_cast<std::chrono::milliseconds>( \
-                     end_##NAME - start_##NAME)                         \
-                     .count()                                           \
-              << " ms\n";
-
+#include "../common/common.H"
 #include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -49,263 +41,191 @@ namespace Foam {
 
 template <class Type, class LDUType, class SolverFactory>
 class GKOLduBaseSolver : public LduMatrix<Type, LDUType, LDUType>::solver,
-                         public SolverFactory {
+                         public SolverFactory,
+                         public lduLduCommonBase {
 public:
-    // Some shortcuts
-    using IndexType = label;
-    using vec = gko::matrix::Dense<scalar>;
-    using mtx = gko::matrix::Coo<scalar>;
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
-    using cg = gko::solver::Cg<scalar>;
+  // Some shortcuts
+  using IndexType = label;
+  using vec = gko::matrix::Dense<scalar>;
+  using mtx = gko::matrix::Coo<scalar>;
+  using val_array = gko::Array<scalar>;
+  using idx_array = gko::Array<label>;
+  using cg = gko::solver::Cg<scalar>;
 
 private:
-    const label maxIterI_;
-
-    // TODO implement min iter
-    const label minIterI_;
-
-    const scalar toleranceI_;
-
-    const scalar relTol_;
-
-    // executor where Ginkgo will perform the computation
-    std::shared_ptr<gko::Executor> exec_;
-
-    // executor of the application
-    std::shared_ptr<gko::Executor> app_exec_;
-
-    label nCells_;
-
-    label nNeighbours_;
-
-    label nElems_;
-
-    bool export_;
-
-    // for now a copy of the OF matrix is stored
-    // to keep values contiguous in memory
-public:
-    std::vector<scalar> sorting_idxs_;
-
-    mutable std::vector<scalar> values_;
-
-    mutable std::vector<label> col_idxs_;
-
-    mutable std::vector<label> row_idxs_;
+  // for now a copy of the OF matrix is stored
+  // to keep values contiguous in memory
+  // executor where Ginkgo will perform the computation
 
 public:
-    //- Construct from matrix components and solver controls
-    GKOLduBaseSolver(const word &fieldName,
-                     const LduMatrix<Type, LDUType, LDUType> &matrix,
-                     const dictionary &solverControls)
-        : LduMatrix<Type, LDUType, LDUType>::solver(fieldName, matrix,
-                                                    solverControls),
-          SolverFactory(this->controlDict_),
-          maxIterI_(this->controlDict_.lookupOrDefault("maxIter", label(1000))),
-          minIterI_(this->controlDict_.lookupOrDefault("minIter", label(0))),
-          toleranceI_(
-              this->controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
-          relTol_(this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)))
-    {
-        // create executors
-        auto executor_string =
-            this->controlDict_.lookupOrDefault("executor", word("reference"));
-        auto app_executor_string = this->controlDict_.lookupOrDefault(
-            "app_executor", word("reference"));
+  std::vector<scalar> sorting_idxs_;
 
+  mutable std::vector<scalar> values_;
 
-        const auto omp = gko::OmpExecutor::create();
+  mutable std::vector<label> col_idxs_;
 
-        std::map<std::string, std::function<std::shared_ptr<gko::Executor>()>>
-            exec_map{
-                {"omp", [&omp] { return omp; }},
-                {"cuda",
-                 [&omp] { return gko::CudaExecutor::create(0, omp, true); }},
-                {"hip",
-                 [&omp] { return gko::HipExecutor::create(0, omp, true); }},
-                {"reference",
-                 [&omp] { return gko::ReferenceExecutor::create(); }}};
+  mutable std::vector<label> row_idxs_;
 
-        exec_ = exec_map.at(executor_string)();
+public:
+  //- Construct from matrix components and solver controls
+  GKOLduBaseSolver(const word &fieldName,
+                   const LduMatrix<Type, LDUType, LDUType> &matrix,
+                   const dictionary &solverControls)
+      : LduMatrix<Type, LDUType, LDUType>::solver(fieldName, matrix,
+                                                  solverControls),
+        SolverFactory(this->controlDict_),
+        lduLduCommonBase(
+            this->controlDict_.lookupOrDefault("maxIter", label(1000)),
+            this->controlDict_.lookupOrDefault("minIter", label(0)),
+            this->controlDict_.lookupOrDefault("tolerance", scalar(1e-6)),
+            this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)),
+            matrix.diag().size(), matrix.lduAddr().upperAddr().size(),
+            solverControls) {
+    SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
 
-        if (executor_string == app_executor_string) {
-            app_exec_ = exec_;
-        } else {
-            app_exec_ = exec_map.at(app_executor_string)();
-        }
+    // SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
 
-        SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+    // SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+  };
 
-        // SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
+  const std::vector<scalar> &vals() const { return values_; };
 
-        // SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
-    };
+  const std::vector<label> &col_idx() const { return col_idxs_; };
 
-    std::shared_ptr<gko::Executor> exec() const { return exec_; };
+  const std::vector<label> &row_idx() const { return row_idxs_; };
 
-    std::shared_ptr<gko::Executor> app_exec() const { return app_exec_; };
+  // NOTE move to base lduLduBase
+  void update_GKOMatrix() const {
+    // reset vectors
+    values_.resize(0);
+    col_idxs_.resize(0);
+    row_idxs_.resize(0);
 
-    const label nCells() const { return nCells_; };
+    values_.reserve(nElems());
 
-    const label nElems() const { return nElems_; };
+    col_idxs_.reserve(nElems());
+    row_idxs_.reserve(nElems());
 
-    const std::vector<scalar> &vals() const { return values_; };
+    // fill vectors unsorted
+    for (IndexType i = 0; i < nNeighbours(); ++i) {
+      values_.push_back(this->matrix_.lower()[i]);
+      row_idxs_.push_back(this->matrix_.lduAddr().lowerAddr()[i]);
+      col_idxs_.push_back(this->matrix_.lduAddr().upperAddr()[i]);
+    }
 
-    const std::vector<label> &col_idx() const { return col_idxs_; };
-    const std::vector<label> &row_idx() const { return row_idxs_; };
+    for (IndexType i = 0; i < nCells(); ++i) {
+      values_.push_back(this->matrix_.diag()[i]);
 
-    void update_GKOMatrix() const
-    {
-        // reset vectors
-        values_.resize(0);
-        col_idxs_.resize(0);
-        row_idxs_.resize(0);
+      col_idxs_.push_back(i);
+      row_idxs_.push_back(i);
+    }
 
-        values_.reserve(nElems_);
+    for (IndexType i = 0; i < nNeighbours(); ++i) {
+      values_.push_back(this->matrix_.upper()[i]);
 
-        col_idxs_.reserve(nElems_);
-        row_idxs_.reserve(nElems_);
+      row_idxs_.push_back(this->matrix_.lduAddr().upperAddr()[i]);
+      col_idxs_.push_back(this->matrix_.lduAddr().lowerAddr()[i]);
+    }
+  };
 
-        // fill vectors unsorted
-        for (IndexType i = 0; i < nNeighbours_; ++i) {
-            values_.push_back(this->matrix_.lower()[i]);
-            row_idxs_.push_back(this->matrix_.lduAddr().lowerAddr()[i]);
-            col_idxs_.push_back(this->matrix_.lduAddr().upperAddr()[i]);
-        }
+  scalar compute_residual(mtx *const A, vec *const x, vec *const b) const {
+    auto one = gko::initialize<vec>({1.0}, exec());
+    auto neg_one = gko::initialize<vec>({-1.0}, exec());
+    auto res = gko::initialize<vec>({0.0}, exec());
+    A->apply(lend(one), lend(x), lend(neg_one), lend(b));
+    b->compute_norm2(lend(res));
 
-        for (IndexType i = 0; i < nCells_; ++i) {
-            values_.push_back(this->matrix_.diag()[i]);
+    return res->at(0);
+  };
 
-            col_idxs_.push_back(i);
-            row_idxs_.push_back(i);
-        }
+  virtual SolverPerformance<Type> solve_impl(Field<Type> &psi) const {
+    // --- Setup class containing solver performance data
+    // Implement
+    word preconditionerName(this->controlDict_.lookup("preconditioner"));
 
-        for (IndexType i = 0; i < nNeighbours_; ++i) {
-            values_.push_back(this->matrix_.upper()[i]);
+    SolverPerformance<Type> solverPerf(preconditionerName, this->fieldName_);
 
-            row_idxs_.push_back(this->matrix_.lduAddr().upperAddr()[i]);
-            col_idxs_.push_back(this->matrix_.lduAddr().lowerAddr()[i]);
-        }
-    };
+    auto source_view_x =
+        val_array::view(app_exec(), 3 * nCells(),
+                        const_cast<scalar *>(&this->matrix_.source()[0].x()));
+    auto source_view_y =
+        val_array::view(app_exec(), 3 * nCells(),
+                        const_cast<scalar *>(&this->matrix_.source()[0].y()));
+    auto source_view_z =
+        val_array::view(app_exec(), 3 * nCells(),
+                        const_cast<scalar *>(&this->matrix_.source()[0].z()));
 
+    auto b_x =
+        vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_x, 3);
+    auto b_y =
+        vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_y, 3);
+    auto b_z =
+        vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_z, 3);
 
-    scalar compute_residual(mtx *const A, vec *const x, vec *const b) const
-    {
-        auto one = gko::initialize<vec>({1.0}, exec());
-        auto neg_one = gko::initialize<vec>({-1.0}, exec());
-        auto res = gko::initialize<vec>({0.0}, exec());
-        A->apply(lend(one), lend(x), lend(neg_one), lend(b));
-        b->compute_norm2(lend(res));
+    auto psi_view_x = val_array::view(app_exec(), 3 * nCells(),
+                                      const_cast<scalar *>(&psi[0].x()));
+    auto psi_view_y = val_array::view(app_exec(), 3 * nCells(),
+                                      const_cast<scalar *>(&psi[0].y()));
+    auto psi_view_z = val_array::view(app_exec(), 3 * nCells(),
+                                      const_cast<scalar *>(&psi[0].z()));
 
-        return res->at(0);
-    };
+    auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_x, 3);
+    auto y = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_y, 3);
+    auto z = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_z, 3);
 
-    virtual SolverPerformance<Type> solve_impl(Field<Type> &psi) const
-    {
-        // --- Setup class containing solver performance data
-        // Implement
-        word preconditionerName(this->controlDict_.lookup("preconditioner"));
+    std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        criterion_vec{};
 
-        SolverPerformance<Type> solverPerf(preconditionerName,
-                                           this->fieldName_);
+    auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
+                              .with_tolerance(tolerance())
+                              .on(exec());
 
-        auto source_view_x = val_array::view(
-            app_exec(), 3 * nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].x()));
-        auto source_view_y = val_array::view(
-            app_exec(), 3 * nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].y()));
-        auto source_view_z = val_array::view(
-            app_exec(), 3 * nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].z()));
+    // NOTE currently minIter
+    // TODO move to base class
+    if (minIter() == 0) {
+      auto max_iter_stop =
+          gko::stop::Iteration::build().with_max_iters(maxIter()).on(exec());
+      criterion_vec.push_back(gko::share(tolerance_stop));
+      criterion_vec.push_back(gko::share(max_iter_stop));
+    } else {
+      auto max_iter_stop =
+          gko::stop::Iteration::build().with_max_iters(minIter()).on(exec());
+      criterion_vec.push_back(gko::share(max_iter_stop));
+    }
 
-        auto b_x =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_x, 3);
-        auto b_y =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_y, 3);
-        auto b_z =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view_z, 3);
+    // Generate solver
+    auto solver_gen = this->create_solver(exec(), criterion_vec);
 
-        auto psi_view_x = val_array::view(app_exec(), 3 * nCells(),
-                                          const_cast<scalar *>(&psi[0].x()));
-        auto psi_view_y = val_array::view(app_exec(), 3 * nCells(),
-                                          const_cast<scalar *>(&psi[0].y()));
-        auto psi_view_z = val_array::view(app_exec(), 3 * nCells(),
-                                          const_cast<scalar *>(&psi[0].z()));
+    auto gkomatrix = gko::give(
+        mtx::create(exec(), gko::dim<2>(nCells()),
+                    val_array::view(app_exec(), nElems(), &values_[0]),
+                    idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+                    idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
-        auto x =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_x, 3);
-        auto y =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_y, 3);
-        auto z =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view_z, 3);
+    auto solver = solver_gen->generate(gko::give(gkomatrix));
 
+    SIMPLE_TIME(solve_x, solver->apply(gko::lend(b_x), gko::lend(x));)
+    SIMPLE_TIME(solve_y, solver->apply(gko::lend(b_y), gko::lend(y));)
+    SIMPLE_TIME(solve_z, solver->apply(gko::lend(b_z), gko::lend(z));)
 
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec{};
+    auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
+    auto x_clone = vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
 
-        auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
-                                  .with_tolerance(toleranceI_)
-                                  .on(exec());
+    auto y_view = val_array::view(app_exec(), nCells(), y->get_values());
+    auto y_clone = vec::create(app_exec(), gko::dim<2>(nCells(), 1), y_view, 1);
 
-        // NOTE currently minIter
-        // TODO move to base class
-        if (minIterI_ == 0) {
-            auto max_iter_stop =
-                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
-                    exec());
-            criterion_vec.push_back(gko::share(tolerance_stop));
-            criterion_vec.push_back(gko::share(max_iter_stop));
-        } else {
-            auto max_iter_stop =
-                gko::stop::Iteration::build().with_max_iters(minIterI_).on(
-                    exec());
-            criterion_vec.push_back(gko::share(max_iter_stop));
-        }
+    auto z_view = val_array::view(app_exec(), nCells(), z->get_values());
+    auto z_clone = vec::create(app_exec(), gko::dim<2>(nCells(), 1), z_view, 1);
 
-        // Generate solver
-        auto solver_gen = this->create_solver(exec(), criterion_vec);
+    for (size_t i = 0; i < nCells(); i++) {
+      psi[i].x() = x_clone->at(i);
+      psi[i].y() = y_clone->at(i);
+      psi[i].z() = z_clone->at(i);
+    }
 
-        auto gkomatrix = gko::give(
-            mtx::create(exec(), gko::dim<2>(nCells()),
-                        val_array::view(app_exec(), nElems(), &values_[0]),
-                        idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
-                        idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
-
-
-        auto solver = solver_gen->generate(gko::give(gkomatrix));
-
-        SIMPLE_TIME(solve_x, solver->apply(gko::lend(b_x), gko::lend(x));)
-        SIMPLE_TIME(solve_y, solver->apply(gko::lend(b_y), gko::lend(y));)
-        SIMPLE_TIME(solve_z, solver->apply(gko::lend(b_z), gko::lend(z));)
-
-        auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
-        auto x_clone =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
-
-        auto y_view = val_array::view(app_exec(), nCells(), y->get_values());
-        auto y_clone =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), y_view, 1);
-
-        auto z_view = val_array::view(app_exec(), nCells(), z->get_values());
-        auto z_clone =
-            vec::create(app_exec(), gko::dim<2>(nCells(), 1), z_view, 1);
-
-
-        for (size_t i = 0; i < nCells(); i++) {
-            psi[i].x() = x_clone->at(i);
-            psi[i].y() = y_clone->at(i);
-            psi[i].z() = z_clone->at(i);
-        }
-
-        return solverPerf;
-    };
+    return solverPerf;
+  };
 };
-}  // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+} // End namespace Foam
 
 #endif
-
-// ************************************************************************* //
