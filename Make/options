@@ -1,6 +1,6 @@
 EXE_INC = \
 	-I/home/kit/scc/nq7776/code/ginkgo/build/include \
-	-L/home/kit/scc/nq7776/code/ginkgo/build/lib
+	-L/home/kit/scc/nq7776/code/ginkgo/build/lib  -std=c++14
 
 LIB_LIBS = \
 	-lginkgo

@@ -78,20 +78,24 @@ protected:
                     bool *one_changed,
                     const Criterion::Updater &updater) override
     {
-        vec *res;
         auto *dense_r = gko::as<vec>(updater.residual_);
+        auto res = vec::create(dense_r->get_executor()->get_master(),
+                               gko::dim<2>{1, 1});
         auto vec_abs = gko::clone(dense_r);
         const label cells = dense_r->get_size()[0];
         vec_abs->compute_absolute();
-        auto unit_t vec::create(dense_r->get_executor(),
-                                gko::dim<2>{cells, 1}());
-        unit_t->fill(1.0);
+        auto unit = vec::create(dense_r->get_executor(), gko::dim<2>{cells, 1});
+        unit->fill(1.0);
 
+        const auto unit_t = unit->transpose();
 
-        vec_abs->apply(unit_t->transpose(), res);
+        vec_abs->compute_dot(gko::lend(unit_t), gko::lend(res));
 
+        printf("res %f, ", res->at(0));
+        bool result = false;
 
-        bool result = true;
+        if (res->at(0) < parameters_.openfoam_absolute_tolerance) result = true;
+
 
         if (result) {
             this->set_all_statuses(stoppingId, setFinalized, stop_status);
