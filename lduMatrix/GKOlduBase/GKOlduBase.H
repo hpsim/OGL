@@ -226,6 +226,10 @@ public:
     solverPerformance solverPerf(
         lduMatrix::preconditioner::getName(controlDict_) + typeName,
         fieldName_);
+    scalarField pA(nCells());
+    scalarField wA(nCells());
+    matrix_.Amul(wA, psi, interfaceBouCoeffs_, interfaces_, cmpt);
+    scalar norm_factor = this->normFactor(psi, source, wA, pA);
 
     auto psi_view =
         val_array::view(app_exec(), nCells(), const_cast<scalar *>(&psi[0]));
@@ -245,16 +249,24 @@ public:
 
     // NOTE currently minIter
     // TODO move to base class
-    if (minIter() == 0) {
-      auto max_iter_stop =
-          gko::stop::Iteration::build().with_max_iters(maxIter()).on(exec());
-      criterion_vec.push_back(gko::share(tolerance_stop));
-      criterion_vec.push_back(gko::share(max_iter_stop));
-    } else {
-      auto max_iter_stop =
-          gko::stop::Iteration::build().with_max_iters(minIter()).on(exec());
-      criterion_vec.push_back(gko::share(max_iter_stop));
-    }
+    // if (minIter() == 0) {
+    //   auto max_iter_stop =
+    //       gko::stop::Iteration::build().with_max_iters(maxIter()).on(exec());
+    //   criterion_vec.push_back(gko::share(tolerance_stop));
+    //   criterion_vec.push_back(gko::share(max_iter_stop));
+    // } else {
+    //   auto max_iter_stop =
+    //       gko::stop::Iteration::build().with_max_iters(minIter()).on(exec());
+    //   criterion_vec.push_back(gko::share(max_iter_stop));
+    // }
+    std::cout << "norm_factor " << norm_factor << std::endl;
+    criterion_vec.push_back(OpenFOAMStoppingCriterion::build()
+                                .with_openfoam_absolute_tolerance(tolerance())
+                                .with_openfoam_relative_tolerance(0)
+                                .with_openfoam_norm_factor(norm_factor)
+                                .with_openfoam_minIter(minIter())
+                                .with_openfoam_maxIter(maxIter())
+                                .on(exec()));
 
     // Generate solver
     auto solver_gen = this->create_solver(exec(), criterion_vec);
