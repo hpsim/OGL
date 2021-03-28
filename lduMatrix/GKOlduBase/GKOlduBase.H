@@ -84,8 +84,8 @@ public:
 
   // for now a copy of the OF matrix is stored
   // to keep values contiguous in memory
-public:
-  std::vector<scalar> sorting_idxs_;
+private:
+  labelField *sorting_idxs_;
 
   mutable std::vector<scalar> values_;
 
@@ -110,7 +110,16 @@ public:
             this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)),
             matrix.diag().size(), matrix.lduAddr().upperAddr().size(),
             controlDict_) {
-    // create executors
+    // check object registry if sorting idxs exists
+
+    word sorting_idxs_name = "sorting_idxs_";
+    objectRegistry &registry = matrix.mesh().thisDb();
+    if (registry.foundObject(sorting_idxs_name)) {
+      sorting_idxs_ = &registry.lookUpObjectRef(sorting_idxs_name);
+    } else {
+      Info << "construct and register sorting idxs" << endl;
+    }
+
     SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
 
     SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
