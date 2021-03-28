@@ -117,7 +117,7 @@ class Case:
         base_case=None,
         resolution=32,
         results=None,
-        iterations=100,
+        iterations=0,
         is_base_case=False,
         of_tutorial_domain="DNS",
         of_solver="dnsFoam",
@@ -177,12 +177,13 @@ class Case:
     def base_case_path(self):
         if self.is_base_case:
             foam_tutorials = Path(os.environ["FOAM_TUTORIALS"])
-            return (
-                foam_tutorials
-                / self.of_tutorial_domain
-                / self.of_solver
-                / self.of_tutorial_case
-            )
+            # return (
+            #     foam_tutorials
+            #     / self.of_tutorial_domain
+            #     / self.of_solver
+            #     / self.of_tutorial_case
+            # )
+            return Path("Test") / self.of_tutorial_case
         return self.base_case_path_ / self.of_base_case
 
     @property
@@ -224,9 +225,9 @@ class Case:
             resolution=self.resolution,
         )
         accumulated_time = 0
-        max_time = 2 * 60
+        max_time = 2.0 * 60.0
         iters = 0
-        while accumulated_time < max_time and iters < 10:
+        while accumulated_time < max_time or iters < 10:
             iters += 1
             start = datetime.datetime.now()
             ret = check_output([self.of_solver], cwd=self.path)
@@ -289,21 +290,6 @@ def resolution_study(name, executor, solver, arguments):
     build_parameter_study(test_path, results, executor, solver, n_setters)
 
 
-def iterations(name, executor, solver, arguments):
-
-    test_path = Path(arguments["--folder"]) / name
-
-    results = Results(arguments["--report"])
-
-    number_of_iters = [10, 100, 1000]
-
-    n_setters = []
-    for n in number_of_iters:
-        n_setters.append(ValueSetter("iterations", n))
-
-    build_parameter_study(test_path, results, executor, solver, n_setters)
-
-
 class ValueSetter:
     def __init__(self, prop, value):
         self.prop = prop
@@ -352,4 +338,3 @@ if __name__ == "__main__":
         executor.append(Executor("GKO", "GKO", "OMP"))
 
     resolution_study("number_of_cells", executor, solver, arguments)
-    iterations("number_of_iters", executor, solver, arguments)

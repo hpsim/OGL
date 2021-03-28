@@ -50,6 +50,9 @@ class OpenFOAMStoppingCriterion
   using Criterion = gko::stop::Criterion;
   using vec = gko::matrix::Dense<scalar>;
 
+private:
+  label iter_ = 0;
+
 public:
   GKO_CREATE_FACTORY_PARAMETERS(parameters, Factory) {
     /**
@@ -75,6 +78,7 @@ protected:
                   gko::Array<gko::stopping_status> *stop_status,
                   bool *one_changed,
                   const Criterion::Updater &updater) override {
+    iter_++;
 
     auto *dense_r = gko::as<vec>(updater.residual_);
     auto exec = dense_r->get_executor();
@@ -92,12 +96,15 @@ protected:
     auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
     res_host->copy_from(gko::lend(res));
 
-    std::cout << "res " << res->at(0) / parameters_.openfoam_norm_factor << ", "
-              << std::endl;
     bool result = false;
 
-    if (res->at(0) / parameters_.openfoam_norm_factor <
-        parameters_.openfoam_absolute_tolerance) {
+    if ((res->at(0) / parameters_.openfoam_norm_factor <
+         parameters_.openfoam_absolute_tolerance) &&
+        (iter_++ >= parameters_.openfoam_minIter)) {
+      result = true;
+    }
+
+    if (iter_ >= parameters_.openfoam_maxIter) {
       result = true;
     }
 

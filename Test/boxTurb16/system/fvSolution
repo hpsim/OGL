@@ -17,7 +17,8 @@ FoamFile
 
 solvers
 {
-p{solver GKOCG;tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;minIter 100; maxIter 10000;
+    p{
+    solver GKOCG;tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;minIter 0; maxIter 10000;
     }
 
     U
