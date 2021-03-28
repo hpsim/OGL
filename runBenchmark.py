@@ -10,12 +10,12 @@
         -v --version        Print version and exit
         --folder=<folder>   Target folder  [default: Test].
         --report=<filename> Target file to store stats [default: report.csv].
-        --of (True|False)   Generate default of cases [default: False].
-        --ref (True|False)  Generate ref cases [default: False].
-        --cuda (True|False) Generate cuda cases [default: False].
-        --omp (True|False)  Generate omp cases [default: False].
-        --clean (True|False) Remove existing cases [default: False].
-        --large-cases (True|False) Include large cases [default: False].
+        --of                Generate default of cases [default: False].
+        --ref               Generate ref cases [default: False].
+        --cuda              Generate cuda cases [default: False].
+        --omp               Generate omp cases [default: False].
+        --clean             Remove existing cases [default: False].
+        --large-cases       Include large cases [default: False].
 
 """
 from docopt import docopt
@@ -158,14 +158,15 @@ class Case:
     def create(self):
         ensure_path(self.parent_path)
         self.copy_base(self.base_case_path, self.parent_path)
+        deltaT = 0.1 * 16 / self.resolution
         if self.is_base_case:
             new_cells = "{} {} {}".format(
                 self.resolution, self.resolution, self.resolution
             )
             set_cells(self.blockMeshDict, "16 16 16", new_cells)
             add_libOGL_so(self.controlDict)
-            set_end_time(self.controlDict, 0.1)
-            set_deltaT(self.controlDict, 0.01)
+            set_end_time(self.controlDict, 10 * deltaT)
+            set_deltaT(self.controlDict, deltaT)
             clear_solver_settings(self.fvSolution)
             print("Meshing", self.path)
             check_output(["blockMesh"], cwd=self.path)
@@ -225,9 +226,9 @@ class Case:
             resolution=self.resolution,
         )
         accumulated_time = 0
-        max_time = 2.0 * 60.0
+        max_time = 100.0
         iters = 0
-        while accumulated_time < max_time or iters < 10:
+        while accumulated_time < max_time or iters < 3:
             iters += 1
             start = datetime.datetime.now()
             ret = check_output([self.of_solver], cwd=self.path)
