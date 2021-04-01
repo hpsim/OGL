@@ -122,6 +122,8 @@ public:
       set_is_sorted(false);
     }
 
+    Info << " is symmetric " << matrix.symmetric() << endl;
+
     if (get_update_sys_matrix()) {
       SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
     }
@@ -267,18 +269,6 @@ public:
     std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
         criterion_vec{};
 
-    // NOTE currently minIter
-    // TODO move to base class
-    // if (minIter() == 0) {
-    //   auto max_iter_stop =
-    //       gko::stop::Iteration::build().with_max_iters(maxIter()).on(exec());
-    //   criterion_vec.push_back(gko::share(tolerance_stop));
-    //   criterion_vec.push_back(gko::share(max_iter_stop));
-    // } else {
-    //   auto max_iter_stop =
-    //       gko::stop::Iteration::build().with_max_iters(minIter()).on(exec());
-    //   criterion_vec.push_back(gko::share(max_iter_stop));
-    // }
     std::cout << "norm_factor " << norm_factor << std::endl;
     criterion_vec.push_back(OpenFOAMStoppingCriterion::build()
                                 .with_openfoam_absolute_tolerance(tolerance())
@@ -299,14 +289,14 @@ public:
     // from this factory.
     solver_gen->add_logger(logger);
 
-    auto gkomatrix = gko::give(
+    std::shared_ptr<mtx> gkomatrix = gko::share(
         mtx::create(exec(), gko::dim<2>(nCells()),
                     val_array::view(app_exec(), nElems(), &values_[0]),
                     idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
                     idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
     // TODO refactor this to separate function
-    // if (export())
+    // if (get_export())
     //   export_system(gko::lend(gkomatrix), gko::lend(x),
     //   gko::lend(b));
 

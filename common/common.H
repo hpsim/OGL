@@ -174,7 +174,7 @@ public:
         nCells_(nCells), nNeighbours_(nNeighbours),
         nElems_(nCells_ + 2 * nNeighbours_),
         export_(controlDict.lookupOrDefault<bool>("export", false)),
-        sort_(controlDict.lookupOrDefault<bool>("true", false)) {
+        sort_(controlDict.lookupOrDefault<bool>("sort", true)) {
     // create executors
     auto executor_string =
         controlDict.lookupOrDefault("executor", word("reference"));
