@@ -15,8 +15,13 @@
         --cuda              Generate cuda cases [default: False].
         --omp               Generate omp cases [default: False].
         --clean             Remove existing cases [default: False].
+        --cg                Remove existing cases [default: False].
+        --bicgstab          Remove existing cases [default: False].
+        --small-cases       Include small cases [default: False].
         --large-cases       Include large cases [default: False].
-
+        --very-large-cases  nclude large cases [default: False].
+        --min_runs=<n>      Number of applications runs [default: 5]
+        --run_time=<s>      Time to applications runs [default: 60]
 """
 from docopt import docopt
 from subprocess import check_output
@@ -39,7 +44,8 @@ class Results:
             "run_time",
         ]
         self.current_col_vals = []
-        self.report_handle = open(self.fn, "a+")
+        self.report_handle = open(self.fn, "a+", 1)
+        self.report_handle.write(",".join(self.columns) + "\n")
 
     def set_case(self, domain, executor, solver, number_of_iterations, resolution):
         self.current_col_vals = [
@@ -128,6 +134,7 @@ class Case:
         self.test_base = test_base
         self.of_base_case = "boxTurb16"
         self.fields = "p"
+        self.tolerance = "1e-12"
         self.resolution = resolution
         self.executor = executor
         self.solver = solver
@@ -209,13 +216,15 @@ class Case:
         matrix_solver = self.executor.prefix + self.solver
         solver_str = (
             "p{"
-            + "solver {};tolerance 1e-06; relTol 0.0;smoother none;preconditioner none;minIter {}; maxIter 10000;".format(
-                matrix_solver, self.iterations
+            + "solver {};tolerance {}; relTol 0.0;smoother none;preconditioner none;minIter {}; maxIter 10000;".format(
+                matrix_solver, 
+                self.tolerance,
+                self.iterations
             )
         )
         sed(fn, "p{}", solver_str)
 
-    def run(self, results_accumulator):
+    def run(self, results_accumulator, min_runs, time_runs):
         if self.is_base_case:
             return
         self.results_accumulator.set_case(
@@ -226,9 +235,8 @@ class Case:
             resolution=self.resolution,
         )
         accumulated_time = 0
-        max_time = 100.0
         iters = 0
-        while accumulated_time < max_time or iters < 3:
+        while accumulated_time < time_runs or iters < min_runs:
             iters += 1
             start = datetime.datetime.now()
             ret = check_output([self.of_solver], cwd=self.path)
@@ -238,7 +246,7 @@ class Case:
             accumulated_time += run_time
 
 
-def build_parameter_study(test_path, results, executor, solver, setter):
+def build_parameter_study(test_path, results, executor, solver, setter, arguments):
     for (e, s, n) in product(executor, solver, setter):
         # check if path exist and clean is set
         path = test_path / e.local_path / str(n.value)
@@ -268,7 +276,7 @@ def build_parameter_study(test_path, results, executor, solver, setter):
             )
             n.run(case)
             case.create()
-            case.run(results)
+            case.run(results,int(arguments["--min_runs"]),int(arguments["--run_time"]))
         else:
             print("skipping")
 
@@ -279,16 +287,22 @@ def resolution_study(name, executor, solver, arguments):
 
     results = Results(arguments["--report"])
 
-    number_of_cells = [8, 16, 32]
+    number_of_cells = []
+
+    if arguments["--small-cases"]:
+        number_of_cells += [8, 16, 32]
 
     if arguments["--large-cases"]:
         number_of_cells += [64, 128]
+
+    if arguments["--very-large-cases"]:
+        number_of_cells += [256, 512]
 
     n_setters = []
     for n in number_of_cells:
         n_setters.append(ValueSetter("resolution", n))
 
-    build_parameter_study(test_path, results, executor, solver, n_setters)
+    build_parameter_study(test_path, results, executor, solver, n_setters, arguments)
 
 
 class ValueSetter:
@@ -319,10 +333,17 @@ class Executor:
 if __name__ == "__main__":
 
     arguments = docopt(__doc__, version="runBench 0.1")
+    print(arguments)
 
     executor = [Executor("base", "", "")]
 
-    solver = ["CG", "BiCGStab"]
+    solver = []
+
+    if arguments["--cg"]:
+      solver.append("CG")
+
+    if arguments["--bicgstab"]:
+      solver.append("BiCGStab")
 
     preconditioner = []
 

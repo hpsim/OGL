@@ -27,8 +27,8 @@ SourceFiles
 
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
-
 #include "../common/common.H"
+#include "fvCFD.H"
 #include "lduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -82,11 +82,11 @@ public:
   using idx_array = gko::Array<label>;
   using cg = gko::solver::Cg<scalar>;
 
+  IOField<label> *sorting_idxs_ = NULL;
+
   // for now a copy of the OF matrix is stored
   // to keep values contiguous in memory
-private:
-  labelField *sorting_idxs_;
-
+public:
   mutable std::vector<scalar> values_;
 
   mutable std::vector<label> col_idxs_;
@@ -103,41 +103,52 @@ public:
       : lduMatrix::solver(fieldName, matrix, interfaceBouCoeffs,
                           interfaceIntCoeffs, interfaces, solverControls),
         SolverFactory(controlDict_),
-        lduLduCommonBase(
-            this->controlDict_.lookupOrDefault("maxIter", label(1000)),
-            this->controlDict_.lookupOrDefault("minIter", label(0)),
-            this->controlDict_.lookupOrDefault("tolerance", scalar(1e-6)),
-            this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)),
-            matrix.diag().size(), matrix.lduAddr().upperAddr().size(),
-            controlDict_) {
+        lduLduCommonBase(matrix.diag().size(),
+                         matrix.lduAddr().upperAddr().size(), controlDict_) {
     // check object registry if sorting idxs exists
 
     word sorting_idxs_name = "sorting_idxs_";
-    objectRegistry &registry = matrix.mesh().thisDb();
-    if (registry.foundObject(sorting_idxs_name)) {
-      sorting_idxs_ = &registry.lookUpObjectRef(sorting_idxs_name);
+    const objectRegistry &db = matrix.mesh().thisDb();
+    if (db.foundObject<IOField<label>>(sorting_idxs_name)) {
+      Info << "found sorting idxs" << endl;
+      IOField<label> &labelListRef =
+          db.lookupObjectRef<IOField<label>>(sorting_idxs_name);
+      sorting_idxs_ = &labelListRef;
+      set_is_sorted(true);
     } else {
       Info << "construct and register sorting idxs" << endl;
+      const fileName path = sorting_idxs_name;
+      sorting_idxs_ = new IOField<label>(IOobject(path, db));
+      set_is_sorted(false);
     }
 
-    SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+    if (get_update_sys_matrix()) {
+      SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+    }
 
-    SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
-
-    SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+    if (!get_is_sorted()) {
+      SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
+    }
+    if (get_sort()) {
+      SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+    }
   };
 
   void compute_sorting_idxs() {
     // initialize original index locations
-    sorting_idxs_.resize(nElems());
-    iota(sorting_idxs_.begin(), sorting_idxs_.end(), 0);
+    sorting_idxs_->resize(nElems());
+
+    // set sorting idxs from 0 .. n
+    for (int i; i < nCells(); i++) {
+      sorting_idxs_->operator[](i) = i;
+    }
 
     // sort indexes based on comparing values in v
     // using std::stable_sort instead of std::sort
     // to avoid unnecessary index re-orderings
     // when v contains elements of equal values
-    stable_sort(
-        sorting_idxs_.begin(), sorting_idxs_.end(),
+    std::stable_sort(
+        sorting_idxs_->data(), &sorting_idxs_->data()[nCells()],
         [this](size_t i1, size_t i2) { return row_idxs_[i1] < row_idxs_[i2]; });
   };
 
@@ -192,7 +203,7 @@ public:
 
     // TODO parallelise
     for (label i = 0; i < nElems(); i++) {
-      label j = sorting_idxs_[i];
+      label j = sorting_idxs_->operator[](i);
       values_[i] = tmp_values[j];
       col_idxs_[i] = tmp_col_idxs[j];
       row_idxs_[i] = tmp_row_idxs[j];
@@ -283,9 +294,9 @@ public:
     // Instantiate a ResidualLogger logger.
     auto logger = std::make_shared<IterationLogger>(exec());
 
-    // Add the previously created logger to the solver factory. The logger
-    // will be automatically propagated to all solvers created from this
-    // factory.
+    // Add the previously created logger to the solver factory. The
+    // logger will be automatically propagated to all solvers created
+    // from this factory.
     solver_gen->add_logger(logger);
 
     auto gkomatrix = gko::give(
@@ -296,7 +307,8 @@ public:
 
     // TODO refactor this to separate function
     // if (export())
-    //   export_system(gko::lend(gkomatrix), gko::lend(x), gko::lend(b));
+    //   export_system(gko::lend(gkomatrix), gko::lend(x),
+    //   gko::lend(b));
 
     auto b_clone = gko::clone(b);
 
@@ -314,8 +326,9 @@ public:
     b_clone->copy_from(gko::lend(b));
     // auto ginkgo_host_matrix = gko::give(
     //     mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
-    //                 val_array::view(app_exec(), nElems(), &values_[0]),
-    //                 idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+    //                 val_array::view(app_exec(), nElems(),
+    //                 &values_[0]), idx_array::view(app_exec(),
+    //                 nElems(), &col_idxs_[0]),
     //                 idx_array::view(app_exec(), nElems(),
     //                 &row_idxs_[0])));
 
@@ -330,7 +343,8 @@ public:
   };
 };
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// //
 
 } // End namespace Foam
 

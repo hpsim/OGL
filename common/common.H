@@ -129,22 +129,32 @@ protected:
 };
 
 class lduLduCommonBase {
+
   const label maxIter_;
 
-  // TODO implement min iter
   const label minIter_;
 
   const scalar tolerance_;
 
   const scalar relTol_;
 
-  label nCells_;
+  const word update_sysMatrix_;
 
-  label nNeighbours_;
+  const label nCells_;
 
-  label nElems_;
+  const label nNeighbours_;
 
-  bool export_;
+  const label nElems_;
+
+  const bool export_;
+
+  // flag to set wheter the idxs for creating the gko coo matrix
+  // should be sorted
+  bool sort_;
+
+  // if sorting_idxs_ was found in object registry it does not
+  // need to be resorted
+  mutable bool is_sorted_;
 
   // executor where Ginkgo will perform the computation
   std::shared_ptr<gko::Executor> exec_;
@@ -153,12 +163,18 @@ class lduLduCommonBase {
   std::shared_ptr<gko::Executor> app_exec_;
 
 public:
-  lduLduCommonBase(label maxIter, label minIter, scalar tolerance,
-                   scalar relTolerance, label nCells, label nNeighbours,
+  lduLduCommonBase(label nCells, label nNeighbours,
                    const dictionary &controlDict)
-      : maxIter_(maxIter), minIter_(minIter), tolerance_(tolerance),
-        relTol_(relTolerance), nCells_(nCells), nNeighbours_(nNeighbours),
-        export_(controlDict.lookupOrDefault<bool>("export", false)) {
+      : maxIter_(controlDict.lookupOrDefault("maxIter", label(1000))),
+        minIter_(controlDict.lookupOrDefault("minIter", label(0))),
+        tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
+        relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+        update_sysMatrix_(
+            controlDict.lookupOrDefault("updateSysMatrix", word("yes"))),
+        nCells_(nCells), nNeighbours_(nNeighbours),
+        nElems_(nCells_ + 2 * nNeighbours_),
+        export_(controlDict.lookupOrDefault<bool>("export", false)),
+        sort_(controlDict.lookupOrDefault<bool>("true", false)) {
     // create executors
     auto executor_string =
         controlDict.lookupOrDefault("executor", word("reference"));
@@ -182,8 +198,6 @@ public:
     } else {
       app_exec_ = exec_map.at(app_executor_string)();
     }
-
-    nElems_ = nCells_ + 2 * nNeighbours_;
   }
 
   scalar tolerance() const { return tolerance_; }
@@ -198,7 +212,15 @@ public:
 
   const label nNeighbours() const { return nNeighbours_; };
 
+  bool get_update_sys_matrix() const { return update_sysMatrix_ == "yes"; }
+
   bool get_export() const { return export_; }
+
+  bool get_sort() const { return sort_; }
+
+  bool get_is_sorted() const { return is_sorted_; }
+
+  void set_is_sorted(bool is_sorted) const { is_sorted_ = is_sorted; }
 
   std::shared_ptr<gko::Executor> exec() const { return exec_; };
 

@@ -1,5 +1,6 @@
 lduMatrix/GKOlduBase/GKOlduBase.C
 lduMatrix/GKOCG/GKOCG.C
+lduMatrix/GKOIR/GKOIR.C
 lduMatrix/GKOBiCGStab/GKOBiCGStab.C
 LduMatrix/GKOLduBase/GKOLduBase.C
 LduMatrix/GKOACG/GKOACG.C

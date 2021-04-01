@@ -74,19 +74,21 @@ public:
       : LduMatrix<Type, LDUType, LDUType>::solver(fieldName, matrix,
                                                   solverControls),
         SolverFactory(this->controlDict_),
-        lduLduCommonBase(
-            this->controlDict_.lookupOrDefault("maxIter", label(1000)),
-            this->controlDict_.lookupOrDefault("minIter", label(0)),
-            this->controlDict_.lookupOrDefault("tolerance", scalar(1e-6)),
-            this->controlDict_.lookupOrDefault("relTol", scalar(1e-6)),
-            matrix.diag().size(), matrix.lduAddr().upperAddr().size(),
-            solverControls) {
-    SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+        lduLduCommonBase(matrix.diag().size(),
+                         matrix.lduAddr().upperAddr().size(), solverControls) {
 
-    // SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
+    // create executors
+    if (get_update_sys_matrix()) {
+      SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+    }
 
-    // SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
-  };
+    //   if (!get_is_sorted()) {
+    //     SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
+    //   }
+    //   if (get_sort()) {
+    //     SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+    //   }
+  }
 
   const std::vector<scalar> &vals() const { return values_; };
 
