@@ -28,8 +28,10 @@ SourceFiles
 #define OGL_COMMON_H
 
 #include "LduMatrix.H"
+#include "regIOobject.H"
 
 #include <ginkgo/ginkgo.hpp>
+#include <map>
 
 #define SIMPLE_TIME(NAME, F)                                                   \
   auto start_##NAME = std::chrono::steady_clock::now();                        \
@@ -41,6 +43,26 @@ SourceFiles
             << " ms\n";
 
 namespace Foam {
+
+template <class T> class IOPtr : regIOobject {
+
+private:
+  std::shared_ptr<T> ptr_;
+
+public:
+  // - Runtime type information
+  TypeName("IOPtr");
+
+  //- Construct from IOobject and a PtrList
+  IOPtr(const IOobject &io, const std::shared_ptr<T> ptr)
+      : regIOobject(io), ptr_(ptr) {
+    Info << "IOPtr CTR" << endl;
+  };
+
+  std::shared_ptr<T> &get_ptr() { return ptr_; };
+
+  bool writeData(Ostream &) const {};
+};
 
 class OpenFOAMStoppingCriterion
     : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
@@ -162,6 +184,9 @@ class lduLduCommonBase {
   // executor of the application
   std::shared_ptr<gko::Executor> app_exec_;
 
+  // log if sys matrix was update at least once
+  mutable bool sys_matrix_init_update = false;
+
 public:
   lduLduCommonBase(label nCells, label nNeighbours,
                    const dictionary &controlDict)
@@ -212,7 +237,15 @@ public:
 
   const label nNeighbours() const { return nNeighbours_; };
 
-  bool get_update_sys_matrix() const { return update_sysMatrix_ == "yes"; }
+  //
+  bool get_update_sys_matrix() const {
+    if (!sys_matrix_init_update)
+      return true;
+
+    return update_sysMatrix_ == "yes";
+  }
+
+  void set_init_update() const { sys_matrix_init_update = true; };
 
   bool get_export() const { return export_; }
 

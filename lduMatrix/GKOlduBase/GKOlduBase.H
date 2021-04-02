@@ -28,6 +28,8 @@ SourceFiles
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
 #include "../common/common.H"
+
+#include "IOPtrList.H"
 #include "fvCFD.H"
 #include "lduMatrix.H"
 
@@ -84,6 +86,8 @@ public:
 
   IOField<label> *sorting_idxs_ = NULL;
 
+  std::shared_ptr<mtx> gkomatrix = NULL;
+
   // for now a copy of the OF matrix is stored
   // to keep values contiguous in memory
 public:
@@ -105,8 +109,8 @@ public:
         SolverFactory(controlDict_),
         lduLduCommonBase(matrix.diag().size(),
                          matrix.lduAddr().upperAddr().size(), controlDict_) {
-    // check object registry if sorting idxs exists
 
+    // check object registry if sorting idxs exists
     word sorting_idxs_name = "sorting_idxs_";
     const objectRegistry &db = matrix.mesh().thisDb();
     if (db.foundObject<IOField<label>>(sorting_idxs_name)) {
@@ -119,24 +123,61 @@ public:
       Info << "construct and register sorting idxs" << endl;
       const fileName path = sorting_idxs_name;
       sorting_idxs_ = new IOField<label>(IOobject(path, db));
+      init_sorting_idxs();
       set_is_sorted(false);
     }
 
     Info << " is symmetric " << matrix.symmetric() << endl;
 
     if (get_update_sys_matrix()) {
+      Info << " update sys matrix " << endl;
       SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+      set_init_update();
     }
 
+    // If so initialise with the pointer from the object registry
+
     if (!get_is_sorted()) {
+      Info << " compute sorted " << endl;
       SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
     }
+
     if (get_sort()) {
+      Info << " sort " << endl;
       SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+    }
+
+    // TODO use different matrix names
+    // look if a system matrix has been stored in object registry
+    // if so initialise with the pointer from the object registry
+    word sys_matrix_name = "gko_sys_matrix";
+    bool stored = db.foundObject<IOPtrList<mtx>>(sys_matrix_name);
+    if (stored) {
+      Info << "is stored " << endl;
+      IOPtr<mtx> &io_ptr = db.lookupObjectRef<IOPtr<mtx>>(sys_matrix_name);
+      if (!io_ptr.get_ptr() == NULL) {
+        Info << " get ptr " << endl;
+        gkomatrix = io_ptr.get_ptr();
+      }
+    }
+
+    if (gkomatrix == NULL || get_update_sys_matrix()) {
+      Info << "create matrix" << endl;
+      gkomatrix = gko::share(
+          mtx::create(exec(), gko::dim<2>(nCells()),
+                      val_array::view(app_exec(), nElems(), &values_[0]),
+                      idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
+                      idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
+    }
+
+    if (!stored && !get_update_sys_matrix()) {
+      Info << " store ptr " << endl;
+      const fileName path = sys_matrix_name;
+      IOPtr<mtx>(IOobject(path, db), gkomatrix);
     }
   };
 
-  void compute_sorting_idxs() {
+  void init_sorting_idxs() {
     // initialize original index locations
     sorting_idxs_->resize(nElems());
 
@@ -144,14 +185,19 @@ public:
     for (int i; i < nCells(); i++) {
       sorting_idxs_->operator[](i) = i;
     }
+  };
 
-    // sort indexes based on comparing values in v
-    // using std::stable_sort instead of std::sort
-    // to avoid unnecessary index re-orderings
-    // when v contains elements of equal values
-    std::stable_sort(
-        sorting_idxs_->data(), &sorting_idxs_->data()[nCells()],
-        [this](size_t i1, size_t i2) { return row_idxs_[i1] < row_idxs_[i2]; });
+  void compute_sorting_idxs(){
+
+      // sort indexes based on comparing values in v
+      // using std::stable_sort instead of std::sort
+      // to avoid unnecessary index re-orderings
+      // when v contains elements of equal values
+      // std::stable_sort(
+      //     sorting_idxs_->data(), &sorting_idxs_->data()[nCells()],
+      //     [this](size_t i1, size_t i2) { return row_idxs_[i1] <
+      //     row_idxs_[i2]; });
+
   };
 
   const std::vector<scalar> &vals() const { return values_; };
@@ -279,21 +325,18 @@ public:
                                 .on(exec()));
 
     // Generate solver
+    Info << " create solver " << endl;
     auto solver_gen = this->create_solver(exec(), criterion_vec);
 
     // Instantiate a ResidualLogger logger.
+    Info << " create logger " << endl;
     auto logger = std::make_shared<IterationLogger>(exec());
 
     // Add the previously created logger to the solver factory. The
     // logger will be automatically propagated to all solvers created
     // from this factory.
+    Info << " add logger " << endl;
     solver_gen->add_logger(logger);
-
-    std::shared_ptr<mtx> gkomatrix = gko::share(
-        mtx::create(exec(), gko::dim<2>(nCells()),
-                    val_array::view(app_exec(), nElems(), &values_[0]),
-                    idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
-                    idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
 
     // TODO refactor this to separate function
     // if (get_export())
@@ -302,25 +345,22 @@ public:
 
     auto b_clone = gko::clone(b);
 
-    solverPerf.initialResidual() = compute_residual(
-        gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
+    Info << " initialResidual " << endl;
+    solverPerf.initialResidual() =
+        compute_residual(gkomatrix.get(), gko::lend(x), gko::lend(b_clone));
 
+    Info << " generate solver " << endl;
     auto solver = solver_gen->generate(gko::give(gkomatrix));
 
     // Solve system
+    Info << " solve " << endl;
     SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
+    Info << " done " << endl;
     auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
     auto x_clone = vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
     psi_view = x_view;
     b_clone->copy_from(gko::lend(b));
-    // auto ginkgo_host_matrix = gko::give(
-    //     mtx::create(app_exec(), gko::dim<2>(nCells(), nCells()),
-    //                 val_array::view(app_exec(), nElems(),
-    //                 &values_[0]), idx_array::view(app_exec(),
-    //                 nElems(), &col_idxs_[0]),
-    //                 idx_array::view(app_exec(), nElems(),
-    //                 &row_idxs_[0])));
 
     // solverPerf.finalResidual() =
     //     compute_residual(gko::lend(ginkgo_host_matrix),
