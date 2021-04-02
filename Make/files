@@ -1,3 +1,4 @@
+common/common.C
 lduMatrix/GKOlduBase/GKOlduBase.C
 lduMatrix/GKOCG/GKOCG.C
 lduMatrix/GKOIR/GKOIR.C
