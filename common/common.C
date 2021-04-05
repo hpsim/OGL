@@ -9,8 +9,9 @@
 
 namespace Foam {
 
-defineTemplateTypeNameWithName(IOPtr<gko::matrix::Coo<scalar>>, "IOPtr");
+defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
+defineTemplateTypeNameWithName(GKOExecPtr, "ExecIOPtr");
 
 // // IOPtr::addsymMatrixConstructorToTable<GKOCG>
 // // addGKOCGSymMatrixConstructorToTable_;
-} // namespace Foam
+}  // namespace Foam
