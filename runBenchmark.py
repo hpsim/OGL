@@ -16,6 +16,7 @@
         --omp               Generate omp cases [default: False].
         --clean             Remove existing cases [default: False].
         --cg                Remove existing cases [default: False].
+        --ir                IR matrix solver [default: False].
         --bicgstab          Remove existing cases [default: False].
         --small-cases       Include small cases [default: False].
         --large-cases       Include large cases [default: False].
@@ -71,13 +72,14 @@ def sed(fn, in_reg_exp, out_reg_exp, inline=True):
     ret = check_output(["sed", "-i", "s/" + in_reg_exp + "/" + out_reg_exp + "/g", fn])
 
 
-def clean_block_from_file(fn, block_start, block_end, replace):
+def clean_block_from_file(fn, block_starts, block_end, replace):
     with open(fn, "r") as f:
         lines = f.readlines()
     with open(fn, "w") as f:
         skip = False
         for line in lines:
-            if block_start in line:
+            is_start = [ block_start in line for block_start in block_starts ]
+            if any(is_start):
                 skip = True
             if skip == True and block_end in line:
                 skip = False
@@ -106,7 +108,7 @@ def set_deltaT(controlDict, deltaT):
 
 def clear_solver_settings(fvSolution):
     # sed(fvSolution, "p\\n[ ]*[{][^}]*[}]", "p{}")
-    clean_block_from_file(fvSolution, "   p\n", "  }\n", "p{}\n")
+    clean_block_from_file(fvSolution, ['   p\n', '"p.*"'], "  }\n", "p{}\n")
 
 
 def ensure_path(path):
@@ -134,7 +136,7 @@ class Case:
         self.test_base = test_base
         self.of_base_case = "boxTurb16"
         self.fields = "p"
-        self.tolerance = "1e-12"
+        self.tolerance = "1e-06"
         self.resolution = resolution
         self.executor = executor
         self.solver = solver
@@ -215,11 +217,12 @@ class Case:
         print("setting solver", fn)
         matrix_solver = self.executor.prefix + self.solver
         solver_str = (
-            "p{"
-            + "solver {};tolerance {}; relTol 0.0;smoother none;preconditioner none;minIter {}; maxIter 10000;".format(
-                matrix_solver, 
+            "p{\\n"
+            + "solver {};\\ntolerance {};\\nrelTol 0.0;\\nsmoother none;\\npreconditioner none;\\nminIter {};\\nmaxIter 10000;\\nexecutor {};".format(
+                matrix_solver,
                 self.tolerance,
-                self.iterations
+                self.iterations,
+                self.executor.executor
             )
         )
         sed(fn, "p{}", solver_str)
@@ -339,6 +342,9 @@ if __name__ == "__main__":
 
     solver = []
 
+    if arguments["--ir"]:
+      solver.append("IR")
+
     if arguments["--cg"]:
       solver.append("CG")
 
@@ -348,7 +354,7 @@ if __name__ == "__main__":
     preconditioner = []
 
     if arguments["--cuda"]:
-        executor.append(Executor("GKO", "GKO", "CUDA"))
+        executor.append(Executor("GKO", "GKO", "cuda"))
 
     if arguments["--of"]:
         executor.append(Executor("OF", "P", ""))
@@ -357,6 +363,6 @@ if __name__ == "__main__":
         executor.append(Executor("GKO", "GKO", "ref"))
 
     if arguments["--omp"]:
-        executor.append(Executor("GKO", "GKO", "OMP"))
+        executor.append(Executor("GKO", "GKO", "omp"))
 
     resolution_study("number_of_cells", executor, solver, arguments)
