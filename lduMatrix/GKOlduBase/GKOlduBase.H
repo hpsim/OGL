@@ -134,62 +134,44 @@ public:
     // TODO use different matrix names
     word sys_matrix_name = "gko_sys_matrix";
     bool sys_matrix_stored = db.foundObject<regIOobject>(sys_matrix_name);
-    Info << "is stored " << sys_matrix_stored << endl;
 
     if (sys_matrix_stored) {
       Info << "is stored " << endl;
       gkomatrix_ptr = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
-      std::cout << gkomatrix_ptr->get_ptr() << std::endl;
       return;
     }
 
     // if sys_matrix is not stored updating is only neccesary
     // when requested explictly or initially
     if (get_update_sys_matrix()) {
-      Info << " update sys matrix " << endl;
       SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
     }
 
     if (!get_update_sys_matrix() && !sys_matrix_stored) {
-      Info << " set up sys matrix initially " << endl;
       SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
     }
 
     if (!get_is_sorted()) {
-      Info << " compute sorted " << endl;
       SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
     }
 
-    Info << "get sort " << endl;
     if (get_sort()) {
-      Info << " sort " << endl;
       SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
     }
 
     // if system matrix is not stored create it
     // and set shared pointer
-    Info << "create matrix" << endl;
     auto gkomatrix = gko::share(
-        mtx::create(exec(), gko::dim<2>(nCells(), nCells()),
-                    val_array::view(app_exec(), nElems(), &values_[0]),
-                    idx_array::view(app_exec(), nElems(), &col_idxs_[0]),
-                    idx_array::view(app_exec(), nElems(), &row_idxs_[0])));
-
-    Info << "gkomatrix stored elems" << gkomatrix->get_num_stored_elements()
-         << endl;
-    std::cout << " raw pointer gkomatrix" << gkomatrix << std::endl;
+        mtx::create(omp_exec(), gko::dim<2>(nCells(), nCells()),
+                    val_array::view(ref_exec(), nElems(), &values_[0]),
+                    idx_array::view(ref_exec(), nElems(), &col_idxs_[0]),
+                    idx_array::view(ref_exec(), nElems(), &row_idxs_[0])));
 
     // if updating system matrix is not needed store ptr in obj registry
     if (!get_update_sys_matrix()) {
-      Info << " store ptr " << endl;
       const fileName path = sys_matrix_name;
       gkomatrix_ptr = new GKOCOOIOPtr(IOobject(path, db), gkomatrix);
-      std::cout << " raw pointer stored2" << gkomatrix_ptr->get_ptr()
-                << std::endl;
     }
-    auto ptr = gkomatrix_ptr->get_ptr();
-    std::cout << " raw pointer 3 " << ptr << std::endl;
-    Info << " stored elements  3" << ptr->get_num_stored_elements() << endl;
   };
 
   void init_sorting_idxs() {
@@ -292,9 +274,9 @@ public:
   };
 
   scalar compute_residual(mtx *const A, vec *const x, vec *const b) const {
-    auto one = gko::initialize<vec>({1.0}, exec());
-    auto neg_one = gko::initialize<vec>({-1.0}, exec());
-    auto res = gko::initialize<vec>({0.0}, exec());
+    auto one = gko::initialize<vec>({1.0}, ref_exec());
+    auto neg_one = gko::initialize<vec>({-1.0}, ref_exec());
+    auto res = gko::initialize<vec>({0.0}, ref_exec());
     A->apply(lend(one), lend(x), lend(neg_one), lend(b));
     b->compute_norm2(lend(res));
 
@@ -314,17 +296,17 @@ public:
     scalar norm_factor = this->normFactor(psi, source, wA, pA);
 
     auto psi_view =
-        val_array::view(app_exec(), nCells(), const_cast<scalar *>(&psi[0]));
+        val_array::view(ref_exec(), nCells(), const_cast<scalar *>(&psi[0]));
     auto source_view =
-        val_array::view(app_exec(), nCells(), const_cast<scalar *>(&source[0]));
+        val_array::view(ref_exec(), nCells(), const_cast<scalar *>(&source[0]));
 
-    auto b = vec::create(app_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
+    auto b = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
 
-    auto x = vec::create(app_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
+    auto x = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
     auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
                               .with_tolerance(tolerance())
-                              .on(exec());
+                              .on(omp_exec());
 
     std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
         criterion_vec{};
@@ -336,20 +318,17 @@ public:
                                 .with_openfoam_norm_factor(norm_factor)
                                 .with_openfoam_minIter(minIter())
                                 .with_openfoam_maxIter(maxIter())
-                                .on(exec()));
+                                .on(omp_exec()));
 
     // Generate solver
-    Info << " create solver " << endl;
-    auto solver_gen = this->create_solver(exec(), criterion_vec);
+    auto solver_gen = this->create_solver(omp_exec(), criterion_vec);
 
     // Instantiate a ResidualLogger logger.
-    Info << " create logger " << endl;
-    auto logger = std::make_shared<IterationLogger>(exec());
+    auto logger = std::make_shared<IterationLogger>(omp_exec());
 
     // Add the previously created logger to the solver factory. The
     // logger will be automatically propagated to all solvers created
     // from this factory.
-    Info << " add logger " << endl;
     solver_gen->add_logger(logger);
 
     // TODO refactor this to separate function
@@ -360,25 +339,16 @@ public:
     auto b_clone = gko::clone(b);
     auto gkomatrix = gkomatrix_ptr->get_ptr();
 
-    Info << " call app exec() get master()" << endl;
-    std::cout << "app exec pointer " << app_exec() << std::endl;
-    std::cout << "ref exec pointer " << exec() << std::endl;
-
-    Info << "lduBase:363 stored elements "
-         << gkomatrix->get_num_stored_elements() << endl;
     solverPerf.initialResidual() = compute_residual(
         gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
-    Info << " generate solver " << endl;
     auto solver = solver_gen->generate(gko::give(gkomatrix));
 
     // Solve system
-    Info << " solve " << endl;
     SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
-    Info << " done " << endl;
-    auto x_view = val_array::view(app_exec(), nCells(), x->get_values());
-    auto x_clone = vec::create(app_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
+    auto x_view = val_array::view(ref_exec(), nCells(), x->get_values());
+    auto x_clone = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
     psi_view = x_view;
     b_clone->copy_from(gko::lend(b));
 

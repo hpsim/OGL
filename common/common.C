@@ -11,7 +11,11 @@ namespace Foam {
 
 defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
 defineTemplateTypeNameWithName(GKOExecPtr, "ExecIOPtr");
+defineTemplateTypeNameWithName(GKOCudaExecPtr, "CudaExecIOPtr");
+defineTemplateTypeNameWithName(GKOOmpExecPtr, "OmpExecIOPtr");
+defineTemplateTypeNameWithName(GKOHipExecPtr, "HipExecIOPtr");
+defineTemplateTypeNameWithName(GKOReferenceExecPtr, "ReferenceExecIOPtr");
 
 // // IOPtr::addsymMatrixConstructorToTable<GKOCG>
 // // addGKOCGSymMatrixConstructorToTable_;
-}  // namespace Foam
+} // namespace Foam
