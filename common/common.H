@@ -139,10 +139,13 @@ protected:
         res_host->copy_from(gko::lend(res));
 
         bool result = false;
+        scalar normalised_res_norm =
+            res->at(0) / parameters_.openfoam_norm_factor;
+        // printf("normalised res norm %f\n", normalised_res_norm);
+        // printf("iter %d\n", iter_);
 
-        if ((res->at(0) / parameters_.openfoam_norm_factor <
-             parameters_.openfoam_absolute_tolerance) &&
-            (iter_++ >= parameters_.openfoam_minIter)) {
+        if ((normalised_res_norm < parameters_.openfoam_absolute_tolerance) &&
+            (iter_ >= parameters_.openfoam_minIter)) {
             result = true;
         }
 
@@ -298,7 +301,7 @@ public:
 
     label minIter() const { return minIter_; }
 
-    label maxIter() const { return minIter_; }
+    label maxIter() const { return maxIter_; }
 
     const label nCells() const { return nCells_; };
 

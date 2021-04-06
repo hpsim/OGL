@@ -141,7 +141,7 @@ public:
         bool sys_matrix_stored = db.foundObject<regIOobject>(sys_matrix_name);
 
         if (sys_matrix_stored) {
-            Info << "is stored " << endl;
+            Info << "system matrix is stored " << endl;
             gkomatrix_ptr = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
             return;
         }
@@ -185,21 +185,22 @@ public:
         sorting_idxs_->resize(nElems());
 
         // set sorting idxs from 0 .. n
-        for (int i; i < nCells(); i++) {
+        for (int i; i < nElems(); i++) {
             sorting_idxs_->operator[](i) = i;
         }
     };
 
-    void compute_sorting_idxs(){
+    void compute_sorting_idxs()
+    {
         // sort indexes based on comparing values in v
         // using std::stable_sort instead of std::sort
         // to avoid unnecessary index re-orderings
         // when v contains elements of equal values
-        // std::stable_sort(sorting_idxs_->data(),
-        //                  &sorting_idxs_->data()[nCells()],
-        //                  [this](size_t i1, size_t i2) {
-        //                      return row_idxs_[i1] < row_idxs_[i2];
-        //                  });
+        std::stable_sort(sorting_idxs_->data(),
+                         &sorting_idxs_->data()[nCells()],
+                         [this](size_t i1, size_t i2) {
+                             return row_idxs_[i1] < row_idxs_[i2];
+                         });
     };
 
     const std::vector<scalar> &vals() const { return values_; };
@@ -241,7 +242,6 @@ public:
 
     void sort_GKOMatrix() const
     {
-        Info << "sorting matrix() " << endl;
         std::vector<scalar> tmp_values(nElems());
         std::vector<scalar> tmp_col_idxs(nElems());
         std::vector<scalar> tmp_row_idxs(nElems());
@@ -337,6 +337,8 @@ public:
             criterion_vec{};
 
         std::cout << "norm_factor " << norm_factor << std::endl;
+        std::cout << "minIter " << minIter() << std::endl;
+        std::cout << "maxIter " << maxIter() << std::endl;
         criterion_vec.push_back(
             OpenFOAMStoppingCriterion::build()
                 .with_openfoam_absolute_tolerance(tolerance())
