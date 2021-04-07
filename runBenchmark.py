@@ -78,7 +78,7 @@ def clean_block_from_file(fn, block_starts, block_end, replace):
     with open(fn, "w") as f:
         skip = False
         for line in lines:
-            is_start = [ block_start in line for block_start in block_starts ]
+            is_start = [block_start in line for block_start in block_starts]
             if any(is_start):
                 skip = True
             if skip == True and block_end in line:
@@ -108,7 +108,7 @@ def set_deltaT(controlDict, deltaT):
 
 def clear_solver_settings(fvSolution):
     # sed(fvSolution, "p\\n[ ]*[{][^}]*[}]", "p{}")
-    clean_block_from_file(fvSolution, ['   p\n', '"p.*"'], "  }\n", "p{}\n")
+    clean_block_from_file(fvSolution, ["   p\n", '"p.*"'], "  }\n", "p{}\n")
 
 
 def ensure_path(path):
@@ -130,8 +130,10 @@ class Case:
         of_tutorial_domain="DNS",
         of_solver="dnsFoam",
         of_tutorial_case="boxTurb16",
+        preconditioner="none",
     ):
         self.variable = None
+        self.preconditioner = preconditioner
         self.is_base_case = is_base_case
         self.test_base = test_base
         self.of_base_case = "boxTurb16"
@@ -187,12 +189,6 @@ class Case:
     def base_case_path(self):
         if self.is_base_case:
             foam_tutorials = Path(os.environ["FOAM_TUTORIALS"])
-            # return (
-            #     foam_tutorials
-            #     / self.of_tutorial_domain
-            #     / self.of_solver
-            #     / self.of_tutorial_case
-            # )
             return Path("Test") / self.of_tutorial_case
         return self.base_case_path_ / self.of_base_case
 
@@ -216,15 +212,25 @@ class Case:
     def set_matrix_solver(self, fn):
         print("setting solver", fn)
         matrix_solver = self.executor.prefix + self.solver
+        # fmt: off
         solver_str = (
             "p{\\n"
-            + "solver {};\\ntolerance {};\\nrelTol 0.0;\\nsmoother none;\\npreconditioner none;\\nminIter {};\\nmaxIter 10000;\\nexecutor {};".format(
+            + "solver {}; \
+            \\ntolerance {};\
+            \\nrelTol 0.0;\
+            \\nsmoother none;\
+            \\npreconditioner {};\
+            \\nminIter {};\
+            \\nmaxIter 10000;\
+            \\nexecutor {};".format(
                 matrix_solver,
                 self.tolerance,
+                self.preconditioner,
                 self.iterations,
                 self.executor.executor
             )
         )
+        # fmt: on
         sed(fn, "p{}", solver_str)
 
     def run(self, results_accumulator, min_runs, time_runs):
@@ -279,7 +285,9 @@ def build_parameter_study(test_path, results, executor, solver, setter, argument
             )
             n.run(case)
             case.create()
-            case.run(results,int(arguments["--min_runs"]),int(arguments["--run_time"]))
+            case.run(
+                results, int(arguments["--min_runs"]), int(arguments["--run_time"])
+            )
         else:
             print("skipping")
 
@@ -343,13 +351,13 @@ if __name__ == "__main__":
     solver = []
 
     if arguments["--ir"]:
-      solver.append("IR")
+        solver.append("IR")
 
     if arguments["--cg"]:
-      solver.append("CG")
+        solver.append("CG")
 
     if arguments["--bicgstab"]:
-      solver.append("BiCGStab")
+        solver.append("BiCGStab")
 
     preconditioner = []
 
