@@ -16,37 +16,37 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::GKOCG
+    Foam::GKOIR
 
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOCG.C
+    GKOIR.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef GKOCG_H
-#define GKOCG_H
+#ifndef GKOIR_H
+#define GKOIR_H
 
-#include "GKOBase.H"
+#include "GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
 
-class GKOCGFactory {
+class GKOIRFactory {
 private:
     // executor where Ginkgo will perform the computation
 
     const word preconditioner_;
 
 public:
-    GKOCGFactory(const dictionary &controlDict_)
+    GKOIRFactory(const dictionary &controlDict_)
         : preconditioner_(
               controlDict_.lookupOrDefault("preconditioner", word("none"))){};
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
@@ -57,63 +57,61 @@ public:
         if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Cg<scalar>::build()
+        return gko::solver::Ir<scalar>::build()
             .with_criteria(criterion_vec)
             .on(exec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
     create_BJ(std::shared_ptr<gko::Executor> exec,
               std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
                   criterion_vec) const
     {
-        using bj = gko::preconditioner::Jacobi<>;
-        return gko::solver::Cg<scalar>::build()
+        return gko::solver::Ir<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
             .on(exec);
     };
 };
 
 /*---------------------------------------------------------------------------*\
-                           Class GKOCG Declaration
+                           Class GKOIR Declaration
 \*---------------------------------------------------------------------------*/
 
 
-class GKOCG : public GKOBaseSolver<GKOCGFactory> {
+class GKOIR : public GKOlduBaseSolver<GKOIRFactory> {
     // Private Member Functions
 
 public:
-    TypeName("GKOCG");
+    TypeName("GKOIR");
 
     //- Disallow default bitwise copy construct
-    GKOCG(const GKOCG &);
+    GKOIR(const GKOIR &);
 
     //- Disallow default bitwise assignment
-    void operator=(const GKOCG &);
+    void operator=(const GKOIR &);
 
 
     // Constructors
 
     //- Construct from matrix components and solver controls
-    GKOCG(const word &fieldName, const lduMatrix &matrix,
+    GKOIR(const word &fieldName, const lduMatrix &matrix,
           const FieldField<Field, scalar> &interfaceBouCoeffs,
           const FieldField<Field, scalar> &interfaceIntCoeffs,
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
-        : GKOBaseSolver(fieldName, matrix, interfaceBouCoeffs,
+        : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                         interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOCG(){};
+    virtual ~GKOIR(){};
 
 
     // Member Functions
