@@ -14,13 +14,15 @@
         --ref               Generate ref cases [default: False].
         --cuda              Generate cuda cases [default: False].
         --omp               Generate omp cases [default: False].
+        --omp_max_threads=<n>  Set the number of omp threads [default: 1].
         --clean             Remove existing cases [default: False].
         --cg                Remove existing cases [default: False].
         --ir                IR matrix solver [default: False].
         --bicgstab          Remove existing cases [default: False].
+        --mpi_max_procs=<n>  Set the number of mpi processes [default: 1].
         --small-cases       Include small cases [default: False].
         --large-cases       Include large cases [default: False].
-        --very-large-cases  nclude large cases [default: False].
+        --very-large-cases  Include large cases [default: False].
         --min_runs=<n>      Number of applications runs [default: 5]
         --run_time=<s>      Time to applications runs [default: 60]
 """
@@ -42,19 +44,23 @@ class Results:
             "solver",
             "number_of_iterations",
             "resolution",
+            "processes",
             "run_time",
         ]
         self.current_col_vals = []
         self.report_handle = open(self.fn, "a+", 1)
         self.report_handle.write(",".join(self.columns) + "\n")
 
-    def set_case(self, domain, executor, solver, number_of_iterations, resolution):
+    def set_case(
+        self, domain, executor, solver, number_of_iterations, resolution, processes
+    ):
         self.current_col_vals = [
             domain,
             executor,
             solver,
             number_of_iterations,
             resolution,
+            processes,
         ]
 
     def add(self, run):
@@ -106,6 +112,10 @@ def set_deltaT(controlDict, deltaT):
     sed(controlDict, "deltaT[ ]*[0-9.]*", "deltaT {}".format(deltaT))
 
 
+def set_writeInterval(controlDict):
+    sed(controlDict, "writeInterval[ ]*[0-9.]*", "writeInterval 10.0")
+
+
 def clear_solver_settings(fvSolution):
     # sed(fvSolution, "p\\n[ ]*[{][^}]*[}]", "p{}")
     clean_block_from_file(fvSolution, ["   p\n", '"p.*"'], "  }\n", "p{}\n")
@@ -131,6 +141,7 @@ class Case:
         of_solver="dnsFoam",
         of_tutorial_case="boxTurb16",
         preconditioner="none",
+        number_of_processes=1,
     ):
         self.variable = None
         self.preconditioner = preconditioner
@@ -149,6 +160,7 @@ class Case:
         self.of_solver = of_solver
         self.of_tutorial_case = of_tutorial_case
         self.of_tutorial_domain = of_tutorial_domain
+        self.number_of_processes = number_of_processes
 
     @property
     def system_folder(self):
@@ -178,6 +190,7 @@ class Case:
             add_libOGL_so(self.controlDict)
             set_end_time(self.controlDict, 10 * deltaT)
             set_deltaT(self.controlDict, deltaT)
+            set_writeInterval(self.controlDict)
             clear_solver_settings(self.fvSolution)
             print("Meshing", self.path)
             check_output(["blockMesh"], cwd=self.path)
@@ -189,7 +202,12 @@ class Case:
     def base_case_path(self):
         if self.is_base_case:
             foam_tutorials = Path(os.environ["FOAM_TUTORIALS"])
-            return Path("Test") / self.of_tutorial_case
+            return (
+                foam_tutorials
+                / self.of_tutorial_domain
+                / self.of_solver
+                / self.of_tutorial_case
+            )
         return self.base_case_path_ / self.of_base_case
 
     @property
@@ -215,14 +233,16 @@ class Case:
         # fmt: off
         solver_str = (
             "p{\\n"
-            + "solver {}; \
-            \\ntolerance {};\
-            \\nrelTol 0.0;\
-            \\nsmoother none;\
-            \\npreconditioner {};\
-            \\nminIter {};\
-            \\nmaxIter 10000;\
-            \\nexecutor {};".format(
+            + "solver {};\
+\\ntolerance {};\
+\\nrelTol 0.0;\
+\\nsmoother none;\
+\\npreconditioner {};\
+\\nminIter {};\
+\\nmaxIter 10000;\
+\\nupdateSysMatrix no;\
+\\nsort 0;\
+\\nexecutor {};".format(
                 matrix_solver,
                 self.tolerance,
                 self.preconditioner,
@@ -236,23 +256,33 @@ class Case:
     def run(self, results_accumulator, min_runs, time_runs):
         if self.is_base_case:
             return
-        self.results_accumulator.set_case(
-            domain=self.executor.domain,
-            executor=self.executor.executor,
-            solver=self.solver,
-            number_of_iterations=self.iterations,
-            resolution=self.resolution,
-        )
-        accumulated_time = 0
-        iters = 0
-        while accumulated_time < time_runs or iters < min_runs:
-            iters += 1
-            start = datetime.datetime.now()
-            ret = check_output([self.of_solver], cwd=self.path)
-            end = datetime.datetime.now()
-            run_time = (end - start).total_seconds() - self.init_time
-            self.results_accumulator.add(run_time)
-            accumulated_time += run_time
+
+        print("start runs")
+        for processes in self.executor:
+            print("start runs", processes)
+
+            self.executor.prepare_enviroment(processes)
+
+            self.results_accumulator.set_case(
+                domain=self.executor.domain,
+                executor=self.executor.executor,
+                solver=self.solver,
+                number_of_iterations=self.iterations,
+                resolution=self.resolution,
+                processes=processes,
+            )
+            accumulated_time = 0
+            iters = 0
+            while accumulated_time < time_runs or iters < min_runs:
+                iters += 1
+                start = datetime.datetime.now()
+                ret = check_output([self.of_solver], cwd=self.path)
+                end = datetime.datetime.now()
+                run_time = (end - start).total_seconds() - self.init_time
+                self.results_accumulator.add(run_time)
+                accumulated_time += run_time
+            self.executor.clean_enviroment()
+        self.executor.current_num_processes = 1
 
 
 def build_parameter_study(test_path, results, executor, solver, setter, arguments):
@@ -327,11 +357,40 @@ class ValueSetter:
 
 
 class Executor:
-    def __init__(self, domain, solver_prefix, executor=None, cmd_prefix=None):
+    def __init__(
+        self,
+        domain,
+        solver_prefix,
+        executor=None,
+        cmd_prefix=None,
+        max_number_processes=1,
+        prepare_env=None,
+    ):
         self.domain = domain
         self.prefix = solver_prefix
         self.executor = executor
         self.cmd_prefix = cmd_prefix
+        self.current_num_processes = 1
+        self.max_number_processes = max_number_processes
+        self.enviroment_handler = prepare_env
+
+    def prepare_enviroment(self, processes):
+        self.enviroment_handler.set_up(processes)
+
+    def clean_enviroment(self):
+        self.enviroment_handler.clean_up()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_current_num_processes = 2 * self.current_num_processes
+        ret = self.current_num_processes
+        if ret <= self.max_number_processes:
+            self.current_num_processes = next_current_num_processes
+            return ret
+
+        raise StopIteration
 
     @property
     def local_path(self):
@@ -339,6 +398,29 @@ class Executor:
         if self.executor:
             path += self.executor
         return Path(path)
+
+
+class DefaultPrepareEnviroment:
+    def __init__(self):
+        pass
+
+    def set_up(self, processes):
+        pass
+
+    def clean_up(self):
+        pass
+
+
+class PrepareOMPMaxThreads:
+    def __init__(self):
+        pass
+
+    def set_up(self, processes):
+        print(" use ", processes, " threads")
+        os.environ["OMP_NUM_THREADS"] = str(processes)
+
+    def clean_up(self):
+        pass
 
 
 if __name__ == "__main__":
@@ -362,15 +444,49 @@ if __name__ == "__main__":
     preconditioner = []
 
     if arguments["--cuda"]:
-        executor.append(Executor("GKO", "GKO", "cuda"))
+        executor.append(
+            Executor(
+                "GKO",
+                "GKO",
+                "cuda",
+                max_number_processes=1,
+                prepare_env=DefaultPrepareEnviroment(),
+            )
+        )
 
     if arguments["--of"]:
-        executor.append(Executor("OF", "P", ""))
+        executor.append(
+            Executor(
+                "OF",
+                "P",
+                "",
+                max_number_processes=1,
+                prepare_env=DefaultPrepareEnviroment(),
+            )
+        )
 
     if arguments["--ref"]:
-        executor.append(Executor("GKO", "GKO", "ref"))
+        executor.append(
+            Executor(
+                "GKO",
+                "GKO",
+                "ref",
+                max_number_processes=1,
+                prepare_env=DefaultPrepareEnviroment(),
+            )
+        )
 
     if arguments["--omp"]:
-        executor.append(Executor("GKO", "GKO", "omp"))
+        max_omp_threads = int(arguments["--omp_max_threads"])
+        print("max omp threads ", max_omp_threads)
+        executor.append(
+            Executor(
+                "GKO",
+                "GKO",
+                "omp",
+                prepare_env=PrepareOMPMaxThreads(),
+                max_number_processes=max_omp_threads,
+            )
+        )
 
     resolution_study("number_of_cells", executor, solver, arguments)
