@@ -250,16 +250,32 @@ public:
         if (app_exec_stored) {
             ref_exec_ptr_ = &get_db().lookupObjectRef<GKOReferenceExecPtr>(
                 app_executor_name_);
-            if (device_executor_name_ == app_executor_name_) return;
+            if (device_executor_name_ == app_executor_name_) {
+                Info << " device and host exec identical" << endl;
+                return;
+            }
         }
 
 
         bool device_exec_stored =
             get_db().foundObject<regIOobject>(device_executor_name_);
         if (device_exec_stored) {
-            omp_exec_ptr_ =
-                &get_db().lookupObjectRef<GKOOmpExecPtr>(device_executor_name_);
-            return;
+            Info << "device exec stored" << endl;
+            if (device_executor_name_ == "omp") {
+                omp_exec_ptr_ = &get_db().lookupObjectRef<GKOOmpExecPtr>(
+                    device_executor_name_);
+                return;
+            }
+            if (device_executor_name_ == "cuda") {
+                cuda_exec_ptr_ = &get_db().lookupObjectRef<GKOCudaExecPtr>(
+                    device_executor_name_);
+                return;
+            }
+            if (device_executor_name_ == "hip") {
+                hip_exec_ptr_ = &get_db().lookupObjectRef<GKOHipExecPtr>(
+                    device_executor_name_);
+                return;
+            }
         }
 
         Info << " store app exec ptr " << endl;
@@ -269,25 +285,29 @@ public:
             gko::give(gko::ReferenceExecutor::create()));
 
         Info << " store device exec ptr " << endl;
-        const auto omp = gko::OmpExecutor::create();
         const fileName device_exec_store = device_executor_name_;
+        const fileName omp_exec_store = "omp";
+        omp_exec_ptr_ = new GKOOmpExecPtr(IOobject(omp_exec_store, get_db()),
+                                          gko::OmpExecutor::create());
 
         if (device_executor_name_ == "cuda") {
+            Info << " store cuda exec " << endl;
             cuda_exec_ptr_ =
                 new GKOCudaExecPtr(IOobject(device_exec_store, get_db()),
                                    gko::give(gko::CudaExecutor::create(
-                                       0, app_exec_ptr_->get_ptr(), true)));
+                                       0, omp_exec_ptr_->get_ptr(), true)));
+            Info << " store cuda exec done" << endl;
         }
         if (device_executor_name_ == "hip") {
             hip_exec_ptr_ =
                 new GKOHipExecPtr(IOobject(device_exec_store, get_db()),
                                   gko::give(gko::HipExecutor::create(
-                                      0, app_exec_ptr_->get_ptr(), true)));
+                                      0, omp_exec_ptr_->get_ptr(), true)));
         }
         if (device_executor_name_ == "omp") {
             omp_exec_ptr_ =
                 new GKOOmpExecPtr(IOobject(device_exec_store, get_db()),
-                                  gko::OmpExecutor::create());
+                                  omp_exec_ptr_->get_ptr());
         }
     }
 

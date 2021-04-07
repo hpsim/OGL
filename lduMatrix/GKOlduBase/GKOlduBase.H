@@ -125,6 +125,7 @@ public:
             device_exec = hip_exec();
         }
         if (get_device_executor_name() == "reference") {
+            Info << " device exec = reference ctr " << endl;
             device_exec = ref_exec();
         }
 
@@ -297,8 +298,11 @@ public:
         auto one = gko::initialize<vec>({1.0}, ref_exec());
         auto neg_one = gko::initialize<vec>({-1.0}, ref_exec());
         auto res = gko::initialize<vec>({0.0}, ref_exec());
+        Info << "before A apply " << endl;
         A->apply(lend(one), lend(x), lend(neg_one), lend(b));
+        Info << "A apply " << endl;
         b->compute_norm2(lend(res));
+        Info << "compute norm2" << endl;
 
         return res->at(0);
     };
@@ -319,6 +323,7 @@ public:
             device_exec = hip_exec();
         }
         if (get_device_executor_name() == "reference") {
+            Info << " device exec = reference ctr " << endl;
             device_exec = ref_exec();
         }
 
@@ -355,7 +360,7 @@ public:
                 .with_openfoam_norm_factor(norm_factor)
                 .with_openfoam_minIter(minIter())
                 .with_openfoam_maxIter(maxIter())
-                .on(ref_exec()));
+                .on(device_exec));
         Info << " criterion  " << endl;
 
         // Generate solver
@@ -364,7 +369,7 @@ public:
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
-        Info << " logger  " << endl;
+        Info << " logger done 2" << endl;
 
         // Add the previously created logger to the solver factory. The
         // logger will be automatically propagated to all solvers created
@@ -381,11 +386,11 @@ public:
         Info << gkomatrix->get_num_stored_elements() << endl;
         Info << " matrix  " << endl;
 
-        // solverPerf.initialResidual() = compute_residual(
-        //     gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
+        solverPerf.initialResidual() = compute_residual(
+            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
         Info << " residual " << endl;
-        auto solver = solver_gen->generate(gko::give(gkomatrix));
+        auto solver = solver_gen->generate(gko::share(gkomatrix));
         Info << " solver 2 " << endl;
 
         // Solve system
