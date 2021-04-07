@@ -114,7 +114,19 @@ public:
 
     {
         std::shared_ptr<gko::Executor> device_exec{};
-        device_exec = omp_exec();
+
+        if (get_device_executor_name() == "omp") {
+            device_exec = omp_exec();
+        }
+        if (get_device_executor_name() == "cuda") {
+            device_exec = cuda_exec();
+        }
+        if (get_device_executor_name() == "hip") {
+            device_exec = hip_exec();
+        }
+        if (get_device_executor_name() == "reference") {
+            device_exec = ref_exec();
+        }
 
         // TODO refactor to separate function
         // check object registry if sorting idxs exists
@@ -143,6 +155,7 @@ public:
         if (sys_matrix_stored) {
             Info << "system matrix is stored " << endl;
             gkomatrix_ptr = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
+            Info << "look up" << endl;
             return;
         }
 
@@ -309,6 +322,7 @@ public:
             device_exec = ref_exec();
         }
 
+        Info << " exec " << endl;
 
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
@@ -323,22 +337,17 @@ public:
                                         const_cast<scalar *>(&psi[0]));
         auto source_view = val_array::view(ref_exec(), nCells(),
                                            const_cast<scalar *>(&source[0]));
+        Info << " psi and source " << endl;
 
         auto b =
             vec::create(ref_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
 
         auto x = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
-        auto tolerance_stop = gko::stop::AbsoluteResidualNorm<scalar>::build()
-                                  .with_tolerance(tolerance())
-                                  .on(device_exec);
-
+        Info << " b and x " << endl;
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        std::cout << "norm_factor " << norm_factor << std::endl;
-        std::cout << "minIter " << minIter() << std::endl;
-        std::cout << "maxIter " << maxIter() << std::endl;
         criterion_vec.push_back(
             OpenFOAMStoppingCriterion::build()
                 .with_openfoam_absolute_tolerance(tolerance())
@@ -346,13 +355,16 @@ public:
                 .with_openfoam_norm_factor(norm_factor)
                 .with_openfoam_minIter(minIter())
                 .with_openfoam_maxIter(maxIter())
-                .on(device_exec));
+                .on(ref_exec()));
+        Info << " criterion  " << endl;
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
+        Info << " rsolver  " << endl;
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
+        Info << " logger  " << endl;
 
         // Add the previously created logger to the solver factory. The
         // logger will be automatically propagated to all solvers created
@@ -366,11 +378,15 @@ public:
 
         auto b_clone = gko::clone(b);
         auto gkomatrix = gkomatrix_ptr->get_ptr();
+        Info << gkomatrix->get_num_stored_elements() << endl;
+        Info << " matrix  " << endl;
 
-        solverPerf.initialResidual() = compute_residual(
-            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
+        // solverPerf.initialResidual() = compute_residual(
+        //     gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
+        Info << " residual " << endl;
         auto solver = solver_gen->generate(gko::give(gkomatrix));
+        Info << " solver 2 " << endl;
 
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)

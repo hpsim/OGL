@@ -140,7 +140,7 @@ protected:
 
         bool result = false;
         scalar normalised_res_norm =
-            res->at(0) / parameters_.openfoam_norm_factor;
+            res_host->at(0) / parameters_.openfoam_norm_factor;
         // printf("normalised res norm %f\n", normalised_res_norm);
         // printf("iter %d\n", iter_);
 
@@ -250,7 +250,9 @@ public:
         if (app_exec_stored) {
             ref_exec_ptr_ = &get_db().lookupObjectRef<GKOReferenceExecPtr>(
                 app_executor_name_);
+            if (device_executor_name_ == app_executor_name_) return;
         }
+
 
         bool device_exec_stored =
             get_db().foundObject<regIOobject>(device_executor_name_);
@@ -262,7 +264,6 @@ public:
 
         Info << " store app exec ptr " << endl;
         const fileName app_exec_store = app_executor_name_;
-        // auto ref_exec_ptr =
         ref_exec_ptr_ = new GKOReferenceExecPtr(
             IOobject(app_exec_store, get_db()),
             gko::give(gko::ReferenceExecutor::create()));
@@ -287,11 +288,6 @@ public:
             omp_exec_ptr_ =
                 new GKOOmpExecPtr(IOobject(device_exec_store, get_db()),
                                   gko::OmpExecutor::create());
-        }
-        if (device_executor_name_ == "reference") {
-            ref_exec_ptr_ =
-                new GKOReferenceExecPtr(IOobject(device_exec_store, get_db()),
-                                        gko::ReferenceExecutor::create());
         }
     }
 
