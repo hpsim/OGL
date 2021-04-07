@@ -125,7 +125,6 @@ public:
             device_exec = hip_exec();
         }
         if (get_device_executor_name() == "reference") {
-            Info << " device exec = reference ctr " << endl;
             device_exec = ref_exec();
         }
 
@@ -134,29 +133,24 @@ public:
         word sorting_idxs_name = "sorting_idxs_";
         const objectRegistry &db = get_db();
         if (db.foundObject<IOField<label>>(sorting_idxs_name)) {
-            Info << "found sorting idxs" << endl;
             IOField<label> &labelListRef =
                 db.lookupObjectRef<IOField<label>>(sorting_idxs_name);
             sorting_idxs_ = &labelListRef;
             set_is_sorted(true);
         } else {
-            Info << "construct and register sorting idxs" << endl;
             const fileName path = sorting_idxs_name;
             sorting_idxs_ = new IOField<label>(IOobject(path, db));
             init_sorting_idxs();
             set_is_sorted(false);
         }
 
-        Info << " is symmetric " << matrix.symmetric() << endl;
 
         // TODO use different matrix names
         word sys_matrix_name = "gko_sys_matrix";
         bool sys_matrix_stored = db.foundObject<regIOobject>(sys_matrix_name);
 
         if (sys_matrix_stored) {
-            Info << "system matrix is stored " << endl;
             gkomatrix_ptr = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
-            Info << "look up" << endl;
             return;
         }
 
@@ -298,11 +292,8 @@ public:
         auto one = gko::initialize<vec>({1.0}, ref_exec());
         auto neg_one = gko::initialize<vec>({-1.0}, ref_exec());
         auto res = gko::initialize<vec>({0.0}, ref_exec());
-        Info << "before A apply " << endl;
         A->apply(lend(one), lend(x), lend(neg_one), lend(b));
-        Info << "A apply " << endl;
         b->compute_norm2(lend(res));
-        Info << "compute norm2" << endl;
 
         return res->at(0);
     };
@@ -323,11 +314,8 @@ public:
             device_exec = hip_exec();
         }
         if (get_device_executor_name() == "reference") {
-            Info << " device exec = reference ctr " << endl;
             device_exec = ref_exec();
         }
-
-        Info << " exec " << endl;
 
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
@@ -342,14 +330,11 @@ public:
                                         const_cast<scalar *>(&psi[0]));
         auto source_view = val_array::view(ref_exec(), nCells(),
                                            const_cast<scalar *>(&source[0]));
-        Info << " psi and source " << endl;
-
         auto b =
             vec::create(ref_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
 
         auto x = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
 
-        Info << " b and x " << endl;
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
@@ -361,15 +346,12 @@ public:
                 .with_openfoam_minIter(minIter())
                 .with_openfoam_maxIter(maxIter())
                 .on(device_exec));
-        Info << " criterion  " << endl;
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
-        Info << " rsolver  " << endl;
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
-        Info << " logger done 2" << endl;
 
         // Add the previously created logger to the solver factory. The
         // logger will be automatically propagated to all solvers created
@@ -383,15 +365,11 @@ public:
 
         auto b_clone = gko::clone(b);
         auto gkomatrix = gkomatrix_ptr->get_ptr();
-        Info << gkomatrix->get_num_stored_elements() << endl;
-        Info << " matrix  " << endl;
 
         solverPerf.initialResidual() = compute_residual(
             gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
 
-        Info << " residual " << endl;
         auto solver = solver_gen->generate(gko::share(gkomatrix));
-        Info << " solver 2 " << endl;
 
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
