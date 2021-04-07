@@ -232,7 +232,7 @@ class Case:
         matrix_solver = self.executor.prefix + self.solver
         # fmt: off
         solver_str = (
-            "p{\\n"
+            '"p.*"{\\n'
             + "solver {};\
 \\ntolerance {};\
 \\nrelTol 0.0;\
