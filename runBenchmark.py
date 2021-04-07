@@ -331,13 +331,13 @@ def resolution_study(name, executor, solver, arguments):
     number_of_cells = []
 
     if arguments["--small-cases"]:
-        number_of_cells += [8, 16, 32]
+        number_of_cells += [8, 16]
 
     if arguments["--large-cases"]:
-        number_of_cells += [64, 128]
+        number_of_cells += [32, 64]
 
     if arguments["--very-large-cases"]:
-        number_of_cells += [256, 512]
+        number_of_cells += [128, 256]
 
     n_setters = []
     for n in number_of_cells:
