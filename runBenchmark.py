@@ -99,6 +99,21 @@ def set_cells(blockMeshDict, old_cells, new_cells):
     sed(blockMeshDict, old_cells, new_cells)
 
 
+def set_mesh_boundary_type_to_wall(blockMeshDict):
+    """ """
+    sed(blockMeshDict, "type[  ]*cyclic", "type wall")
+
+
+def set_p_init_value(p):
+    """ """
+    sed(p, "type[  ]*cyclic;", "type zeroGradient;")
+
+
+def set_U_init_value(U):
+    """ """
+    sed(U, "type[  ]*cyclic;", "type fixedValue;value uniform (0 0 0);")
+
+
 def add_libOGL_so(controlDict):
     with open(controlDict, "a") as ctrlDict_handle:
         ctrlDict_handle.write('libs ("libOGL.so");')
@@ -167,6 +182,18 @@ class Case:
         return self.path / "system"
 
     @property
+    def zero_folder(self):
+        return self.path / "0"
+
+    @property
+    def init_p(self):
+        return self.zero_folder / "p"
+
+    @property
+    def init_U(self):
+        return self.zero_folder / "U.orig"
+
+    @property
     def controlDict(self):
         return self.system_folder / "controlDict"
 
@@ -187,6 +214,9 @@ class Case:
                 self.resolution, self.resolution, self.resolution
             )
             set_cells(self.blockMeshDict, "16 16 16", new_cells)
+            set_mesh_boundary_type_to_wall(self.blockMeshDict)
+            set_p_init_value(self.init_p)
+            set_U_init_value(self.init_U)
             add_libOGL_so(self.controlDict)
             set_end_time(self.controlDict, 10 * deltaT)
             set_deltaT(self.controlDict, deltaT)
