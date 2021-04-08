@@ -60,7 +60,7 @@ public:
 
     std::shared_ptr<T> get_ptr() { return ptr_; };
 
-    bool writeData(Ostream &) const {};
+    bool writeData(Ostream &) const { return false; };
 };
 
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
@@ -112,6 +112,7 @@ public:
 
     GKO_ENABLE_CRITERION_FACTORY(OpenFOAMStoppingCriterion, parameters,
                                  Factory);
+
     GKO_ENABLE_BUILD_METHOD(Factory);
 
 protected:
@@ -201,9 +202,9 @@ class lduLduCommonBase {
     // should be sorted
     const bool sort_;
 
-    const word app_executor_name_;
-
     const word device_executor_name_;
+
+    const word app_executor_name_;
 
     // if sorting_idxs_ was found in object registry it does not
     // need to be resorted
@@ -313,11 +314,11 @@ public:
 
     label maxIter() const { return maxIter_; }
 
-    const label nCells() const { return nCells_; };
+    label nCells() const { return nCells_; };
 
-    const label nElems() const { return nElems_; };
+    label nElems() const { return nElems_; };
 
-    const label nNeighbours() const { return nNeighbours_; };
+    label nNeighbours() const { return nNeighbours_; };
 
     //
     bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }

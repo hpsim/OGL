@@ -61,8 +61,8 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        if (preconditioner_ == "none")
-            return create_default(exec, criterion_vec);
+        // if (preconditioner_ == "none")
+        return create_default(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
