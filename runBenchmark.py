@@ -215,7 +215,7 @@ class Case:
         return (
             Path(self.test_base)
             / Path(self.executor.local_path)
-            / self.fields
+            / "{}-{}".format(self.fields, self.solver)
             / str(self.resolution)
         )
 
@@ -298,7 +298,7 @@ def build_parameter_study(test_path, results, executor, solver, setter, argument
         if exist and not clean:
             skip = True
         is_base_case = False
-        base_case_path = test_path / Path("base") / Path("p") / str(n.value)
+        base_case_path = test_path / Path("base") / Path("p-" + s) / str(n.value)
 
         if e.domain == "base":
             print("is base case")
