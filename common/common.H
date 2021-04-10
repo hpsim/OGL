@@ -60,7 +60,7 @@ public:
 
     std::shared_ptr<T> get_ptr() { return ptr_; };
 
-    bool writeData(Ostream &) const {};
+    bool writeData(Ostream &) const { return false; };
 };
 
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
@@ -70,111 +70,6 @@ typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
 typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 
-template <>
-inline bool typeGlobal<GKOCOOIOPtr>()
-{
-    return true;
-}
-template <>
-inline bool typeGlobal<GKOExecPtr>()
-{
-    return true;
-}
-
-class OpenFOAMStoppingCriterion
-    : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
-                                          gko::stop::Criterion> {
-    friend class gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
-                                              gko::stop::Criterion>;
-    using Criterion = gko::stop::Criterion;
-    using vec = gko::matrix::Dense<scalar>;
-
-private:
-    label iter_ = 0;
-
-public:
-    GKO_CREATE_FACTORY_PARAMETERS(parameters, Factory)
-    {
-        /**
-         * Boolean set by the user to stop the iteration process
-         */
-        // TODO check why GKO_FACTORY_PARAMETER_SCALAR does not work
-        scalar GKO_FACTORY_PARAMETER(openfoam_absolute_tolerance, 1.0e-6);
-
-        scalar GKO_FACTORY_PARAMETER(openfoam_relative_tolerance, 0.0);
-
-        scalar GKO_FACTORY_PARAMETER(openfoam_norm_factor, 1.0);
-
-        label GKO_FACTORY_PARAMETER(openfoam_minIter, 0);
-
-        label GKO_FACTORY_PARAMETER(openfoam_maxIter, 0);
-    };
-
-    GKO_ENABLE_CRITERION_FACTORY(OpenFOAMStoppingCriterion, parameters,
-                                 Factory);
-    GKO_ENABLE_BUILD_METHOD(Factory);
-
-protected:
-    bool check_impl(gko::uint8 stoppingId, bool setFinalized,
-                    gko::Array<gko::stopping_status> *stop_status,
-                    bool *one_changed,
-                    const Criterion::Updater &updater) override
-    {
-        iter_++;
-
-        auto *dense_r = gko::as<vec>(updater.residual_);
-        auto exec = dense_r->get_executor();
-        auto res = vec::create(exec, gko::dim<2>{1, 1});
-        auto vec_abs = gko::clone(dense_r);
-        const label cells = dense_r->get_size()[0];
-        vec_abs->compute_absolute_inplace();
-        auto unit = vec::create(dense_r->get_executor(), gko::dim<2>{cells, 1});
-        unit->fill(1.0);
-
-        const auto unit_t = unit->transpose();
-
-        unit_t->apply(gko::lend(vec_abs), gko::lend(res));
-
-        auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
-        res_host->copy_from(gko::lend(res));
-
-        bool result = false;
-        scalar normalised_res_norm =
-            res_host->at(0) / parameters_.openfoam_norm_factor;
-        // printf("normalised res norm %f\n", normalised_res_norm);
-        // printf("iter %d\n", iter_);
-
-        if ((normalised_res_norm < parameters_.openfoam_absolute_tolerance) &&
-            (iter_ >= parameters_.openfoam_minIter)) {
-            result = true;
-        }
-
-        if (iter_ >= parameters_.openfoam_maxIter) {
-            result = true;
-        }
-
-        if (result) {
-            this->set_all_statuses(stoppingId, setFinalized, stop_status);
-            *one_changed = true;
-        }
-
-        return result;
-    }
-
-    explicit OpenFOAMStoppingCriterion(
-        std::shared_ptr<const gko::Executor> exec)
-        : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
-              std::move(exec))
-    {}
-
-    explicit OpenFOAMStoppingCriterion(const Factory *factory,
-                                       const gko::stop::CriterionArgs &args)
-
-        : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
-              factory->get_executor()),
-          parameters_{factory->get_parameters()}
-    {}
-};
 
 class lduLduCommonBase {
     const objectRegistry &db_;
@@ -203,9 +98,9 @@ class lduLduCommonBase {
 
     const bool verbose_;
 
-    const word app_executor_name_;
-
     const word device_executor_name_;
+
+    const word app_executor_name_;
 
     // if sorting_idxs_ was found in object registry it does not
     // need to be resorted
@@ -316,11 +211,11 @@ public:
 
     label maxIter() const { return maxIter_; }
 
-    const label nCells() const { return nCells_; };
+    label nCells() const { return nCells_; };
 
-    const label nElems() const { return nElems_; };
+    label nElems() const { return nElems_; };
 
-    const label nNeighbours() const { return nNeighbours_; };
+    label nNeighbours() const { return nNeighbours_; };
 
     //
     bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }

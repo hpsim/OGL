@@ -46,6 +46,7 @@ class Results:
             "resolution",
             "processes",
             "run_time",
+            "success",
         ]
         self.current_col_vals = []
         self.report_handle = open(self.fn, "a+", 1)
@@ -63,8 +64,8 @@ class Results:
             processes,
         ]
 
-    def add(self, run):
-        outp = self.current_col_vals + [run]
+    def add(self, run, success):
+        outp = self.current_col_vals + [run, success]
         outps = ",".join(map(str, outp))
         print(outps)
         self.report_handle.write(outps + "\n")
@@ -306,10 +307,15 @@ class Case:
             while accumulated_time < time_runs or iters < min_runs:
                 iters += 1
                 start = datetime.datetime.now()
-                ret = check_output([self.of_solver], cwd=self.path)
+                success = 0
+                try:
+                    ret = check_output([self.of_solver], cwd=self.path)
+                    success = 1
+                except:
+                    pass
                 end = datetime.datetime.now()
                 run_time = (end - start).total_seconds() - self.init_time
-                self.results_accumulator.add(run_time)
+                self.results_accumulator.add(run_time, success)
                 accumulated_time += run_time
             self.executor.clean_enviroment()
         self.executor.current_num_processes = 1

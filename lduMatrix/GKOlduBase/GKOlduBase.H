@@ -174,14 +174,19 @@ public:
 
         // if system matrix is not stored create it
         // and set shared pointer
+        //
         auto gkomatrix = gko::share(
             mtx::create(device_exec, gko::dim<2>(nCells(), nCells()),
-                        val_array::view(ref_exec(), nElems(), &values_[0]),
-                        idx_array::view(ref_exec(), nElems(), &col_idxs_[0]),
-                        idx_array::view(ref_exec(), nElems(), &row_idxs_[0])));
+                        val_array::view(gko::ReferenceExecutor::create(),
+                                        nElems(), &values_[0]),
+                        idx_array::view(gko::ReferenceExecutor::create(),
+                                        nElems(), &col_idxs_[0]),
+                        idx_array::view(gko::ReferenceExecutor::create(),
+                                        nElems(), &row_idxs_[0])));
 
         // if updating system matrix is not needed store ptr in obj registry
         if (!get_update_sys_matrix()) {
+            Info << "store sys matrix" << endl;
             const fileName path = sys_matrix_name;
             gkomatrix_ptr = new GKOCOOIOPtr(IOobject(path, db), gkomatrix);
         }
