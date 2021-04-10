@@ -320,7 +320,19 @@ public:
         //   gko::lend(b));
 
         auto b_clone = gko::clone(b);
-        auto gkomatrix = gkomatrix_ptr->get_ptr();
+        std::shared_ptr<mtx> gkomatrix{};
+        if (gkomatrix_ptr == NULL) {
+            gkomatrix = gko::share(
+                mtx::create(device_exec, gko::dim<2>(nCells(), nCells()),
+                            val_array::view(gko::ReferenceExecutor::create(),
+                                            nElems(), &values_[0]),
+                            idx_array::view(gko::ReferenceExecutor::create(),
+                                            nElems(), &col_idxs_[0]),
+                            idx_array::view(gko::ReferenceExecutor::create(),
+                                            nElems(), &row_idxs_[0])));
+        } else {
+            gkomatrix = gkomatrix_ptr->get_ptr();
+        }
 
         solverPerf.initialResidual() = compute_residual(
             gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
