@@ -167,7 +167,7 @@ public:
         sorting_idxs_->resize(nElems());
 
         // set sorting idxs from 0 .. n
-        for (int i; i < nElems(); i++) {
+        for (int i=0; i < nElems(); i++) {
             sorting_idxs_->operator[](i) = i;
         }
     };
