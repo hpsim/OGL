@@ -38,12 +38,12 @@ class GKOIRFactory {
 private:
     // executor where Ginkgo will perform the computation
 
-    const word preconditioner_;
+    const scalar inner_reduction_factor_;
 
 public:
     GKOIRFactory(const dictionary &controlDict_)
-        : preconditioner_(
-              controlDict_.lookupOrDefault("preconditioner", word("none"))){};
+        : inner_reduction_factor_(controlDict_.lookupOrDefault(
+              "innerReductionFactor", scalar(1e-2))){};
 
     std::unique_ptr<gko::solver::Ir<double>::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
@@ -52,9 +52,7 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        if (preconditioner_ == "none")
-            return create_default(exec, criterion_vec);
-        if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
+        return create_default(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Ir<double>::Factory,
@@ -65,17 +63,13 @@ public:
             criterion_vec) const
     {
         return gko::solver::Ir<scalar>::build()
-            .with_criteria(criterion_vec)
-            .on(exec);
-    };
-
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
-    create_BJ(std::shared_ptr<gko::Executor> exec,
-              std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-                  criterion_vec) const
-    {
-        return gko::solver::Ir<scalar>::build()
+            .with_solver(
+                gko::solver::Cg<scalar>::build()
+                    .with_criteria(
+                        gko::stop::ResidualNorm<scalar>::build()
+                            .with_reduction_factor(inner_reduction_factor_)
+                            .on(exec))
+                    .on(exec))
             .with_criteria(criterion_vec)
             .on(exec);
     };
@@ -108,7 +102,7 @@ public:
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                        interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
     virtual ~GKOIR(){};
