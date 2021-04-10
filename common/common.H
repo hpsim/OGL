@@ -201,6 +201,8 @@ class lduLduCommonBase {
     // should be sorted
     const bool sort_;
 
+    const bool verbose_;
+
     const word app_executor_name_;
 
     const word device_executor_name_;
@@ -236,8 +238,9 @@ public:
           nCells_(nCells),
           nNeighbours_(nNeighbours),
           nElems_(nCells_ + 2 * nNeighbours_),
-          export_(controlDict.lookupOrDefault<bool>("export", false)),
-          sort_(controlDict.lookupOrDefault<bool>("sort", true)),
+          export_(controlDict.lookupOrDefault<Switch>("export", false)),
+          sort_(controlDict.lookupOrDefault<Switch>("sort", true)),
+          verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)),
           device_executor_name_(
               controlDict.lookupOrDefault("executor", word("reference"))),
           app_executor_name_(
