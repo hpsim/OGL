@@ -27,6 +27,7 @@ SourceFiles
 
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
+#include "../common/StoppingCriterion.H"
 #include "../common/common.H"
 
 #include "IOPtrList.H"
@@ -45,16 +46,7 @@ struct IterationLogger : gko::log::Logger {
                                const gko::LinOp *res_norm,
                                const gko::LinOp *) const override
     {
-        using vec = gko::matrix::Dense<scalar>;
         this->num_iters = num_iterations;
-
-        // compute residual norm and print
-        // Auto one = gko::initialize<vec>({1.0}, exec());
-        // auto neg_one = gko::initialize<vec>({-1.0}, exec());
-        auto res = gko::initialize<vec>({0.0}, exec);
-        // A->apply(lend(one), lend(x), lend(neg_one), lend(b));
-        gko::as<vec>(residual)->compute_norm2(gko::lend(res));
-        scalar result = res->at(0);
     }
 
     IterationLogger(std::shared_ptr<const gko::Executor> exec)
@@ -272,24 +264,6 @@ public:
             // std::cout << "elem " << i << ": " << row_idxs_[i] << " " <<
             // col_idxs_[i] << std::endl;
         }
-    };
-
-    void export_system(const mtx *A, const vec *x, const vec *b) const
-    {
-        std::string fn_mtx{fieldName() + "_A.mtx"};
-        std::ofstream stream{fn_mtx};
-        std::cerr << "Writing " << fn_mtx << std::endl;
-        gko::write(stream, A, gko::layout_type::coordinate);
-
-        std::string fn_b{fieldName() + "_b.mtx"};
-        std::ofstream stream_b{fn_b};
-        std::cerr << "Writing " << fn_b << std::endl;
-        gko::write(stream_b, b);
-
-        std::string fn_x{fieldName() + "_x.mtx"};
-        std::ofstream stream_x{fn_x};
-        std::cerr << "Writing " << fn_x << std::endl;
-        gko::write(stream_x, x);
     };
 
     scalar compute_residual(mtx *const A, vec *const x, vec *const b) const

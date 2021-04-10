@@ -27,7 +27,6 @@ SourceFiles
 #ifndef OGL_COMMON_H
 #define OGL_COMMON_H
 
-#include "LduMatrix.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -44,6 +43,12 @@ SourceFiles
               << " ms\n";
 
 namespace Foam {
+
+using vec = gko::matrix::Dense<scalar>;
+using mtx = gko::matrix::Coo<scalar>;
+
+void export_system(const word fieldName, const mtx *A, const vec *x,
+                   const vec *b);
 
 template <class T>
 class IOPtr : public regIOobject {
