@@ -75,6 +75,28 @@ typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
 typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 
+// Logs the number of iteration executed
+struct IterationLogger : gko::log::Logger {
+    void on_iteration_complete(const gko::LinOp *,
+                               const gko::size_type &num_iterations,
+                               const gko::LinOp *residual,
+                               const gko::LinOp *res_norm,
+                               const gko::LinOp *) const override
+    {
+        this->num_iters = num_iterations;
+    }
+
+    IterationLogger(std::shared_ptr<const gko::Executor> exec)
+        : exec(exec),
+          gko::log::Logger(exec, gko::log::Logger::iteration_complete_mask)
+    {}
+
+    gko::size_type get_iters() { return num_iters; }
+
+private:
+    std::shared_ptr<const gko::Executor> exec;
+    mutable gko::size_type num_iters{0};
+};
 
 class lduLduCommonBase {
     const objectRegistry &db_;
