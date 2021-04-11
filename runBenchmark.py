@@ -16,9 +16,10 @@
         --omp               Generate omp cases [default: False].
         --omp_max_threads=<n>  Set the number of omp threads [default: 1].
         --clean             Remove existing cases [default: False].
-        --cg                Remove existing cases [default: False].
-        --ir                IR matrix solver [default: False].
-        --bicgstab          Remove existing cases [default: False].
+        --cg                Use CG matrix solver [default: False].
+        --ir                Use Ginkgos IR matrix solver [default: False].
+        --bicgstab          Use BiCGStab matrix solver [default: False].
+        --smooth            Use OpenFOAMs smooth solver [default: False].
         --mpi_max_procs=<n>  Set the number of mpi processes [default: 1].
         --small-cases       Include small cases [default: False].
         --large-cases       Include large cases [default: False].
@@ -254,6 +255,11 @@ class Case:
     def path(self):
         return self.parent_path / str(self.of_tutorial_case)
 
+    @property
+    def log_path(self):
+        return self.path / "log" 
+
+
     def copy_base(self, src, dst):
         print("copying base case", src, dst)
         check_output(["cp", "-r", src, dst])
@@ -304,61 +310,73 @@ class Case:
             )
             accumulated_time = 0
             iters = 0
+            ret = ""
             while accumulated_time < time_runs or iters < min_runs:
                 iters += 1
                 start = datetime.datetime.now()
                 success = 0
                 try:
-                    ret = check_output([self.of_solver], cwd=self.path)
+                    ret = check_output([self.of_solver], cwd=self.path, timeout=15*60)
                     success = 1
                 except:
-                    pass
+                    break
                 end = datetime.datetime.now()
-                run_time = (end - start).total_seconds() - self.init_time
+                run_time = (end - start).total_seconds() #- self.init_time
                 self.results_accumulator.add(run_time, success)
                 accumulated_time += run_time
             self.executor.clean_enviroment()
+            try:
+                with open(self.log_path.with_suffix("." + str(processes)), "a+") as log_handle:
+                    log_handle.write(ret.decode("utf-8"))
+            except Exception as e:
+                print(e)
+                pass
+
         self.executor.current_num_processes = 1
 
 
-def build_parameter_study(test_path, results, executor, solver, setter, arguments):
-    for (e, s, n) in product(executor, solver, setter):
-        # check if path exist and clean is set
-        path = test_path / e.local_path / str(n.value)
-        exist = os.path.isdir(path)
-        skip = False
-        clean = arguments["--clean"]
-        if exist and clean:
-            shutil.rmtree(path)
+def build_parameter_study(test_path, results, executor, setter, arguments):
+    for (e, n) in product(executor, setter):
+        for  s in e.solvers:
+            # check if solver supported by executor
+            if not getattr(s, e.domain):
+                print(s.name, "not supported by", e.domain)
+                continue
+            path = test_path / e.local_path / str(n.value)
+            exist = os.path.isdir(path)
             skip = False
-        if exist and not clean:
-            skip = True
-        is_base_case = False
-        base_case_path = test_path / Path("base") / Path("p-" + s) / str(n.value)
+            clean = arguments["--clean"]
+            if exist and clean:
+                shutil.rmtree(path)
+                skip = False
+            if exist and not clean:
+                skip = True
+            is_base_case = False
+            base_case_path = test_path / Path("base") / Path("p-" + s.name) / str(n.value)
 
-        if e.domain == "base":
-            print("is base case")
-            is_base_case = True
+            if e.domain == "base":
+                print("is base case")
+                is_base_case = True
 
-        if not skip:
-            case = Case(
-                test_base=test_path,
-                solver=s,
-                executor=e,
-                base_case=base_case_path,
-                results=results,
-                is_base_case=is_base_case,
-            )
-            n.run(case)
-            case.create()
-            case.run(
-                results, int(arguments["--min_runs"]), int(arguments["--run_time"])
-            )
-        else:
-            print("skipping")
+            if not skip:
+                case = Case(
+                    test_base=test_path,
+                    solver=s.name,
+                    executor=e,
+                    base_case=base_case_path,
+                    results=results,
+                    is_base_case=is_base_case,
+                )
+                n.run(case)
+                case.create()
+                case.run(
+                    results, int(arguments["--min_runs"]), int(arguments["--run_time"])
+                )
+            else:
+                print("skipping")
 
 
-def resolution_study(name, executor, solver, arguments):
+def resolution_study(name, executor, arguments):
 
     test_path = Path(arguments["--folder"]) / name
 
@@ -379,7 +397,7 @@ def resolution_study(name, executor, solver, arguments):
     for n in number_of_cells:
         n_setters.append(ValueSetter("resolution", n))
 
-    build_parameter_study(test_path, results, executor, solver, n_setters, arguments)
+    build_parameter_study(test_path, results, executor, n_setters, arguments)
 
 
 class ValueSetter:
@@ -401,6 +419,7 @@ class Executor:
         cmd_prefix=None,
         max_number_processes=1,
         prepare_env=None,
+        solvers=None,
     ):
         self.domain = domain
         self.prefix = solver_prefix
@@ -409,6 +428,7 @@ class Executor:
         self.current_num_processes = 1
         self.max_number_processes = max_number_processes
         self.enviroment_handler = prepare_env
+        self.solvers = solvers
 
     def prepare_enviroment(self, processes):
         self.enviroment_handler.set_up(processes)
@@ -458,26 +478,65 @@ class PrepareOMPMaxThreads:
     def clean_up(self):
         pass
 
+class IR:
+
+    def __init__(self):
+        self.OF = False
+        self.GKO = True
+        self.base = True
+        self.name = "IR"
+
+
+class CG:
+
+
+    def __init__(self):
+        self.OF = True
+        self.GKO = True
+        self.base = True
+        self.name = "CG"
+
+
+class BiCGStab:
+
+    def __init__(self):
+        self.OF = True
+        self.base = True
+        self.GKO = True
+        self.name = "BiCGStab"
+
+
+class smoothSolver:
+
+    def __init__(self):
+        self.base = True
+        self.of = True
+        self.gko = False
+        self.name = "smoothSolver"
+
 
 if __name__ == "__main__":
 
     arguments = docopt(__doc__, version="runBench 0.1")
     print(arguments)
 
-    executor = [Executor("base", "", "")]
 
-    solver = []
+    solvers = []
 
     if arguments["--ir"]:
-        solver.append("IR")
+        solvers.append(IR())
 
     if arguments["--cg"]:
-        solver.append("CG")
+        solvers.append(CG())
 
     if arguments["--bicgstab"]:
-        solver.append("BiCGStab")
+        solvers.append(BiCGStab())
+
+    if arguments["--smooth"]:
+        solvers.append(smoothSolver())
 
     preconditioner = []
+    executor = [Executor("base", "", "", solvers=solvers)]
 
     if arguments["--cuda"]:
         executor.append(
@@ -487,6 +546,7 @@ if __name__ == "__main__":
                 "cuda",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
+                solvers=solvers
             )
         )
 
@@ -498,6 +558,7 @@ if __name__ == "__main__":
                 "",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
+                solvers=solvers
             )
         )
 
@@ -509,6 +570,7 @@ if __name__ == "__main__":
                 "ref",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
+                solvers=solvers
             )
         )
 
@@ -522,7 +584,8 @@ if __name__ == "__main__":
                 "omp",
                 prepare_env=PrepareOMPMaxThreads(),
                 max_number_processes=max_omp_threads,
+                solvers=solvers
             )
         )
 
-    resolution_study("number_of_cells", executor, solver, arguments)
+    resolution_study("number_of_cells", executor, arguments)
