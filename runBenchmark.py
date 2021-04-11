@@ -509,8 +509,8 @@ class BiCGStab:
 class smoothSolver:
     def __init__(self):
         self.base = True
-        self.of = True
-        self.gko = False
+        self.OF = True
+        self.GKO = False
         self.name = "smoothSolver"
 
 
