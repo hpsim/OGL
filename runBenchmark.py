@@ -257,8 +257,7 @@ class Case:
 
     @property
     def log_path(self):
-        return self.path / "log" 
-
+        return self.path / "log"
 
     def copy_base(self, src, dst):
         print("copying base case", src, dst)
@@ -316,17 +315,19 @@ class Case:
                 start = datetime.datetime.now()
                 success = 0
                 try:
-                    ret = check_output([self.of_solver], cwd=self.path, timeout=15*60)
+                    ret = check_output([self.of_solver], cwd=self.path, timeout=15 * 60)
                     success = 1
                 except:
                     break
                 end = datetime.datetime.now()
-                run_time = (end - start).total_seconds() #- self.init_time
+                run_time = (end - start).total_seconds()  # - self.init_time
                 self.results_accumulator.add(run_time, success)
                 accumulated_time += run_time
             self.executor.clean_enviroment()
             try:
-                with open(self.log_path.with_suffix("." + str(processes)), "a+") as log_handle:
+                with open(
+                    self.log_path.with_suffix("." + str(processes)), "a+"
+                ) as log_handle:
                     log_handle.write(ret.decode("utf-8"))
             except Exception as e:
                 print(e)
@@ -337,7 +338,7 @@ class Case:
 
 def build_parameter_study(test_path, results, executor, setter, arguments):
     for (e, n) in product(executor, setter):
-        for  s in e.solvers:
+        for s in e.solvers:
             # check if solver supported by executor
             if not getattr(s, e.domain):
                 print(s.name, "not supported by", e.domain)
@@ -352,7 +353,9 @@ def build_parameter_study(test_path, results, executor, setter, arguments):
             if exist and not clean:
                 skip = True
             is_base_case = False
-            base_case_path = test_path / Path("base") / Path("p-" + s.name) / str(n.value)
+            base_case_path = (
+                test_path / Path("base") / Path("p-" + s.name) / str(n.value)
+            )
 
             if e.domain == "base":
                 print("is base case")
@@ -478,8 +481,8 @@ class PrepareOMPMaxThreads:
     def clean_up(self):
         pass
 
-class IR:
 
+class IR:
     def __init__(self):
         self.OF = False
         self.GKO = True
@@ -488,8 +491,6 @@ class IR:
 
 
 class CG:
-
-
     def __init__(self):
         self.OF = True
         self.GKO = True
@@ -498,7 +499,6 @@ class CG:
 
 
 class BiCGStab:
-
     def __init__(self):
         self.OF = True
         self.base = True
@@ -507,7 +507,6 @@ class BiCGStab:
 
 
 class smoothSolver:
-
     def __init__(self):
         self.base = True
         self.of = True
@@ -519,7 +518,6 @@ if __name__ == "__main__":
 
     arguments = docopt(__doc__, version="runBench 0.1")
     print(arguments)
-
 
     solvers = []
 
@@ -546,7 +544,7 @@ if __name__ == "__main__":
                 "cuda",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
-                solvers=solvers
+                solvers=solvers,
             )
         )
 
@@ -558,7 +556,7 @@ if __name__ == "__main__":
                 "",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
-                solvers=solvers
+                solvers=solvers,
             )
         )
 
@@ -570,7 +568,7 @@ if __name__ == "__main__":
                 "ref",
                 max_number_processes=1,
                 prepare_env=DefaultPrepareEnviroment(),
-                solvers=solvers
+                solvers=solvers,
             )
         )
 
@@ -584,7 +582,7 @@ if __name__ == "__main__":
                 "omp",
                 prepare_env=PrepareOMPMaxThreads(),
                 max_number_processes=max_omp_threads,
-                solvers=solvers
+                solvers=solvers,
             )
         )
 
