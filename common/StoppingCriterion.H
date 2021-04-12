@@ -80,7 +80,8 @@ protected:
         auto vec_abs = gko::clone(dense_r);
         const label cells = dense_r->get_size()[0];
         vec_abs->compute_absolute_inplace();
-        auto unit = vec::create(dense_r->get_executor(), gko::dim<2>{cells, 1});
+        auto unit = vec::create(dense_r->get_executor(),
+                                gko::dim<2>{(unsigned long)cells, 1});
         unit->fill(1.0);
 
         const auto unit_t = unit->transpose();
