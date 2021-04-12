@@ -52,9 +52,8 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        if (preconditioner_ == "none")
-            return create_default(exec, criterion_vec);
         if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
+        return create_default(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
@@ -110,7 +109,7 @@ public:
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                        interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
     virtual ~GKOCG(){};
