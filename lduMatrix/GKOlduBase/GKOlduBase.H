@@ -83,19 +83,7 @@ public:
 
     {
         std::shared_ptr<gko::Executor> device_exec{};
-
-        if (get_device_executor_name() == "omp") {
-            device_exec = omp_exec();
-        }
-        if (get_device_executor_name() == "cuda") {
-            device_exec = cuda_exec();
-        }
-        if (get_device_executor_name() == "hip") {
-            device_exec = hip_exec();
-        }
-        if (get_device_executor_name() == "reference") {
-            device_exec = ref_exec();
-        }
+        set_device_executor(device_exec);
 
         // TODO refactor to separate function
         // check object registry if sorting idxs exists
@@ -161,13 +149,30 @@ public:
         }
     };
 
+    void set_device_executor(std::shared_ptr<gko::Executor> &device_exec) const
+    {
+        const word device_executor_name{get_device_executor_name()};
+        if (device_executor_name == "omp") {
+            device_exec = omp_exec();
+        }
+        if (device_executor_name == "cuda") {
+            device_exec = cuda_exec();
+        }
+        if (device_executor_name == "hip") {
+            device_exec = hip_exec();
+        }
+        if (device_executor_name == "reference") {
+            device_exec = ref_exec();
+        }
+    };
+
     void init_sorting_idxs()
     {
         // initialize original index locations
         sorting_idxs_->resize(nElems());
 
         // set sorting idxs from 0 .. n
-        for (int i=0; i < nElems(); i++) {
+        for (int i = 0; i < nElems(); i++) {
             sorting_idxs_->operator[](i) = i;
         }
     };
@@ -259,19 +264,7 @@ public:
                                          const direction cmpt = 0) const
     {
         std::shared_ptr<gko::Executor> device_exec{};
-
-        if (get_device_executor_name() == "omp") {
-            device_exec = omp_exec();
-        }
-        if (get_device_executor_name() == "cuda") {
-            device_exec = cuda_exec();
-        }
-        if (get_device_executor_name() == "hip") {
-            device_exec = hip_exec();
-        }
-        if (get_device_executor_name() == "reference") {
-            device_exec = ref_exec();
-        }
+        set_device_executor(device_exec);
 
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
