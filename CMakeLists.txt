@@ -3,15 +3,6 @@ cmake_minimum_required(VERSION 3.9)
 project(OGL LANGUAGES C CXX DESCRIPTION "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
 
 # Configuration options
-set(OGL_OF_VERSION "6" CACHE STRING
-  "Set OpenFOAM version, default: 6")
-
-
-set(OGL_OF_BASE_DIR "6" CACHE STRING
-  "Set OpenFOAM version, default: 6")
-
-string(CONCAT foam_path $ENV{HOME} "/OpenFOAM/OpenFOAM-" ${OGL_OF_VERSION})
-message("OpenFOAM path " ${foam_path} )
 
 include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
@@ -118,14 +109,20 @@ LduMatrix/GKOACG/GKOACG.H
 
 target_include_directories(OGL
   PUBLIC
-  ${foam_path}/src/OpenFOAM/lnInclude
-  ${foam_path}/src/meshTools/lnInclude
-  ${foam_path}/src/finiteVolume/lnInclude
-  ${foam_path}/src/OSspecific/POSIX/lnInclude
+  $ENV{FOAM_SRC}/OpenFOAM/lnInclude
+  $ENV{FOAM_SRC}/meshTools/lnInclude
+  $ENV{FOAM_SRC}/finiteVolume/lnInclude
+  $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
     common/
     lduMatrix/GKOlduBase
     LduMatrix/GKOLduBase
   )
+
+string(CONCAT $foam_path "/" $ENV{USER} "-" ${OGL_OF_VERSION} "/platforms/")
+
+install(TARGETS OGL
+    LIBRARY DESTINATION $ENV{FOAM_USER_LIBBIN}
+    )
 
 target_link_libraries(OGL
   PUBLIC
