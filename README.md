@@ -1,5 +1,5 @@
 # OGL
-
+![build](https://github.com/greole/OGL/actions/workflows/cmake.yml/badge.svg)
 
 A wrapper for [Ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/) 
 
