@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.9)
 
 project(OGL LANGUAGES C CXX DESCRIPTION "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
 
+if(NOT DEFINED ENV{FOAM_SRC})
+    message(FATAL_ERROR "You must source OpenFOAM before building OGL")
+endif()
+
 # Configuration options
 
 include(cmake/build_type_helpers.cmake)
@@ -107,6 +111,7 @@ LduMatrix/GKOLduBase/GKOLduBase.H
 LduMatrix/GKOACG/GKOACG.H
   )
 
+
 target_include_directories(OGL
   PUBLIC
   $ENV{FOAM_SRC}/OpenFOAM/lnInclude
@@ -118,13 +123,20 @@ target_include_directories(OGL
     LduMatrix/GKOLduBase
   )
 
-string(CONCAT $foam_path "/" $ENV{USER} "-" ${OGL_OF_VERSION} "/platforms/")
-
-install(TARGETS OGL
-    LIBRARY DESTINATION $ENV{FOAM_USER_LIBBIN}
-    )
 
 target_link_libraries(OGL
   PUBLIC
     Ginkgo::ginkgo
   )
+
+
+install(TARGETS OGL 
+    DESTINATION $ENV{FOAM_USER_LIBBIN}
+    )
+
+if(NOT ${OGL_USE_EXTERNAL_GINKGO})
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/
+    DESTINATION $ENV{FOAM_USER_LIBBIN}
+    )
+endif()
+
