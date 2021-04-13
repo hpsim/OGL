@@ -25,7 +25,7 @@ jobs:
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
-      run: ls ~/OpenFOAM/OpenFOAM-8.git
+      run: ls ~/OpenFOAM/OpenFOAM-8
       
     - name: Source OpenFOAM 
       # Sources OpenFOAM
