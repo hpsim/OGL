@@ -21,7 +21,7 @@ jobs:
       
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  -–depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  ~/OpenFOAM/OpenFOAM-8 && ls ~/OpenFOAM
+      run: git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  ~/OpenFOAM/OpenFOAM-8 && ls ~/OpenFOAM
       
     - name: Source OpenFOAM 
       # Clone OpenFOAM
