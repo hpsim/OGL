@@ -12,8 +12,11 @@ jobs:
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-latest    
+    env:
+      FOAM_SRC: /home/runner/OpenFOAM/OpenFOAM-8/src
+      FOAM_USER_LIBBIN: /home/go/OpenFOAM/OpenFOAM-8/platforms
+    
     steps:
     - name: Setup OpenFOAM Directory
       # Create OpenFOAM directory and clone
@@ -26,11 +29,6 @@ jobs:
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
       run: ls ~/OpenFOAM/OpenFOAM-8
-      
-    - name: Source OpenFOAM 
-      # Sources OpenFOAM
-      run: source  ~/OpenFOAM/OpenFOAM-8/etc/bashrc
-      
       
     - uses: actions/checkout@v2
 
