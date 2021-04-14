@@ -80,12 +80,6 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 add_library(OGL  ""  )
 
-#g++  -m64 -Wall -Wextra -Wold-style-cast -Wnon-virtual-dtor
-# -Wno-unused-parameter -Wno-invalid-offsetof -Wno-attributes
-# -O0 -fdefault-inline -ggdb3 -DFULLDEBUG -ftemplate-depth-100
-# -I/home/go/OpenFOAM/OpenFOAM-6/src/finiteVolume/lnInclude
-# -I/home/go/OpenFOAM/OpenFOAM-6/src/meshTools/lnInclude
-# -std=c++14 -ggdb3 -O0 -fno-omit-frame-pointer -IlnInclude -I. -I/home/go/OpenFOAM/OpenFOAM-6/src/OpenFOAM/lnInclude -I/home/go/OpenFOAM/OpenFOAM-6/src/OSspecific/POSIX/lnInclude   -fPIC -c common/common.C -o Make/linux64GccDPInt32Debug/common/common.o
 add_compile_definitions(
   WM_LABEL_SIZE=32
   WM_ARCH_OPTION=64
@@ -128,7 +122,6 @@ target_link_libraries(OGL
   PUBLIC
     Ginkgo::ginkgo
   )
-
 
 install(TARGETS OGL 
     DESTINATION $ENV{FOAM_USER_LIBBIN}
