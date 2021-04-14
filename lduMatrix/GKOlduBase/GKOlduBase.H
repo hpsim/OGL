@@ -307,11 +307,6 @@ public:
         // from this factory.
         solver_gen->add_logger(logger);
 
-        // TODO refactor this to separate function
-        // if (get_export())
-        //   export_system(gko::lend(gkomatrix), gko::lend(x),
-        //   gko::lend(b));
-
         auto b_clone = gko::clone(b);
         std::shared_ptr<mtx> gkomatrix{};
         if (gkomatrix_ptr == NULL) {
@@ -326,6 +321,11 @@ public:
         } else {
             gkomatrix = gkomatrix_ptr->get_ptr();
         }
+
+        if (get_export())
+          export_system(fieldName(), gko::lend(gkomatrix), gko::lend(x),
+          gko::lend(b));
+
 
         solverPerf.initialResidual() = compute_residual(
             gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
