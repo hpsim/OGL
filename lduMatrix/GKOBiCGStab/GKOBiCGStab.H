@@ -41,18 +41,15 @@ class GKOBiCGStabFactory {
 private:
     // executor where Ginkgo will perform the computation
 
-    const label maxIterI_;
-
-    const scalar toleranceI_;
-
     const word preconditioner_;
 
+    const label blockSize_;
+
 public:
-    GKOBiCGStabFactory(const dictionary &controlDict_)
-        : maxIterI_(controlDict_.lookupOrDefault("maxIter", label(1000))),
-          toleranceI_(controlDict_.lookupOrDefault("tolerance", scalar(1e-6))),
-          preconditioner_(
-              controlDict_.lookupOrDefault("preconditioner", word("none"))){};
+    GKOBiCGStabFactory(const dictionary &dictionary_)
+        : preconditioner_(
+              dictionary_.lookupOrDefault("preconditioner", word("none"))),
+          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
                     std::default_delete<gko::solver::Bicgstab<double>::Factory>>
@@ -61,7 +58,7 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        // if (preconditioner_ == "none")
+        if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
         return create_default(exec, criterion_vec);
     };
 
@@ -79,17 +76,15 @@ public:
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
                     std::default_delete<gko::solver::Bicgstab<double>::Factory>>
-    create_BJ(std::shared_ptr<gko::Executor> exec) const
+    create_BJ(std::shared_ptr<gko::Executor> exec,
+              std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+                  criterion_vec) const
     {
         using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Bicgstab<scalar>::build()
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(maxIterI_).on(
-                    exec),
-                gko::stop::ResidualNormReduction<scalar>::build()
-                    .with_reduction_factor(toleranceI_)
-                    .on(exec))
-            .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
+            .with_criteria(criterion_vec)
+            .with_preconditioner(
+                bj::build().with_max_block_size(blockSize_).on(exec))
             .on(exec);
     };
 };
@@ -117,7 +112,7 @@ public:
                 const lduInterfaceFieldPtrsList &interfaces,
                 const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                        interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
     virtual ~GKOBiCGStab(){};
