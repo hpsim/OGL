@@ -32,7 +32,7 @@ before_install:
 
 install:
   - sudo apt-get -y install openfoam$VERSION
-  - source /opt/openfoam8/etc/bashrc
+  - source /opt/openfoam$VERSION/etc/bashrc
 
 before_script:
   - cmake --version
