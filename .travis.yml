@@ -7,6 +7,9 @@ dist: bionic
 os:
   - linux
 
+env:
+    - VERSION=8
+
 cache:
   directories:
   - $HOME/OpenFOAM
@@ -19,11 +22,11 @@ addons:
       - lcov
 
 before_install:
-  - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  $HOME/OpenFOAM
+  - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-$VERSION.git  $HOME/OpenFOAM/OpenFOAM-$VERSION
   - ls  $HOME/OpenFOAM
 
 install:
-    - source $HOME/OpenFOAM/OpenFOAM-8/etc/bashrc
+    - source $HOME/OpenFOAM/OpenFOAM-$VERSION/etc/bashrc
     - cd $FOAM_SRC && ./Allwmake
 
 before_script:
