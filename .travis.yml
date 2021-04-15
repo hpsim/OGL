@@ -21,6 +21,7 @@ addons:
     update: true
     packages:
       - flexc++
+      - libfl-dev
       - lcov
       - libopenmpi-dev
 
