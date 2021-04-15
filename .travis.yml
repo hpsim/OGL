@@ -19,6 +19,7 @@ addons:
   apt:
     update: true
     packages:
+      - flexc++
       - lcov
       - libopenmpi-dev
 
