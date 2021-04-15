@@ -29,12 +29,7 @@ install:
     - source $HOME/OpenFOAM/OpenFOAM-$VERSION/etc/bashrc
       # skip compilation of applications
     - sed -i "s/applications/#applications/" $WM_PROJECT_DIR/Allwmake
-    - cd $WM_PROJECT_DIR/src/OpenFOAM && wmake -j
-    - cd $WM_PROJECT_DIR/src/fileFormats && wmake -j
-    - cd $WM_PROJECT_DIR/src/surfMesh && wmake -j
-    - cd $WM_PROJECT_DIR/src/triSurface && wmake -j
-    - cd $WM_PROJECT_DIR/src/meshTools && wmake -j
-    - cd $WM_PROJECT_DIR/src/finiteVolume && wmake -j
+    - cd $WM_PROJECT_DIR/ && ./Allwmake
 
 before_script:
   - cmake --version
