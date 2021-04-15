@@ -1,0 +1,33 @@
+language: cpp
+sudo: false
+compiler:
+ - gcc
+
+dist: bionic
+os:
+  - linux
+
+cache:
+  directories:
+  - $HOME/OpenFOAM
+
+
+addons:
+  apt:
+    update: true
+    packages:
+      - lcov
+
+before_install:
+  - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  $HOME/OpenFOAM
+
+install:
+    - source $HOME/OpenFOAM/OpenFOAM-8/etc/bashrc
+    - cd $FOAM_SRC && ./Allwmake
+
+before_script:
+  - cmake --version
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make -j4
