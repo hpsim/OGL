@@ -20,6 +20,7 @@ addons:
     update: true
     packages:
       - lcov
+      - libopenmpi-dev
 
 before_install:
   - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-$VERSION.git  $HOME/OpenFOAM/OpenFOAM-$VERSION
