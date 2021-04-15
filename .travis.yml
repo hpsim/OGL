@@ -20,6 +20,7 @@ addons:
 
 before_install:
   - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  $HOME/OpenFOAM
+  - ls  $HOME/OpenFOAM
 
 install:
     - source $HOME/OpenFOAM/OpenFOAM-8/etc/bashrc
