@@ -184,7 +184,7 @@ public:
         // to avoid unnecessary index re-orderings
         // when v contains elements of equal values
         std::stable_sort(sorting_idxs_->data(),
-                         &sorting_idxs_->data()[nCells()],
+                         &sorting_idxs_->data()[nElems()],
                          [this](size_t i1, size_t i2) {
                              return row_idxs_[i1] < row_idxs_[i2];
                          });
