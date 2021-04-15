@@ -14,8 +14,10 @@ jobs:
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest    
     env:
-      FOAM_SRC: /home/runner/OpenFOAM/OpenFOAM-8/src
-      FOAM_USER_LIBBIN: /home/go/OpenFOAM/OpenFOAM-8/platforms
+      BASE: ~/OpenFOAM/OpenFOAM-8/
+      BASE_: ~/OpenFOAM/OpenFOAM-8/
+      FOAM_SRC: ~/OpenFOAM/OpenFOAM-8/src
+      FOAM_USER_LIBBIN: ~/OpenFOAM/OpenFOAM-8/platforms
     
     steps:
     - name: Setup OpenFOAM Directory
@@ -24,11 +26,31 @@ jobs:
       
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  ~/OpenFOAM/OpenFOAM-8 
+      run: git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  $BASE
+      
+    - name: Make of bashrc executable
+      # Clone OpenFOAM
+      run: chmod +x ./$BASE/etc/bashrc
+      
+    - name: dot source bash_rc 
+      # Clone OpenFOAM
+      run: . ./$BASE/etc/bashrc
+  
+    - name: get results of dot source
+      # Clone OpenFOAM
+      run: echo $WM_PROJECT
+      
+
+    - name: Show OpenFOAM folder
+      run: ls $BASE
+    - name: Show OpenFOAM folder
+      run: ls $BASE_
       
     - name: Show OpenFOAM folder
-      # Clone OpenFOAM
-      run: ls ~/OpenFOAM/OpenFOAM-8
+      run: echo $FOAM_SRC
+      
+    - name: Show OpenFOAM folder
+      run: ls $FOAM_SRC
       
     - uses: actions/checkout@v2
 
@@ -45,7 +67,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON 
 
     - name: Build
       working-directory: ${{github.workspace}}/build
