@@ -9,6 +9,7 @@ os:
 
 env:
     - VERSION=8
+    - VERSION=dev
 
 cache:
   directories:
