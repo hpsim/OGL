@@ -1,5 +1,5 @@
 language: cpp
-sudo: false
+sudo: true
 compiler:
  - gcc
 
@@ -9,7 +9,7 @@ os:
 
 env:
     - VERSION=8
-    - VERSION=dev
+    - VERSION=7
 
 cache:
   directories:
@@ -26,14 +26,13 @@ addons:
       - libopenmpi-dev
 
 before_install:
-  - git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-$VERSION.git  $HOME/OpenFOAM/OpenFOAM-$VERSION
-  - ls  $HOME/OpenFOAM
+  - sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+  - sudo add-apt-repository http://dl.openfoam.org/ubuntu
+  - sudo apt update
 
 install:
-    - source $HOME/OpenFOAM/OpenFOAM-$VERSION/etc/bashrc
-      # skip compilation of applications
-    - sed -i "s/applications/#applications/" $WM_PROJECT_DIR/Allwmake
-    - cd $WM_PROJECT_DIR/ && ./Allwmake
+  - sudo apt-get -y install openfoam$VERSION
+  - source /opt/openfoam8/etc/bashrc
 
 before_script:
   - cmake --version
