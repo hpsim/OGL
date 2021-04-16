@@ -12,7 +12,7 @@ include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
-set(OGL_USE_EXTERNAL_GINKGO FALSE)
+option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
@@ -23,9 +23,9 @@ include(cmake/install_helpers.cmake)
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
-if (NOT Ginkgo)
-  find_package(Ginkgo 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
-endif()
+#if (NOT Ginkgo)
+#  find_package(Ginkgo 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
+#endif()
 
 # To interface with ginkgo at least C++ 14 is needed
 set(CMAKE_CXX_STANDARD 14)
