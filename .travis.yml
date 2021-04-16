@@ -28,7 +28,7 @@ addons:
 before_install:
   - sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key | apt-key add -"
   - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-  - sudo apt update
+  - sudo apt update --no-check-certificate
 
 install:
   - sudo apt-get -y install openfoam$VERSION
