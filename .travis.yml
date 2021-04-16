@@ -26,9 +26,9 @@ addons:
       - libopenmpi-dev
 
 before_install:
-  - sudo sh -c "wget -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+  - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
   - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-  - sudo apt update --no-check-certificate
+  - sudo apt update
 
 install:
   - sudo apt-get -y install openfoam$VERSION
