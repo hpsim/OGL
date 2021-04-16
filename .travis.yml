@@ -3,7 +3,7 @@ sudo: true
 compiler:
  - gcc
 
-dist: bionic
+dist: focal
 os:
   - linux
 
