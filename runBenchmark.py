@@ -247,7 +247,7 @@ class Case:
         return (
             Path(self.test_base)
             / Path(self.executor.local_path)
-            / "{}-{}".format(self.fields, self.solver)
+            / "{}-{}-{}".format(self.fields, self.solver, self.preconditioner)
             / str(self.resolution)
         )
 
