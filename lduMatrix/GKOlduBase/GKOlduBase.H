@@ -230,8 +230,8 @@ public:
     void sort_GKOMatrix() const
     {
         std::vector<scalar> tmp_values(nElems());
-        std::vector<scalar> tmp_col_idxs(nElems());
-        std::vector<scalar> tmp_row_idxs(nElems());
+        std::vector<label> tmp_col_idxs(nElems());
+        std::vector<label> tmp_row_idxs(nElems());
 
         for (label i = 0; i < nElems(); i++) tmp_values[i] = values_[i];
         for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
@@ -323,8 +323,8 @@ public:
         }
 
         if (get_export())
-          export_system(fieldName(), gko::lend(gkomatrix), gko::lend(x),
-          gko::lend(b));
+            export_system(fieldName(), gko::lend(gkomatrix), gko::lend(x),
+                          gko::lend(b));
 
 
         solverPerf.initialResidual() = compute_residual(
