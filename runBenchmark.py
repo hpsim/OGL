@@ -277,7 +277,7 @@ class Case:
 \\nminIter {};\
 \\nmaxIter 10000;\
 \\nupdateSysMatrix no;\
-\\nsort 0;\
+\\nsort yes;\
 \\nexecutor {};".format(
                 matrix_solver,
                 self.tolerance,
