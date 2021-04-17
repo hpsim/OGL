@@ -247,7 +247,7 @@ class Case:
         return (
             Path(self.test_base)
             / Path(self.executor.local_path)
-            / "{}-{}".format(self.fields, self.solver)
+            / "{}-{}-{}".format(self.fields, self.solver, self.preconditioner)
             / str(self.resolution)
         )
 
@@ -277,7 +277,7 @@ class Case:
 \\nminIter {};\
 \\nmaxIter 10000;\
 \\nupdateSysMatrix no;\
-\\nsort 0;\
+\\nsort yes;\
 \\nexecutor {};".format(
                 matrix_solver,
                 self.tolerance,

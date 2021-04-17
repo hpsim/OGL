@@ -40,10 +40,13 @@ private:
 
     const word preconditioner_;
 
+    const label blockSize_;
+
 public:
-    GKOCGFactory(const dictionary &controlDict_)
+    GKOCGFactory(const dictionary &dictionary_)
         : preconditioner_(
-              controlDict_.lookupOrDefault("preconditioner", word("none"))){};
+              dictionary_.lookupOrDefault("preconditioner", word("none"))),
+          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
@@ -77,7 +80,8 @@ public:
         using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
+            .with_preconditioner(
+                bj::build().with_max_block_size(blockSize_).on(exec))
             .on(exec);
     };
 };

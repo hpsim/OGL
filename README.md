@@ -1,5 +1,5 @@
 # OpenFOAM Ginkgo Layer (OGL)
-![build](https://github.com/greole/OGL/actions/workflows/cmake.yml/badge.svg)
+[![Build Status](https://travis-ci.com/greole/OGL.svg?branch=dev)](https://travis-ci.com/greole/OGL)
 
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/) 
 
@@ -21,7 +21,6 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 the `system/controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
-    
 
 ## Usage
 
