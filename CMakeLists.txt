@@ -23,7 +23,9 @@ include(cmake/install_helpers.cmake)
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
-if (NOT Ginkgo)
+
+# If ginkgo wasn't found so far look for the third_party installation
+if (NOT Ginkgo_FOUND)
   find_package(Ginkgo 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
