@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOCG_H
 #define GKOCG_H
 
-#include "GKOBase.H"
+#include "GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -40,10 +40,13 @@ private:
 
     const word preconditioner_;
 
+    const label blockSize_;
+
 public:
-    GKOCGFactory(const dictionary &controlDict_)
+    GKOCGFactory(const dictionary &dictionary_)
         : preconditioner_(
-              controlDict_.lookupOrDefault("preconditioner", word("none"))){};
+              dictionary_.lookupOrDefault("preconditioner", word("none"))),
+          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
@@ -52,9 +55,8 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        if (preconditioner_ == "none")
-            return create_default(exec, criterion_vec);
         if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
+        return create_default(exec, criterion_vec);
     };
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
@@ -78,7 +80,8 @@ public:
         using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
+            .with_preconditioner(
+                bj::build().with_max_block_size(blockSize_).on(exec))
             .on(exec);
     };
 };
@@ -88,7 +91,7 @@ public:
 \*---------------------------------------------------------------------------*/
 
 
-class GKOCG : public GKOBaseSolver<GKOCGFactory> {
+class GKOCG : public GKOlduBaseSolver<GKOCGFactory> {
     // Private Member Functions
 
 public:
@@ -109,8 +112,8 @@ public:
           const FieldField<Field, scalar> &interfaceIntCoeffs,
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
-        : GKOBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                        interfaceIntCoeffs, interfaces, solverControls){};
+        : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
+                           interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
     virtual ~GKOCG(){};

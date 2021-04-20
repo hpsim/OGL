@@ -1,0 +1,44 @@
+language: cpp
+sudo: true
+compiler:
+ - gcc
+
+dist: focal
+os:
+  - linux
+
+env:
+    - VERSION=8
+    - VERSION=7
+
+cache:
+  directories:
+  - $HOME/OpenFOAM
+
+
+addons:
+  apt:
+    update: true
+    packages:
+      - flexc++
+      - libfl-dev
+      - lcov
+      - libopenmpi-dev
+
+before_install:
+  - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+  - sudo add-apt-repository http://dl.openfoam.org/ubuntu
+  - sudo apt update
+
+install:
+  - sudo apt-get -y install openfoam$VERSION
+  - source /opt/openfoam$VERSION/etc/bashrc
+
+before_script:
+  - cmake --version
+  - mkdir build
+  - cd build
+  - cmake ..
+
+script:
+  - make -j4

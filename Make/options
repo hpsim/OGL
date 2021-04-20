@@ -1,6 +1,11 @@
 EXE_INC = \
-	-I/home/kit/scc/nq7776/code/ginkgo/build/include \
-	-L/home/kit/scc/nq7776/code/ginkgo/build/lib
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude \
+    -std=c++14
 
 LIB_LIBS = \
-	-lginkgo
+    -lginkgo \
+    -lfiniteVolume \
+    -lmeshTools
+
+
