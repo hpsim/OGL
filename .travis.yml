@@ -10,6 +10,8 @@ os:
 env:
     - VERSION=8
     - VERSION=7
+    - EXTERNAL_GINKGO=OFF
+    - EXTERNAL_GINKGO=ON
 
 cache:
   directories:
