@@ -32,6 +32,7 @@ SourceFiles
 #include "fvCFD.H"
 
 namespace Foam {
+
 class OpenFOAMStoppingCriterion
     : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
                                           gko::stop::Criterion> {

@@ -27,6 +27,7 @@ SourceFiles
 
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
+#include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../common/StoppingCriterion.H"
 #include "../common/common.H"
 
@@ -45,6 +46,7 @@ namespace Foam {
 template <class SolverFactory>
 class GKOlduBaseSolver : public lduMatrix::solver,
                          public SolverFactory,
+                         public IOExecutorHandler,
                          public lduLduCommonBase {
 public:
     // Some shortcuts
@@ -77,6 +79,7 @@ public:
                      const dictionary &solverControls)
         : lduMatrix::solver(fieldName, matrix, interfaceBouCoeffs,
                             interfaceIntCoeffs, interfaces, solverControls),
+          IOExecutorHandler(matrix.mesh().thisDb(), solverControls),
           SolverFactory(controlDict_),
           lduLduCommonBase(matrix.mesh().thisDb(), matrix.diag().size(),
                            matrix.lduAddr().upperAddr().size(), solverControls)
@@ -286,6 +289,7 @@ public:
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
+
 
         criterion_vec.push_back(
             OpenFOAMStoppingCriterion::build()

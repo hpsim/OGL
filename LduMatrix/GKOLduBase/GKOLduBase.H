@@ -28,6 +28,7 @@ SourceFiles
 #ifndef GKO_LDUBase_H
 #define GKO_LDUBase_H
 
+#include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../common/common.H"
 #include "LduMatrix.H"
 
@@ -41,6 +42,7 @@ namespace Foam {
 
 template <class Type, class LDUType, class SolverFactory>
 class GKOLduBaseSolver : public LduMatrix<Type, LDUType, LDUType>::solver,
+                         public IOExecutorHandler,
                          public SolverFactory,
                          public lduLduCommonBase {
 public:
@@ -73,6 +75,7 @@ public:
                      const dictionary &solverControls)
         : LduMatrix<Type, LDUType, LDUType>::solver(fieldName, matrix,
                                                     solverControls),
+          IOExecutorHandler(matrix.mesh().thisDb(), solverControls),
           SolverFactory(this->controlDict_),
           lduLduCommonBase(matrix.mesh().thisDb(), matrix.diag().size(),
                            matrix.lduAddr().upperAddr().size(), solverControls)

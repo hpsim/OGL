@@ -30,6 +30,8 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
+#include "../IOExecutorHandler/IOExecutorHandler.H"
+
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
@@ -50,30 +52,8 @@ using mtx = gko::matrix::Coo<scalar>;
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b);
 
-template <class T>
-class IOPtr : public regIOobject {
-private:
-    std::shared_ptr<T> ptr_;
-
-public:
-    // - Runtime type information
-    TypeName("IOPtr");
-
-    //- Construct from IOobject and a PtrList
-    IOPtr(const IOobject &io, std::shared_ptr<T> in_ptr)
-        : regIOobject(io), ptr_(in_ptr){};
-
-    std::shared_ptr<T> get_ptr() { return ptr_; };
-
-    bool writeData(Ostream &) const { return false; };
-};
 
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
-typedef IOPtr<gko::Executor> GKOExecPtr;
-typedef IOPtr<gko::CudaExecutor> GKOCudaExecPtr;
-typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
-typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
-typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 
 // Logs the number of iteration executed
 struct IterationLogger : gko::log::Logger {
@@ -97,6 +77,7 @@ private:
     std::shared_ptr<const gko::Executor> exec;
     mutable gko::size_type num_iters{0};
 };
+
 
 class lduLduCommonBase {
     const objectRegistry &db_;
@@ -125,27 +106,11 @@ class lduLduCommonBase {
 
     const bool verbose_;
 
-    const word device_executor_name_;
-
-    const word app_executor_name_;
 
     // if sorting_idxs_ was found in object registry it does not
     // need to be resorted
     mutable bool is_sorted_;
 
-    // executor where Ginkgo will perform the computation
-    GKOExecPtr *device_exec_ptr_;
-
-    // executor of the application
-    GKOExecPtr *app_exec_ptr_;
-
-    GKOReferenceExecPtr *ref_exec_ptr_;
-
-    GKOCudaExecPtr *cuda_exec_ptr_;
-
-    GKOOmpExecPtr *omp_exec_ptr_;
-
-    GKOHipExecPtr *hip_exec_ptr_;
 
 public:
     lduLduCommonBase(const objectRegistry &db, label nCells, label nNeighbours,
@@ -162,73 +127,7 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           sort_(controlDict.lookupOrDefault<Switch>("sort", true)),
-          verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)),
-          device_executor_name_(
-              controlDict.lookupOrDefault("executor", word("reference"))),
-          app_executor_name_(
-              controlDict.lookupOrDefault("app_executor", word("reference")))
-    {
-        // create executors
-        bool app_exec_stored =
-            get_db().foundObject<regIOobject>(app_executor_name_);
-
-        if (app_exec_stored) {
-            ref_exec_ptr_ = &get_db().lookupObjectRef<GKOReferenceExecPtr>(
-                app_executor_name_);
-            if (device_executor_name_ == app_executor_name_) {
-                return;
-            }
-        }
-
-
-        bool device_exec_stored =
-            get_db().foundObject<regIOobject>(device_executor_name_);
-        if (device_exec_stored) {
-            if (device_executor_name_ == "omp") {
-                omp_exec_ptr_ = &get_db().lookupObjectRef<GKOOmpExecPtr>(
-                    device_executor_name_);
-                return;
-            }
-            if (device_executor_name_ == "cuda") {
-                cuda_exec_ptr_ = &get_db().lookupObjectRef<GKOCudaExecPtr>(
-                    device_executor_name_);
-                return;
-            }
-            if (device_executor_name_ == "hip") {
-                hip_exec_ptr_ = &get_db().lookupObjectRef<GKOHipExecPtr>(
-                    device_executor_name_);
-                return;
-            }
-        }
-
-        const fileName app_exec_store = app_executor_name_;
-        ref_exec_ptr_ = new GKOReferenceExecPtr(
-            IOobject(app_exec_store, get_db()),
-            gko::give(gko::ReferenceExecutor::create()));
-
-        const fileName device_exec_store = device_executor_name_;
-        const fileName omp_exec_store = "omp";
-        omp_exec_ptr_ = new GKOOmpExecPtr(IOobject(omp_exec_store, get_db()),
-                                          gko::OmpExecutor::create());
-
-        if (device_executor_name_ == "cuda") {
-            cuda_exec_ptr_ =
-                new GKOCudaExecPtr(IOobject(device_exec_store, get_db()),
-                                   gko::give(gko::CudaExecutor::create(
-                                       0, omp_exec_ptr_->get_ptr(), true)));
-        }
-        if (device_executor_name_ == "hip") {
-            hip_exec_ptr_ =
-                new GKOHipExecPtr(IOobject(device_exec_store, get_db()),
-                                  gko::give(gko::HipExecutor::create(
-                                      0, omp_exec_ptr_->get_ptr(), true)));
-        }
-        if (device_executor_name_ == "omp") {
-            omp_exec_ptr_ =
-                new GKOOmpExecPtr(IOobject(device_exec_store, get_db()),
-                                  omp_exec_ptr_->get_ptr());
-        }
-    }
+          verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)){};
 
     const objectRegistry &get_db() { return db_; };
 
@@ -254,38 +153,6 @@ public:
     bool get_is_sorted() const { return is_sorted_; }
 
     void set_is_sorted(bool is_sorted) const { is_sorted_ = is_sorted; }
-
-    word get_device_executor_name() const { return device_executor_name_; }
-
-    std::shared_ptr<gko::Executor> exec() const
-    {
-        return device_exec_ptr_->get_ptr();
-    };
-
-    std::shared_ptr<gko::Executor> app_exec() const
-    {
-        return app_exec_ptr_->get_ptr();
-    };
-
-    std::shared_ptr<gko::OmpExecutor> omp_exec() const
-    {
-        return omp_exec_ptr_->get_ptr();
-    };
-
-    std::shared_ptr<gko::CudaExecutor> cuda_exec() const
-    {
-        return cuda_exec_ptr_->get_ptr();
-    };
-
-    std::shared_ptr<gko::HipExecutor> hip_exec() const
-    {
-        return hip_exec_ptr_->get_ptr();
-    };
-
-    std::shared_ptr<gko::ReferenceExecutor> ref_exec() const
-    {
-        return ref_exec_ptr_->get_ptr();
-    };
 };
 }  // namespace Foam
 

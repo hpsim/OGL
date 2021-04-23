@@ -92,6 +92,8 @@ add_compile_definitions(
 
 target_sources(OGL
   PRIVATE
+common/common.C
+IOExecutorHandler/IOExecutorHandler.C
 lduMatrix/GKOlduBase/GKOlduBase.C
 lduMatrix/GKOCG/GKOCG.C
 lduMatrix/GKOIR/GKOIR.C
@@ -99,6 +101,8 @@ lduMatrix/GKOBiCGStab/GKOBiCGStab.C
 LduMatrix/GKOLduBase/GKOLduBase.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
+common/common.H
+IOExecutorHandler/IOExecutorHandler.H
 lduMatrix/GKOlduBase/GKOlduBase.H
 lduMatrix/GKOCG/GKOCG.H
 lduMatrix/GKOIR/GKOIR.H
@@ -110,10 +114,11 @@ LduMatrix/GKOACG/GKOACG.H
 
 target_include_directories(OGL
   PUBLIC
-  $ENV{FOAM_SRC}/OpenFOAM/lnInclude
-  $ENV{FOAM_SRC}/meshTools/lnInclude
   $ENV{FOAM_SRC}/finiteVolume/lnInclude
+  $ENV{FOAM_SRC}/meshTools/lnInclude
+  $ENV{FOAM_SRC}/OpenFOAM/lnInclude
   $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
+    IOExecutorHandler/
     common/
     lduMatrix/GKOlduBase
     LduMatrix/GKOLduBase
