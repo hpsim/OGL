@@ -35,18 +35,9 @@ before_install:
 install:
   - sudo apt-get -y install openfoam$VERSION
   - source /opt/openfoam$VERSION/etc/bashrc
-
-
-clone_external_ginkgo:
-  - if: env(EXTERNAL_GINKGO) = ON
-    - git clone https://github.com/ginkgo-project/ginkgo.git
-    - cd ginkgo
-    - mkdir build
-    - cmake .. 
-    - make 
+  - ./scripts/travis_install_external_ginkgo.sh
 
 before_script:
-    
   - cmake --version -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO
   - mkdir build
   - cd build
