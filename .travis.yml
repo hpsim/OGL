@@ -8,10 +8,10 @@ os:
   - linux
 
 env:
-    - VERSION=8
-    - VERSION=7
-    - EXTERNAL_GINKGO=OFF
-    - EXTERNAL_GINKGO=ON
+    - VERSION=8 EXTERNAL_GINKGO=OFF
+    - VERSION=8 EXTERNAL_GINKGO=ON
+    - VERSION=7 EXTERNAL_GINKGO=OFF
+    - VERSION=7 EXTERNAL_GINKGO=ON
 
 cache:
   directories:
@@ -36,8 +36,18 @@ install:
   - sudo apt-get -y install openfoam$VERSION
   - source /opt/openfoam$VERSION/etc/bashrc
 
+
+clone_external_ginkgo:
+  - if: env(EXTERNAL_GINKGO) = ON
+    - git clone https://github.com/ginkgo-project/ginkgo.git
+    - cd ginkgo
+    - mkdir build
+    - cmake .. 
+    - make 
+
 before_script:
-  - cmake --version
+    
+  - cmake --version -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO
   - mkdir build
   - cd build
   - cmake ..
