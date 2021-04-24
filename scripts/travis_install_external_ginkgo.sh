@@ -17,5 +17,5 @@ then
         -DCMAKE_BUILD_TYPE=Release \
         -DGINKGO_BUILD_HWLOC=off \
         ..
-    make  && make install
+    make  && sudo make install
 fi
