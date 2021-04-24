@@ -27,7 +27,8 @@ SourceFiles
 
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
-#include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../IOHandler/IOExecutorHandler/IOExecutorHandler.H"
+#include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
 #include "../common/common.H"
 
@@ -43,11 +44,13 @@ namespace Foam {
                            Class GKOCG Declaration
 \*---------------------------------------------------------------------------*/
 
+    
 template <class SolverFactory>
 class GKOlduBaseSolver : public lduMatrix::solver,
                          public SolverFactory,
                          public IOExecutorHandler,
-                         public lduLduCommonBase {
+                         public lduLduCommonBase,
+                         public IOSortingIdxHandler {
 public:
     // Some shortcuts
     using IndexType = label;
@@ -56,8 +59,6 @@ public:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
     using cg = gko::solver::Cg<scalar>;
-
-    IOField<label> *sorting_idxs_ = NULL;
 
     mutable GKOCOOIOPtr *gkomatrix_ptr = NULL;
 
@@ -82,35 +83,19 @@ public:
           IOExecutorHandler(matrix.mesh().thisDb(), solverControls),
           SolverFactory(controlDict_),
           lduLduCommonBase(matrix.mesh().thisDb(), matrix.diag().size(),
-                           matrix.lduAddr().upperAddr().size(), solverControls)
-
+                           matrix.lduAddr().upperAddr().size(), solverControls),
+          IOSortingIdxHandler(matrix.mesh().thisDb(), nElems(), solverControls.lookupOrDefault<Switch>("sort", false)                      )
     {
         std::shared_ptr<gko::Executor> device_exec{};
         set_device_executor(device_exec);
 
-        // TODO refactor to separate function
-        // check object registry if sorting idxs exists
-        word sorting_idxs_name = "sorting_idxs_";
-        const objectRegistry &db = get_db();
-        if (db.foundObject<IOField<label>>(sorting_idxs_name)) {
-            IOField<label> &labelListRef =
-                db.lookupObjectRef<IOField<label>>(sorting_idxs_name);
-            sorting_idxs_ = &labelListRef;
-            set_is_sorted(true);
-        } else {
-            const fileName path = sorting_idxs_name;
-            sorting_idxs_ = new IOField<label>(IOobject(path, db));
-            init_sorting_idxs();
-            set_is_sorted(false);
-        }
-
 
         // TODO use different matrix names
         word sys_matrix_name = "gko_sys_matrix";
-        bool sys_matrix_stored = db.foundObject<regIOobject>(sys_matrix_name);
+        bool sys_matrix_stored = get_db().foundObject<regIOobject>(sys_matrix_name);
 
         if (sys_matrix_stored) {
-            gkomatrix_ptr = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
+            gkomatrix_ptr = &get_db().lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
             return;
         }
 
@@ -125,7 +110,7 @@ public:
         }
 
         if (!get_is_sorted()) {
-            SIMPLE_TIME(compute_sort, compute_sorting_idxs();)
+            SIMPLE_TIME(compute_sort, compute_sorting_idxs(row_idxs_);)
         }
 
         if (get_sort()) {
@@ -148,7 +133,7 @@ public:
         if (!get_update_sys_matrix()) {
             Info << "store sys matrix" << endl;
             const fileName path = sys_matrix_name;
-            gkomatrix_ptr = new GKOCOOIOPtr(IOobject(path, db), gkomatrix);
+            gkomatrix_ptr = new GKOCOOIOPtr(IOobject(path, get_db()), gkomatrix);
         }
     };
 
@@ -169,29 +154,6 @@ public:
         }
     };
 
-    void init_sorting_idxs()
-    {
-        // initialize original index locations
-        sorting_idxs_->resize(nElems());
-
-        // set sorting idxs from 0 .. n
-        for (int i = 0; i < nElems(); i++) {
-            sorting_idxs_->operator[](i) = i;
-        }
-    };
-
-    void compute_sorting_idxs()
-    {
-        // sort indexes based on comparing values in v
-        // using std::stable_sort instead of std::sort
-        // to avoid unnecessary index re-orderings
-        // when v contains elements of equal values
-        std::stable_sort(sorting_idxs_->data(),
-                         &sorting_idxs_->data()[nElems()],
-                         [this](size_t i1, size_t i2) {
-                             return row_idxs_[i1] < row_idxs_[i2];
-                         });
-    };
 
     const std::vector<scalar> &vals() const { return values_; };
 
@@ -242,7 +204,7 @@ public:
 
         // TODO parallelise
         for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs_->operator[](i);
+            label j = get_sorting_idxs()->operator[](i);
             values_[i] = tmp_values[j];
             col_idxs_[i] = tmp_col_idxs[j];
             row_idxs_[i] = tmp_row_idxs[j];

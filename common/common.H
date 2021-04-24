@@ -100,16 +100,7 @@ class lduLduCommonBase {
 
     const bool export_;
 
-    // flag to set wheter the idxs for creating the gko coo matrix
-    // should be sorted
-    const bool sort_;
-
     const bool verbose_;
-
-
-    // if sorting_idxs_ was found in object registry it does not
-    // need to be resorted
-    mutable bool is_sorted_;
 
 
 public:
@@ -126,7 +117,6 @@ public:
           nNeighbours_(nNeighbours),
           nElems_(nCells_ + 2 * nNeighbours_),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
-          sort_(controlDict.lookupOrDefault<Switch>("sort", true)),
           verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)){};
 
     const objectRegistry &get_db() { return db_; };
@@ -147,12 +137,6 @@ public:
     bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }
 
     bool get_export() const { return export_; }
-
-    bool get_sort() const { return sort_; }
-
-    bool get_is_sorted() const { return is_sorted_; }
-
-    void set_is_sorted(bool is_sorted) const { is_sorted_ = is_sorted; }
 };
 }  // namespace Foam
 
