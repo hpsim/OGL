@@ -30,7 +30,7 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
-#include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
@@ -48,11 +48,13 @@ namespace Foam {
 
 using vec = gko::matrix::Dense<scalar>;
 using mtx = gko::matrix::Coo<scalar>;
+using idx_array = gko::Array<label>;
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b);
 
 
+typedef IOPtr<idx_array> GKOIDXIOPtr;
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
 
 // Logs the number of iteration executed

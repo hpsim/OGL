@@ -13,7 +13,7 @@ License
     for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
     Foam::GKOCG
@@ -27,6 +27,7 @@ SourceFiles
 
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
+
 #include "../IOHandler/IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
@@ -41,26 +42,26 @@ SourceFiles
 namespace Foam {
 
 /*---------------------------------------------------------------------------*\
-                           Class GKOCG Declaration
+                           Class GKOlduBaseSolver Declaration
 \*---------------------------------------------------------------------------*/
 
-    
+
 template <class SolverFactory>
 class GKOlduBaseSolver : public lduMatrix::solver,
                          public SolverFactory,
-                         public IOExecutorHandler,
                          public lduLduCommonBase,
-                         public IOSortingIdxHandler {
+                         public IOSortingIdxHandler,
+                         public IOGKOMatrixHandler {
 public:
     // Some shortcuts
     using IndexType = label;
     using vec = gko::matrix::Dense<scalar>;
+    using idx_vec = gko::matrix::Dense<label>;
     using mtx = gko::matrix::Coo<scalar>;
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
     using cg = gko::solver::Cg<scalar>;
 
-    mutable GKOCOOIOPtr *gkomatrix_ptr = NULL;
 
     // for now a copy of the OF matrix is stored
     // to keep values contiguous in memory
@@ -80,33 +81,25 @@ public:
                      const dictionary &solverControls)
         : lduMatrix::solver(fieldName, matrix, interfaceBouCoeffs,
                             interfaceIntCoeffs, interfaces, solverControls),
-          IOExecutorHandler(matrix.mesh().thisDb(), solverControls),
           SolverFactory(controlDict_),
           lduLduCommonBase(matrix.mesh().thisDb(), matrix.diag().size(),
                            matrix.lduAddr().upperAddr().size(), solverControls),
-          IOSortingIdxHandler(matrix.mesh().thisDb(), nElems(), solverControls.lookupOrDefault<Switch>("sort", false)                      )
+          IOSortingIdxHandler(
+              matrix.mesh().thisDb(), nElems(),
+              solverControls.lookupOrDefault<Switch>("sort", false)),
+          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls)
+
     {
-        std::shared_ptr<gko::Executor> device_exec{};
-        set_device_executor(device_exec);
-
-
-        // TODO use different matrix names
-        word sys_matrix_name = "gko_sys_matrix";
-        bool sys_matrix_stored = get_db().foundObject<regIOobject>(sys_matrix_name);
-
-        if (sys_matrix_stored) {
-            gkomatrix_ptr = &get_db().lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name);
-            return;
+        // if sys_matrix is not stored updating is only neccesary
+        // initially
+        if (!get_update_sys_matrix() && !get_sys_matrix_stored()) {
+            SIMPLE_TIME(update_gko_mtx, update_host_matrix_copy();)
         }
 
         // if sys_matrix is not stored updating is only neccesary
-        // when requested explictly or initially
+        // when requested explictly
         if (get_update_sys_matrix()) {
-            SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
-        }
-
-        if (!get_update_sys_matrix() && !sys_matrix_stored) {
-            SIMPLE_TIME(update_gko_mtx, update_GKOMatrix();)
+            SIMPLE_TIME(update_gko_mtx, update_host_matrix_copy();)
         }
 
         if (!get_is_sorted()) {
@@ -114,46 +107,12 @@ public:
         }
 
         if (get_sort()) {
-            SIMPLE_TIME(sort_gko_mtx, sort_GKOMatrix();)
+            SIMPLE_TIME(sort_gko_mtx, sort_host_matrix_copy();)
         }
 
-        // if system matrix is not stored create it
-        // and set shared pointer
-        //
-        auto gkomatrix = gko::share(
-            mtx::create(device_exec, gko::dim<2>(nCells(), nCells()),
-                        val_array::view(gko::ReferenceExecutor::create(),
-                                        nElems(), &values_[0]),
-                        idx_array::view(gko::ReferenceExecutor::create(),
-                                        nElems(), &col_idxs_[0]),
-                        idx_array::view(gko::ReferenceExecutor::create(),
-                                        nElems(), &row_idxs_[0])));
-
-        // if updating system matrix is not needed store ptr in obj registry
-        if (!get_update_sys_matrix()) {
-            Info << "store sys matrix" << endl;
-            const fileName path = sys_matrix_name;
-            gkomatrix_ptr = new GKOCOOIOPtr(IOobject(path, get_db()), gkomatrix);
-        }
+        init_device_matrix(get_db(), values_, col_idxs_, row_idxs_, nElems(),
+                           nCells(), !get_update_sys_matrix());
     };
-
-    void set_device_executor(std::shared_ptr<gko::Executor> &device_exec) const
-    {
-        const word device_executor_name{get_device_executor_name()};
-        if (device_executor_name == "omp") {
-            device_exec = omp_exec();
-        }
-        if (device_executor_name == "cuda") {
-            device_exec = cuda_exec();
-        }
-        if (device_executor_name == "hip") {
-            device_exec = hip_exec();
-        }
-        if (device_executor_name == "reference") {
-            device_exec = ref_exec();
-        }
-    };
-
 
     const std::vector<scalar> &vals() const { return values_; };
 
@@ -161,7 +120,7 @@ public:
 
     const std::vector<label> &row_idx() const { return row_idxs_; };
 
-    void update_GKOMatrix() const
+    void update_host_matrix_copy() const
     {
         // reset vectors
         values_.resize(0);
@@ -192,7 +151,7 @@ public:
         }
     };
 
-    void sort_GKOMatrix() const
+    void sort_host_matrix_copy() const
     {
         std::vector<scalar> tmp_values(nElems());
         std::vector<label> tmp_col_idxs(nElems());
@@ -202,14 +161,11 @@ public:
         for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
         for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
 
-        // TODO parallelise
         for (label i = 0; i < nElems(); i++) {
             label j = get_sorting_idxs()->operator[](i);
             values_[i] = tmp_values[j];
             col_idxs_[i] = tmp_col_idxs[j];
             row_idxs_[i] = tmp_row_idxs[j];
-            // std::cout << "elem " << i << ": " << row_idxs_[i] << " " <<
-            // col_idxs_[i] << std::endl;
         }
     };
 
@@ -228,8 +184,8 @@ public:
                                          const scalarField &source,
                                          const direction cmpt = 0) const
     {
-        std::shared_ptr<gko::Executor> device_exec{};
-        set_device_executor(device_exec);
+        std::shared_ptr<gko::Executor> device_exec =
+            this->get_device_executor();
 
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
@@ -274,19 +230,7 @@ public:
         solver_gen->add_logger(logger);
 
         auto b_clone = gko::clone(b);
-        std::shared_ptr<mtx> gkomatrix{};
-        if (gkomatrix_ptr == NULL) {
-            gkomatrix = gko::share(
-                mtx::create(device_exec, gko::dim<2>(nCells(), nCells()),
-                            val_array::view(gko::ReferenceExecutor::create(),
-                                            nElems(), &values_[0]),
-                            idx_array::view(gko::ReferenceExecutor::create(),
-                                            nElems(), &col_idxs_[0]),
-                            idx_array::view(gko::ReferenceExecutor::create(),
-                                            nElems(), &row_idxs_[0])));
-        } else {
-            gkomatrix = gkomatrix_ptr->get_ptr();
-        }
+        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         if (get_export())
             export_system(fieldName(), gko::lend(gkomatrix), gko::lend(x),

@@ -28,6 +28,7 @@ SourceFiles
 #ifndef OGL_IOExecutorHandler_INCLUDED_H
 #define OGL_IOExecutorHandler_INCLUDED_H
 
+#include "../IOPtr/IOPtr.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -38,29 +39,6 @@ namespace Foam {
 using vec = gko::matrix::Dense<scalar>;
 using mtx = gko::matrix::Coo<scalar>;
 
-template <class T>
-class IOPtr : public regIOobject {
-private:
-    std::shared_ptr<T> ptr_;
-
-public:
-    // - Runtime type information
-    TypeName("IOPtr");
-
-    //- Construct from IOobject and a PtrList
-    IOPtr(const IOobject &io, std::shared_ptr<T> in_ptr)
-        : regIOobject(io), ptr_(in_ptr){};
-
-    std::shared_ptr<T> get_ptr() { return ptr_; };
-
-    bool writeData(Ostream &) const { return false; };
-};
-
-typedef IOPtr<gko::Executor> GKOExecPtr;
-typedef IOPtr<gko::CudaExecutor> GKOCudaExecPtr;
-typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
-typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
-typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 
 class IOExecutorHandler {
 private:
@@ -87,9 +65,19 @@ public:
 
     word get_device_executor_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::Executor> exec() const
+    std::shared_ptr<gko::Executor> get_device_executor() const
     {
-        return device_exec_ptr_->get_ptr();
+        const word device_executor_name{get_device_executor_name()};
+        if (device_executor_name == "omp") {
+            return omp_exec();
+        }
+        if (device_executor_name == "cuda") {
+            return cuda_exec();
+        }
+        if (device_executor_name == "hip") {
+            return hip_exec();
+        }
+        return ref_exec();
     };
 
     std::shared_ptr<gko::Executor> app_exec() const

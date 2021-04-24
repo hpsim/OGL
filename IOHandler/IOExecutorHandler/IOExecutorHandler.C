@@ -7,15 +7,14 @@
 namespace Foam {
 
 IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
-                                     const dictionary &controlDict):
-    device_executor_name_(controlDict.lookupOrDefault("executor",
-                                                      word("reference"))),
-    app_executor_name_(controlDict.lookupOrDefault("app_executor",
-                                                   word("reference")))
+                                     const dictionary &controlDict)
+    : device_executor_name_(
+          controlDict.lookupOrDefault("executor", word("reference"))),
+      app_executor_name_(
+          controlDict.lookupOrDefault("app_executor", word("reference")))
 {
     // create executors
-    bool app_exec_stored =
-        db.foundObject<regIOobject>(app_executor_name_);
+    bool app_exec_stored = db.foundObject<regIOobject>(app_executor_name_);
 
     if (app_exec_stored) {
         ref_exec_ptr_ =
@@ -35,8 +34,8 @@ IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
             return;
         }
         if (device_executor_name_ == "cuda") {
-            cuda_exec_ptr_ = &db.lookupObjectRef<GKOCudaExecPtr>(
-                device_executor_name_);
+            cuda_exec_ptr_ =
+                &db.lookupObjectRef<GKOCudaExecPtr>(device_executor_name_);
             return;
         }
         if (device_executor_name_ == "hip") {

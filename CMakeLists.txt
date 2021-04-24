@@ -93,8 +93,10 @@ add_compile_definitions(
 target_sources(OGL
   PRIVATE
 common/common.C
+IOHandler/IOPtr/IOPtr.C
 IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
 IOHandler/IOExecutorHandler/IOExecutorHandler.C
+IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
 lduMatrix/GKOlduBase/GKOlduBase.C
 lduMatrix/GKOCG/GKOCG.C
 lduMatrix/GKOIR/GKOIR.C
@@ -103,8 +105,10 @@ LduMatrix/GKOLduBase/GKOLduBase.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
 common/common.H
+IOHandler/IOPtr/IOPtr.H
 IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
 IOHandler/IOExecutorHandler/IOExecutorHandler.H
+IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
 lduMatrix/GKOlduBase/GKOlduBase.H
 lduMatrix/GKOCG/GKOCG.H
 lduMatrix/GKOIR/GKOIR.H
@@ -120,11 +124,13 @@ target_include_directories(OGL
   $ENV{FOAM_SRC}/meshTools/lnInclude
   $ENV{FOAM_SRC}/OpenFOAM/lnInclude
   $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
-    IOHandler/IOExecutorHandler/
-    IOHandler/IOSortingIdxHandler/
-    common/
-    lduMatrix/GKOlduBase
-    LduMatrix/GKOLduBase
+  common/
+  IOHandler/IOPtr
+  IOHandler/IOExecutorHandler/
+  IOHandler/IOSortingIdxHandler/
+  IOHandler/IOGKOMatrixHandler/
+  lduMatrix/GKOlduBase
+  LduMatrix/GKOLduBase
   )
 
 

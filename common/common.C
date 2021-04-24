@@ -28,6 +28,7 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     gko::write(stream_x, x);
 };
 
+defineTemplateTypeNameWithName(GKOIDXIOPtr, "IDXIOPtr");
 defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
 
 // // IOPtr::addsymMatrixConstructorToTable<GKOCG>
