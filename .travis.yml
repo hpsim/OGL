@@ -8,8 +8,10 @@ os:
   - linux
 
 env:
-    - VERSION=8
-    - VERSION=7
+    - VERSION=8 EXTERNAL_GINKGO=OFF
+    - VERSION=8 EXTERNAL_GINKGO=ON
+    - VERSION=7 EXTERNAL_GINKGO=OFF
+    - VERSION=7 EXTERNAL_GINKGO=ON
 
 cache:
   directories:
@@ -33,12 +35,13 @@ before_install:
 install:
   - sudo apt-get -y install openfoam$VERSION
   - source /opt/openfoam$VERSION/etc/bashrc
+  - ./scripts/travis_install_external_ginkgo.sh
 
 before_script:
-  - cmake --version
+  - cmake --version 
   - mkdir build
   - cd build
-  - cmake ..
+  - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
 
 script:
   - make -j4
