@@ -82,27 +82,38 @@ public:
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
-          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls)
+          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName)
     {
-        // if sys_matrix is not stored updating is only neccesary
+        // if sys_matrix is not stored updating is neccesary
         // initially
-        if (!get_update_sys_matrix() && !get_sys_matrix_stored()) {
-            SIMPLE_TIME(update_gko_mtx, this->update_host_matrix_copy();)
+        bool stored = get_sys_matrix_stored();
+        if (!stored) {
+            std::cout << " matrix not stored update host matrix " << std::endl;
+            SIMPLE_TIME(update_host_mtx, this->update_host_matrix_copy();)
+        } else {
+            // if sys_matrix is  stored updating is only neccesary
+            // when requested explictly
+            std::cout
+                << " matrix is stored and  update of host matrix requested"
+                << std::endl;
+            if (get_update_sys_matrix()) {
+                SIMPLE_TIME(exp_update_host_mtx,
+                            this->update_host_matrix_copy();)
+            }
         }
 
-        // if sys_matrix is not stored updating is only neccesary
-        // when requested explictly
-        if (get_update_sys_matrix()) {
-            SIMPLE_TIME(update_gko_mtx, this->update_host_matrix_copy();)
-        }
-
+        // after updating the host matrix the host matrix needs to be sorted
         if (!get_is_sorted()) {
+            std::cout << "matrix is not yet sorted, compute sorting idxs "
+                      << std::endl;
             SIMPLE_TIME(compute_sort,
                         this->compute_sorting_idxs(this->row_idxs());)
         }
 
-        if (get_sort()) {
-            SIMPLE_TIME(sort_gko_mtx,
+        if (!stored && get_sort()) {
+            std::cout << "matrix is not yet sorted,  sorting host matrix "
+                      << std::endl;
+            SIMPLE_TIME(sort_host_mtx,
                         this->sort_host_matrix_copy(this->get_sorting_idxs());)
         }
 
@@ -125,13 +136,13 @@ public:
 
         auto source_view_x = val_array::view(
             ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].x()));
+            const_cast<scalar *>(&this->matrix().source()[0].x()));
         auto source_view_y = val_array::view(
             ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].y()));
+            const_cast<scalar *>(&this->matrix().source()[0].y()));
         auto source_view_z = val_array::view(
             ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix_.source()[0].z()));
+            const_cast<scalar *>(&this->matrix().source()[0].z()));
 
         auto b_x = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
                                source_view_x, 3);
@@ -157,15 +168,12 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
+        criterion_vec.push_back(build_stopping_criterion(device_exec, 1.0));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
 
-        auto gkomatrix = gko::give(mtx::create(
-            device_exec, gko::dim<2>(this->nCells()),
-            val_array::view(ref_exec(), this->nElems(), &values_[0]),
-            idx_array::view(ref_exec(), this->nElems(), &col_idxs_[0]),
-            idx_array::view(ref_exec(), this->nElems(), &row_idxs_[0])));
+        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         auto solver = solver_gen->generate(gko::give(gkomatrix));
 

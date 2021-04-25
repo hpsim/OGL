@@ -53,6 +53,8 @@ private:
 
     const bool export_;
 
+    mutable std::shared_ptr<mtx> gkomatrix_ = NULL;
+
     mutable GKOCOOIOPtr *gkomatrix_ptr_ = NULL;
 
     mutable GKOIDXIOPtr *io_col_idxs_ptr_ = NULL;
@@ -60,9 +62,10 @@ private:
     mutable GKOIDXIOPtr *io_row_idxs_ptr_ = NULL;
 
 public:
-    IOGKOMatrixHandler(const objectRegistry &db, const dictionary &controlDict)
+    IOGKOMatrixHandler(const objectRegistry &db, const dictionary &controlDict,
+                       const word sys_matrix_name)
         : IOExecutorHandler(db, controlDict),
-          sys_matrix_name_("gko_sys_matrix"),
+          sys_matrix_name_(sys_matrix_name + "_gko"),
           sys_matrix_stored_(db.foundObject<regIOobject>(sys_matrix_name_)),
           update_sysMatrix_(
               controlDict.lookupOrDefault("updateSysMatrix", word("yes"))),
@@ -79,6 +82,9 @@ public:
 
     std::shared_ptr<mtx> get_gkomatrix() const
     {
+        if (gkomatrix_ptr_ == NULL) {
+            return gkomatrix_;
+        }
         return gkomatrix_ptr_->get_ptr();
     };
 

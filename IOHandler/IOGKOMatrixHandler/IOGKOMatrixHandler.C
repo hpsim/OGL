@@ -77,10 +77,13 @@ void IOGKOMatrixHandler::init_device_matrix(
 
     // if updating system matrix is not needed store ptr in obj registry
     if (store) {
-        Info << "store sys matrix" << endl;
         const fileName path = sys_matrix_name_;
         gkomatrix_ptr_ = new GKOCOOIOPtr(IOobject(path, db), gkomatrix);
+    } else {
+        gkomatrix_ptr_ = NULL;
+        gkomatrix_ = gkomatrix;
     }
+
 
     // in any case store sparsity pattern
     const fileName path_col = sparsity_pattern_name_cols_;

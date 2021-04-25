@@ -80,26 +80,28 @@ public:
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
-          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls)
+          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName)
     {
-        // if sys_matrix is not stored updating is only neccesary
+        // if sys_matrix is not stored updating is neccesary
         // initially
-        if (!get_update_sys_matrix() && !get_sys_matrix_stored()) {
-            SIMPLE_TIME(update_gko_mtx, update_host_matrix_copy();)
+        bool stored = get_sys_matrix_stored();
+        if (!stored) {
+            SIMPLE_TIME(update_host_mtx, update_host_matrix_copy();)
+        } else {
+            // if sys_matrix is  stored updating is only neccesary
+            // when requested explictly
+            if (get_update_sys_matrix()) {
+                SIMPLE_TIME(exp_update_host_mtx, update_host_matrix_copy();)
+            }
         }
 
-        // if sys_matrix is not stored updating is only neccesary
-        // when requested explictly
-        if (get_update_sys_matrix()) {
-            SIMPLE_TIME(update_gko_mtx, update_host_matrix_copy();)
-        }
-
+        // after updating the host matrix the host matrix needs to be sorted
         if (!get_is_sorted()) {
             SIMPLE_TIME(compute_sort, compute_sorting_idxs(row_idxs());)
         }
 
-        if (get_sort()) {
-            SIMPLE_TIME(sort_gko_mtx,
+        if (!stored && get_sort()) {
+            SIMPLE_TIME(sort_host_mtx,
                         sort_host_matrix_copy(get_sorting_idxs());)
         }
 
@@ -119,6 +121,7 @@ public:
         solverPerformance solverPerf(
             lduMatrix::preconditioner::getName(controlDict_) + typeName,
             fieldName_);
+
         scalarField pA(nCells());
         scalarField wA(nCells());
         matrix_.Amul(wA, psi, interfaceBouCoeffs_, interfaces_, cmpt);
@@ -136,8 +139,8 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        // criterion_vec.push_back(
-        //   build_stopping_criterion(device_exec, norm_factor));
+        criterion_vec.push_back(
+            build_stopping_criterion(device_exec, norm_factor));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
