@@ -49,6 +49,10 @@ private:
 
     const word sparsity_pattern_name_rows_ = "gko_sparsity_pattern_rows";
 
+    const word update_sysMatrix_;
+
+    const bool export_;
+
     mutable GKOCOOIOPtr *gkomatrix_ptr_ = NULL;
 
     mutable GKOIDXIOPtr *io_col_idxs_ptr_ = NULL;
@@ -59,7 +63,10 @@ public:
     IOGKOMatrixHandler(const objectRegistry &db, const dictionary &controlDict)
         : IOExecutorHandler(db, controlDict),
           sys_matrix_name_("gko_sys_matrix"),
-          sys_matrix_stored_(db.foundObject<regIOobject>(sys_matrix_name_)){};
+          sys_matrix_stored_(db.foundObject<regIOobject>(sys_matrix_name_)),
+          update_sysMatrix_(
+              controlDict.lookupOrDefault("updateSysMatrix", word("yes"))),
+          export_(controlDict.lookupOrDefault<Switch>("export", false)){};
 
     bool get_sys_matrix_stored() const { return sys_matrix_stored_; };
 
@@ -74,6 +81,10 @@ public:
     {
         return gkomatrix_ptr_->get_ptr();
     };
+
+    bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }
+
+    bool get_export() const { return export_; }
 };
 }  // namespace Foam
 

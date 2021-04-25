@@ -47,9 +47,9 @@ namespace Foam {
 
 
 template <class SolverFactory>
-class GKOlduBaseSolver : public lduMatrix::solver,
+class GKOlduBaseSolver : public HostMatrix<lduMatrix>,
                          public SolverFactory,
-                         public lduLduCommonBase,
+                         public StoppingCriterion,
                          public IOSortingIdxHandler,
                          public IOGKOMatrixHandler {
 public:
@@ -65,12 +65,6 @@ public:
 
     // for now a copy of the OF matrix is stored
     // to keep values contiguous in memory
-public:
-    mutable std::vector<scalar> values_;
-
-    mutable std::vector<label> col_idxs_;
-
-    mutable std::vector<label> row_idxs_;
 
 public:
     //- Construct from matrix components and solver controls
@@ -79,16 +73,14 @@ public:
                      const FieldField<Field, scalar> &interfaceIntCoeffs,
                      const lduInterfaceFieldPtrsList &interfaces,
                      const dictionary &solverControls)
-        : lduMatrix::solver(fieldName, matrix, interfaceBouCoeffs,
-                            interfaceIntCoeffs, interfaces, solverControls),
-          SolverFactory(controlDict_),
-          lduLduCommonBase(matrix.mesh().thisDb(), matrix.diag().size(),
-                           matrix.lduAddr().upperAddr().size(), solverControls),
+        : HostMatrix<lduMatrix>(fieldName, matrix, interfaceBouCoeffs,
+                                interfaceIntCoeffs, interfaces, solverControls),
+          SolverFactory(solverControls),
+          StoppingCriterion(solverControls),
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), nElems(),
-              solverControls.lookupOrDefault<Switch>("sort", false)),
+              solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls)
-
     {
         // if sys_matrix is not stored updating is only neccesary
         // initially
@@ -103,81 +95,17 @@ public:
         }
 
         if (!get_is_sorted()) {
-            SIMPLE_TIME(compute_sort, compute_sorting_idxs(row_idxs_);)
+            SIMPLE_TIME(compute_sort, compute_sorting_idxs(row_idxs());)
         }
 
         if (get_sort()) {
-            SIMPLE_TIME(sort_gko_mtx, sort_host_matrix_copy();)
+            SIMPLE_TIME(sort_gko_mtx,
+                        sort_host_matrix_copy(get_sorting_idxs());)
         }
 
-        init_device_matrix(get_db(), values_, col_idxs_, row_idxs_, nElems(),
-                           nCells(), !get_update_sys_matrix());
-    };
-
-    const std::vector<scalar> &vals() const { return values_; };
-
-    const std::vector<label> &col_idx() const { return col_idxs_; };
-
-    const std::vector<label> &row_idx() const { return row_idxs_; };
-
-    void update_host_matrix_copy() const
-    {
-        // reset vectors
-        values_.resize(0);
-        col_idxs_.resize(0);
-        row_idxs_.resize(0);
-
-        values_.reserve(nElems());
-        col_idxs_.reserve(nElems());
-        row_idxs_.reserve(nElems());
-
-        // fill vectors unsorted
-        for (IndexType i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(matrix().lower()[i]);
-            row_idxs_.push_back(matrix().lduAddr().lowerAddr()[i]);
-            col_idxs_.push_back(matrix().lduAddr().upperAddr()[i]);
-        }
-
-        for (IndexType i = 0; i < nCells(); ++i) {
-            values_.push_back(matrix().diag()[i]);
-            col_idxs_.push_back(i);
-            row_idxs_.push_back(i);
-        }
-
-        for (IndexType i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(matrix().upper()[i]);
-            row_idxs_.push_back(matrix().lduAddr().upperAddr()[i]);
-            col_idxs_.push_back(matrix().lduAddr().lowerAddr()[i]);
-        }
-    };
-
-    void sort_host_matrix_copy() const
-    {
-        std::vector<scalar> tmp_values(nElems());
-        std::vector<label> tmp_col_idxs(nElems());
-        std::vector<label> tmp_row_idxs(nElems());
-
-        for (label i = 0; i < nElems(); i++) tmp_values[i] = values_[i];
-        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
-        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
-
-        for (label i = 0; i < nElems(); i++) {
-            label j = get_sorting_idxs()->operator[](i);
-            values_[i] = tmp_values[j];
-            col_idxs_[i] = tmp_col_idxs[j];
-            row_idxs_[i] = tmp_row_idxs[j];
-        }
-    };
-
-    scalar compute_residual(mtx *const A, vec *const x, vec *const b) const
-    {
-        auto one = gko::initialize<vec>({1.0}, ref_exec());
-        auto neg_one = gko::initialize<vec>({-1.0}, ref_exec());
-        auto res = gko::initialize<vec>({0.0}, ref_exec());
-        A->apply(lend(one), lend(x), lend(neg_one), lend(b));
-        b->compute_norm2(lend(res));
-
-        return res->at(0);
+        init_device_matrix(matrix.mesh().thisDb(), values(), col_idxs(),
+                           row_idxs(), nElems(), nCells(),
+                           !get_update_sys_matrix());
     };
 
     virtual solverPerformance solve_impl(word typeName, scalarField &psi,
@@ -208,15 +136,8 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-
-        criterion_vec.push_back(
-            OpenFOAMStoppingCriterion::build()
-                .with_openfoam_absolute_tolerance(tolerance())
-                .with_openfoam_relative_tolerance(0)
-                .with_openfoam_norm_factor(norm_factor)
-                .with_openfoam_minIter(minIter())
-                .with_openfoam_maxIter(maxIter())
-                .on(device_exec));
+        // criterion_vec.push_back(
+        //   build_stopping_criterion(device_exec, norm_factor));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
@@ -237,8 +158,7 @@ public:
                           gko::lend(b));
 
 
-        solverPerf.initialResidual() = compute_residual(
-            gko::lend(gkomatrix), gko::lend(x), gko::lend(b_clone));
+        solverPerf.initialResidual() = 0.0;
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
@@ -251,10 +171,7 @@ public:
         psi_view = x_view;
         b_clone->copy_from(gko::lend(b));
 
-        // solverPerf.finalResidual() =
-        //     compute_residual(gko::lend(ginkgo_host_matrix),
-        //     gko::lend(x_clone),
-        //                      gko::lend(b_clone));
+        solverPerf.finalResidual() = 0.0;
 
         solverPerf.nIterations() = logger->get_iters();
 

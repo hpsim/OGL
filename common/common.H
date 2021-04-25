@@ -46,6 +46,102 @@ SourceFiles
 
 namespace Foam {
 
+template <class MatrixType>
+class HostMatrix : public MatrixType::solver {
+private:
+    const label nCells_;
+
+    const label nNeighbours_;
+
+    const label nElems_;
+
+    mutable std::vector<scalar> values_;
+
+    mutable std::vector<label> col_idxs_;
+
+    mutable std::vector<label> row_idxs_;
+
+public:
+    HostMatrix(const word &fieldName, const MatrixType &matrix,
+               const FieldField<Field, scalar> &interfaceBouCoeffs,
+               const FieldField<Field, scalar> &interfaceIntCoeffs,
+               const lduInterfaceFieldPtrsList &interfaces,
+               const dictionary &solverControls)
+        : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
+                             interfaceIntCoeffs, interfaces, solverControls),
+          nCells_(matrix.diag().size()),
+          nNeighbours_(matrix.lduAddr().upperAddr().size()),
+          nElems_(nCells_ + 2 * nNeighbours_){};
+
+    HostMatrix(const word &fieldName, const MatrixType &matrix,
+               const dictionary &solverControls)
+        : MatrixType::solver(fieldName, matrix, solverControls),
+          nCells_(matrix.diag().size()),
+          nNeighbours_(matrix.lduAddr().upperAddr().size()),
+          nElems_(nCells_ + 2 * nNeighbours_){};
+
+    void update_host_matrix_copy() const
+    {
+        // reset vectors
+        values_.resize(0);
+        col_idxs_.resize(0);
+        row_idxs_.resize(0);
+
+        values_.reserve(nElems());
+        col_idxs_.reserve(nElems());
+        row_idxs_.reserve(nElems());
+
+        // fill vectors unsorted
+        for (label i = 0; i < nNeighbours(); ++i) {
+            values_.push_back(this->matrix().lower()[i]);
+            row_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
+            col_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
+        }
+
+        for (label i = 0; i < nCells(); ++i) {
+            values_.push_back(this->matrix().diag()[i]);
+            col_idxs_.push_back(i);
+            row_idxs_.push_back(i);
+        }
+
+        for (label i = 0; i < nNeighbours(); ++i) {
+            values_.push_back(this->matrix().upper()[i]);
+            row_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
+            col_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
+        }
+    };
+
+    void sort_host_matrix_copy(const IOField<label> *sorting_idxs) const
+    {
+        std::vector<scalar> tmp_values(nElems());
+        std::vector<label> tmp_col_idxs(nElems());
+        std::vector<label> tmp_row_idxs(nElems());
+
+        for (label i = 0; i < nElems(); i++) tmp_values[i] = values_[i];
+        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
+        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
+
+        for (label i = 0; i < nElems(); i++) {
+            label j = sorting_idxs->operator[](i);
+            values_[i] = tmp_values[j];
+            col_idxs_[i] = tmp_col_idxs[j];
+            row_idxs_[i] = tmp_row_idxs[j];
+        }
+    };
+
+    label nCells() const { return nCells_; };
+
+    label nElems() const { return nElems_; };
+
+    label nNeighbours() const { return nNeighbours_; };
+
+    std::vector<scalar> &values() const { return values_; };
+
+    std::vector<label> &col_idxs() const { return col_idxs_; };
+
+    std::vector<label> &row_idxs() const { return row_idxs_; };
+};
+
 using vec = gko::matrix::Dense<scalar>;
 using mtx = gko::matrix::Coo<scalar>;
 using idx_array = gko::Array<label>;
@@ -53,9 +149,6 @@ using idx_array = gko::Array<label>;
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b);
 
-
-typedef IOPtr<idx_array> GKOIDXIOPtr;
-typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
 
 // Logs the number of iteration executed
 struct IterationLogger : gko::log::Logger {
@@ -81,65 +174,6 @@ private:
 };
 
 
-class lduLduCommonBase {
-    const objectRegistry &db_;
-
-    const label maxIter_;
-
-    const label minIter_;
-
-    const scalar tolerance_;
-
-    const scalar relTol_;
-
-    const word update_sysMatrix_;
-
-    const label nCells_;
-
-    const label nNeighbours_;
-
-    const label nElems_;
-
-    const bool export_;
-
-    const bool verbose_;
-
-
-public:
-    lduLduCommonBase(const objectRegistry &db, label nCells, label nNeighbours,
-                     const dictionary &controlDict)
-        : db_(db),
-          maxIter_(controlDict.lookupOrDefault("maxIter", label(1000))),
-          minIter_(controlDict.lookupOrDefault("minIter", label(0))),
-          tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
-          relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
-          update_sysMatrix_(
-              controlDict.lookupOrDefault("updateSysMatrix", word("yes"))),
-          nCells_(nCells),
-          nNeighbours_(nNeighbours),
-          nElems_(nCells_ + 2 * nNeighbours_),
-          export_(controlDict.lookupOrDefault<Switch>("export", false)),
-          verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)){};
-
-    const objectRegistry &get_db() { return db_; };
-
-    scalar tolerance() const { return tolerance_; }
-
-    label minIter() const { return minIter_; }
-
-    label maxIter() const { return maxIter_; }
-
-    label nCells() const { return nCells_; };
-
-    label nElems() const { return nElems_; };
-
-    label nNeighbours() const { return nNeighbours_; };
-
-    //
-    bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }
-
-    bool get_export() const { return export_; }
-};
 }  // namespace Foam
 
 #endif
