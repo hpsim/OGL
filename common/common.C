@@ -28,12 +28,6 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     gko::write(stream_x, x);
 };
 
-defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
-defineTemplateTypeNameWithName(GKOExecPtr, "ExecIOPtr");
-defineTemplateTypeNameWithName(GKOCudaExecPtr, "CudaExecIOPtr");
-defineTemplateTypeNameWithName(GKOOmpExecPtr, "OmpExecIOPtr");
-defineTemplateTypeNameWithName(GKOHipExecPtr, "HipExecIOPtr");
-defineTemplateTypeNameWithName(GKOReferenceExecPtr, "ReferenceExecIOPtr");
 
 // // IOPtr::addsymMatrixConstructorToTable<GKOCG>
 // // addGKOCGSymMatrixConstructorToTable_;
