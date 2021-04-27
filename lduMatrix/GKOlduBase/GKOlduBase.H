@@ -114,6 +114,7 @@ public:
                                          const scalarField &source,
                                          const direction cmpt = 0) const
     {
+        std::cout << "solve_impl" << std::endl;
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 
@@ -127,14 +128,16 @@ public:
         matrix_.Amul(wA, psi, interfaceBouCoeffs_, interfaces_, cmpt);
         scalar norm_factor = this->normFactor(psi, source, wA, pA);
 
-        auto psi_view = val_array::view(ref_exec(), nCells(),
-                                        const_cast<scalar *>(&psi[0]));
         auto source_view = val_array::view(ref_exec(), nCells(),
                                            const_cast<scalar *>(&source[0]));
         auto b =
             vec::create(ref_exec(), gko::dim<2>(nCells(), 1), source_view, 1);
 
-        auto x = vec::create(ref_exec(), gko::dim<2>(nCells(), 1), psi_view, 1);
+        std::cout << "solve_impl init_initial_guess" << std::endl;
+        init_initial_guess(psi, matrix().mesh().thisDb(), nCells());
+        std::cout << "solve_impl init_initial_guess done" << std::endl;
+        auto x = this->get_initial_guess();
+        std::cout << "solve_impl get_initial_guess done" << std::endl;
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -153,7 +156,7 @@ public:
         // from this factory.
         solver_gen->add_logger(logger);
 
-        auto b_clone = gko::clone(b);
+        // auto b_clone = gko::clone(b);
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         if (get_export())
@@ -168,11 +171,9 @@ public:
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
 
-        auto x_view = val_array::view(ref_exec(), nCells(), x->get_values());
-        auto x_clone =
-            vec::create(ref_exec(), gko::dim<2>(nCells(), 1), x_view, 1);
-        psi_view = x_view;
-        b_clone->copy_from(gko::lend(b));
+        this->copy_result_back(psi, nCells());
+
+        // b_clone->copy_from(gko::lend(b));
 
         solverPerf.finalResidual() = 0.0;
 
