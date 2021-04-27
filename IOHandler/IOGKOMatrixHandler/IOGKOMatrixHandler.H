@@ -151,19 +151,24 @@ public:
     void copy_result_back(const scalarField &psi, const label nCells) const
     {
         std::cout << "copy back" << std::endl;
-        auto device_x = vec::create(ref_exec());
-        device_x->copy_from(get_initial_guess().get());
+        auto device_x = vec::create(ref_exec(), nCells);
+        std::cout << "copy back 2" << std::endl;
+        device_x->copy_from(gko::lend(get_initial_guess()));
 
         std::cout << "create x_view back" << std::endl;
         auto x_view =
-            val_array::view(app_exec(), nCells, device_x->get_values());
+            val_array::view(ref_exec(), nCells, device_x->get_values());
+        // for (label i = 0; i < nCells; i++) {
+        //     std::cout << x_view[i] << std::endl;
+        // }
 
         // move frome device
         std::cout << "create psi_view " << std::endl;
         auto psi_view =
-            val_array::view(app_exec(), nCells, const_cast<scalar *>(&psi[0]));
+            val_array::view(ref_exec(), nCells, const_cast<scalar *>(&psi[0]));
 
         std::cout << "copy x_view to psi_view " << std::endl;
+
         psi_view = x_view;
     }
 
