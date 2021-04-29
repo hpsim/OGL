@@ -114,7 +114,6 @@ public:
                                          const scalarField &source,
                                          const direction cmpt = 0) const
     {
-        std::cout << "solve_impl" << std::endl;
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 
@@ -157,6 +156,7 @@ public:
         solver_gen->add_logger(logger);
 
         // auto b_clone = gko::clone(b);
+
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         if (get_export())

@@ -64,6 +64,7 @@ typedef IOPtr<idx_array> GKOIDXIOPtr;
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
 typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;
 
+
 }  // namespace Foam
 
 #endif

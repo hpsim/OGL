@@ -91,6 +91,7 @@ public:
               db.foundObject<regIOobject>(init_guess_vector_name_)),
           update_init_guess_vector_(
               controlDict.lookupOrDefault<Switch>("updateInitVector", false)),
+
           export_(controlDict.lookupOrDefault<Switch>("export", false)){};
 
     bool get_sys_matrix_stored() const { return sys_matrix_stored_; };
@@ -101,7 +102,6 @@ public:
                             std::vector<label> &row_idxs_host,
                             const label nElems, const label nCells,
                             const bool store) const;
-
 
     std::shared_ptr<mtx> get_gkomatrix() const
     {

@@ -37,7 +37,6 @@ void IOGKOMatrixHandler::init_device_matrix(
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
     if (sys_matrix_stored_) {
-        std::cout << "system_matrix_stored" << std::endl;
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name_);
         return;
     }
@@ -45,7 +44,6 @@ void IOGKOMatrixHandler::init_device_matrix(
     std::shared_ptr<idx_array> col_idx;
     std::shared_ptr<idx_array> row_idx;
     if (sparsity_pattern_stored_) {
-        std::cout << "sparsity_pattern_stored" << std::endl;
         io_col_idxs_ptr_ =
             &db.lookupObjectRef<GKOIDXIOPtr>(sparsity_pattern_name_cols_);
         io_row_idxs_ptr_ =
@@ -53,7 +51,6 @@ void IOGKOMatrixHandler::init_device_matrix(
         col_idx = io_col_idxs_ptr_->get_ptr();
         row_idx = io_row_idxs_ptr_->get_ptr();
     } else {
-        std::cout << "init_sparsity_pattern" << std::endl;
         // if not stored yet create sparsity pattern from correspondent
         // views
         auto col_idx_view = idx_array::view(gko::ReferenceExecutor::create(),
@@ -69,7 +66,6 @@ void IOGKOMatrixHandler::init_device_matrix(
     }
 
     // if system matrix is not stored create it and set shared pointer
-    std::cout << "init_system_matrix" << std::endl;
     auto gkomatrix =
         gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells),
                                val_array::view(gko::ReferenceExecutor::create(),
@@ -97,4 +93,5 @@ void IOGKOMatrixHandler::init_device_matrix(
 defineTemplateTypeNameWithName(GKOIDXIOPtr, "IDXIOPtr");
 defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
 defineTemplateTypeNameWithName(GKOVECIOPtr, "VECIOPtr");
+
 }  // namespace Foam
