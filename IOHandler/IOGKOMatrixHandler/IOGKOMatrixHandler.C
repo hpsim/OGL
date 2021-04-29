@@ -41,12 +41,9 @@ void IOGKOMatrixHandler::init_device_matrix(
         return;
     }
 
-    bool sparsity_pattern_stored =
-        db.foundObject<regIOobject>(sparsity_pattern_name_cols_);
-
     std::shared_ptr<idx_array> col_idx;
     std::shared_ptr<idx_array> row_idx;
-    if (sparsity_pattern_stored) {
+    if (sparsity_pattern_stored_) {
         io_col_idxs_ptr_ =
             &db.lookupObjectRef<GKOIDXIOPtr>(sparsity_pattern_name_cols_);
         io_row_idxs_ptr_ =
@@ -95,4 +92,6 @@ void IOGKOMatrixHandler::init_device_matrix(
 
 defineTemplateTypeNameWithName(GKOIDXIOPtr, "IDXIOPtr");
 defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
+defineTemplateTypeNameWithName(GKOVECIOPtr, "VECIOPtr");
+
 }  // namespace Foam
