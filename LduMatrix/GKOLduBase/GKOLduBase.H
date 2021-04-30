@@ -88,8 +88,10 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
+            SIMPLE_TIME(init_host_sparsity_pattern,
+                        this->init_host_sparsity_pattern();)
             std::cout << " matrix not stored update host matrix " << std::endl;
-            SIMPLE_TIME(update_host_mtx, this->update_host_matrix_copy();)
+            SIMPLE_TIME(update_host_mtx, this->update_host_matrix_data();)
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
@@ -98,7 +100,7 @@ public:
                 << std::endl;
             if (get_update_sys_matrix()) {
                 SIMPLE_TIME(exp_update_host_mtx,
-                            this->update_host_matrix_copy();)
+                            this->update_host_matrix_data();)
             }
         }
 
@@ -113,8 +115,11 @@ public:
         if (!stored && get_sort()) {
             std::cout << "matrix is not yet sorted,  sorting host matrix "
                       << std::endl;
+            SIMPLE_TIME(
+                sort_host_mtx_sparsity_pattern,
+                this->sort_host_matrix_sparsity_pattern(get_sorting_idxs());)
             SIMPLE_TIME(sort_host_mtx,
-                        this->sort_host_matrix_copy(this->get_sorting_idxs());)
+                        this->sort_host_matrix_data(this->get_sorting_idxs());)
         }
 
         init_device_matrix(matrix.mesh().thisDb(), this->values(),
