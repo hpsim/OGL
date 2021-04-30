@@ -151,7 +151,7 @@ public:
     void copy_result_back(const scalarField &psi, const label nCells) const
     {
         std::cout << "copy back" << std::endl;
-        auto device_x = vec::create(ref_exec(), nCells);
+        auto device_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
         std::cout << "copy back 2" << std::endl;
         device_x->copy_from(gko::lend(get_initial_guess()));
 
