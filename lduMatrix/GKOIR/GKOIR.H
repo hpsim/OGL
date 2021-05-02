@@ -37,13 +37,19 @@ namespace Foam {
 class GKOIRFactory {
 private:
     // executor where Ginkgo will perform the computation
+    //
+    const word inner_solver_;
 
     const scalar inner_reduction_factor_;
 
+    const label blockSize_;
+
 public:
-    GKOIRFactory(const dictionary &controlDict_)
-        : inner_reduction_factor_(controlDict_.lookupOrDefault(
-              "innerReductionFactor", scalar(1e-2))){};
+    GKOIRFactory(const dictionary &dictionary)
+        : inner_solver_(dictionary.lookupOrDefault("innerSolver", word("CG"))),
+          inner_reduction_factor_(
+              dictionary.lookupOrDefault("innerReductionFactor", scalar(1e-2))),
+          blockSize_(dictionary.lookupOrDefault("maxBlockSize", label(16))){};
 
     std::unique_ptr<gko::solver::Ir<double>::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
@@ -52,6 +58,9 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
+        if (inner_solver_ == "scalarJacobi") {
+            return create_scalar_jacobi(exec, criterion_vec);
+        }
         return create_default(exec, criterion_vec);
     };
 
@@ -70,6 +79,26 @@ public:
                             .with_reduction_factor(inner_reduction_factor_)
                             .on(exec))
                     .on(exec))
+            .with_criteria(criterion_vec)
+            .on(exec);
+    };
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
+    create_scalar_jacobi(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec) const
+    {
+        int sweeps = 3;
+        using bj = gko::preconditioner::Jacobi<>;
+        auto bj_factory = bj::build()
+                              .with_max_block_size(blockSize_)
+                              // .with_storage_optimization(
+                              //     gko::precision_reduction::autodetect())
+                              .on(exec);
+
+        return gko::solver::Ir<scalar>::build()
+            .with_solver(gko::share(bj_factory))
             .with_criteria(criterion_vec)
             .on(exec);
     };
