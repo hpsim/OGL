@@ -86,23 +86,33 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
-            SIMPLE_TIME(update_host_mtx, update_host_matrix_copy();)
+            SIMPLE_TIME(init_host_sparsity_pattern,
+                        init_host_sparsity_pattern();)
+            SIMPLE_TIME(update_host_mtx, update_host_matrix_data();)
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
             if (get_update_sys_matrix()) {
-                SIMPLE_TIME(exp_update_host_mtx, update_host_matrix_copy();)
+                // since sparsity pattern should already be stored
+                // on device no init_host_sparsity_pattern call is needed
+                SIMPLE_TIME(exp_update_host_mtx, update_host_matrix_data();)
             }
         }
 
+        // TODO move compute_sorting_idxs in the if clause above to have all
+        // init calls together
         // after updating the host matrix the host matrix needs to be sorted
         if (!get_is_sorted()) {
-            SIMPLE_TIME(compute_sort, compute_sorting_idxs(row_idxs());)
+            SIMPLE_TIME(compute_sorting_idxs, compute_sorting_idxs(row_idxs());)
         }
 
+        // TODO move compute_sorting_idxs in the if clause above to have all
+        // init calls together
         if (!stored && get_sort()) {
-            SIMPLE_TIME(sort_host_mtx,
-                        sort_host_matrix_copy(get_sorting_idxs());)
+            SIMPLE_TIME(sort_host_mtx_sparsity_pattern,
+                        sort_host_matrix_sparsity_pattern(get_sorting_idxs());)
+            SIMPLE_TIME(sort_host_mtx_data,
+                        sort_host_matrix_data(get_sorting_idxs());)
         }
 
         init_device_matrix(matrix.mesh().thisDb(), values(), col_idxs(),
