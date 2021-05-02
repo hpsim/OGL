@@ -53,7 +53,9 @@ public:
 
     void init_sorting_idxs();
 
-    void compute_sorting_idxs(const std::vector<label> &row_idxs);
+    void compute_sorting_idxs(const std::vector<label> &row_idxs,
+                              const std::vector<label> &col_idxs,
+                              const label nCells);
 
     bool get_sort() const { return sort_; }
 

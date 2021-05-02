@@ -103,7 +103,8 @@ public:
         // init calls together
         // after updating the host matrix the host matrix needs to be sorted
         if (!get_is_sorted()) {
-            SIMPLE_TIME(compute_sorting_idxs, compute_sorting_idxs(row_idxs());)
+            SIMPLE_TIME(compute_sorting_idxs,
+                        compute_sorting_idxs(row_idxs(), col_idxs(), nCells());)
         }
 
         // TODO move compute_sorting_idxs in the if clause above to have all

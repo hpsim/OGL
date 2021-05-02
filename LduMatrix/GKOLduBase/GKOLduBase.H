@@ -108,8 +108,9 @@ public:
         if (!get_is_sorted()) {
             std::cout << "matrix is not yet sorted, compute sorting idxs "
                       << std::endl;
-            SIMPLE_TIME(compute_sort,
-                        this->compute_sorting_idxs(this->row_idxs());)
+            SIMPLE_TIME(compute_sort, this->compute_sorting_idxs(
+                                          this->row_idxs(), this->col_idxs(),
+                                          this->nCells());)
         }
 
         if (!stored && get_sort()) {

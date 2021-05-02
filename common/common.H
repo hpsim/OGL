@@ -105,6 +105,23 @@ public:
         }
     }
 
+    void sort_host_matrix_sparsity_pattern(
+        const IOField<label> *sorting_idxs) const
+    {
+        std::vector<label> tmp_col_idxs(nElems());
+        std::vector<label> tmp_row_idxs(nElems());
+
+        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
+        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
+
+        for (label i = 0; i < nElems(); i++) {
+            label j = sorting_idxs->operator[](i);
+            col_idxs_[i] = tmp_col_idxs[j];
+            row_idxs_[i] = tmp_row_idxs[j];
+        }
+    };
+
+
     void update_host_matrix_data() const
     {
         // reset vectors
@@ -123,22 +140,6 @@ public:
 
         for (label i = 0; i < nNeighbours(); ++i) {
             values_.push_back(this->matrix().upper()[i]);
-        }
-    };
-
-    void sort_host_matrix_sparsity_pattern(
-        const IOField<label> *sorting_idxs) const
-    {
-        std::vector<label> tmp_col_idxs(nElems());
-        std::vector<label> tmp_row_idxs(nElems());
-
-        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
-        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
-
-        for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs->operator[](i);
-            col_idxs_[i] = tmp_col_idxs[j];
-            row_idxs_[i] = tmp_row_idxs[j];
         }
     };
 
