@@ -311,6 +311,17 @@ public:
     }
 
 
+    template <class OFField>
+    void init_vector_views(std::vector<val_array> &target,
+                           OFField &source) const
+    {
+        for (int i = 0; i < 3; i++) {
+            target.push_back(
+                val_array::view(ref_exec(), 3 * this->nCells(),
+                                const_cast<scalar *>(&source[0][i])));
+        }
+    }
+
     template <class Type>
     SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
     {
@@ -323,36 +334,26 @@ public:
         SolverPerformance<Type> solverPerf(preconditionerName,
                                            this->fieldName_);
 
-        auto source_view_x = val_array::view(
-            ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix().source()[0].x()));
-        auto source_view_y = val_array::view(
-            ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix().source()[0].y()));
-        auto source_view_z = val_array::view(
-            ref_exec(), 3 * this->nCells(),
-            const_cast<scalar *>(&this->matrix().source()[0].z()));
+        std::vector<val_array> source_views{};
 
-        auto b_x = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                               source_view_x, 3);
-        auto b_y = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                               source_view_y, 3);
-        auto b_z = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                               source_view_z, 3);
+        init_vector_views(source_views, this->matrix().source());
 
-        auto psi_view_x = val_array::view(ref_exec(), 3 * this->nCells(),
-                                          const_cast<scalar *>(&psi[0].x()));
-        auto psi_view_y = val_array::view(ref_exec(), 3 * this->nCells(),
-                                          const_cast<scalar *>(&psi[0].y()));
-        auto psi_view_z = val_array::view(ref_exec(), 3 * this->nCells(),
-                                          const_cast<scalar *>(&psi[0].z()));
+        std::vector<std::shared_ptr<vec>> b{};
+        for (int i = 0; i < 3; i++) {
+            b.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
+                                    source_views[i], 3));
+        }
 
-        auto x = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             psi_view_x, 3);
-        auto y = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             psi_view_y, 3);
-        auto z = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             psi_view_z, 3);
+
+        std::vector<val_array> psi_views{};
+
+        init_vector_views(psi_views, psi);
+
+        std::vector<std::shared_ptr<vec>> x{};
+        for (int i = 0; i < 3; i++) {
+            x.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
+                                    psi_views[i], 3));
+        }
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -366,21 +367,22 @@ public:
 
         auto solver = solver_gen->generate(gko::give(gkomatrix));
 
-        SIMPLE_TIME(solve_x, solver->apply(gko::lend(b_x), gko::lend(x));)
-        SIMPLE_TIME(solve_y, solver->apply(gko::lend(b_y), gko::lend(y));)
-        SIMPLE_TIME(solve_z, solver->apply(gko::lend(b_z), gko::lend(z));)
+        for (int i = 0; i < 3; i++) {
+            SIMPLE_TIME(solve, solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
+        }
 
+        // copy back
         auto x_view =
-            val_array::view(ref_exec(), this->nCells(), x->get_values());
+            val_array::view(ref_exec(), this->nCells(), x[0]->get_values());
         auto x_clone =
             vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), x_view, 1);
         auto y_view =
-            val_array::view(ref_exec(), this->nCells(), y->get_values());
+            val_array::view(ref_exec(), this->nCells(), x[1]->get_values());
         auto y_clone =
             vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), y_view, 1);
 
         auto z_view =
-            val_array::view(ref_exec(), this->nCells(), z->get_values());
+            val_array::view(ref_exec(), this->nCells(), x[2]->get_values());
         auto z_clone =
             vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), z_view, 1);
 
@@ -397,6 +399,7 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
+        std::cout << "solve_impl_" << std::endl;
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 
@@ -411,10 +414,14 @@ public:
                             this->interfaces_, cmpt);
         scalar norm_factor = this->normFactor(psi, source, wA, pA);
 
+        std::cout << "solve_impl_2" << std::endl;
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
+
+        std::cout << "solve_impl_3" << std::endl;
+        std::vector<val_array> source_views{source_view};
         auto b = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             source_view, 1);
+                             source_views[0], 1);
 
         std::cout << "solve_impl init_initial_guess" << std::endl;
         init_initial_guess(psi, this->matrix().mesh().thisDb(), this->nCells());

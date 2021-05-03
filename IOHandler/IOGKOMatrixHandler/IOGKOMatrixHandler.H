@@ -72,7 +72,7 @@ private:
 
     mutable std::shared_ptr<vec> init_guess_ = NULL;
 
-    mutable GKOVECIOPtr *io_init_guess_ptr_ = NULL;
+    mutable std::vector<GKOVECIOPtr *> io_init_guess_ptrs_ = {};
 
 public:
     IOGKOMatrixHandler(const objectRegistry &db, const dictionary &controlDict,
@@ -118,8 +118,8 @@ public:
 
         if (init_guess_vector_stored_ && !update_init_guess_vector_) {
             std::cout << " init_initial_guess do nothing" << std::endl;
-            io_init_guess_ptr_ =
-                &db.lookupObjectRef<GKOVECIOPtr>(init_guess_vector_name_);
+            io_init_guess_ptrs_.push_back(
+                &db.lookupObjectRef<GKOVECIOPtr>(init_guess_vector_name_));
             return;
         }
 
@@ -134,18 +134,19 @@ public:
         const fileName path_init_guess = init_guess_vector_name_;
         std::cout << " init_initial_guess create io_init_guess_ptr_"
                   << std::endl;
-        io_init_guess_ptr_ = new GKOVECIOPtr(IOobject(path_init_guess, db), x);
+        io_init_guess_ptrs_.push_back(
+            new GKOVECIOPtr(IOobject(path_init_guess, db), x));
     }
 
 
     std::shared_ptr<vec> get_initial_guess() const
     {
         std::cout << "get_initial_guess" << std::endl;
-        if (io_init_guess_ptr_ == NULL) {
+        if (io_init_guess_ptrs_.size() == 0) {
             std::cout << "is Null" << std::endl;
             return init_guess_;
         }
-        return io_init_guess_ptr_->get_ptr();
+        return io_init_guess_ptrs_[0]->get_ptr();
     }
 
     void copy_result_back(const scalarField &psi, const label nCells) const
