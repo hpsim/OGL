@@ -35,6 +35,8 @@ SourceFiles
 namespace Foam {
 
 class GKOIRFactory {
+    using bj = gko::preconditioner::Jacobi<>;
+
 private:
     // executor where Ginkgo will perform the computation
     //
@@ -56,7 +58,9 @@ public:
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<bj> precond) const
+
     {
         if (inner_solver_ == "scalarJacobi") {
             return create_scalar_jacobi(exec, criterion_vec);

@@ -38,6 +38,8 @@ namespace Foam {
                            Class GKOBiCGStab Declaration
 \*---------------------------------------------------------------------------*/
 class GKOBiCGStabFactory {
+    using bj = gko::preconditioner::Jacobi<>;
+
 private:
     // executor where Ginkgo will perform the computation
 
@@ -56,9 +58,11 @@ public:
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<bj> precond) const
     {
-        if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
+        if (precond != NULL)
+            return create_precond(exec, criterion_vec, precond);
         return create_default(exec, criterion_vec);
     };
 
@@ -76,15 +80,16 @@ public:
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
                     std::default_delete<gko::solver::Bicgstab<double>::Factory>>
-    create_BJ(std::shared_ptr<gko::Executor> exec,
-              std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-                  criterion_vec) const
+    create_precond(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec,
+        std::shared_ptr<bj> precond) const
     {
         using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Bicgstab<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_preconditioner(
-                bj::build().with_max_block_size(blockSize_).on(exec))
+            .with_generated_preconditioner(precond.get())
             .on(exec);
     };
 };

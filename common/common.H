@@ -209,6 +209,8 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public StoppingCriterion,
                    public IOSortingIdxHandler,
                    public IOGKOMatrixHandler {
+    using bj = gko::preconditioner::Jacobi<>;
+
 public:
     // Some shortcuts
     using IndexType = label;
@@ -408,7 +410,8 @@ public:
             build_stopping_criterion(device_exec, norm_factor));
 
         // Generate solver
-        auto solver_gen = this->create_solver(device_exec, criterion_vec);
+        auto solver_gen = this->create_solver(device_exec, criterion_vec,
+                                              std::shared_ptr<bj>{});
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
