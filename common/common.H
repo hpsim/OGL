@@ -344,16 +344,10 @@ public:
                                     source_views[i], 3));
         }
 
-
-        std::vector<val_array> psi_views{};
-
-        init_vector_views(psi_views, psi);
-
+        init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
+                                  this->nCells());
         std::vector<std::shared_ptr<vec>> x{};
-        for (int i = 0; i < 3; i++) {
-            x.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                                    psi_views[i], 3));
-        }
+        this->get_initial_guess(x);
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -372,25 +366,7 @@ public:
         }
 
         // copy back
-        auto x_view =
-            val_array::view(ref_exec(), this->nCells(), x[0]->get_values());
-        auto x_clone =
-            vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), x_view, 1);
-        auto y_view =
-            val_array::view(ref_exec(), this->nCells(), x[1]->get_values());
-        auto y_clone =
-            vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), y_view, 1);
-
-        auto z_view =
-            val_array::view(ref_exec(), this->nCells(), x[2]->get_values());
-        auto z_clone =
-            vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1), z_view, 1);
-
-        for (size_t i = 0; i < this->nCells(); i++) {
-            psi[i].x() = x_clone->at(i);
-            psi[i].y() = y_clone->at(i);
-            psi[i].z() = z_clone->at(i);
-        }
+        copy_result_back(psi, this->nCells());
 
         return solverPerf;
     };
@@ -399,7 +375,6 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
-        std::cout << "solve_impl_" << std::endl;
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 
@@ -414,20 +389,17 @@ public:
                             this->interfaces_, cmpt);
         scalar norm_factor = this->normFactor(psi, source, wA, pA);
 
-        std::cout << "solve_impl_2" << std::endl;
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
 
-        std::cout << "solve_impl_3" << std::endl;
         std::vector<val_array> source_views{source_view};
         auto b = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
                              source_views[0], 1);
 
-        std::cout << "solve_impl init_initial_guess" << std::endl;
-        init_initial_guess(psi, this->matrix().mesh().thisDb(), this->nCells());
-        std::cout << "solve_impl init_initial_guess done" << std::endl;
-        auto x = this->get_initial_guess();
-        std::cout << "solve_impl get_initial_guess done" << std::endl;
+        init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
+                                  this->nCells());
+        std::vector<std::shared_ptr<vec>> x{};
+        this->get_initial_guess(x);
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -451,8 +423,8 @@ public:
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         if (get_export())
-            export_system(this->fieldName(), gko::lend(gkomatrix), gko::lend(x),
-                          gko::lend(b));
+            export_system(this->fieldName(), gko::lend(gkomatrix),
+                          gko::lend(x[0]), gko::lend(b));
 
 
         solverPerf.initialResidual() = 0.0;
@@ -460,7 +432,7 @@ public:
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         // Solve system
-        SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x));)
+        SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x[0]));)
 
         this->copy_result_back(psi, this->nCells());
 
