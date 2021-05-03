@@ -111,8 +111,18 @@ public:
         return gkomatrix_ptr_->get_ptr();
     };
 
+    template <class OFField>
+    void_init_initial_guess_vector(const OFField &psi, const objectRegistry &db,
+                                   const label nCells,
+                                   const label nComponents) const
+    {
+        for (int i = 0; i < nComponents; i++) {
+            init_initial_guess(psi, db, Cells, [psi]() { return psi[i] });
+        }
+    }
+
     void init_initial_guess(const scalarField &psi, const objectRegistry &db,
-                            const label nCells) const
+                            const label nCells, std::function) const
     {
         std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
