@@ -16,106 +16,125 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::GKOBiCGStab
+    Foam::GKOIR
 
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOBiCGStab.C
+    GKOIR.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef GKOBiCGStab_H
-#define GKOBiCGStab_H
+#ifndef GKOIR_H
+#define GKOIR_H
 
-#include "GKOlduBase.H"
+#include "../BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
 
-/*---------------------------------------------------------------------------*\
-                           Class GKOBiCGStab Declaration
-\*---------------------------------------------------------------------------*/
-class GKOBiCGStabFactory {
+class GKOIRFactory {
 private:
     // executor where Ginkgo will perform the computation
+    //
+    const word inner_solver_;
 
-    const word preconditioner_;
+    const scalar inner_reduction_factor_;
 
     const label blockSize_;
 
 public:
-    GKOBiCGStabFactory(const dictionary &dictionary_)
-        : preconditioner_(
-              dictionary_.lookupOrDefault("preconditioner", word("none"))),
-          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
+    GKOIRFactory(const dictionary &dictionary)
+        : inner_solver_(dictionary.lookupOrDefault("innerSolver", word("CG"))),
+          inner_reduction_factor_(
+              dictionary.lookupOrDefault("innerReductionFactor", scalar(1e-2))),
+          blockSize_(dictionary.lookupOrDefault("maxBlockSize", label(16))){};
 
-    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
-                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
+        if (inner_solver_ == "scalarJacobi") {
+            return create_scalar_jacobi(exec, criterion_vec);
+        }
         return create_default(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
-                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Bicgstab<scalar>::build()
+        return gko::solver::Ir<scalar>::build()
+            .with_solver(
+                gko::solver::Cg<scalar>::build()
+                    .with_criteria(
+                        gko::stop::ResidualNorm<scalar>::build()
+                            .with_reduction_factor(inner_reduction_factor_)
+                            .on(exec))
+                    .on(exec))
             .with_criteria(criterion_vec)
             .on(exec);
     };
-
-    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
-                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
-    create_BJ(std::shared_ptr<gko::Executor> exec,
-              std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-                  criterion_vec) const
+    std::unique_ptr<gko::solver::Ir<double>::Factory,
+                    std::default_delete<gko::solver::Ir<double>::Factory>>
+    create_scalar_jacobi(
+        std::shared_ptr<gko::Executor> exec,
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec) const
     {
+        int sweeps = 3;
         using bj = gko::preconditioner::Jacobi<>;
-        return gko::solver::Bicgstab<scalar>::build()
+        auto bj_factory = bj::build()
+                              .with_max_block_size(blockSize_)
+                              // .with_storage_optimization(
+                              //     gko::precision_reduction::autodetect())
+                              .on(exec);
+
+        return gko::solver::Ir<scalar>::build()
+            .with_solver(gko::share(bj_factory))
             .with_criteria(criterion_vec)
-            .with_preconditioner(
-                bj::build().with_max_block_size(blockSize_).on(exec))
             .on(exec);
     };
 };
 
+/*---------------------------------------------------------------------------*\
+                           Class GKOIR Declaration
+\*---------------------------------------------------------------------------*/
 
-class GKOBiCGStab : public GKOlduBaseSolver<GKOBiCGStabFactory> {
+
+class GKOIR : public GKOlduBaseSolver<GKOIRFactory> {
     // Private Member Functions
 
 public:
-    TypeName("GKOBiCGStab");
+    TypeName("GKOIR");
 
     //- Disallow default bitwise copy construct
-    GKOBiCGStab(const GKOBiCGStab &);
+    GKOIR(const GKOIR &);
 
     //- Disallow default bitwise assignment
-    void operator=(const GKOBiCGStab &);
+    void operator=(const GKOIR &);
 
 
     // Constructors
 
     //- Construct from matrix components and solver controls
-    GKOBiCGStab(const word &fieldName, const lduMatrix &matrix,
-                const FieldField<Field, scalar> &interfaceBouCoeffs,
-                const FieldField<Field, scalar> &interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList &interfaces,
-                const dictionary &solverControls)
+    GKOIR(const word &fieldName, const lduMatrix &matrix,
+          const FieldField<Field, scalar> &interfaceBouCoeffs,
+          const FieldField<Field, scalar> &interfaceIntCoeffs,
+          const lduInterfaceFieldPtrsList &interfaces,
+          const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                            interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOBiCGStab(){};
+    virtual ~GKOIR(){};
 
 
     // Member Functions

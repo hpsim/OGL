@@ -16,25 +16,28 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::GKOCG
+    Foam::GKOBiCGStab
 
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOCG.C
+    GKOBiCGStab.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef GKOCG_H
-#define GKOCG_H
+#ifndef GKOBiCGStab_H
+#define GKOBiCGStab_H
 
-#include "GKOlduBase.H"
+#include "../BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
 
-class GKOCGFactory {
+/*---------------------------------------------------------------------------*\
+                           Class GKOBiCGStab Declaration
+\*---------------------------------------------------------------------------*/
+class GKOBiCGStabFactory {
 private:
     // executor where Ginkgo will perform the computation
 
@@ -43,13 +46,13 @@ private:
     const label blockSize_;
 
 public:
-    GKOCGFactory(const dictionary &dictionary_)
+    GKOBiCGStabFactory(const dictionary &dictionary_)
         : preconditioner_(
               dictionary_.lookupOrDefault("preconditioner", word("none"))),
           blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
+                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
@@ -59,26 +62,26 @@ public:
         return create_default(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
+                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Cg<scalar>::build()
+        return gko::solver::Bicgstab<scalar>::build()
             .with_criteria(criterion_vec)
             .on(exec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
+                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
     create_BJ(std::shared_ptr<gko::Executor> exec,
               std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
                   criterion_vec) const
     {
         using bj = gko::preconditioner::Jacobi<>;
-        return gko::solver::Cg<scalar>::build()
+        return gko::solver::Bicgstab<scalar>::build()
             .with_criteria(criterion_vec)
             .with_preconditioner(
                 bj::build().with_max_block_size(blockSize_).on(exec))
@@ -86,37 +89,33 @@ public:
     };
 };
 
-/*---------------------------------------------------------------------------*\
-                           Class GKOCG Declaration
-\*---------------------------------------------------------------------------*/
 
-
-class GKOCG : public GKOlduBaseSolver<GKOCGFactory> {
+class GKOBiCGStab : public GKOlduBaseSolver<GKOBiCGStabFactory> {
     // Private Member Functions
 
 public:
-    TypeName("GKOCG");
+    TypeName("GKOBiCGStab");
 
     //- Disallow default bitwise copy construct
-    GKOCG(const GKOCG &);
+    GKOBiCGStab(const GKOBiCGStab &);
 
     //- Disallow default bitwise assignment
-    void operator=(const GKOCG &);
+    void operator=(const GKOBiCGStab &);
 
 
     // Constructors
 
     //- Construct from matrix components and solver controls
-    GKOCG(const word &fieldName, const lduMatrix &matrix,
-          const FieldField<Field, scalar> &interfaceBouCoeffs,
-          const FieldField<Field, scalar> &interfaceIntCoeffs,
-          const lduInterfaceFieldPtrsList &interfaces,
-          const dictionary &solverControls)
+    GKOBiCGStab(const word &fieldName, const lduMatrix &matrix,
+                const FieldField<Field, scalar> &interfaceBouCoeffs,
+                const FieldField<Field, scalar> &interfaceIntCoeffs,
+                const lduInterfaceFieldPtrsList &interfaces,
+                const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                            interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOCG(){};
+    virtual ~GKOBiCGStab(){};
 
 
     // Member Functions

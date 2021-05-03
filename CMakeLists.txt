@@ -97,11 +97,11 @@ IOHandler/IOPtr/IOPtr.C
 IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
 IOHandler/IOExecutorHandler/IOExecutorHandler.C
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
-lduMatrix/GKOlduBase/GKOlduBase.C
-lduMatrix/GKOCG/GKOCG.C
-lduMatrix/GKOIR/GKOIR.C
-lduMatrix/GKOBiCGStab/GKOBiCGStab.C
-LduMatrix/GKOLduBase/GKOLduBase.C
+BaseWrapper/lduBase/GKOlduBase.C
+BaseWrapper/LduBase/GKOLduBase.C
+CG/GKOCG.C
+BiCGStab/GKOBiCGStab.C
+IR/GKOIR.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
 common/common.H
@@ -109,11 +109,11 @@ IOHandler/IOPtr/IOPtr.H
 IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
 IOHandler/IOExecutorHandler/IOExecutorHandler.H
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
-lduMatrix/GKOlduBase/GKOlduBase.H
-lduMatrix/GKOCG/GKOCG.H
-lduMatrix/GKOIR/GKOIR.H
-lduMatrix/GKOBiCGStab/GKOBiCGStab.H
-LduMatrix/GKOLduBase/GKOLduBase.H
+BaseWrapper/lduBase/GKOlduBase.H
+BaseWrapper/LduBase/GKOLduBase.H
+CG/GKOCG.H
+IR/GKOIR.H
+BiCGStab/GKOBiCGStab.H
 LduMatrix/GKOACG/GKOACG.H
   )
 
@@ -125,12 +125,12 @@ target_include_directories(OGL
   $ENV{FOAM_SRC}/OpenFOAM/lnInclude
   $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
   common/
+  BaseWrapper/lduBase/
+  BaseWrapper/LduBase/
   IOHandler/IOPtr
   IOHandler/IOExecutorHandler/
   IOHandler/IOSortingIdxHandler/
   IOHandler/IOGKOMatrixHandler/
-  lduMatrix/GKOlduBase
-  LduMatrix/GKOLduBase
   )
 
 
