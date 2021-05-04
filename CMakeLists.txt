@@ -116,7 +116,6 @@ BaseWrapper/LduBase/GKOLduBase.H
 CG/GKOCG.H
 IR/GKOIR.H
 BiCGStab/GKOBiCGStab.H
-lduMatrix/GKOBiCGStab/GKOBiCGStab.H
 LduMatrix/GKOACG/GKOACG.H
   )
 
