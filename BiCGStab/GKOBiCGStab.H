@@ -59,7 +59,7 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
-        std::shared_ptr<bj> precond) const
+        std::shared_ptr<const bj> precond) const
     {
         if (precond != NULL)
             return create_precond(exec, criterion_vec, precond);
@@ -84,12 +84,11 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
-        std::shared_ptr<bj> precond) const
+        std::shared_ptr<const bj> precond) const
     {
-        using bj = gko::preconditioner::Jacobi<>;
         return gko::solver::Bicgstab<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_generated_preconditioner(precond.get())
+            .with_generated_preconditioner(precond)
             .on(exec);
     };
 };

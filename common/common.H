@@ -32,8 +32,8 @@ SourceFiles
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
-#include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
+#include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
@@ -210,7 +210,7 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public StoppingCriterion,
                    public IOSortingIdxHandler,
                    public IOGKOMatrixHandler,
-public IOPreconditioner {
+                   public IOPreconditioner {
     using bj = gko::preconditioner::Jacobi<>;
 
 public:
@@ -237,10 +237,7 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          IOPreconditioner(
-              matrix.mesh().thisDb(), 
-              solverControls,
-                           fieldName)
+          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName)
     {
         init_base();
     }
@@ -256,10 +253,7 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          IOPreconditioner(
-              matrix.mesh().thisDb(), 
-              solverControls,
-                           fieldName)
+          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName)
     {
         init_base();
     }
@@ -278,9 +272,9 @@ public:
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
             if (get_update_sys_matrix()) {
-            std::cout
-                << " matrix is stored and  update of host matrix requested"
-                << std::endl;
+                std::cout
+                    << " matrix is stored and  update of host matrix requested"
+                    << std::endl;
                 SIMPLE_TIME(exp_update_host_mtx,
                             this->update_host_matrix_data();)
             }
@@ -410,7 +404,10 @@ public:
 
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
-        this->init_preconditioner(this->matrix().mesh().thisDb(),gkomatrix, device_exec);
+        SIMPLE_TIME(init_preconditioner,
+                    this->init_preconditioner(this->matrix().mesh().thisDb(),
+                                              gkomatrix, device_exec);)
+
         auto bj_generated = this->get_preconditioner();
         auto solver_gen =
             this->create_solver(device_exec, criterion_vec, bj_generated);
