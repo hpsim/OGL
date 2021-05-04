@@ -221,17 +221,8 @@ public:
     using cg = gko::solver::Cg<scalar>;
 
 private:
-    // for now a copy of the OF matrix is stored
-    // to keep values contiguous in memory
-    // executor where Ginkgo will perform the computation
+    const bool precond_;
 
-    std::vector<scalar> sorting_idxs_;
-
-    mutable std::vector<scalar> values_;
-
-    mutable std::vector<label> col_idxs_;
-
-    mutable std::vector<label> row_idxs_;
 
 public:
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
@@ -246,7 +237,9 @@ public:
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
-          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName)
+          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
+          precond_(
+              solverControls.lookupOrDefault<Switch>("preconditioner", true))
     {
         init_base();
     }
@@ -261,7 +254,9 @@ public:
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
-          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName)
+          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
+          precond_(
+              solverControls.lookupOrDefault<Switch>("preconditioner", true))
     {
         init_base();
     }
@@ -385,6 +380,7 @@ public:
             lduMatrix::preconditioner::getName(this->controlDict_) + typeName,
             this->fieldName());
 
+
         scalarField pA(this->nCells());
         scalarField wA(this->nCells());
         this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
@@ -410,8 +406,19 @@ public:
             build_stopping_criterion(device_exec, norm_factor));
 
         // Generate solver
-        auto solver_gen = this->create_solver(device_exec, criterion_vec,
-                                              std::shared_ptr<bj>{});
+        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+        std::shared_ptr<bj> bj_generated{};
+        if (precond_) {
+            label blockSize =
+                this->controlDict_.lookupOrDefault("maxBlockSize", label(16));
+            auto bj_factory = bj::build()
+                                  .with_skip_sorting(true)
+                                  .with_max_block_size(blockSize)
+                                  .on(device_exec);
+            bj_generated = gko::share(bj_factory->generate(gkomatrix));
+        }
+        auto solver_gen =
+            this->create_solver(device_exec, criterion_vec, bj_generated);
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
@@ -423,7 +430,6 @@ public:
 
         // auto b_clone = gko::clone(b);
 
-        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
@@ -436,6 +442,7 @@ public:
 
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x[0]));)
+        std::cout << " copy back" << std::endl;
 
         this->copy_result_back(psi, this->nCells());
 
@@ -443,6 +450,7 @@ public:
 
         solverPerf.finalResidual() = 0.0;
 
+        std::cout << " get iters " << std::endl;
         solverPerf.nIterations() = logger->get_iters();
 
         return solverPerf;

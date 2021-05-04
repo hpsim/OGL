@@ -86,7 +86,7 @@ public:
         std::cout << " CG create  precond " << std::endl;
         return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
-            .with_generated_preconditioner(precond.get())
+            .with_generated_preconditioner(precond)
             .on(exec);
     };
 };
