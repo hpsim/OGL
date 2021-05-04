@@ -9,6 +9,7 @@ IOSortingIdxHandler::IOSortingIdxHandler(const objectRegistry &db,
 {
     // check object registry if sorting idxs exists
     word sorting_idxs_name = "sorting_idxs_";
+    // TODO move this to CTR
     if (db.foundObject<IOField<label>>(sorting_idxs_name)) {
         IOField<label> &labelListRef =
             db.lookupObjectRef<IOField<label>>(sorting_idxs_name);

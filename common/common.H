@@ -33,6 +33,7 @@ SourceFiles
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
+#include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
@@ -208,7 +209,8 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public SolverFactory,
                    public StoppingCriterion,
                    public IOSortingIdxHandler,
-                   public IOGKOMatrixHandler {
+                   public IOGKOMatrixHandler,
+public IOPreconditioner {
     using bj = gko::preconditioner::Jacobi<>;
 
 public:
@@ -219,9 +221,6 @@ public:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
     using cg = gko::solver::Cg<scalar>;
-
-private:
-    const bool precond_;
 
 
 public:
@@ -238,8 +237,10 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          precond_(
-              solverControls.lookupOrDefault<Switch>("preconditioner", true))
+          IOPreconditioner(
+              matrix.mesh().thisDb(), 
+              solverControls,
+                           fieldName)
     {
         init_base();
     }
@@ -255,8 +256,10 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          precond_(
-              solverControls.lookupOrDefault<Switch>("preconditioner", true))
+          IOPreconditioner(
+              matrix.mesh().thisDb(), 
+              solverControls,
+                           fieldName)
     {
         init_base();
     }
@@ -274,10 +277,10 @@ public:
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
+            if (get_update_sys_matrix()) {
             std::cout
                 << " matrix is stored and  update of host matrix requested"
                 << std::endl;
-            if (get_update_sys_matrix()) {
                 SIMPLE_TIME(exp_update_host_mtx,
                             this->update_host_matrix_data();)
             }
@@ -407,16 +410,8 @@ public:
 
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
-        std::shared_ptr<bj> bj_generated{};
-        if (precond_) {
-            label blockSize =
-                this->controlDict_.lookupOrDefault("maxBlockSize", label(16));
-            auto bj_factory = bj::build()
-                                  .with_skip_sorting(true)
-                                  .with_max_block_size(blockSize)
-                                  .on(device_exec);
-            bj_generated = gko::share(bj_factory->generate(gkomatrix));
-        }
+        this->init_preconditioner(this->matrix().mesh().thisDb(),gkomatrix, device_exec);
+        auto bj_generated = this->get_preconditioner();
         auto solver_gen =
             this->create_solver(device_exec, criterion_vec, bj_generated);
 

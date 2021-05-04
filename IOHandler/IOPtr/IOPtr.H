@@ -63,6 +63,7 @@ typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 typedef IOPtr<idx_array> GKOIDXIOPtr;
 typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
 typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;
+typedef IOPtr<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
 
 
 }  // namespace Foam
