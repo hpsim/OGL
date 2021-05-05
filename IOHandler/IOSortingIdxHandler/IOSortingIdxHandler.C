@@ -1,5 +1,7 @@
 
+#include <tuple>
 #include "IOSortingIdxHandler.H"
+
 
 namespace Foam {
 
@@ -23,11 +25,6 @@ IOSortingIdxHandler::IOSortingIdxHandler(const objectRegistry &db,
     }
 };
 
-inline label linearize_index(const label row, const label col,
-                             const label nCells)
-{
-    return row * nCells + col;
-};
 
 void IOSortingIdxHandler::compute_sorting_idxs(
     const std::vector<label> &row_idxs, const std::vector<label> &col_idxs,
@@ -43,8 +40,8 @@ void IOSortingIdxHandler::compute_sorting_idxs(
     std::stable_sort(
         sorting_idxs_->data(), &sorting_idxs_->data()[nElems_],
         [this, &row_idxs, &col_idxs, nCells](size_t i1, size_t i2) {
-            return linearize_index(row_idxs[i1], col_idxs[i1], nCells) <
-                   linearize_index(row_idxs[i2], col_idxs[i2], nCells);
+            return std::tie(row_idxs[i1], col_idxs[i1]) <
+                   std::tie(row_idxs[i2], col_idxs[i2]);
         });
 };
 
