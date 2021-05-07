@@ -351,9 +351,14 @@ public:
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
 
+        using csr_mtx = gko::matrix::Csr<scalar>;
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+        auto gko_csr_mtx = gko::share(csr_mtx::create(
+            device_exec, gko::dim<2>(this->nCells(), this->nCells())));
+        gkomatrix->convert_to(gko_csr_mtx.get());
 
-        auto solver = solver_gen->generate(gko::give(gkomatrix));
+
+        auto solver = solver_gen->generate(gko::share(gko_csr_mtx));
 
         for (int i = 0; i < 3; i++) {
             SIMPLE_TIME(solve, solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
@@ -430,7 +435,13 @@ public:
 
         solverPerf.initialResidual() = 0.0;
 
-        auto solver = solver_gen->generate(gko::share(gkomatrix));
+        using csr_mtx = gko::matrix::Csr<scalar>;
+        auto gko_csr_mtx = gko::share(csr_mtx::create(
+            device_exec, gko::dim<2>(this->nCells(), this->nCells())));
+        gkomatrix->convert_to(gko_csr_mtx.get());
+
+
+        auto solver = solver_gen->generate(gko::share(gko_csr_mtx));
 
         // Solve system
         SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x[0]));)
