@@ -33,7 +33,7 @@ SourceFiles
 
 namespace Foam {
 
-using mtx = gko::matrix::Coo<scalar>;
+using mtx = gko::matrix::Csr<scalar>;
 using val_array = gko::Array<scalar>;
 using idx_array = gko::Array<label>;
 
@@ -61,7 +61,7 @@ typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
 typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
 typedef IOPtr<idx_array> GKOIDXIOPtr;
-typedef IOPtr<gko::matrix::Coo<scalar>> GKOCOOIOPtr;
+typedef IOPtr<gko::matrix::Csr<scalar>> GKOCSRIOPtr;
 typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;
 typedef IOPtr<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
 

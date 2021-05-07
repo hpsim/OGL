@@ -35,7 +35,8 @@ SourceFiles
 
 namespace Foam {
 
-using mtx = gko::matrix::Coo<scalar>;
+using coo_mtx = gko::matrix::Coo<scalar>;
+using mtx = gko::matrix::Csr<scalar>;
 using vec = gko::matrix::Dense<scalar>;
 using val_array = gko::Array<scalar>;
 using idx_array = gko::Array<label>;
@@ -64,7 +65,7 @@ private:
 
     mutable std::shared_ptr<mtx> gkomatrix_ = NULL;
 
-    mutable GKOCOOIOPtr *gkomatrix_ptr_ = NULL;
+    mutable GKOCSRIOPtr *gkomatrix_ptr_ = NULL;
 
     mutable GKOIDXIOPtr *io_col_idxs_ptr_ = NULL;
 
