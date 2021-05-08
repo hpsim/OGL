@@ -36,10 +36,6 @@ SourceFiles
 
 namespace Foam {
 
-using vec = gko::matrix::Dense<scalar>;
-using mtx = gko::matrix::Coo<scalar>;
-
-
 class IOExecutorHandler {
 private:
     const word device_executor_name_;

@@ -37,7 +37,7 @@ void IOGKOMatrixHandler::init_device_matrix(
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
     if (sys_matrix_stored_) {
-        gkomatrix_ptr_ = &db.lookupObjectRef<GKOCOOIOPtr>(sys_matrix_name_);
+        gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
         return;
     }
 
@@ -66,16 +66,22 @@ void IOGKOMatrixHandler::init_device_matrix(
     }
 
     // if system matrix is not stored create it and set shared pointer
+    auto coo_mtx = gko::share(
+        coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
+                        val_array::view(gko::ReferenceExecutor::create(),
+                                        nElems, &values_host[0]),
+                        *col_idx.get(), *row_idx.get()));
+
     auto gkomatrix =
-        gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells),
-                               val_array::view(gko::ReferenceExecutor::create(),
-                                               nElems, &values_host[0]),
-                               *col_idx.get(), *row_idx.get()));
+        gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+
+    coo_mtx->convert_to(gkomatrix.get());
+
 
     // if updating system matrix is not needed store ptr in obj registry
     if (store) {
         const fileName path = sys_matrix_name_;
-        gkomatrix_ptr_ = new GKOCOOIOPtr(IOobject(path, db), gkomatrix);
+        gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
     } else {
         gkomatrix_ptr_ = NULL;
         gkomatrix_ = gkomatrix;
@@ -91,7 +97,7 @@ void IOGKOMatrixHandler::init_device_matrix(
 
 
 defineTemplateTypeNameWithName(GKOIDXIOPtr, "IDXIOPtr");
-defineTemplateTypeNameWithName(GKOCOOIOPtr, "COOIOPtr");
+defineTemplateTypeNameWithName(GKOCSRIOPtr, "CSRIOPtr");
 defineTemplateTypeNameWithName(GKOVECIOPtr, "VECIOPtr");
 
 }  // namespace Foam

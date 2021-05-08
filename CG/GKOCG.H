@@ -16,116 +16,103 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::GKOIR
+    Foam::GKOCG
 
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOIR.C
+    GKOCG.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef GKOIR_H
-#define GKOIR_H
+#ifndef GKOCG_H
+#define GKOCG_H
 
-#include "GKOlduBase.H"
+#include "../BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
 
-class GKOIRFactory {
+class GKOCGFactory {
+    using bj = gko::preconditioner::Jacobi<>;
+
 private:
     // executor where Ginkgo will perform the computation
-    //
-    const word inner_solver_;
 
-    const scalar inner_reduction_factor_;
+    const word preconditioner_;
 
     const label blockSize_;
 
 public:
-    GKOIRFactory(const dictionary &dictionary)
-        : inner_solver_(dictionary.lookupOrDefault("innerSolver", word("CG"))),
-          inner_reduction_factor_(
-              dictionary.lookupOrDefault("innerReductionFactor", scalar(1e-2))),
-          blockSize_(dictionary.lookupOrDefault("maxBlockSize", label(16))){};
+    GKOCGFactory(const dictionary &dictionary_)
+        : preconditioner_(
+              dictionary_.lookupOrDefault("preconditioner", word("none"))),
+          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<const bj> precond) const
     {
-        if (inner_solver_ == "scalarJacobi") {
-            return create_scalar_jacobi(exec, criterion_vec);
-        }
+        if (precond != NULL)
+            return create_precond(exec, criterion_vec, precond);
         return create_default(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Ir<scalar>::build()
-            .with_solver(
-                gko::solver::Cg<scalar>::build()
-                    .with_criteria(
-                        gko::stop::ResidualNorm<scalar>::build()
-                            .with_reduction_factor(inner_reduction_factor_)
-                            .on(exec))
-                    .on(exec))
+        return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
             .on(exec);
     };
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
-    create_scalar_jacobi(
+
+    std::unique_ptr<gko::solver::Cg<double>::Factory,
+                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    create_precond(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<const bj> precond) const
     {
-        int sweeps = 3;
-        using bj = gko::preconditioner::Jacobi<>;
-        auto bj_factory = bj::build()
-                              .with_max_block_size(blockSize_)
-                              // .with_storage_optimization(
-                              //     gko::precision_reduction::autodetect())
-                              .on(exec);
-
-        return gko::solver::Ir<scalar>::build()
-            .with_solver(gko::share(bj_factory))
+        std::cout << " CG create  precond " << std::endl;
+        return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
+            .with_generated_preconditioner(precond)
             .on(exec);
     };
 };
 
 /*---------------------------------------------------------------------------*\
-                           Class GKOIR Declaration
+                           Class GKOCG Declaration
 \*---------------------------------------------------------------------------*/
 
 
-class GKOIR : public GKOlduBaseSolver<GKOIRFactory> {
+class GKOCG : public GKOlduBaseSolver<GKOCGFactory> {
     // Private Member Functions
 
 public:
-    TypeName("GKOIR");
+    TypeName("GKOCG");
 
     //- Disallow default bitwise copy construct
-    GKOIR(const GKOIR &);
+    GKOCG(const GKOCG &);
 
     //- Disallow default bitwise assignment
-    void operator=(const GKOIR &);
+    void operator=(const GKOCG &);
 
 
     // Constructors
 
     //- Construct from matrix components and solver controls
-    GKOIR(const word &fieldName, const lduMatrix &matrix,
+    GKOCG(const word &fieldName, const lduMatrix &matrix,
           const FieldField<Field, scalar> &interfaceBouCoeffs,
           const FieldField<Field, scalar> &interfaceIntCoeffs,
           const lduInterfaceFieldPtrsList &interfaces,
@@ -134,7 +121,7 @@ public:
                            interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOIR(){};
+    virtual ~GKOCG(){};
 
 
     // Member Functions

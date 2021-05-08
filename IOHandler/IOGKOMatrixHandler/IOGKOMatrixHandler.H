@@ -35,7 +35,8 @@ SourceFiles
 
 namespace Foam {
 
-using mtx = gko::matrix::Coo<scalar>;
+using coo_mtx = gko::matrix::Coo<scalar>;
+using mtx = gko::matrix::Csr<scalar>;
 using vec = gko::matrix::Dense<scalar>;
 using val_array = gko::Array<scalar>;
 using idx_array = gko::Array<label>;
@@ -64,7 +65,7 @@ private:
 
     mutable std::shared_ptr<mtx> gkomatrix_ = NULL;
 
-    mutable GKOCOOIOPtr *gkomatrix_ptr_ = NULL;
+    mutable GKOCSRIOPtr *gkomatrix_ptr_ = NULL;
 
     mutable GKOIDXIOPtr *io_col_idxs_ptr_ = NULL;
 
@@ -72,7 +73,7 @@ private:
 
     mutable std::shared_ptr<vec> init_guess_ = NULL;
 
-    mutable GKOVECIOPtr *io_init_guess_ptr_ = NULL;
+    mutable std::vector<GKOVECIOPtr *> io_init_guess_ptrs_ = {};
 
 public:
     IOGKOMatrixHandler(const objectRegistry &db, const dictionary &controlDict,
@@ -111,51 +112,81 @@ public:
         return gkomatrix_ptr_->get_ptr();
     };
 
-    void init_initial_guess(const scalarField &psi, const objectRegistry &db,
-                            const label nCells) const
+    void init_initial_guess_vector(const Field<vector> &psi,
+                                   const objectRegistry &db,
+                                   const label nCells) const
+    {
+        std::vector<word> postFixes{"", "y", "z"};
+        for (int i = 0; i < 3; i++) {
+            init_initial_guess(&psi[0][i], db, nCells, postFixes[i]);
+        }
+    }
+
+    void init_initial_guess_vector(const Field<scalar> &psi,
+                                   const objectRegistry &db,
+                                   const label nCells) const
+    {
+        init_initial_guess(&psi[0], db, nCells, "");
+    }
+
+    void init_initial_guess(const scalar *psi, const objectRegistry &db,
+                            const label nCells, const word postFix) const
     {
         std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
         if (init_guess_vector_stored_ && !update_init_guess_vector_) {
-            std::cout << " init_initial_guess do nothing" << std::endl;
-            io_init_guess_ptr_ =
-                &db.lookupObjectRef<GKOVECIOPtr>(init_guess_vector_name_);
+            io_init_guess_ptrs_.push_back(&db.lookupObjectRef<GKOVECIOPtr>(
+                init_guess_vector_name_ + postFix));
             return;
         }
 
-        std::cout << " init_initial_guess create psi_view" << std::endl;
         auto psi_view = val_array::view(gko::ReferenceExecutor::create(),
-                                        nCells, const_cast<scalar *>(&psi[0]));
+                                        nCells, const_cast<scalar *>(psi));
 
-        std::cout << " init_initial_guess create x" << std::endl;
         auto x = gko::share(
             vec::create(device_exec, gko::dim<2>(nCells, 1), psi_view, 1));
 
-        const fileName path_init_guess = init_guess_vector_name_;
-        std::cout << " init_initial_guess create io_init_guess_ptr_"
-                  << std::endl;
-        io_init_guess_ptr_ = new GKOVECIOPtr(IOobject(path_init_guess, db), x);
+        const fileName path_init_guess = init_guess_vector_name_ + postFix;
+        io_init_guess_ptrs_.push_back(
+            new GKOVECIOPtr(IOobject(path_init_guess, db), x));
     }
 
 
-    std::shared_ptr<vec> get_initial_guess() const
+    void get_initial_guess(std::vector<std::shared_ptr<vec>> &init_guess) const
     {
-        std::cout << "get_initial_guess" << std::endl;
-        if (io_init_guess_ptr_ == NULL) {
-            std::cout << "is Null" << std::endl;
-            return init_guess_;
+        if (io_init_guess_ptrs_.size() == 0) {
+            init_guess.push_back(init_guess_);
         }
-        return io_init_guess_ptr_->get_ptr();
+        for (int i = 0; i < io_init_guess_ptrs_.size(); i++) {
+            init_guess.push_back(io_init_guess_ptrs_[i]->get_ptr());
+        }
+    }
+
+    template <class OFField>
+    void copy_result_back(const OFField &psi, const label nCells) const
+    {
+        std::vector<std::shared_ptr<vec>> device_xs_ptr{};
+        get_initial_guess(device_xs_ptr);
+
+        for (int i = 0; i < 3; i++) {
+            auto host_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
+            host_x->copy_from(gko::lend(device_xs_ptr[i]));
+            auto host_x_view =
+                val_array::view(ref_exec(), nCells, host_x->get_values());
+            auto psi_view = val_array::view(ref_exec(), nCells,
+                                            const_cast<scalar *>(&psi[0][i]));
+            psi_view = host_x_view;
+        }
     }
 
     void copy_result_back(const scalarField &psi, const label nCells) const
     {
-        std::cout << "copy back" << std::endl;
         auto device_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
-        std::cout << "copy back 2" << std::endl;
-        device_x->copy_from(gko::lend(get_initial_guess()));
 
-        std::cout << "create x_view back" << std::endl;
+        std::vector<std::shared_ptr<vec>> device_xs_ptr{};
+        get_initial_guess(device_xs_ptr);
+        device_x->copy_from(gko::lend(device_xs_ptr[0]));
+
         auto x_view =
             val_array::view(ref_exec(), nCells, device_x->get_values());
         // for (label i = 0; i < nCells; i++) {
@@ -163,11 +194,8 @@ public:
         // }
 
         // move frome device
-        std::cout << "create psi_view " << std::endl;
         auto psi_view =
             val_array::view(ref_exec(), nCells, const_cast<scalar *>(&psi[0]));
-
-        std::cout << "copy x_view to psi_view " << std::endl;
 
         psi_view = x_view;
     }
