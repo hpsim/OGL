@@ -172,10 +172,6 @@ public:
     std::vector<label> &row_idxs() const { return row_idxs_; };
 };
 
-using vec = gko::matrix::Dense<scalar>;
-using mtx = gko::matrix::Coo<scalar>;
-using idx_array = gko::Array<label>;
-
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b);
 
@@ -211,18 +207,6 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public IOSortingIdxHandler,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
-    using bj = gko::preconditioner::Jacobi<>;
-
-public:
-    // Some shortcuts
-    using IndexType = label;
-    using vec = gko::matrix::Dense<scalar>;
-    using mtx = gko::matrix::Coo<scalar>;
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
-    using cg = gko::solver::Cg<scalar>;
-
-
 public:
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
                const FieldField<Field, scalar> &interfaceBouCoeffs,
@@ -353,7 +337,7 @@ public:
 
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
-        auto solver = solver_gen->generate(gko::give(gkomatrix));
+        auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         for (int i = 0; i < 3; i++) {
             SIMPLE_TIME(solve, solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
