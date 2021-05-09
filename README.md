@@ -36,6 +36,16 @@ Currently the following solver are supported
 * BiCGStab
 * IR
 
+The following optional solver arguments are supported
+
+Argument | Default | Description
+------------ | ------------- | -------------
+updateSysMatrix | true | wether to copy the system matrix to device on every solver call
+updateInitVector | false |wether to copy the initial guess to device on every solver call 
+sort | true | sort the system matrix
+executor | reference | the executor where to solve the system matrix
+ 
+
 ## Known Limitations
 
 Currently cyclic boundary conditions are not supported.
