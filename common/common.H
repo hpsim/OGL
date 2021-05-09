@@ -412,7 +412,7 @@ public:
                           gko::lend(x[0]), gko::lend(b));
 
 
-        solverPerf.initialResidual() = 0.0;
+        solverPerf.initialResidual() = this->get_init_res_norm();
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
@@ -424,7 +424,7 @@ public:
 
         // b_clone->copy_from(gko::lend(b));
 
-        solverPerf.finalResidual() = 0.0;
+        solverPerf.finalResidual() = this->get_res_norm();
 
         std::cout << " get iters " << std::endl;
         solverPerf.nIterations() = logger->get_iters();

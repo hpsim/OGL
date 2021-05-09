@@ -61,6 +61,12 @@ class StoppingCriterion {
             label GKO_FACTORY_PARAMETER(openfoam_minIter, 0);
 
             label GKO_FACTORY_PARAMETER(openfoam_maxIter, 0);
+
+            std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
+                residual_norm, NULL);
+
+            std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
+                init_residual_norm, NULL);
         };
 
         GKO_ENABLE_CRITERION_FACTORY(OpenFOAMStoppingCriterion, parameters,
@@ -94,13 +100,16 @@ class StoppingCriterion {
             res_host->copy_from(gko::lend(res));
 
             bool result = false;
-            scalar normalised_res_norm =
+            scalar residual_norm =
                 res_host->at(0) / parameters_.openfoam_norm_factor;
+            *(parameters_.residual_norm) = residual_norm;
+            if (iter_ == 1) {
+                *(parameters_.init_residual_norm) = residual_norm;
+            }
             // printf("normalised res norm %f\n", normalised_res_norm);
             // printf("iter %d\n", iter_);
 
-            if ((normalised_res_norm <
-                 parameters_.openfoam_absolute_tolerance) &&
+            if ((residual_norm < parameters_.openfoam_absolute_tolerance) &&
                 (iter_ >= parameters_.openfoam_minIter)) {
                 result = true;
             }
@@ -140,12 +149,18 @@ class StoppingCriterion {
 
     const scalar relTol_;
 
+    mutable scalar init_normalised_res_norm_;
+
+    mutable scalar normalised_res_norm_;
+
+
 public:
     StoppingCriterion(const dictionary &controlDict)
         : maxIter_(controlDict.lookupOrDefault("maxIter", label(1000))),
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
-          relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6)))
+          relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+          normalised_res_norm_(0)
     {}
 
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
@@ -157,8 +172,14 @@ public:
             .with_openfoam_norm_factor(norm_factor)
             .with_openfoam_minIter(minIter_)
             .with_openfoam_maxIter(maxIter_)
+            .with_init_residual_norm(&init_normalised_res_norm_)
+            .with_residual_norm(&normalised_res_norm_)
             .on(device_exec);
-    };
+    }
+
+    scalar get_init_res_norm() const { return init_normalised_res_norm_; }
+
+    scalar get_res_norm() const { return normalised_res_norm_; }
 };
 }  // namespace Foam
 
