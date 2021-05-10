@@ -51,30 +51,40 @@ _build: &_build
 jobs:
   include:
     - <<: *_build
-      VERSION: 8
-      EXTERNAL_GINKGO: OFF
+      ENV:
+      - VERSION=8
+      - EXTERNAL_GINKGO=OFF
+      - GINKGO_VERSION=develop
     - <<: *_build
-      VERSION: 8
-      EXTERNAL_GINKGO: ON
-      GINKGO_VERSION: develop
+      ENV:
+      - VERSION=8
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=develop
     - <<: *_build
-      VERSION: 7
-      EXTERNAL_GINKGO: OFF
+      ENV:
+      - VERSION=8
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=331277a81b848f33705f6ccf4f910fff69c84e18
     - <<: *_build
-      VERSION: 7
-      EXTERNAL_GINKGO: ON
-      GINKGO_VERSION: develop
+      ENV:
+      - VERSION=7
+      - EXTERNAL_GINKGO=OFF
+      - GINKGO_VERSION=develop
     - <<: *_build
-      VERSION: 6
-      EXTERNAL_GINKGO: OFF
+      ENV:
+      - VERSION=7
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=develop
     - <<: *_build
-      VERSION: 6
-      EXTERNAL_GINKGO: ON
-      GINKGO_VERSION: develop
+      ENV:
+      - VERSION=6
+      - EXTERNAL_GINKGO=OFF
+      - GINKGO_VERSION=develop
     - <<: *_build
-      VERSION: 8
-      EXTERNAL_GINKGO: ON
-      GINKGO_VERSION: 331277a81b848f33705f6ccf4f910fff69c84e18
+      ENV:
+      - VERSION=6
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=develop
     - stage: run
       script:
         echo foo
