@@ -54,5 +54,5 @@ jobs:
   include:
     - stage: test
       - script:
-        echo foo
+          echo foo
 
