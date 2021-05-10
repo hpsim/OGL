@@ -30,7 +30,7 @@ the `system/controlDict` includes the `OGL.so` file:
 
 OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary. 
 
-Currently the following solver are supported
+Currently, the following solver are supported
 
 * CG with and without block Jacobi preconditioner
 * BiCGStab
@@ -40,8 +40,8 @@ The following optional solver arguments are supported
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-updateSysMatrix | true | wether to copy the system matrix to device on every solver call
-updateInitVector | false |wether to copy the initial guess to device on every solver call 
+updateSysMatrix | true | whether to copy the system matrix to device on every solver call
+updateInitVector | false |whether to copy the initial guess to device on every solver call 
 sort | true | sort the system matrix
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 export | false | write the complete system to disk
