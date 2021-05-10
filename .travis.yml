@@ -7,6 +7,10 @@ dist: focal
 os:
   - linux
 
+stages:
+    - build
+    - test
+
 env:
     - VERSION=8 EXTERNAL_GINKGO=OFF
     - VERSION=8 EXTERNAL_GINKGO=ON
