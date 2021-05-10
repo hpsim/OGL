@@ -33,28 +33,36 @@ addons:
 
 script: skip
 
+_build: &_build
+  - stage: build
+    before_install:
+      - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+      - sudo add-apt-repository http://dl.openfoam.org/ubuntu
+      - sudo apt update
+
+    install:
+      - sudo apt-get -y install openfoam$VERSION
+      - source /opt/openfoam$VERSION/etc/bashrc
+      - ./scripts/travis_install_external_ginkgo.sh
+
+    before_script:
+      - cmake --version
+      - mkdir build
+      - cd build
+      - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
+
+    script:
+      - make -j4
+
+
 jobs:
   include:
-    - stage: build
-      before_install:
-        - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
-        - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-        - sudo apt update
-
-      install:
-        - sudo apt-get -y install openfoam$VERSION
-        - source /opt/openfoam$VERSION/etc/bashrc
-        - ./scripts/travis_install_external_ginkgo.sh
-
-      before_script:
-        - cmake --version
-        - mkdir build
-        - cd build
-        - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
-
-      script:
-        - make -j4
-
+    - <<: *_build
+      VERSION: 8
+      EXTERNAL_GINKGO: OFF
+    - <<: *_build
+      VERSION: 8
+      EXTERNAL_GINKGO: ON
     - stage: run
       script:
         echo foo
