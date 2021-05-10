@@ -48,7 +48,6 @@ _build: &_build
   script:
     - make -j4
 
-
 jobs:
   include:
     - <<: *_build
@@ -57,12 +56,25 @@ jobs:
     - <<: *_build
       VERSION: 8
       EXTERNAL_GINKGO: ON
+      GINKGO_VERSION: develop
     - <<: *_build
       VERSION: 7
       EXTERNAL_GINKGO: OFF
     - <<: *_build
       VERSION: 7
       EXTERNAL_GINKGO: ON
+      GINKGO_VERSION: develop
+    - <<: *_build
+      VERSION: 6
+      EXTERNAL_GINKGO: OFF
+    - <<: *_build
+      VERSION: 6
+      EXTERNAL_GINKGO: ON
+      GINKGO_VERSION: develop
+    - <<: *_build
+      VERSION: 8
+      EXTERNAL_GINKGO: ON
+      GINKGO_VERSION: 331277a81b848f33705f6ccf4f910fff69c84e18
     - stage: run
       script:
         echo foo
