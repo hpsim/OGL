@@ -20,7 +20,7 @@ cache:
 
 stages:
   - build
-  - test
+  - run
 
 addons:
   apt:
@@ -30,6 +30,8 @@ addons:
       - libfl-dev
       - lcov
       - libopenmpi-dev
+
+script: skip
 
 jobs:
   include:
@@ -53,7 +55,7 @@ jobs:
       script:
         - make -j4
 
-    - stage: test
+    - stage: run
       script:
         echo foo
 
