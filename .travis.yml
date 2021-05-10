@@ -11,6 +11,7 @@ os:
 cache:
   directories:
   - $HOME/OpenFOAM
+  - /opt/
 
 stages:
   - build
@@ -46,7 +47,15 @@ _build: &_build
     - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
 
   script:
-    - make -j4
+    - make -j4 && make install
+
+_run: &_run
+  stage: run
+  before_script:
+    - source /opt/openfoam$VERSION/etc/bashrc
+  script:
+      - ls /opt
+      - ls $FOAM_SRC
 
 jobs:
   include:
@@ -85,7 +94,7 @@ jobs:
       - VERSION=6
       - EXTERNAL_GINKGO=ON
       - GINKGO_VERSION=develop
-    - stage: run
-      script:
-        echo foo
+    - <<: *_run
+      ENV:
+      - VERSION=6
 
