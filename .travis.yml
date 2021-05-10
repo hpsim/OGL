@@ -34,6 +34,11 @@ addons:
 jobs:
   include:
     - stage: build
+      env:
+          - VERSION=8 EXTERNAL_GINKGO=OFF
+          - VERSION=8 EXTERNAL_GINKGO=ON
+          - VERSION=7 EXTERNAL_GINKGO=OFF
+          - VERSION=7 EXTERNAL_GINKGO=ON
       before_install:
         - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
         - sudo add-apt-repository http://dl.openfoam.org/ubuntu
@@ -52,3 +57,6 @@ jobs:
 
       script:
         - make -j4
+    - stage: test
+        - echo foo
+
