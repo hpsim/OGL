@@ -84,17 +84,7 @@ jobs:
       - VERSION=7
       - EXTERNAL_GINKGO=ON
       - GINKGO_VERSION=develop
-    - <<: *_build
-      ENV:
-      - VERSION=6
-      - EXTERNAL_GINKGO=OFF
-      - GINKGO_VERSION=develop
-    - <<: *_build
-      ENV:
-      - VERSION=6
-      - EXTERNAL_GINKGO=ON
-      - GINKGO_VERSION=develop
     - <<: *_run
       ENV:
-      - VERSION=6
+      - VERSION=8
 
