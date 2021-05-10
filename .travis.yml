@@ -18,7 +18,9 @@ cache:
   directories:
   - $HOME/OpenFOAM
 
-
+stages:
+  - build
+  - test
 
 addons:
   apt:
@@ -29,25 +31,24 @@ addons:
       - lcov
       - libopenmpi-dev
 
-- stage: build
-  before_install:
-    - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
-    - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-    - sudo apt update
+before_install:
+- sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+- sudo add-apt-repository http://dl.openfoam.org/ubuntu
+- sudo apt update
 
-  install:
-    - sudo apt-get -y install openfoam$VERSION
-    - source /opt/openfoam$VERSION/etc/bashrc
-    - ./scripts/travis_install_external_ginkgo.sh
+install:
+- sudo apt-get -y install openfoam$VERSION
+- source /opt/openfoam$VERSION/etc/bashrc
+- ./scripts/travis_install_external_ginkgo.sh
 
-  before_script:
-    - cmake --version
-    - mkdir build
-    - cd build
-    - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
+before_script:
+- cmake --version
+- mkdir build
+- cd build
+- cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
 
-  script:
-    - make -j4
+script:
+- make -j4
 
 jobs:
   include:
