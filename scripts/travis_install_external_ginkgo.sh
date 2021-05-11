@@ -16,7 +16,6 @@ then
         -DGINKGO_BUILD_REFERENCE=on \
         -DCMAKE_BUILD_TYPE=Release \
         -DGINKGO_BUILD_HWLOC=off \
-        -DCMAKE_INSTALL_PREFIX=$FOAM_USER_LIBBIN \
         ..
-    make  &&  make install
+    make  &&  sudo make install
 fi
