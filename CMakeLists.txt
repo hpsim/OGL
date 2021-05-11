@@ -20,13 +20,14 @@ check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 include(cmake/package_helpers.cmake)
 include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
+
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
 
 # If ginkgo wasn't found so far look for the third_party installation
-if (NOT Ginkgo_FOUND)
-  find_package(Ginkgo 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
+if(NOT ${OGL_USE_EXTERNAL_GINKGO})
+  find_package(Ginkgo CONFIG 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
 # To interface with ginkgo at least C++ 14 is needed
@@ -144,14 +145,14 @@ target_link_libraries(OGL
 
 install(TARGETS OGL
     DESTINATION $ENV{FOAM_USER_LIBBIN}
-    )
+  )
 
 if(NOT ${OGL_USE_EXTERNAL_GINKGO})
-file(MAKE_DIRECTORY $ENV{FOAM_USER_LIBBIN}/../include)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/include/
+  file(MAKE_DIRECTORY $ENV{FOAM_USER_LIBBIN}/../include)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/include/
     DESTINATION $ENV{FOAM_USER_LIBBIN}/../include/
     )
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/
     DESTINATION $ENV{FOAM_USER_LIBBIN}
     )
 endif()
