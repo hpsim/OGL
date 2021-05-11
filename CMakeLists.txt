@@ -147,6 +147,7 @@ install(TARGETS OGL
     )
 
 if(NOT ${OGL_USE_EXTERNAL_GINKGO})
+file(MAKE_DIRECTORY $ENV{FOAM_USER_LIBBIN}/../include)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/
     DESTINATION $ENV{FOAM_USER_LIBBIN}
     )
