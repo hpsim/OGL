@@ -20,5 +20,5 @@ then
         -DCMAKE_BUILD_TYPE=Release \
         -DGINKGO_BUILD_HWLOC=off \
         ..
-    make  -j &&  sudo make install
+    make  -j4 &&  sudo make install
 fi
