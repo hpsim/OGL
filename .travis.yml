@@ -57,9 +57,16 @@ _run: &_run
     - sudo apt update
     - sudo apt-get -y install openfoam$VERSION
     - source /opt/openfoam$VERSION/etc/bashrc
+
+  install:
+    - git clone https://github.com/greole/OBR.git \
+        $HOME/cache/OBR
+
   script:
       - ls /opt
       - ls $FOAM_SRC
+      - ls $FOAM_USER_LIBBIN
+
 
 jobs:
   include:

@@ -7,6 +7,7 @@ then
     git pull -C ginkgo-$GINKGO_VERSION pull ||             \
     git clone https://github.com/ginkgo-project/ginkgo.git \
         $HOME/cache/ginkgo-$GINKGO_VERSION
+    mkdir -p $HOME/cache/ginkgo-$GINKGO_VERSION/build
     cd $HOME/cache/ginkgo-$GINKGO_VERSION/build
     git checkout $GINKGO_VERSION
     cmake \
