@@ -62,6 +62,7 @@ _run: &_run
     - source /opt/openfoam$VERSION/etc/bashrc
 
   install:
+    - mkdir -p $HOME/cache
     - git clone https://github.com/greole/OBR.git \
         $HOME/cache/OBR
 
