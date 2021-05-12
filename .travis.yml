@@ -12,6 +12,8 @@ cache:
   directories:
   - $HOME/cache
   - $HOME/OpenFOAM
+  - /opt/openfoam7
+  - /opt/openfoam8
 
 stages:
   - build
@@ -49,6 +51,7 @@ _build: &_build
   script:
     - make -j4 && make install
 
+
 _run: &_run
   stage: run
   before_install:
@@ -75,6 +78,12 @@ jobs:
       - VERSION=8
       - EXTERNAL_GINKGO=OFF
       - GINKGO_VERSION=develop
+      workspaces:
+        create:
+          name:
+            foam_user_libbin_8
+          paths:
+            /home/travis/OpenFOAM/travis-8
     - <<: *_build
       ENV:
       - VERSION=8
@@ -90,6 +99,12 @@ jobs:
       - VERSION=7
       - EXTERNAL_GINKGO=OFF
       - GINKGO_VERSION=develop
+      workspaces:
+        create:
+          name:
+            foam_user_libbin_7
+          paths:
+            /home/travis/OpenFOAM/travis-7
     - <<: *_build
       ENV:
       - VERSION=7
@@ -98,4 +113,5 @@ jobs:
     - <<: *_run
       ENV:
       - VERSION=8
-
+      workspaces:
+        use: foam_user_libbin_8
