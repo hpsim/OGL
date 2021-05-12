@@ -10,8 +10,8 @@ os:
 
 cache:
   directories:
+  - $HOME/cache
   - $HOME/OpenFOAM
-  - /opt/
 
 stages:
   - build
@@ -25,6 +25,8 @@ addons:
       - libfl-dev
       - lcov
       - libopenmpi-dev
+      - openfoam7
+      - openfoam8
 
 script: skip
 
@@ -36,7 +38,6 @@ _build: &_build
     - sudo apt update
 
   install:
-    - sudo apt-get -y install openfoam$VERSION
     - source /opt/openfoam$VERSION/etc/bashrc
     - ./scripts/travis_install_external_ginkgo.sh
 
