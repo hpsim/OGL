@@ -71,18 +71,7 @@ _run: &_run
       - ls $FOAM_SRC
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
-      - python runBenchmark.py \
-          --solver CG,BiCGStab \
-          --backend OF,GKO     \
-          --executor Ref       \
-          --preconditioner NoPrecond \
-          --field p,U          \
-          --small-cases        \
-          --test-run           \
-          --fail_on_error      \
-          --report=report.csv  \
-          --folder=Test        \
-          --project_path /home/travis/cache/OBR
+      - python runBenchmark.py --solver CG,BiCGStab --backend OF,GKO --executor Ref --preconditioner NoPrecond --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
 
 jobs:
   include:
