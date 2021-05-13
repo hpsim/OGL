@@ -65,6 +65,7 @@ _run: &_run
     - mkdir -p $HOME/cache
     - git clone https://github.com/greole/OBR.git \
         $HOME/cache/OBR
+    - ls $HOME/cache
 
   script:
       - ls $HOME/cache/OBR
