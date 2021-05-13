@@ -63,8 +63,8 @@ _run: &_run
 
   install:
     - git clone https://github.com/greole/OBR.git $HOME/OBR
-    - ls $HOME
-    - ls $HOME/OBR
+    - pip install docopt --user
+
 
   script:
       - ls /opt
