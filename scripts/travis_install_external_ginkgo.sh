@@ -1,11 +1,15 @@
 #!/bin/bash
 
-
 if [ $EXTERNAL_GINKGO = ON ]
 then
-    git clone https://github.com/ginkgo-project/ginkgo.git
-    mkdir ginkgo/build
-    cd ginkgo/build
+    mkdir -p $HOME/cache/
+    cd $HOME/cache
+    git pull -C ginkgo-$GINKGO_VERSION pull ||             \
+    git clone https://github.com/ginkgo-project/ginkgo.git \
+        $HOME/cache/ginkgo-$GINKGO_VERSION
+    mkdir -p $HOME/cache/ginkgo-$GINKGO_VERSION/build
+    cd $HOME/cache/ginkgo-$GINKGO_VERSION/build
+    git checkout $GINKGO_VERSION
     cmake \
         -DGINKGO_BUILD_BENCHMARKS=OFF \
         -DGINKGO_BUILD_EXAMPLES=OFF \
@@ -17,5 +21,5 @@ then
         -DCMAKE_BUILD_TYPE=Release \
         -DGINKGO_BUILD_HWLOC=off \
         ..
-    make  && sudo make install
+    make  -j4 &&  sudo make install
 fi
