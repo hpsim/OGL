@@ -62,8 +62,7 @@ _run: &_run
     - source /opt/openfoam$VERSION/etc/bashrc
 
   install:
-    - git clone https://github.com/greole/OBR.git \
-        $HOME/OBR
+    - git clone https://github.com/greole/OBR.git $HOME/OBR
     - ls $HOME
     - ls $HOME/OBR
 
