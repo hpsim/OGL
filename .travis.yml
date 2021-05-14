@@ -11,9 +11,6 @@ os:
 cache:
   directories:
   - $HOME/cache
-  - $HOME/OpenFOAM
-  - /opt/openfoam7
-  - /opt/openfoam8
 
 stages:
   - build
@@ -55,10 +52,9 @@ _build: &_build
 _run: &_run
   stage: run
   before_install:
-    - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
-    - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-    - sudo apt update
-    - sudo apt-get -y install openfoam$VERSION
+    - git clone https://github.com/greole/owls.git $HOME/owls
+    - cd $HOME/owls
+    - python setup.py install --user
     - source /opt/openfoam$VERSION/etc/bashrc
 
   install:
@@ -86,6 +82,11 @@ jobs:
             foam_user_libbin_8
           paths:
             /home/travis/OpenFOAM/travis-8
+        create:
+          name:
+            foam_opt_bin_8
+          paths:
+            /opt/openfoam8
     - <<: *_build
       ENV:
       - VERSION=8
@@ -116,4 +117,7 @@ jobs:
       ENV:
       - VERSION=8
       workspaces:
-        use: foam_user_libbin_8
+        use:
+          - foam_user_libbin_8
+          - foam_opt_bin_8
+
