@@ -80,14 +80,10 @@ jobs:
       workspaces:
         create:
           name:
-            foam_user_libbin_8
+            foam_env_8
           paths:
-            /home/travis/OpenFOAM/travis-8
-        create:
-          name:
-            foam_opt_bin_8
-          paths:
-            /opt/openfoam8
+            - /home/travis/OpenFOAM/travis-8
+            - /opt/openfoam8
     - <<: *_build
       ENV:
       - VERSION=8
@@ -119,6 +115,5 @@ jobs:
       - VERSION=8
       workspaces:
         use:
-          - foam_user_libbin_8
-          - foam_opt_bin_8
+          - foam_env_8
 
