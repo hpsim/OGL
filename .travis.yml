@@ -24,6 +24,7 @@ addons:
       - libfl-dev
       - lcov
       - libopenmpi-dev
+      - ipython3
 
 script: skip
 
