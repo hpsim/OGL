@@ -68,7 +68,7 @@ _run: &_run
       - ls $FOAM_SRC
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
-      - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner NoPrecond --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
+      - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner $PRECOND --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
       - cat report.csv
 
 jobs:
@@ -115,6 +115,7 @@ jobs:
       ENV:
       - VERSION=8
       - SOLVER=CG
+      - PRECOND=NoPrecond
       workspaces:
         use:
           - foam_env_8
@@ -122,6 +123,31 @@ jobs:
       ENV:
       - VERSION=8
       - SOLVER=BiCGStab
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=CG
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=BiCGStab
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=IR
+      - PRECOND=NoPrecond
       workspaces:
         use:
           - foam_env_8
