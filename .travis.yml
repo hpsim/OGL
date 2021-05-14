@@ -53,7 +53,7 @@ _build: &_build
 _run: &_run
   stage: run
   before_install:
-    - git clone https://github.com/greole/owls.git $HOME/owls
+    - git clone -b develop https://github.com/greole/owls.git $HOME/owls
     - cd $HOME/owls
     - python setup.py install --user
     - source /opt/openfoam$VERSION/etc/bashrc
@@ -68,10 +68,11 @@ _run: &_run
       - ls $FOAM_SRC
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
-      - python runBenchmark.py --solver CG,BiCGStab --backend OF,GKO --executor Ref --preconditioner NoPrecond --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
+      - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner NoPrecond --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
+      - cat report.csv
 
 jobs:
-  include:
+  Include:
     - <<: *_build
       ENV:
       - VERSION=8
@@ -113,6 +114,14 @@ jobs:
     - <<: *_run
       ENV:
       - VERSION=8
+      - SOLVER=CG
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=BiCGStab
       workspaces:
         use:
           - foam_env_8
