@@ -20,5 +20,5 @@ if __name__ == "__main__":
                 extract_iters_from_line(lines[2 * i], -1),
                 extract_iters_from_line(lines[2 * i + 1], -1),
             )
-            if rel_diff > 0.01:
+            if rel_diff > 0.05:
                 sys.exit(1)

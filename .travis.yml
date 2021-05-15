@@ -79,7 +79,7 @@ _run: &_run
 _validate: &_validate
   stage: validate
   script:
-      - cat $HOME/data/$SOLVER$PRECOND.csv
+      - cat $HOME/data/report.csv
       - echo $TRAVIS_BUILD_DIR
       - python $TRAVIS_BUILD_DIR/scripts/travis_check_results.py $HOME/data/report.csv
 
