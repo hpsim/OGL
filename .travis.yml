@@ -72,14 +72,15 @@ _run: &_run
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
       - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner $PRECOND --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
-      - cp report.csv $HOME/data/$SOLVER$PRECOND.csv
+      - cp report.csv $HOME/data/report.csv
+      - cat $HOME/data/report.csv
 
 _validate: &_validate
   stage: validate
   script:
       - cat $HOME/data/$SOLVER$PRECOND.csv
       - echo $TRAVIS_BUILD_DIR
-      - python $TRAVIS_BUILD_DIR/scripts/travis_check_results.py $HOME/data/$SOLVER$PRECOND.csv
+      - python $TRAVIS_BUILD_DIR/scripts/travis_check_results.py $HOME/data/report.csv
 
 jobs:
   Include:
@@ -94,7 +95,6 @@ jobs:
             foam_env_8
           paths:
             - /home/travis/OpenFOAM/travis-8
-            - /home/travis/data
             - /opt/openfoam8
     - <<: *_build
       ENV:
@@ -130,6 +130,11 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+        create:
+          name:
+            CGData
+          paths:
+            /home/travis/data
     - <<: *_run
       ENV:
       - VERSION=8
@@ -138,6 +143,11 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+        create:
+          name:
+            BiCGStabData
+          paths:
+            /home/travis/data
     - <<: *_run
       ENV:
       - VERSION=8
@@ -169,6 +179,7 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+          - BiCGStabData
     - <<: *_validate
       ENV:
       - SOLVER=BiCGStab
@@ -176,6 +187,7 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+          - BiCGStabData
     - <<: *_validate
       ENV:
       - SOLVER=CG
@@ -190,6 +202,7 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+          - BiCGStabData
     - <<: *_validate
       ENV:
       - SOLVER=IR
@@ -197,4 +210,5 @@ jobs:
       workspaces:
         use:
           - foam_env_8
+          - BiCGStabData
 
