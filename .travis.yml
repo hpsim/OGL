@@ -91,7 +91,7 @@ jobs:
             foam_env_8
           paths:
             - /home/travis/OpenFOAM/travis-8
-            - /home/data
+            - /home/travis/data
             - /opt/openfoam8
     - <<: *_build
       ENV:
