@@ -38,6 +38,7 @@ _build: &_build
     - sudo apt update
     - sudo apt-get -y install openfoam$VERSION
     - source /opt/openfoam$VERSION/etc/bashrc
+    - mkdir -p $HOME/data
 
   install:
     - ./scripts/travis_install_external_ginkgo.sh
@@ -71,7 +72,11 @@ _run: &_run
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
       - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner $PRECOND --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
-      - cat report.csv
+      - cp report.csv $HOME/data/$SOLVER$PRECOND.csv
+
+_validate: &_validate
+  script:
+      - cat $HOME/data/$SOLVER$PRECOND.csv
 
 jobs:
   Include:
@@ -86,6 +91,7 @@ jobs:
             foam_env_8
           paths:
             - /home/travis/OpenFOAM/travis-8
+            - /home/data
             - /opt/openfoam8
     - <<: *_build
       ENV:
@@ -148,6 +154,41 @@ jobs:
     - <<: *_run
       ENV:
       - VERSION=8
+      - SOLVER=IR
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
+      - SOLVER=CG
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
+      - SOLVER=BiCGStab
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
+      - SOLVER=CG
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
+      - SOLVER=BiCGStab
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
       - SOLVER=IR
       - PRECOND=NoPrecond
       workspaces:
