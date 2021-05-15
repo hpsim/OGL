@@ -75,6 +75,7 @@ _run: &_run
       - cp report.csv $HOME/data/$SOLVER$PRECOND.csv
 
 _validate: &_validate
+  stage: validate
   script:
       - cat $HOME/data/$SOLVER$PRECOND.csv
       - echo $TRAVIS_BUILD_DIR
