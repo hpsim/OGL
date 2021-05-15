@@ -180,7 +180,7 @@ jobs:
       workspaces:
         use:
           - foam_env_8
-          - BiCGStabData
+          - CGData
     - <<: *_validate
       ENV:
       - SOLVER=BiCGStab
@@ -189,27 +189,3 @@ jobs:
         use:
           - foam_env_8
           - BiCGStabData
-    - <<: *_validate
-      ENV:
-      - SOLVER=CG
-      - PRECOND=BJ
-      workspaces:
-        use:
-          - foam_env_8
-    - <<: *_validate
-      ENV:
-      - SOLVER=BiCGStab
-      - PRECOND=BJ
-      workspaces:
-        use:
-          - foam_env_8
-          - BiCGStabData
-    - <<: *_validate
-      ENV:
-      - SOLVER=IR
-      - PRECOND=NoPrecond
-      workspaces:
-        use:
-          - foam_env_8
-          - BiCGStabData
-
