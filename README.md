@@ -3,6 +3,7 @@
 ![Version](https://img.shields.io/badge/version-OpenFOAM--6-blue)
 ![Version](https://img.shields.io/badge/version-OpenFOAM--7-blue)
 ![Version](https://img.shields.io/badge/version-OpenFOAM--8-blue)
+[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
 
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/) 
 
