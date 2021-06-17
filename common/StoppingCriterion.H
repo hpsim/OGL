@@ -88,13 +88,9 @@ class StoppingCriterion {
             auto vec_abs = gko::clone(dense_r);
             const label cells = dense_r->get_size()[0];
             vec_abs->compute_absolute_inplace();
-            auto unit = vec::create(dense_r->get_executor(),
-                                    gko::dim<2>{(unsigned long)cells, 1});
-            unit->fill(1.0);
+            init_unit_t_on_first_iter(dense_r, cells);
 
-            const auto unit_t = unit->transpose();
-
-            unit_t->apply(gko::lend(vec_abs), gko::lend(res));
+            unit_t_->apply(gko::lend(vec_abs), gko::lend(res));
 
             auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
             res_host->copy_from(gko::lend(res));
@@ -126,6 +122,16 @@ class StoppingCriterion {
             return result;
         }
 
+        void init_unit_t_on_first_iter(const vec * dense_r, const size_t cells){
+            if (first_iter_ ) {
+            auto unit = vec::create(dense_r->get_executor(),
+                                    gko::dim<2>{(unsigned long)cells, 1});
+            unit->fill(1.0);
+            unit_t_ = gko::share(unit->transpose());
+            first_iter_ = false;
+            }
+        }
+
         explicit OpenFOAMStoppingCriterion(
             std::shared_ptr<const gko::Executor> exec)
             : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
@@ -139,6 +145,11 @@ class StoppingCriterion {
                   factory->get_executor()),
               parameters_{factory->get_parameters()}
         {}
+
+        mutable bool first_iter_=true;
+
+        mutable std::shared_ptr<gko::LinOp> unit_t_={};
+
     };
 
     const label maxIter_;
