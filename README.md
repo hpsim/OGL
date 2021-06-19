@@ -1,5 +1,5 @@
 # OpenFOAM Ginkgo Layer (OGL)
-[![Build Status](https://travis-ci.com/greole/OGL.svg?branch=dev)](https://travis-ci.com/greole/OGL)
+[![Build Status](https://travis-ci.com/hpsim/OGL.svg?branch=dev)](https://travis-ci.com/hpsim/OGL)
 ![Version](https://img.shields.io/badge/version-OpenFOAM--6-blue)
 ![Version](https://img.shields.io/badge/version-OpenFOAM--7-blue)
 ![Version](https://img.shields.io/badge/version-OpenFOAM--8-blue)
