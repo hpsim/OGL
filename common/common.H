@@ -173,7 +173,7 @@ public:
 };
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
-                   const vec *b);
+                   const vec *b, const word time);
 
 
 // Logs the number of iteration executed
@@ -409,7 +409,8 @@ public:
 
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
-                          gko::lend(x[0]), gko::lend(b));
+                          gko::lend(x[0]), gko::lend(b),
+                          this->matrix().mesh().thisDb().time().timeName());
 
 
         solverPerf.initialResidual() = this->get_init_res_norm();
