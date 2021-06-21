@@ -358,7 +358,8 @@ public:
 
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
-            lduMatrix::preconditioner::getName(this->controlDict_) + typeName,
+            lduMatrix::preconditioner::getName(this->controlDict_) +
+                this->get_device_executor_name() + typeName,
             this->fieldName());
 
 
