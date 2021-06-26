@@ -309,8 +309,9 @@ public:
         // Implement
         word preconditionerName(this->controlDict_.lookup("preconditioner"));
 
-        SolverPerformance<Type> solverPerf(preconditionerName,
-                                           this->fieldName_);
+        SolverPerformance<Type> solverPerf(
+            preconditionerName + this->get_device_executor_name(),
+            this->fieldName_);
 
         std::vector<val_array> source_views{};
 
