@@ -15,13 +15,11 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Class
-    Foam::GKOCG
 
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOCG.C
+    common.H
 
 \*---------------------------------------------------------------------------*/
 #ifndef OGL_COMMON_H
@@ -305,12 +303,14 @@ public:
     {
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
+
         // --- Setup class containing solver performance data
         // Implement
         word preconditionerName(this->controlDict_.lookup("preconditioner"));
 
-        SolverPerformance<Type> solverPerf(preconditionerName,
-                                           this->fieldName_);
+        SolverPerformance<Type> solverPerf(
+            this->get_device_executor_name() + preconditionerName,
+            this->fieldName_);
 
         std::vector<val_array> source_views{};
 
