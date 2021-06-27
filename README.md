@@ -5,7 +5,7 @@
 ![Version](https://img.shields.io/badge/version-OpenFOAM--8-blue)
 [![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
 
-A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/) 
+A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/)
 
 ## Requirements
 
@@ -29,7 +29,7 @@ the `system/controlDict` includes the `OGL.so` file:
 ## Usage
 
 
-OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary. 
+OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
 
 Currently, the following solver are supported
 
@@ -42,17 +42,16 @@ The following optional solver arguments are supported
 Argument | Default | Description
 ------------ | ------------- | -------------
 updateSysMatrix | true | whether to copy the system matrix to device on every solver call
-updateInitVector | false |whether to copy the initial guess to device on every solver call 
+updateInitVector | false |whether to copy the initial guess to device on every solver call
 sort | true | sort the system matrix
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 export | false | write the complete system to disk
- 
 
 ## Known Limitations
 
 Currently cyclic boundary conditions are not supported.
 
-## Citing 
+## Citing
 
 When using OGL please cite the main Ginkgo paper describing Ginkgo's purpose, design and interface, which is
 available through the following reference:
