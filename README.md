@@ -20,14 +20,12 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 
 ## Compilation
 
-
 *OGL* can be build using cmake. Make sure that
 the `system/controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
 
 ## Usage
-
 
 OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
 
