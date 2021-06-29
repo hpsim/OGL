@@ -71,7 +71,7 @@ _run: &_run
       - ls $FOAM_SRC
       - ls $FOAM_USER_LIBBIN
       - cd $HOME/OBR
-      - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner $PRECOND --field p,U --small-cases --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
+      - python runBenchmark.py --solver $SOLVER --backend OF,GKO --executor Ref --preconditioner $PRECOND --field p,U --test-run  --fail_on_error  --report=report.csv --folder=Test  --project_path /home/travis/OBR
       - mkdir -p $HOME/data
       - cp report.csv $HOME/data/report.csv
       - cat $HOME/data/report.csv
