@@ -32,6 +32,7 @@ SourceFiles
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
 #include "../common/common.H"
+#include "../lduLduBase/lduLduBase.H"
 
 #include "IOPtrList.H"
 #include "fvCFD.H"

@@ -29,6 +29,7 @@ SourceFiles
 #define GKO_LDUBase_H
 
 #include "../common/common.H"
+#include "../lduLduBase/lduLduBase.H"
 #include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
