@@ -63,7 +63,6 @@ public:
                              std::shared_ptr<gko::Executor> device_exec) const
     {
         if (preconditioner_stored_) {
-            std::cout << " found preconditioner " << std::endl;
             io_precond_ptr_ =
                 &db.lookupObjectRef<GKOBJIOPtr>(preconditioner_db_name_);
             return;
@@ -83,7 +82,6 @@ public:
     std::shared_ptr<bj> get_preconditioner() const
     {
         if (io_precond_ptr_ == NULL) {
-            std::cout << " get_precond == NULL" << std::endl;
             return std::shared_ptr<bj>{};
         }
         return io_precond_ptr_->get_ptr();

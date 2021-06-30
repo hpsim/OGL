@@ -47,6 +47,9 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public IOSortingIdxHandler,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
+private:
+    const bool verbose_;
+
 public:
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
                const FieldField<Field, scalar> &interfaceBouCoeffs,
@@ -61,7 +64,8 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName)
+          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
+          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
     {
         init_base();
     }
@@ -77,7 +81,8 @@ public:
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName)
+          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
+          verbose_(solverControls.lookupOrDefault<Switch>("verbose", false))
     {
         init_base();
     }
@@ -88,38 +93,40 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
-            SIMPLE_TIME(init_host_sparsity_pattern,
+            SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
                         this->init_host_sparsity_pattern();)
-            std::cout << " matrix not stored update host matrix " << std::endl;
-            SIMPLE_TIME(update_host_mtx, this->update_host_matrix_data();)
+            SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
+            SIMPLE_TIME(verbose_, update_host_mtx,
+                        this->update_host_matrix_data();)
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
             if (get_update_sys_matrix()) {
-                std::cout
-                    << " matrix is stored and  update of host matrix requested"
-                    << std::endl;
-                SIMPLE_TIME(exp_update_host_mtx,
+                SIMPLE_LOG(
+                    verbose_,
+                    "matrix is stored and update of host matrix requested")
+                SIMPLE_TIME(verbose_, exp_update_host_mtx,
                             this->update_host_matrix_data();)
             }
         }
 
         // after updating the host matrix the host matrix needs to be sorted
         if (!get_is_sorted()) {
-            std::cout << "matrix is not yet sorted, compute sorting idxs "
-                      << std::endl;
-            SIMPLE_TIME(compute_sort, this->compute_sorting_idxs(
-                                          this->row_idxs(), this->col_idxs(),
-                                          this->nCells());)
+            SIMPLE_LOG(verbose_,
+                       "matrix is not yet sorted, compute sorting idxs")
+            SIMPLE_TIME(
+                verbose_, compute_sort,
+                this->compute_sorting_idxs(this->row_idxs(), this->col_idxs(),
+                                           this->nCells());)
         }
 
         if (!stored && get_sort()) {
-            std::cout << "matrix is not yet sorted,  sorting host matrix "
-                      << std::endl;
+            SIMPLE_LOG(verbose_,
+                       "matrix is not yet sorted, sorting host matrix")
             SIMPLE_TIME(
-                sort_host_mtx_sparsity_pattern,
+                verbose_, sort_host_mtx_sparsity_pattern,
                 this->sort_host_matrix_sparsity_pattern(get_sorting_idxs());)
-            SIMPLE_TIME(sort_host_mtx,
+            SIMPLE_TIME(verbose_, sort_host_mtx,
                         this->sort_host_matrix_data(this->get_sorting_idxs());)
         }
 
@@ -182,7 +189,8 @@ public:
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         for (int i = 0; i < 3; i++) {
-            SIMPLE_TIME(solve, solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
+            SIMPLE_TIME(verbose_, solve,
+                        solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
         }
 
         // copy back
@@ -231,7 +239,7 @@ public:
 
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
-        SIMPLE_TIME(init_preconditioner,
+        SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
 
@@ -247,9 +255,6 @@ public:
         // from this factory.
         solver_gen->add_logger(logger);
 
-        // auto b_clone = gko::clone(b);
-
-
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
                           gko::lend(x[0]), gko::lend(b),
@@ -261,16 +266,13 @@ public:
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         // Solve system
-        SIMPLE_TIME(solve, solver->apply(gko::lend(b), gko::lend(x[0]));)
-        std::cout << " copy back" << std::endl;
+        SIMPLE_TIME(verbose_, solve,
+                    solver->apply(gko::lend(b), gko::lend(x[0]));)
 
         this->copy_result_back(psi, this->nCells());
 
-        // b_clone->copy_from(gko::lend(b));
-
         solverPerf.finalResidual() = this->get_res_norm();
 
-        std::cout << " get iters " << std::endl;
         solverPerf.nIterations() = logger->get_iters();
 
         return solverPerf;

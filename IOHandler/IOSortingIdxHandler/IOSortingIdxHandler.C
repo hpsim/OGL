@@ -36,7 +36,6 @@ void IOSortingIdxHandler::compute_sorting_idxs(
     // using std::stable_sort instead of std::sort
     // to avoid unnecessary index re-orderings
     // when v contains elements of equal values
-    std::cout << " compute sorting idxs " << nElems_ << std::endl;
     std::stable_sort(
         sorting_idxs_->data(), &sorting_idxs_->data()[nElems_],
         [this, &row_idxs, &col_idxs, nCells](size_t i1, size_t i2) {
