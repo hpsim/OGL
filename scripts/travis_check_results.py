@@ -14,7 +14,9 @@ if __name__ == "__main__":
 
     fn = sys.argv[1]
     with open(fn) as fh:
-        lines = fh.readlines()[1:]
+        # TODO the first and second line have to be skipped
+        # the starting line should be found automatically
+        lines = fh.readlines()[2:]
         for i in range(int(len(lines) / 2)):
             rel_diff = relative_difference(
                 extract_iters_from_line(lines[2 * i], -1),

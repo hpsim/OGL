@@ -106,15 +106,16 @@ class StoppingCriterion {
             if (iter_ == 1) {
                 *(parameters_.init_residual_norm) = residual_norm;
             }
-            // printf("normalised res norm %f\n", normalised_res_norm);
+
+            // printf("residual norm %f\n", residual_norm);
             // printf("iter %d\n", iter_);
 
             if ((residual_norm < parameters_.openfoam_absolute_tolerance) &&
-                (iter_ >= parameters_.openfoam_minIter)) {
+                (iter_ > parameters_.openfoam_minIter)) {
                 result = true;
             }
 
-            if (iter_ >= parameters_.openfoam_maxIter) {
+            if (iter_ > parameters_.openfoam_maxIter) {
                 result = true;
             }
 
@@ -141,7 +142,7 @@ class StoppingCriterion {
         {}
     };
 
-    const label maxIter_;
+    mutable label maxIter_;
 
     const label minIter_;
 
@@ -161,7 +162,9 @@ public:
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
           normalised_res_norm_(0)
-    {}
+    {
+        if (word(controlDict.lookup("solver")) == "GKOBiCGStab") maxIter_ *= 2;
+    }
 
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
         std::shared_ptr<gko::Executor> device_exec, scalar norm_factor) const

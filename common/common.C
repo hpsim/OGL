@@ -52,7 +52,4 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     gko::write(stream_x, x);
 };
 
-
-// // IOPtr::addsymMatrixConstructorToTable<GKOCG>
-// // addGKOCGSymMatrixConstructorToTable_;
 }  // namespace Foam

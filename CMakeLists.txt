@@ -107,6 +107,7 @@ IR/GKOIR.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
 common/common.H
+lduLduBase/lduLduBase.H
 IOHandler/IOPtr/IOPtr.H
 IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
 IOHandler/IOExecutorHandler/IOExecutorHandler.H
