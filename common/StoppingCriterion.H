@@ -111,11 +111,11 @@ class StoppingCriterion {
             // printf("iter %d\n", iter_);
 
             if ((residual_norm < parameters_.openfoam_absolute_tolerance) &&
-                (iter_ >= parameters_.openfoam_minIter)) {
+                (iter_ > parameters_.openfoam_minIter)) {
                 result = true;
             }
 
-            if (iter_ >= parameters_.openfoam_maxIter) {
+            if (iter_ > parameters_.openfoam_maxIter) {
                 result = true;
             }
 
