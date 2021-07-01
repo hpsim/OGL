@@ -271,6 +271,7 @@ public:
 
         this->copy_result_back(psi, this->nCells());
 
+        solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
 
         solverPerf.nIterations() = logger->get_iters();
