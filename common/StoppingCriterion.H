@@ -43,6 +43,9 @@ class StoppingCriterion {
         using vec = gko::matrix::Dense<scalar>;
 
     private:
+        // Start with an arbitrary high value
+        scalar prev_res_norm_ = SMALL;
+
         label iter_ = 0;
 
     public:
@@ -80,8 +83,6 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-            iter_++;
-
             auto *dense_r = gko::as<vec>(updater.residual_);
             auto exec = dense_r->get_executor();
             auto res = vec::create(exec, gko::dim<2>{1, 1});
@@ -98,20 +99,27 @@ class StoppingCriterion {
             bool result = false;
             scalar residual_norm =
                 res_host->at(0) / parameters_.openfoam_norm_factor;
+
             *(parameters_.residual_norm) = residual_norm;
-            if (iter_ == 1) {
+            if (iter_ == 0) {
                 *(parameters_.init_residual_norm) = residual_norm;
             }
 
-            // printf("residual norm %f\n", residual_norm);
-            // printf("iter %d\n", iter_);
+            scalar init_residual = *(parameters_.init_residual_norm);
 
-            if ((residual_norm < parameters_.openfoam_absolute_tolerance) &&
+            if ((parameters_.openfoam_minIter > 0) &&
                 (iter_ > parameters_.openfoam_minIter)) {
                 result = true;
             }
 
-            if (iter_ > parameters_.openfoam_maxIter) {
+            if (iter_ == parameters_.openfoam_maxIter) {
+                result = true;
+            }
+
+
+            if (parameters_.openfoam_relative_tolerance > 0 &&
+                residual_norm <
+                    parameters_.openfoam_relative_tolerance * init_residual) {
                 result = true;
             }
 
@@ -120,6 +128,9 @@ class StoppingCriterion {
                 *one_changed = true;
             }
 
+            prev_res_norm_ = residual_norm;
+
+            iter_++;
             return result;
         }
 
@@ -172,6 +183,7 @@ public:
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+          init_normalised_res_norm_(0),
           normalised_res_norm_(0)
     {
         if (word(controlDict.lookup("solver")) == "GKOBiCGStab") maxIter_ *= 2;
@@ -182,7 +194,7 @@ public:
     {
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
-            .with_openfoam_relative_tolerance(0)
+            .with_openfoam_relative_tolerance(relTol_)
             .with_openfoam_norm_factor(norm_factor)
             .with_openfoam_minIter(minIter_)
             .with_openfoam_maxIter(maxIter_)
