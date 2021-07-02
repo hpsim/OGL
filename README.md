@@ -46,6 +46,7 @@ updateInitVector | false |whether to copy the initial guess to device on every s
 sort | true | sort the system matrix
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 export | false | write the complete system to disk
+verbose | false | print out extra info
  
 
 ## Known Limitations
