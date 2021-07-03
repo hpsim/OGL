@@ -43,9 +43,6 @@ class StoppingCriterion {
         using vec = gko::matrix::Dense<scalar>;
 
     private:
-        // Start with an arbitrary high value
-        scalar prev_res_norm_ = SMALL;
-
         label iter_ = 0;
 
     public:
@@ -101,34 +98,34 @@ class StoppingCriterion {
                 res_host->at(0) / parameters_.openfoam_norm_factor;
 
             *(parameters_.residual_norm) = residual_norm;
+
+            // Store initial residual
             if (iter_ == 0) {
                 *(parameters_.init_residual_norm) = residual_norm;
             }
-
             scalar init_residual = *(parameters_.init_residual_norm);
 
-            if ((parameters_.openfoam_minIter > 0) &&
-                (iter_ > parameters_.openfoam_minIter)) {
-                result = true;
-            }
-
+            // stop if maximum number of iterations was reached
             if (iter_ == parameters_.openfoam_maxIter) {
                 result = true;
-            }
-
-
-            if (parameters_.openfoam_relative_tolerance > 0 &&
-                residual_norm <
-                    parameters_.openfoam_relative_tolerance * init_residual) {
-                result = true;
+            } else if (iter_ > parameters_.openfoam_minIter)
+            {
+                // check if absolute tolerance is hit
+                if (residual_norm < parameters_.openfoam_absolute_tolerance) {
+                    result = true;
+                }
+                // check if relative tolerance is hit
+                if (parameters_.openfoam_relative_tolerance > 0 &&
+                    residual_norm <
+                        parameters_.openfoam_relative_tolerance * init_residual) {
+                    result = true;
+                }
             }
 
             if (result) {
                 this->set_all_statuses(stoppingId, setFinalized, stop_status);
                 *one_changed = true;
             }
-
-            prev_res_norm_ = residual_norm;
 
             iter_++;
             return result;
