@@ -86,9 +86,9 @@ class StoppingCriterion {
             auto vec_abs = gko::clone(dense_r);
             const label cells = dense_r->get_size()[0];
             vec_abs->compute_absolute_inplace();
-            init_unit_t_on_first_iter(dense_r, cells);
+            init_unit_vec_on_first_iter(dense_r, cells);
 
-            unit_t_->apply(gko::lend(vec_abs), gko::lend(res));
+            unit_->compute_dot(gko::lend(vec_abs), gko::lend(res));
 
             auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
             res_host->copy_from(gko::lend(res));
@@ -108,16 +108,15 @@ class StoppingCriterion {
             // stop if maximum number of iterations was reached
             if (iter_ == parameters_.openfoam_maxIter) {
                 result = true;
-            } else if (iter_ > parameters_.openfoam_minIter)
-            {
+            } else if (iter_ > parameters_.openfoam_minIter) {
                 // check if absolute tolerance is hit
                 if (residual_norm < parameters_.openfoam_absolute_tolerance) {
                     result = true;
                 }
                 // check if relative tolerance is hit
                 if (parameters_.openfoam_relative_tolerance > 0 &&
-                    residual_norm <
-                        parameters_.openfoam_relative_tolerance * init_residual) {
+                    residual_norm < parameters_.openfoam_relative_tolerance *
+                                        init_residual) {
                     result = true;
                 }
             }
@@ -131,13 +130,13 @@ class StoppingCriterion {
             return result;
         }
 
-        void init_unit_t_on_first_iter(const vec * dense_r, const size_t cells){
-            if (first_iter_ ) {
-            auto unit = vec::create(dense_r->get_executor(),
+        void init_unit_vec_on_first_iter(const vec *dense_r, const size_t cells)
+        {
+            if (first_iter_) {
+                unit_ = vec::create(dense_r->get_executor(),
                                     gko::dim<2>{(unsigned long)cells, 1});
-            unit->fill(1.0);
-            unit_t_ = gko::share(unit->transpose());
-            first_iter_ = false;
+                unit_->fill(1.0);
+                first_iter_ = false;
             }
         }
 
@@ -155,10 +154,9 @@ class StoppingCriterion {
               parameters_{factory->get_parameters()}
         {}
 
-        mutable bool first_iter_=true;
+        mutable bool first_iter_ = true;
 
-        mutable std::shared_ptr<gko::LinOp> unit_t_={};
-
+        mutable std::shared_ptr<vec> unit_ = {};
     };
 
     mutable label maxIter_;
