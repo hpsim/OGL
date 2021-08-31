@@ -20,8 +20,11 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 
 ## Compilation
 
-*OGL* can be build using cmake. Make sure that
-the `system/controlDict` includes the `OGL.so` file:
+*OGL* can be build using cmake following the standard cmake procedure. 
+
+    mkdir build && cd build && ccmake ..
+
+Then, make sure that the `system/controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
 
