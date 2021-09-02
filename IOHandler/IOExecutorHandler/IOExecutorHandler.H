@@ -56,6 +56,8 @@ private:
 
     GKOHipExecPtr *hip_exec_ptr_;
 
+    GKODpcppExecPtr *dpcpp_exec_ptr_;
+
 public:
     IOExecutorHandler(const objectRegistry &db, const dictionary &controlDict);
 

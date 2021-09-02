@@ -60,6 +60,7 @@ typedef IOPtr<gko::CudaExecutor> GKOCudaExecPtr;
 typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
 typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
+typedef IOPtr<gko::DpcppExecutor> GKODpcppExecPtr;
 typedef IOPtr<idx_array> GKOIDXIOPtr;
 typedef IOPtr<gko::matrix::Csr<scalar>> GKOCSRIOPtr;
 typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;

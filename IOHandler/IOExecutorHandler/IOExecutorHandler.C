@@ -43,6 +43,11 @@ IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
                 &db.lookupObjectRef<GKOHipExecPtr>(device_executor_name_);
             return;
         }
+        if (device_executor_name_ == "dpcpp") {
+            dpcpp_exec_ptr_ =
+                &db.lookupObjectRef<GKODpcppExecPtr>(device_executor_name_);
+            return;
+        }
     }
 
     const fileName app_exec_store = app_executor_name_;
@@ -60,6 +65,11 @@ IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
             new GKOCudaExecPtr(IOobject(device_exec_store, db),
                                gko::give(gko::CudaExecutor::create(
                                    0, omp_exec_ptr_->get_ptr(), true)));
+    }
+    if (device_executor_name_ == "dpcpp") {
+        dpcpp_exec_ptr_ = new GKODpcppExecPtr(
+            IOobject(device_exec_store, db),
+            gko::give(gko::DpcppExecutor::create(0, omp_exec_ptr_->get_ptr())));
     }
     if (device_executor_name_ == "hip") {
         hip_exec_ptr_ =
