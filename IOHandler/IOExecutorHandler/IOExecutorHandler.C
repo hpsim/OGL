@@ -1,4 +1,3 @@
-
 #include <ginkgo/ginkgo.hpp>
 #include <type_traits>
 
@@ -85,6 +84,7 @@ IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
 
 defineTemplateTypeNameWithName(GKOExecPtr, "ExecIOPtr");
 defineTemplateTypeNameWithName(GKOCudaExecPtr, "CudaExecIOPtr");
+defineTemplateTypeNameWithName(GKODpcppExecPtr, "DpcppExecIOPtr");
 defineTemplateTypeNameWithName(GKOOmpExecPtr, "OmpExecIOPtr");
 defineTemplateTypeNameWithName(GKOHipExecPtr, "HipExecIOPtr");
 defineTemplateTypeNameWithName(GKOReferenceExecPtr, "ReferenceExecIOPtr");
