@@ -24,9 +24,14 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 
     mkdir build && cd build && ccmake ..
 
+By default *OGL* will fetch and build ginkgo, to specify which backend should be build you can use the following cmake flags `-DGINKGO_BUILD_CUDA`, ` -DGINKGO_BUILD_OMP`, or ` -DGINKGO_BUILD_HIP`. For example to build *OGL* with *CUDA* and *OMP* support use
+
+    cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
+
 Then, make sure that the `system/controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
+
 
 ## Usage
 

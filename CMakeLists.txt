@@ -13,6 +13,10 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
+option(GINKGO_BUILD_CUDA "Build ginkgo with cuda backend" FALSE)
+option(GINKGO_BUILD_HIP "Build ginkgo with hip backend" FALSE)
+option(GINKGO_BUILD_OMP "Build ginkgo with omp backend" FALSE)
+option(GINKGO_BUILD_REFERENCE "Build ginkgo with reference backend" TRUE)
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
