@@ -37,6 +37,7 @@ SourceFiles
 namespace Foam {
 class IOPreconditioner {
     using bj = gko::preconditioner::Jacobi<>;
+    using ic = gko::preconditioner::Ic<>;
 
 private:
     const word name_;
@@ -47,7 +48,9 @@ private:
 
     const bool preconditioner_stored_;
 
-    mutable GKOBJIOPtr *io_precond_ptr_ = NULL;
+    mutable GKOBJIOPtr *io_bj_precond_ptr_ = NULL;
+
+    mutable GKOICIOPtr *io_ic_precond_ptr_ = NULL;
 
 public:
     IOPreconditioner(const objectRegistry &db, const dictionary &controlDict,
@@ -63,9 +66,16 @@ public:
                              std::shared_ptr<gko::Executor> device_exec) const
     {
         if (preconditioner_stored_) {
-            io_precond_ptr_ =
-                &db.lookupObjectRef<GKOBJIOPtr>(preconditioner_db_name_);
-            return;
+            if (preconditioner_db_name_ == "BJ") {
+                io_bj_precond_ptr_ =
+                    &db.lookupObjectRef<GKOBJIOPtr>(preconditioner_db_name_);
+                return;
+            }
+            if (preconditioner_db_name_ == "IC") {
+                io_ic_precond_ptr_ =
+                    &db.lookupObjectRef<GKOICIOPtr>(preconditioner_db_name_);
+                return;
+            }
         }
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
@@ -75,16 +85,33 @@ public:
                                   .on(device_exec);
             auto bj_generated = gko::share(bj_factory->generate(gkomatrix));
             const fileName path = preconditioner_db_name_;
-            io_precond_ptr_ = new GKOBJIOPtr(IOobject(path, db), bj_generated);
+            io_bj_precond_ptr_ =
+                new GKOBJIOPtr(IOobject(path, db), bj_generated);
+        }
+        if (name_ == "IC") {
+            // TODO for non constant system matrix reuse block pointers
+            auto fact = gko::share(gko::factorization::ParIc<scalar>::build()
+                                       .with_iterations(10)
+                                       .with_skip_sorting(true)
+                                       .on(device_exec));
+            auto ic_factory =
+                gko::preconditioner::Ic<gko::solver::LowerTrs<scalar>>::build()
+                    .with_factorization_factory(fact)
+                    .on(device_exec);
+
+            auto ic_generated = gko::share(ic_factory->generate(gkomatrix));
+            const fileName path = preconditioner_db_name_;
+            io_ic_precond_ptr_ =
+                new GKOICIOPtr(IOobject(path, db), ic_generated);
         }
     };
 
     std::shared_ptr<bj> get_preconditioner() const
     {
-        if (io_precond_ptr_ == NULL) {
+        if (io_bj_precond_ptr_ == NULL) {
             return std::shared_ptr<bj>{};
         }
-        return io_precond_ptr_->get_ptr();
+        return io_bj_precond_ptr_->get_ptr();
     }
 };
 }  // namespace Foam

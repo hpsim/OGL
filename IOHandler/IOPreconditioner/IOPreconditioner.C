@@ -31,4 +31,5 @@ SourceFiles
 namespace Foam {
 
 defineTemplateTypeNameWithName(GKOBJIOPtr, "BJIOPtr");
-}
+defineTemplateTypeNameWithName(GKOICIOPtr, "ICIOPtr");
+}  // namespace Foam
