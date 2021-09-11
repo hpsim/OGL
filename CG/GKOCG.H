@@ -35,8 +35,6 @@ SourceFiles
 namespace Foam {
 
 class GKOCGFactory {
-    using bj = gko::preconditioner::Jacobi<>;
-
 private:
     // executor where Ginkgo will perform the computation
 
@@ -56,7 +54,7 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
-        std::shared_ptr<const bj> precond) const
+        std::shared_ptr<gko::LinOp> precond) const
     {
         if (precond != NULL)
             return create_precond(exec, criterion_vec, precond);
@@ -81,7 +79,7 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
-        std::shared_ptr<const bj> precond) const
+        std::shared_ptr<gko::LinOp> precond) const
     {
         std::cout << " CG create  precond " << std::endl;
         return gko::solver::Cg<scalar>::build()

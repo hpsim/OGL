@@ -90,14 +90,14 @@ public:
         }
         if (name_ == "IC") {
             // TODO for non constant system matrix reuse block pointers
-            auto fact = gko::share(gko::factorization::ParIc<scalar>::build()
-                                       .with_iterations(10)
-                                       .with_skip_sorting(true)
-                                       .on(device_exec));
-            auto ic_factory =
-                gko::preconditioner::Ic<gko::solver::LowerTrs<scalar>>::build()
-                    .with_factorization_factory(fact)
-                    .on(device_exec);
+            // auto fact = gko::share(gko::factorization::ParIc<scalar>::build()
+            //                            .with_skip_sorting(true)
+            //                            .on(device_exec));
+            auto ic_factory = gko::preconditioner::Ic<
+                                  // gko::solver::LowerTrs<scalar>
+                                  >::build()
+                                  // .with_factorization_factory(fact)
+                                  .on(device_exec);
 
             auto ic_generated = gko::share(ic_factory->generate(gkomatrix));
             const fileName path = preconditioner_db_name_;
@@ -106,12 +106,20 @@ public:
         }
     };
 
-    std::shared_ptr<bj> get_preconditioner() const
+    std::shared_ptr<gko::LinOp> get_preconditioner() const
     {
-        if (io_bj_precond_ptr_ == NULL) {
-            return std::shared_ptr<bj>{};
+        if (name_ == "BJ") {
+            if (io_bj_precond_ptr_ == NULL) {
+                return std::shared_ptr<gko::LinOp>{};
+            }
+            return io_bj_precond_ptr_->get_ptr();
         }
-        return io_bj_precond_ptr_->get_ptr();
+        if (name_ == "IC") {
+            if (io_ic_precond_ptr_ == NULL) {
+                return std::shared_ptr<gko::LinOp>{};
+            }
+            return io_ic_precond_ptr_->get_ptr();
+        }
     }
 };
 }  // namespace Foam
