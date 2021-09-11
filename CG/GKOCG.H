@@ -81,7 +81,6 @@ public:
             criterion_vec,
         std::shared_ptr<gko::LinOp> precond) const
     {
-        std::cout << " CG create  precond " << std::endl;
         return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
             .with_generated_preconditioner(precond)

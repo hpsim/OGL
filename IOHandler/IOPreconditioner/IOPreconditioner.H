@@ -50,14 +50,14 @@ private:
 
     mutable GKOBJIOPtr *io_bj_precond_ptr_ = NULL;
 
-    mutable GKOICIOPtr *io_ic_precond_ptr_ = NULL;
+    mutable GKOILUIOPtr *io_ilu_precond_ptr_ = NULL;
 
 public:
     IOPreconditioner(const objectRegistry &db, const dictionary &controlDict,
                      const word fieldName)
         : name_(controlDict.lookupOrDefault("preconditioner", word("none"))),
           maxBlockSize_(controlDict.lookupOrDefault("maxBlockSize", label(16))),
-          preconditioner_db_name_("preconditioner_" + fieldName),
+          preconditioner_db_name_("preconditioner_" + fieldName ),
           preconditioner_stored_(
               db.foundObject<regIOobject>(preconditioner_db_name_)){};
 
@@ -65,15 +65,16 @@ public:
                              std::shared_ptr<mtx> gkomatrix,
                              std::shared_ptr<gko::Executor> device_exec) const
     {
+        // TODO get field specific preconditioner
         if (preconditioner_stored_) {
-            if (preconditioner_db_name_ == "BJ") {
+            if (name_ == "BJ") {
                 io_bj_precond_ptr_ =
                     &db.lookupObjectRef<GKOBJIOPtr>(preconditioner_db_name_);
                 return;
             }
-            if (preconditioner_db_name_ == "IC") {
-                io_ic_precond_ptr_ =
-                    &db.lookupObjectRef<GKOICIOPtr>(preconditioner_db_name_);
+            if (name_ == "ILU") {
+                io_ilu_precond_ptr_ =
+                    &db.lookupObjectRef<GKOILUIOPtr>(preconditioner_db_name_);
                 return;
             }
         }
@@ -88,21 +89,14 @@ public:
             io_bj_precond_ptr_ =
                 new GKOBJIOPtr(IOobject(path, db), bj_generated);
         }
-        if (name_ == "IC") {
-            // TODO for non constant system matrix reuse block pointers
-            // auto fact = gko::share(gko::factorization::ParIc<scalar>::build()
-            //                            .with_skip_sorting(true)
-            //                            .on(device_exec));
-            auto ic_factory = gko::preconditioner::Ic<
-                                  // gko::solver::LowerTrs<scalar>
-                                  >::build()
-                                  // .with_factorization_factory(fact)
+        if (name_ == "ILU") {
+            auto ilu_factory = gko::preconditioner::Ilu<>::build()
                                   .on(device_exec);
 
-            auto ic_generated = gko::share(ic_factory->generate(gkomatrix));
+            auto ilu_generated = gko::share(ilu_factory->generate(gkomatrix));
             const fileName path = preconditioner_db_name_;
-            io_ic_precond_ptr_ =
-                new GKOICIOPtr(IOobject(path, db), ic_generated);
+            io_ilu_precond_ptr_ =
+                new GKOILUIOPtr(IOobject(path, db), ilu_generated);
         }
     };
 
@@ -114,12 +108,13 @@ public:
             }
             return io_bj_precond_ptr_->get_ptr();
         }
-        if (name_ == "IC") {
-            if (io_ic_precond_ptr_ == NULL) {
+        if (name_ == "ILU") {
+            if (io_ilu_precond_ptr_ == NULL) {
                 return std::shared_ptr<gko::LinOp>{};
             }
-            return io_ic_precond_ptr_->get_ptr();
+            return io_ilu_precond_ptr_->get_ptr();
         }
+    return NULL;
     }
 };
 }  // namespace Foam
