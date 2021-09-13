@@ -48,16 +48,14 @@ private:
 
     const bool preconditioner_stored_;
 
-    mutable GKOBJIOPtr *io_bj_precond_ptr_ = NULL;
-
-    mutable GKOILUIOPtr *io_ilu_precond_ptr_ = NULL;
+    mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
 
 public:
     IOPreconditioner(const objectRegistry &db, const dictionary &controlDict,
                      const word fieldName)
         : name_(controlDict.lookupOrDefault("preconditioner", word("none"))),
           maxBlockSize_(controlDict.lookupOrDefault("maxBlockSize", label(16))),
-          preconditioner_db_name_("preconditioner_" + fieldName ),
+          preconditioner_db_name_("preconditioner_" + fieldName),
           preconditioner_stored_(
               db.foundObject<regIOobject>(preconditioner_db_name_)){};
 
@@ -67,54 +65,56 @@ public:
     {
         // TODO get field specific preconditioner
         if (preconditioner_stored_) {
-            if (name_ == "BJ") {
-                io_bj_precond_ptr_ =
-                    &db.lookupObjectRef<GKOBJIOPtr>(preconditioner_db_name_);
-                return;
-            }
-            if (name_ == "ILU") {
-                io_ilu_precond_ptr_ =
-                    &db.lookupObjectRef<GKOILUIOPtr>(preconditioner_db_name_);
-                return;
-            }
+            io_precond_ptr_ =
+                &db.lookupObjectRef<GKOLinOPIOPtr>(preconditioner_db_name_);
+            return;
         }
+        const fileName path = preconditioner_db_name_;
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            auto bj_factory = bj::build()
-                                  .with_skip_sorting(true)
-                                  .with_max_block_size(maxBlockSize_)
-                                  .on(device_exec);
-            auto bj_generated = gko::share(bj_factory->generate(gkomatrix));
-            const fileName path = preconditioner_db_name_;
-            io_bj_precond_ptr_ =
-                new GKOBJIOPtr(IOobject(path, db), bj_generated);
+            auto pre_factory = bj::build()
+                                   .with_skip_sorting(true)
+                                   .with_max_block_size(maxBlockSize_)
+                                   .on(device_exec);
+            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            io_precond_ptr_ =
+                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
         if (name_ == "ILU") {
-            auto ilu_factory = gko::preconditioner::Ilu<>::build()
-                                  .on(device_exec);
+            auto pre_factory =
+                gko::preconditioner::Ilu<>::build().on(device_exec);
 
-            auto ilu_generated = gko::share(ilu_factory->generate(gkomatrix));
-            const fileName path = preconditioner_db_name_;
-            io_ilu_precond_ptr_ =
-                new GKOILUIOPtr(IOobject(path, db), ilu_generated);
+            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            io_precond_ptr_ =
+                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+        }
+        if (name_ == "IC") {
+            auto pre_factory =
+                gko::preconditioner::Ic<>::build().on(device_exec);
+
+            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            io_precond_ptr_ =
+                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+        }
+        if (name_ == "ISAI") {
+            auto pre_factory =
+                gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+                                          scalar, label>::build()
+                    .with_skip_sorting(true)
+                    .on(device_exec);
+
+            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            io_precond_ptr_ =
+                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
     };
 
     std::shared_ptr<gko::LinOp> get_preconditioner() const
     {
-        if (name_ == "BJ") {
-            if (io_bj_precond_ptr_ == NULL) {
-                return std::shared_ptr<gko::LinOp>{};
-            }
-            return io_bj_precond_ptr_->get_ptr();
+        if (io_precond_ptr_ == NULL) {
+            return std::shared_ptr<gko::LinOp>{};
         }
-        if (name_ == "ILU") {
-            if (io_ilu_precond_ptr_ == NULL) {
-                return std::shared_ptr<gko::LinOp>{};
-            }
-            return io_ilu_precond_ptr_->get_ptr();
-        }
-    return NULL;
+        return io_precond_ptr_->get_ptr();
     }
 };
 }  // namespace Foam

@@ -67,6 +67,7 @@ typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;
 
 typedef IOPtr<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
 typedef IOPtr<gko::preconditioner::Ilu<>> GKOILUIOPtr;
+typedef IOPtr<gko::LinOp> GKOLinOPIOPtr;
 
 
 }  // namespace Foam

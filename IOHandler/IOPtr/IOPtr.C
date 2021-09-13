@@ -4,4 +4,5 @@
 namespace Foam {
 
 
+defineTemplateTypeNameWithName(GKOLinOPIOPtr, "LinOpIOPtr");
 }  // namespace Foam
