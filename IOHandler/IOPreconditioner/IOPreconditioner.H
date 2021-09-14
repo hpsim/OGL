@@ -81,10 +81,20 @@ public:
                 new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
         if (name_ == "ILU") {
-            auto pre_factory =
-                gko::preconditioner::Ilu<>::build().on(device_exec);
+            auto factorizaton_factory =
+                gko::factorization::Ilu<scalar, label>::build().on(device_exec);
 
-            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            auto par_ilu = gko::share(factorizaton_factory->generate(gkomatrix));
+
+            auto ilu_pre_factory =
+                gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
+                gko::solver::UpperTrs<scalar, label>,
+                false>::build()
+                    .on(device_exec);
+
+            // Use incomplete factors to generate ILU preconditioner auto
+            auto pre_generated = gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
+
             io_precond_ptr_ =
                 new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
