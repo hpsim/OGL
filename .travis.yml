@@ -108,33 +108,33 @@ jobs:
       - GINKGO_VERSION=develop
     - <<: *_build
       ENV:
-      - VERSION=8
+      - VERSION=9
       - EXTERNAL_GINKGO=ON
       - GINKGO_VERSION=331277a81b848f33705f6ccf4f910fff69c84e18
     - <<: *_build
       ENV:
-      - VERSION=7
+      - VERSION=8
       - EXTERNAL_GINKGO=OFF
       - GINKGO_VERSION=develop
       workspaces:
         create:
           name:
-            foam_user_libbin_7
+            foam_user_libbin_8
           paths:
-            /home/travis/OpenFOAM/travis-7
+            /home/travis/OpenFOAM/travis-8
     - <<: *_build
       ENV:
-      - VERSION=7
+      - VERSION=8
       - EXTERNAL_GINKGO=ON
       - GINKGO_VERSION=develop
     - <<: *_run
       ENV:
-      - VERSION=8
+      - VERSION=9
       - SOLVER=CG
       - PRECOND=NoPrecond
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
         create:
           name:
             CGData
@@ -142,12 +142,12 @@ jobs:
             /home/travis/data
     - <<: *_run
       ENV:
-      - VERSION=8
+      - VERSION=9
       - SOLVER=BiCGStab
       - PRECOND=NoPrecond
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
         create:
           name:
             BiCGStabData
@@ -155,23 +155,23 @@ jobs:
             /home/travis/data
     - <<: *_run
       ENV:
-      - VERSION=8
+      - VERSION=9
       - SOLVER=CG
       - PRECOND=BJ
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
     - <<: *_run
       ENV:
-      - VERSION=8
+      - VERSION=9
       - SOLVER=BiCGStab
       - PRECOND=BJ
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
     - <<: *_run
       ENV:
-      - VERSION=8
+      - VERSION=9
       - SOLVER=IR
       - PRECOND=NoPrecond
       workspaces:
@@ -183,7 +183,7 @@ jobs:
       - PRECOND=NoPrecond
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
           - CGData
     - <<: *_validate
       ENV:
@@ -191,5 +191,5 @@ jobs:
       - PRECOND=NoPrecond
       workspaces:
         use:
-          - foam_env_8
+          - foam_env_9
           - BiCGStabData
