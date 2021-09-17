@@ -64,6 +64,7 @@ _run: &_run
   install:
     - git clone https://github.com/greole/OBR.git $HOME/OBR
     - pip install docopt --user
+    - pip install packaging --user
     - cd $HOME/OBR/
     - if [[ ! -d $HOME/cache/airFoil2D ]]; then python obr_create_tree.py --folder $HOME/cache/airFoil2D --parameters examples/airFoil2DCI.json; fi
 
