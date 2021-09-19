@@ -82,16 +82,13 @@ class StoppingCriterion {
         {
             auto *dense_r = gko::as<vec>(updater.residual_);
             auto exec = dense_r->get_executor();
-            auto res = vec::create(exec, gko::dim<2>{1, 1});
-            auto vec_abs = gko::clone(dense_r);
             const label cells = dense_r->get_size()[0];
-            vec_abs->compute_absolute_inplace();
-            init_unit_vec_on_first_iter(dense_r, cells);
 
-            unit_->compute_dot(gko::lend(vec_abs), gko::lend(res));
+            auto res = gko::share(vec::create(exec, gko::dim<2>{1,1}));
+            dense_r->compute_norm1(res.get());
 
             auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
-            res_host->copy_from(gko::lend(res));
+            res_host->copy_from(res.get());
 
             bool result = false;
             scalar residual_norm =
@@ -130,15 +127,6 @@ class StoppingCriterion {
             return result;
         }
 
-        void init_unit_vec_on_first_iter(const vec *dense_r, const size_t cells)
-        {
-            if (first_iter_) {
-                unit_ = vec::create(dense_r->get_executor(),
-                                    gko::dim<2>{(unsigned long)cells, 1});
-                unit_->fill(1.0);
-                first_iter_ = false;
-            }
-        }
 
         explicit OpenFOAMStoppingCriterion(
             std::shared_ptr<const gko::Executor> exec)
@@ -156,7 +144,6 @@ class StoppingCriterion {
 
         mutable bool first_iter_ = true;
 
-        mutable std::shared_ptr<vec> unit_ = {};
     };
 
     mutable label maxIter_;
