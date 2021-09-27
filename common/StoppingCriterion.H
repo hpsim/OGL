@@ -82,9 +82,8 @@ class StoppingCriterion {
         {
             auto *dense_r = gko::as<vec>(updater.residual_);
             auto exec = dense_r->get_executor();
-            const label cells = dense_r->get_size()[0];
 
-            auto res = gko::share(vec::create(exec, gko::dim<2>{1,1}));
+            auto res = gko::share(vec::create(exec, gko::dim<2>{1, 1}));
             dense_r->compute_norm1(res.get());
 
             auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
@@ -143,7 +142,6 @@ class StoppingCriterion {
         {}
 
         mutable bool first_iter_ = true;
-
     };
 
     mutable label maxIter_;
