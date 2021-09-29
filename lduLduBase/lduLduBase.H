@@ -243,9 +243,8 @@ public:
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
 
-        auto bj_generated = this->get_preconditioner();
-        auto solver_gen =
-            this->create_solver(device_exec, criterion_vec, bj_generated);
+        auto solver_gen = this->create_solver(device_exec, criterion_vec,
+                                              this->get_preconditioner());
 
         // Instantiate a ResidualLogger logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);

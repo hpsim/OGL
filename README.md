@@ -39,9 +39,14 @@ OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to us
 
 Currently, the following solver are supported
 
-* CG with and without block Jacobi preconditioner
+* CG
 * BiCGStab
 * IR
+
+additionally, the following preconditioner are availible
+
+* BJ, block Jacobi
+* ILU, incomplete LU
 
 The following optional solver arguments are supported
 
