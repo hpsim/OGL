@@ -215,9 +215,15 @@ public:
 
         scalarField pA(this->nCells());
         scalarField wA(this->nCells());
-        this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
-                            this->interfaces_, cmpt);
-        scalar norm_factor = this->normFactor(psi, source, wA, pA);
+
+        SIMPLE_TIME(verbose_, Amul,
+                    this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
+                                        this->interfaces_, cmpt);)
+        scalar norm_factor = 0;
+
+
+        SIMPLE_TIME(verbose_, compute_of_norm_factor,
+                    norm_factor = this->normFactor(psi, source, wA, pA);)
 
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
@@ -239,6 +245,19 @@ public:
 
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+
+
+        SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
+            val_array x_array{val_array::view(device_exec, this->nCells(),
+                                              x[0]->get_values())};
+            auto xAvg = gko::initialize<vec>({reduce(x_array) / this->nCells()},
+                                             device_exec);
+            auto colA = x[0]->clone();
+            gkomatrix->compute_column_vector_sum(colA.get());
+            colA->scale(xAvg.get());
+        }();)
+
+
         SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
