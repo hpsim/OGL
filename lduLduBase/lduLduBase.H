@@ -135,6 +135,72 @@ public:
                            this->nCells(), !get_update_sys_matrix());
     }
 
+    scalar compute_normfactor(std::shared_ptr<gko::Executor> device_exec,
+                              std::shared_ptr<mtx> gkomatrix,
+                              std::shared_ptr<vec> x,
+                              std::shared_ptr<vec> b) const
+    {
+        // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
+        // computes  || Ax - x* ||_1 + || b - x* ||
+        val_array x_array{
+            val_array::view(device_exec, this->nCells(), x->get_values())};
+
+        // x_array.set_executor(ref_exec());
+
+        auto xAvg =
+            gko::initialize<gko::matrix::Dense<scalar>>(1, {0.0}, device_exec);
+
+        ::gko::reduce(x_array,
+                      xAvg->get_values());  // / this->nCells()}, device_exec);
+
+        auto one_over_nCells = gko::initialize<gko::matrix::Dense<scalar>>(
+            1, {1.0 / this->nCells()}, device_exec);
+
+        xAvg->scale(one_over_nCells.get());
+        auto xAvg_host =
+            vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+        xAvg_host->copy_from(xAvg.get());
+
+        // TODO store colA vector
+        auto colA = gko::share(
+            vec::create(device_exec, gko::dim<2>{this->nCells(), 1}));
+        //
+        // gkomatrix->compute_column_vector_sum(colA.get());
+
+        // if column vector sum is not availible use dot product
+        auto xAvg_vec = gko::share(
+            vec::create(device_exec, gko::dim<2>{this->nCells(), 1}));
+
+        auto unity =
+            gko::initialize<gko::matrix::Dense<scalar>>(1, {1.0}, device_exec);
+
+        xAvg_vec->fill(xAvg_host->get_values()[0]);
+        gkomatrix->apply(xAvg_vec.get(), colA.get());
+
+        auto b_clone = b->clone();
+        b_clone->sub_scaled(unity.get(), colA.get());
+        b_clone->compute_absolute_inplace();
+
+
+        auto Ax = gko::share(
+            vec::create(device_exec, gko::dim<2>{this->nCells(), 1}));
+        gkomatrix->apply(x.get(), Ax.get());
+
+        Ax->sub_scaled(unity.get(), colA.get());
+
+        auto norm_1 = gko::share(vec::create(device_exec, gko::dim<2>{1, 1}));
+        Ax->compute_absolute_inplace();
+
+        Ax->add_scaled(unity.get(), b_clone.get());
+        Ax->compute_norm1(norm_1.get());
+
+
+        auto res_host =
+            vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+        res_host->copy_from(norm_1.get());
+        return res_host->get_values()[0];
+    }
+
 
     template <class OFField>
     void init_vector_views(std::vector<val_array> &target,
@@ -229,8 +295,8 @@ public:
                                            const_cast<scalar *>(&source[0]));
 
         std::vector<val_array> source_views{source_view};
-        auto b = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             source_views[0], 1);
+        auto b = gko::share(vec::create(
+            ref_exec(), gko::dim<2>(this->nCells(), 1), source_views[0], 1));
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
@@ -246,21 +312,18 @@ public:
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
+        scalar gko_normfactor = 0;
 
-        SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
-            val_array x_array{val_array::view(device_exec, this->nCells(),
-                                              x[0]->get_values())};
-            auto xAvg = gko::initialize<vec>({reduce(x_array) / this->nCells()},
-                                             device_exec);
-            auto colA = x[0]->clone();
-            gkomatrix->compute_column_vector_sum(colA.get());
-            colA->scale(xAvg.get());
-        }();)
-
+        SIMPLE_TIME(verbose_, compute_gko_norm_factor,
+                    gko_normfactor =
+                        compute_normfactor(device_exec, gkomatrix, x[0], b);)
 
         SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
+
+        Info << " gko_norm_factor " << gko_normfactor << " of_norm_factor "
+             << norm_factor << endl;
 
         auto solver_gen = this->create_solver(device_exec, criterion_vec,
                                               this->get_preconditioner());
