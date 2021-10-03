@@ -312,6 +312,14 @@ public:
                     gko_normfactor =
                         compute_normfactor(device_exec, gkomatrix, x[0], b);)
 
+        scalar norm_factor = gko_normfactor;
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            criterion_vec{};
+
+        criterion_vec.push_back(
+            build_stopping_criterion(device_exec, norm_factor));
+
+
         SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
