@@ -303,12 +303,6 @@ public:
         std::vector<std::shared_ptr<vec>> x{};
         this->get_initial_guess(x);
 
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec{};
-
-        criterion_vec.push_back(
-            build_stopping_criterion(device_exec, norm_factor));
-
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
