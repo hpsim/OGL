@@ -279,17 +279,17 @@ public:
             this->fieldName());
 
 
-        scalarField pA(this->nCells());
-        scalarField wA(this->nCells());
+        // scalarField pA(this->nCells());
+        // scalarField wA(this->nCells());
 
-        SIMPLE_TIME(verbose_, Amul,
-                    this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
-                                        this->interfaces_, cmpt);)
-        scalar norm_factor = 0;
+        // SIMPLE_TIME(verbose_, Amul,
+        //             this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
+        //                                 this->interfaces_, cmpt);)
+        // scalar norm_factor = 0;
 
 
-        SIMPLE_TIME(verbose_, compute_of_norm_factor,
-                    norm_factor = this->normFactor(psi, source, wA, pA);)
+        // SIMPLE_TIME(verbose_, compute_of_norm_factor,
+        //             norm_factor = this->normFactor(psi, source, wA, pA);)
 
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
