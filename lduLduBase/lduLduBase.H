@@ -145,13 +145,10 @@ public:
         val_array x_array{
             val_array::view(device_exec, this->nCells(), x->get_values())};
 
-        // x_array.set_executor(ref_exec());
-
         auto xAvg =
             gko::initialize<gko::matrix::Dense<scalar>>(1, {0.0}, device_exec);
 
-        ::gko::reduce(x_array,
-                      xAvg->get_values());  // / this->nCells()}, device_exec);
+        ::gko::reduce(x_array, xAvg->get_values());
 
         auto one_over_nCells = gko::initialize<gko::matrix::Dense<scalar>>(
             1, {1.0 / this->nCells()}, device_exec);
