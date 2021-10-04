@@ -92,12 +92,12 @@ class StoppingCriterion {
             val_array x_array{
                 val_array::view(device_exec, nCells, x->get_values())};
 
-            ::gko::reduce(x_array, res->get_values());
+            ::gko::reduce(x_array, xAvg->get_values());
 
-            auto one_over_nCells = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {1.0 / nCells}, device_exec);
+            auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
+                1, {scalar(nCells)}, device_exec);
 
-            res->scale(one_over_nCells.get());
+            xAvg->inv_scale(nCells_linOp.get());
 
             // gkomatrix->compute_column_vector_sum(colA.get());
 
@@ -105,7 +105,12 @@ class StoppingCriterion {
             auto xAvg_vec =
                 gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
 
-            xAvg_vec->fill(xAvg->get_values()[0]);
+            auto xAvg_host =
+                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+
+            xAvg_host->copy_from(xAvg.get());
+            xAvg_vec->fill(xAvg_host->get_values()[0]);
+
             gkomatrix->apply(xAvg_vec.get(), res.get());
         }
 
@@ -117,9 +122,10 @@ class StoppingCriterion {
         {
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
-            // or rewritten as || r + ( b - x* ) || + || b - x* ||
+            // r = Ax + b => Ax = r - b
+            // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
+            // || 0 || + ||  b ||
             const label nCells{x->get_size()[0]};
-
 
             // TODO store colA vector
             auto Axref =
@@ -127,6 +133,11 @@ class StoppingCriterion {
 
             // SIMPLE_TIME(parameters_.verbose, compute_Axref,
             compute_Axref(device_exec, gkomatrix, x, Axref);  //)
+
+            auto b_norm =
+                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+            b->compute_norm1(b_norm.get());
+            // Info << "gko normfactor b " << b_norm->get_values()[0] << endl;
 
             auto unity = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {1.0}, device_exec);
@@ -136,7 +147,7 @@ class StoppingCriterion {
 
             auto norm_part2 = b_sub_xstar->compute_absolute();
 
-            b_sub_xstar->add_scaled(unity.get(), r);
+            b_sub_xstar->sub_scaled(unity.get(), r);
             b_sub_xstar->compute_absolute_inplace();
 
             b_sub_xstar->add_scaled(unity.get(), norm_part2.get());
@@ -145,7 +156,8 @@ class StoppingCriterion {
 
             auto res_host =
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
-            res_host->copy_from(norm_part2.get());
+            res_host->copy_from(res.get());
+
             return res_host->get_values()[0];
         }
 
@@ -173,6 +185,8 @@ class StoppingCriterion {
 
                 *(parameters_.init_residual_norm) =
                     residual_norm / norm_factor_;
+
+                Info << "gko normfactor " << norm_factor_ << endl;
             }
 
             residual_norm /= norm_factor_;
