@@ -219,8 +219,10 @@ public:
                                            const_cast<scalar *>(&source[0]));
 
         std::vector<val_array> source_views{source_view};
+        SIMPLE_TIME(verbose_, create_and_push_b,
         auto b = gko::share(vec::create(
             device_exec, gko::dim<2>(this->nCells(), 1), source_views[0], 1));
+        )
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
