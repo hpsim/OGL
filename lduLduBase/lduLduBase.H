@@ -215,27 +215,12 @@ public:
                 this->get_device_executor_name() + typeName,
             this->fieldName());
 
-
-        scalarField pA(this->nCells());
-        scalarField wA(this->nCells());
-
-        SIMPLE_TIME(verbose_, Amul,
-                    this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
-                                        this->interfaces_, cmpt);)
-        scalar norm_factor = 0;
-
-
-        SIMPLE_TIME(verbose_, compute_of_norm_factor,
-                    norm_factor = this->normFactor(psi, source, wA, pA);)
-
-        Info << "of normfactor " << norm_factor << endl;
-
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
 
         std::vector<val_array> source_views{source_view};
         auto b = gko::share(vec::create(
-            ref_exec(), gko::dim<2>(this->nCells(), 1), source_views[0], 1));
+            device_exec, gko::dim<2>(this->nCells(), 1), source_views[0], 1));
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
