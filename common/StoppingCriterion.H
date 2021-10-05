@@ -99,8 +99,10 @@ class StoppingCriterion {
 
             xAvg->inv_scale(nCells_linOp.get());
 
-            // gkomatrix->compute_column_vector_sum(colA.get());
-
+#ifdef GINKGO_WITH_OGL_EXTENSIONS
+            gkomatrix->compute_column_vector_sum(res.get());
+            res->scale(xAvg.get());
+#else
             // if column vector sum is not availible use dot product
             auto xAvg_vec =
                 gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
@@ -112,6 +114,7 @@ class StoppingCriterion {
             xAvg_vec->fill(xAvg_host->get_values()[0]);
 
             gkomatrix->apply(xAvg_vec.get(), res.get());
+#endif
         }
 
 

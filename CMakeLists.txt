@@ -17,6 +17,9 @@ option(GINKGO_BUILD_CUDA "Build ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_OMP "Build ginkgo with omp backend" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build ginkgo with reference backend" TRUE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
+
+
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
@@ -147,6 +150,12 @@ target_link_libraries(OGL
   PUBLIC
     Ginkgo::ginkgo
   )
+
+if (${GINKGO_WITH_OGL_EXTENSIONS})
+  target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1 )
+endif()
+
+
 
 install(TARGETS OGL
     DESTINATION $ENV{FOAM_USER_LIBBIN}
