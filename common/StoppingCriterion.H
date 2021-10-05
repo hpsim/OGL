@@ -188,8 +188,6 @@ class StoppingCriterion {
 
                 *(parameters_.init_residual_norm) =
                     residual_norm / norm_factor_;
-
-                Info << "gko normfactor " << norm_factor_ << endl;
             }
 
             residual_norm /= norm_factor_;
