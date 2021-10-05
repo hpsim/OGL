@@ -60,6 +60,8 @@ class StoppingCriterion {
 
             label GKO_FACTORY_PARAMETER(openfoam_maxIter, 0);
 
+            label GKO_FACTORY_PARAMETER(frequency, 10);
+
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
 
@@ -169,15 +171,29 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+            if (iter_ % parameters_.frequency != 0)
+                {
+                    iter_++;
+                    return false;
+                }
+            // if (iter_ < parameters_.openfoam_minIter)
+            //     {
+            //         iter_++;
+            //         return false;
+            //     }
+
+            const auto exec = this->get_executor();
+            if (iter_ == 0 ) {
+                norm1_  = vec::create(exec, gko::dim<2>{1, 1});
+                norm1_host_ = vec::create(exec->get_master(), gko::dim<2>{1, 1});
+            }
             auto *dense_r = gko::as<vec>(updater.residual_);
-            const auto exec = dense_r->get_executor();
 
-            auto res = gko::share(vec::create(exec, gko::dim<2>{1, 1}));
-            dense_r->compute_norm1(res.get());
+            dense_r->compute_norm1(norm1_.get());
 
-            auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
-            res_host->copy_from(res.get());
-            scalar residual_norm = res_host->at(0);
+            norm1_host_->copy_from(norm1_.get());
+
+            scalar residual_norm = norm1_host_->at(0);
 
             bool result = false;
             // Store initial residual
@@ -235,6 +251,10 @@ class StoppingCriterion {
                   factory->get_executor()),
               parameters_{factory->get_parameters()}
         {}
+
+        mutable std::shared_ptr<vec> norm1_ {};
+
+        mutable std::shared_ptr<vec> norm1_host_ {};
 
         mutable bool first_iter_ = true;
 
