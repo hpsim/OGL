@@ -63,6 +63,8 @@ private:
 
     const bool export_;
 
+    mutable label prev_solve_iters_ = 0;
+
     mutable std::shared_ptr<mtx> gkomatrix_ = NULL;
 
     mutable GKOCSRIOPtr *gkomatrix_ptr_ = NULL;
@@ -203,6 +205,13 @@ public:
     bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes"); }
 
     bool get_export() const { return export_; }
+
+    void set_solve_prev_iters(label prev_solve_iters) const
+    {
+        prev_solve_iters_ = prev_solve_iters;
+    }
+
+    label get_solve_prev_iters() const { return prev_solve_iters_; }
 };
 }  // namespace Foam
 

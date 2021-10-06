@@ -184,7 +184,8 @@ public:
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         criterion_vec.push_back(
-            build_stopping_criterion(device_exec, gkomatrix, x[0], b[0]));
+            build_stopping_criterion(device_exec, gkomatrix, x[0], b[0],
+                                     verbose_, this->get_solve_prev_iters()));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
@@ -198,6 +199,7 @@ public:
 
         // copy back
         copy_result_back(psi, this->nCells());
+        this->set_solve_prev_iters(0);
 
         return solverPerf;
     };
@@ -220,9 +222,9 @@ public:
 
         std::vector<val_array> source_views{source_view};
         SIMPLE_TIME(verbose_, create_and_push_b,
-        auto b = gko::share(vec::create(
-            device_exec, gko::dim<2>(this->nCells(), 1), source_views[0], 1));
-        )
+                    auto b = gko::share(
+                        vec::create(device_exec, gko::dim<2>(this->nCells(), 1),
+                                    source_views[0], 1));)
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
@@ -236,7 +238,8 @@ public:
             criterion_vec{};
 
         criterion_vec.push_back(
-            build_stopping_criterion(device_exec, gkomatrix, x[0], b));
+            build_stopping_criterion(device_exec, gkomatrix, x[0], b, verbose_,
+                                     this->get_solve_prev_iters()));
 
 
         SIMPLE_TIME(verbose_, init_preconditioner,
@@ -274,6 +277,7 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
 
         solverPerf.nIterations() = logger->get_iters();
+        this->set_solve_prev_iters(logger->get_iters());
 
         return solverPerf;
     };

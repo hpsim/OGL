@@ -29,6 +29,7 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
+#include "common.H"
 #include "fvCFD.H"
 
 namespace Foam {
@@ -264,6 +265,12 @@ class StoppingCriterion {
 
     const scalar relTol_;
 
+    const label frequency_;
+
+    const scalar relaxationFactor_;
+
+    const bool adapt_minIter_;
+
     mutable scalar init_normalised_res_norm_;
 
     mutable scalar normalised_res_norm_;
@@ -274,6 +281,11 @@ public:
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+          frequency_(controlDict.lookupOrDefault("evalFrequency", label(10))),
+          relaxationFactor_(
+              controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
+          adapt_minIter_(
+              controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0)
     {
@@ -283,13 +295,20 @@ public:
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
         std::shared_ptr<gko::Executor> device_exec,
         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b) const
+        std::shared_ptr<vec> b, bool verbose, label prev_solve_iters) const
     {
+        label minIter = minIter_;
+        label frequency = frequency_;
+        if (prev_solve_iters > 0 && adapt_minIter_) {
+            minIter = prev_solve_iters * relaxationFactor_;
+            frequency = max(1, minIter / 20);
+        }
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
-            .with_openfoam_minIter(minIter_)
+            .with_openfoam_minIter(minIter)
             .with_openfoam_maxIter(maxIter_)
+            .with_frequency(frequency)
             .with_init_residual_norm(&init_normalised_res_norm_)
             .with_residual_norm(&normalised_res_norm_)
             .with_gkomatrix(gkomatrix)
