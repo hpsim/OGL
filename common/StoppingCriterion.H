@@ -176,11 +176,11 @@ class StoppingCriterion {
                     iter_++;
                     return false;
                 }
-            // if (iter_ < parameters_.openfoam_minIter)
-            //     {
-            //         iter_++;
-            //         return false;
-            //     }
+            if (iter_ > 0 && iter_ < parameters_.openfoam_minIter)
+                {
+                    iter_++;
+                    return false;
+                }
 
             const auto exec = this->get_executor();
             if (iter_ == 0 ) {
