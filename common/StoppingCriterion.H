@@ -127,22 +127,18 @@ class StoppingCriterion {
         {
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
-            // r = Ax + b => Ax = r - b
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
-            // || 0 || + ||  b ||
             const label nCells{x->get_size()[0]};
 
             // TODO store colA vector
             auto Axref =
                 gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
 
-            // SIMPLE_TIME(parameters_.verbose, compute_Axref,
-            compute_Axref(device_exec, gkomatrix, x, Axref);  //)
+            compute_Axref(device_exec, gkomatrix, x, Axref);
 
             auto b_norm =
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
             b->compute_norm1(b_norm.get());
-            // Info << "gko normfactor b " << b_norm->get_values()[0] << endl;
 
             auto unity = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {1.0}, device_exec);
@@ -171,21 +167,20 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-            if (iter_ % parameters_.frequency != 0)
-                {
-                    iter_++;
-                    return false;
-                }
-            if (iter_ > 0 && iter_ < parameters_.openfoam_minIter)
-                {
-                    iter_++;
-                    return false;
-                }
+            if (iter_ % parameters_.frequency != 0) {
+                iter_++;
+                return false;
+            }
+            if (iter_ > 0 && iter_ < parameters_.openfoam_minIter) {
+                iter_++;
+                return false;
+            }
 
             const auto exec = this->get_executor();
-            if (iter_ == 0 ) {
-                norm1_  = vec::create(exec, gko::dim<2>{1, 1});
-                norm1_host_ = vec::create(exec->get_master(), gko::dim<2>{1, 1});
+            if (iter_ == 0) {
+                norm1_ = vec::create(exec, gko::dim<2>{1, 1});
+                norm1_host_ =
+                    vec::create(exec->get_master(), gko::dim<2>{1, 1});
             }
             auto *dense_r = gko::as<vec>(updater.residual_);
 
@@ -252,9 +247,9 @@ class StoppingCriterion {
               parameters_{factory->get_parameters()}
         {}
 
-        mutable std::shared_ptr<vec> norm1_ {};
+        mutable std::shared_ptr<vec> norm1_{};
 
-        mutable std::shared_ptr<vec> norm1_host_ {};
+        mutable std::shared_ptr<vec> norm1_host_{};
 
         mutable bool first_iter_ = true;
 
