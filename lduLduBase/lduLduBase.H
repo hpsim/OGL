@@ -183,9 +183,9 @@ public:
 
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
-        criterion_vec.push_back(
-            build_stopping_criterion(device_exec, gkomatrix, x[0], b[0],
-                                     verbose_, this->get_solve_prev_iters()));
+        criterion_vec.push_back(build_stopping_criterion(
+            device_exec, gkomatrix, x[0], b[0], verbose_,
+            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
@@ -199,7 +199,7 @@ public:
 
         // copy back
         copy_result_back(psi, this->nCells());
-        this->set_solve_prev_iters(0);
+        this->set_solve_prev_iters(this->matrix().mesh().thisDb(), 0);
 
         return solverPerf;
     };
@@ -237,9 +237,9 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        criterion_vec.push_back(
-            build_stopping_criterion(device_exec, gkomatrix, x[0], b, verbose_,
-                                     this->get_solve_prev_iters()));
+        criterion_vec.push_back(build_stopping_criterion(
+            device_exec, gkomatrix, x[0], b, verbose_,
+            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
 
 
         SIMPLE_TIME(verbose_, init_preconditioner,
@@ -277,7 +277,8 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
 
         solverPerf.nIterations() = logger->get_iters();
-        this->set_solve_prev_iters(logger->get_iters());
+        this->set_solve_prev_iters(this->matrix().mesh().thisDb(),
+                                   logger->get_iters());
 
         return solverPerf;
     };

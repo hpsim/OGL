@@ -206,12 +206,34 @@ public:
 
     bool get_export() const { return export_; }
 
-    void set_solve_prev_iters(label prev_solve_iters) const
+    void set_solve_prev_iters(const objectRegistry &db,
+                              label prev_solve_iters) const
     {
-        prev_solve_iters_ = prev_solve_iters;
+        const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+        if (db.foundObject<regIOobject>(solvPropsDict)) {
+            const_cast<objectRegistry &>(db)
+                .lookupObjectRef<IOdictionary>(solvPropsDict)
+                .set<label>("prev_solve_iters", prev_solve_iters);
+        } else {
+            auto gkoSolverProperties = new IOdictionary(
+                IOobject(solvPropsDict, fileName("None"), db, IOobject::NO_READ,
+                         IOobject::NO_WRITE));
+            gkoSolverProperties->add("prev_solve_iters", prev_solve_iters,
+                                     true);
+        }
     }
 
-    label get_solve_prev_iters() const { return prev_solve_iters_; }
+    label get_solve_prev_iters(const objectRegistry &db) const
+    {
+        const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+        if (db.foundObject<regIOobject>(solvPropsDict)) {
+            label pre_solve_iters =
+                db.lookupObject<IOdictionary>(solvPropsDict)
+                    .lookupOrDefault<label>("prev_solve_iters", 0);
+            return pre_solve_iters;
+        }
+        return 0;
+    }
 };
 }  // namespace Foam
 
