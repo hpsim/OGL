@@ -85,3 +85,6 @@ available through the following reference:
     primaryClass={cs.MS}
 }
 ```
+## Excample
+Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen.
+[![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
