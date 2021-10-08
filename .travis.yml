@@ -90,6 +90,7 @@ _validate: &_validate
 
 jobs:
   Include:
+    # Version 8 builds
     - <<: *_build
       ENV:
       - VERSION=8
@@ -106,33 +107,35 @@ jobs:
       ENV:
       - VERSION=8
       - EXTERNAL_GINKGO=ON
-      - GINKGO_VERSION=develop
-    - <<: *_build
-      ENV:
-      - VERSION=8
-      - EXTERNAL_GINKGO=ON
-      - GINKGO_VERSION=v1.4.0
+      - GINKGO_VERSION=ogl
       workspaces:
         create:
           name:
             foam_user_libbin_8
           paths:
             /home/travis/OpenFOAM/travis-8
+    # - <<: *_build
+    #   ENV:
+    #   - VERSION=8
+    #   - EXTERNAL_GINKGO=ON
+    #   - GINKGO_VERSION=ogl
+    # - <<: *_build
+    #   ENV:
+    #   - VERSION=8
+    #   - EXTERNAL_GINKGO=ON
+    #   - GINKGO_VERSION=ogl
+    # Version 9 builds
     - <<: *_build
       ENV:
       - VERSION=9
       - EXTERNAL_GINKGO=ON
-      - GINKGO_VERSION=v1.4.0
+      - GINKGO_VERSION=ogl
     - <<: *_build
       ENV:
       - VERSION=9
       - EXTERNAL_GINKGO=OFF
       - GINKGO_VERSION=develop
-    - <<: *_build
-      ENV:
-      - VERSION=8
-      - EXTERNAL_GINKGO=ON
-      - GINKGO_VERSION=develop
+    # Runs
     - <<: *_run
       ENV:
       - VERSION=8
