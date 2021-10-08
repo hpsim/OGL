@@ -36,6 +36,7 @@ namespace Foam {
 
 class GKOCGFactory {
 private:
+    using cg = gko::solver::Cg<scalar>;
     // executor where Ginkgo will perform the computation
 
     const word preconditioner_;
@@ -48,8 +49,7 @@ public:
               dictionary_.lookupOrDefault("preconditioner", word("none"))),
           blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
@@ -61,27 +61,23 @@ public:
         return create_default(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Cg<scalar>::build()
-            .with_criteria(criterion_vec)
-            .on(exec);
+        return cg::build().with_criteria(criterion_vec).on(exec);
     };
 
-    std::unique_ptr<gko::solver::Cg<double>::Factory,
-                    std::default_delete<gko::solver::Cg<double>::Factory>>
+    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_precond(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
         std::shared_ptr<gko::LinOp> precond) const
     {
-        return gko::solver::Cg<scalar>::build()
+        return cg::build()
             .with_criteria(criterion_vec)
             .with_generated_preconditioner(precond)
             .on(exec);

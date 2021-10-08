@@ -36,6 +36,7 @@ namespace Foam {
 
 class GKOIRFactory {
 private:
+    using ir = gko::solver::Ir<scalar>;
     // executor where Ginkgo will perform the computation
     //
     const word inner_solver_;
@@ -51,8 +52,7 @@ public:
               dictionary.lookupOrDefault("innerReductionFactor", scalar(1e-2))),
           blockSize_(dictionary.lookupOrDefault("maxBlockSize", label(16))){};
 
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
+    std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
     create_solver(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
@@ -66,14 +66,14 @@ public:
         return create_default(exec, criterion_vec);
     };
 
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
+    std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec) const
     {
-        return gko::solver::Ir<scalar>::build()
+        return ir::build()
             .with_solver(
                 gko::solver::Cg<scalar>::build()
                     .with_criteria(
@@ -99,7 +99,7 @@ public:
                               //     gko::precision_reduction::autodetect())
                               .on(exec);
 
-        return gko::solver::Ir<scalar>::build()
+        return ir::build()
             .with_solver(gko::share(bj_factory))
             .with_criteria(criterion_vec)
             .on(exec);
