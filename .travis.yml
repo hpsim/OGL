@@ -94,7 +94,7 @@ jobs:
       ENV:
       - VERSION=8
       - EXTERNAL_GINKGO=OFF
-      - GINKGO_VERSION=develop
+      - GINKGO_VERSION=ogl
       workspaces:
         create:
           name:
