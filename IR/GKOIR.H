@@ -57,13 +57,14 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger,
         std::shared_ptr<gko::LinOp> precond) const
 
     {
         if (inner_solver_ == "scalarJacobi") {
-            return create_scalar_jacobi(exec, criterion_vec);
+            return create_scalar_jacobi(exec, criterion_vec, logger);
         }
-        return create_default(exec, criterion_vec);
+        return create_default(exec, criterion_vec, logger);
     };
 
     std::unique_ptr<ir::Factory,
@@ -71,25 +72,35 @@ public:
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger) const
     {
-        return ir::build()
-            .with_solver(
-                gko::solver::Cg<scalar>::build()
-                    .with_criteria(
-                        gko::stop::ResidualNorm<scalar>::build()
-                            .with_reduction_factor(inner_reduction_factor_)
-                            .on(exec))
-                    .on(exec))
-            .with_criteria(criterion_vec)
-            .on(exec);
+        auto inner = gko::share(
+            gko::solver::Cg<scalar>::build()
+                .with_criteria(
+                    gko::stop::ResidualNorm<scalar>::build()
+                        .with_reduction_factor(inner_reduction_factor_)
+                        .on(exec))
+                .on(exec));
+
+        inner->add_logger(logger);
+
+        auto ir = ir::build()
+                      .with_solver(inner)
+                      .with_criteria(criterion_vec)
+                      .on(exec);
+
+        ir->add_logger(logger);
+        return ir;
     };
+
     std::unique_ptr<gko::solver::Ir<double>::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
     create_scalar_jacobi(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger) const
     {
         int sweeps = 3;
         using bj = gko::preconditioner::Jacobi<>;
@@ -99,10 +110,13 @@ public:
                               //     gko::precision_reduction::autodetect())
                               .on(exec);
 
-        return ir::build()
-            .with_solver(gko::share(bj_factory))
-            .with_criteria(criterion_vec)
-            .on(exec);
+        auto ir = ir::build()
+                      .with_solver(gko::share(bj_factory))
+                      .with_criteria(criterion_vec)
+                      .on(exec);
+
+        ir->add_logger(logger);
+        return ir;
     };
 };
 

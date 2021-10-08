@@ -57,11 +57,12 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger,
         std::shared_ptr<gko::LinOp> precond) const
     {
         if (precond != NULL)
-            return create_precond(exec, criterion_vec, precond);
-        return create_default(exec, criterion_vec);
+            return create_precond(exec, criterion_vec, logger, precond);
+        return create_default(exec, criterion_vec, logger);
     };
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
@@ -69,11 +70,14 @@ public:
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger) const
     {
-        return gko::solver::Bicgstab<scalar>::build()
-            .with_criteria(criterion_vec)
-            .on(exec);
+        auto bicgstab = gko::solver::Bicgstab<scalar>::build()
+                            .with_criteria(criterion_vec)
+                            .on(exec);
+        bicgstab->add_logger(logger);
+        return bicgstab;
     };
 
     std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
@@ -82,12 +86,15 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger,
         std::shared_ptr<gko::LinOp> precond) const
     {
-        return gko::solver::Bicgstab<scalar>::build()
-            .with_criteria(criterion_vec)
-            .with_generated_preconditioner(precond)
-            .on(exec);
+        auto bicgstab = gko::solver::Bicgstab<scalar>::build()
+                            .with_criteria(criterion_vec)
+                            .with_generated_preconditioner(precond)
+                            .on(exec);
+        bicgstab->add_logger(logger);
+        return bicgstab;
     };
 };
 

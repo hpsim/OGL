@@ -54,20 +54,24 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger,
         std::shared_ptr<gko::LinOp> precond) const
     {
         if (precond != NULL)
-            return create_precond(exec, criterion_vec, precond);
-        return create_default(exec, criterion_vec);
+            return create_precond(exec, criterion_vec, logger, precond);
+        return create_default(exec, criterion_vec, logger);
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_default(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+            criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger) const
     {
-        return cg::build().with_criteria(criterion_vec).on(exec);
+        auto cg = cg::build().with_criteria(criterion_vec).on(exec);
+        cg->add_logger(logger);
+        return cg;
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
@@ -75,12 +79,15 @@ public:
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec,
+        std::shared_ptr<gko::log::Logger> logger,
         std::shared_ptr<gko::LinOp> precond) const
     {
-        return cg::build()
-            .with_criteria(criterion_vec)
-            .with_generated_preconditioner(precond)
-            .on(exec);
+        auto cg = cg::build()
+                      .with_criteria(criterion_vec)
+                      .with_generated_preconditioner(precond)
+                      .on(exec);
+        cg->add_logger(logger);
+        return cg;
     };
 };
 

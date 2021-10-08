@@ -246,16 +246,10 @@ public:
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
 
-        auto solver_gen = this->create_solver(device_exec, criterion_vec,
-                                              this->get_preconditioner());
-
-        // Instantiate a ResidualLogger logger.
+        // Instantiate an iteration logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
-
-        // Add the previously created logger to the solver factory. The
-        // logger will be automatically propagated to all solvers created
-        // from this factory.
-        solver_gen->add_logger(logger);
+        auto solver_gen = this->create_solver(
+            device_exec, criterion_vec, logger, this->get_preconditioner());
 
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
