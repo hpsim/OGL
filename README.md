@@ -24,13 +24,17 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 
     mkdir build && cd build && ccmake ..
 
-By default *OGL* will fetch and build ginkgo, to specify which backend should be build you can use the following cmake flags `-DGINKGO_BUILD_CUDA`, ` -DGINKGO_BUILD_OMP`, or ` -DGINKGO_BUILD_HIP`. For example to build *OGL* with *CUDA* and *OMP* support use
+By default *OGL* will fetch and build ginkgo, to specify which backend should be build you can use the following cmake flags `-DGINKGO_BUILD_CUDA`, `-DGINKGO_BUILD_OMP`, or ` -DGINKGO_BUILD_HIP`. For example to build *OGL* with *CUDA* and *OMP* support use
 
     cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
 
 Then, make sure that the `system/controlDict` includes the `OGL.so` file:
 
     libs ("libOGL.so");
+
+### Experimental OGL ginkgo features
+
+Some of OGL features might depend on features which are not already implemented on ginkgo's dev branch. To enable experimental features pass `-DGINKGO_WITH_OGL_EXTENSIONS` as cmake flag.
 
 
 ## Usage
@@ -58,6 +62,9 @@ sort | true | sort the system matrix
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 export | false | write the complete system to disk
 verbose | false | print out extra info
+evalFrequency | 1 | evaluate residual norm every n-th iteration
+adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
+relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 
 ## Known Limitations
 

@@ -281,7 +281,7 @@ public:
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
-          frequency_(controlDict.lookupOrDefault("evalFrequency", label(10))),
+          frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
           relaxationFactor_(
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
           adapt_minIter_(
