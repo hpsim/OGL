@@ -134,7 +134,7 @@ jobs:
       ENV:
       - VERSION=9
       - EXTERNAL_GINKGO=OFF
-      - GINKGO_VERSION=develop
+      - GINKGO_VERSION=ogl
     # Runs
     - <<: *_run
       ENV:
