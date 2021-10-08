@@ -86,5 +86,5 @@ available through the following reference:
 }
 ```
 ## Excmple
-Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen.
+Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
