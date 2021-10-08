@@ -48,6 +48,7 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
 private:
+    using vec = gko::matrix::Dense<scalar>;
     const bool verbose_;
 
 public:
@@ -179,12 +180,15 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        criterion_vec.push_back(build_stopping_criterion(device_exec, 1.0));
+
+        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+
+        criterion_vec.push_back(build_stopping_criterion(
+            device_exec, gkomatrix, x[0], b[0], verbose_,
+            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
 
         // Generate solver
         auto solver_gen = this->create_solver(device_exec, criterion_vec);
-
-        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
@@ -195,6 +199,7 @@ public:
 
         // copy back
         copy_result_back(psi, this->nCells());
+        this->set_solve_prev_iters(this->matrix().mesh().thisDb(), 0);
 
         return solverPerf;
     };
@@ -212,33 +217,31 @@ public:
                 this->get_device_executor_name() + typeName,
             this->fieldName());
 
-
-        scalarField pA(this->nCells());
-        scalarField wA(this->nCells());
-        this->matrix().Amul(wA, psi, this->interfaceBouCoeffs_,
-                            this->interfaces_, cmpt);
-        scalar norm_factor = this->normFactor(psi, source, wA, pA);
-
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
 
         std::vector<val_array> source_views{source_view};
-        auto b = vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                             source_views[0], 1);
+        SIMPLE_TIME(verbose_, create_and_push_b,
+                    auto b = gko::share(
+                        vec::create(device_exec, gko::dim<2>(this->nCells(), 1),
+                                    source_views[0], 1));)
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
         std::vector<std::shared_ptr<vec>> x{};
         this->get_initial_guess(x);
 
+        // Generate solver
+        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        criterion_vec.push_back(
-            build_stopping_criterion(device_exec, norm_factor));
+        criterion_vec.push_back(build_stopping_criterion(
+            device_exec, gkomatrix, x[0], b, verbose_,
+            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
 
-        // Generate solver
-        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+
         SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
@@ -274,6 +277,8 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
 
         solverPerf.nIterations() = logger->get_iters();
+        this->set_solve_prev_iters(this->matrix().mesh().thisDb(),
+                                   logger->get_iters());
 
         return solverPerf;
     };

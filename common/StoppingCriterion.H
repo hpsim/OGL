@@ -29,18 +29,19 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
+#include "common.H"
 #include "fvCFD.H"
 
 namespace Foam {
 
 class StoppingCriterion {
+    using vec = gko::matrix::Dense<scalar>;
     class OpenFOAMStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
                                               gko::stop::Criterion> {
         friend class gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
                                                   gko::stop::Criterion>;
         using Criterion = gko::stop::Criterion;
-        using vec = gko::matrix::Dense<scalar>;
 
     private:
         label iter_ = 0;
@@ -56,17 +57,23 @@ class StoppingCriterion {
 
             scalar GKO_FACTORY_PARAMETER(openfoam_relative_tolerance, 0.0);
 
-            scalar GKO_FACTORY_PARAMETER(openfoam_norm_factor, 1.0);
-
             label GKO_FACTORY_PARAMETER(openfoam_minIter, 0);
 
             label GKO_FACTORY_PARAMETER(openfoam_maxIter, 0);
+
+            label GKO_FACTORY_PARAMETER(frequency, 10);
 
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
 
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 init_residual_norm, NULL);
+
+            bool GKO_FACTORY_PARAMETER(verbose, true);
+
+            std::shared_ptr<mtx> GKO_FACTORY_PARAMETER(gkomatrix, {});
+            std::shared_ptr<vec> GKO_FACTORY_PARAMETER(x, {});
+            std::shared_ptr<vec> GKO_FACTORY_PARAMETER(b, {});
         };
 
         GKO_ENABLE_CRITERION_FACTORY(OpenFOAMStoppingCriterion, parameters,
@@ -75,30 +82,130 @@ class StoppingCriterion {
         GKO_ENABLE_BUILD_METHOD(Factory);
 
     protected:
+        void compute_Axref(std::shared_ptr<const gko::Executor> device_exec,
+                           std::shared_ptr<const mtx> gkomatrix,
+                           std::shared_ptr<vec> x,
+                           std::shared_ptr<vec> res) const
+        {
+            auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
+                1, {0.0}, device_exec);
+
+            const label nCells{x->get_size()[0]};
+
+            val_array x_array{
+                val_array::view(device_exec, nCells, x->get_values())};
+
+            ::gko::reduce(x_array, xAvg->get_values());
+
+            auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
+                1, {scalar(nCells)}, device_exec);
+
+            xAvg->inv_scale(nCells_linOp.get());
+
+#ifdef GINKGO_WITH_OGL_EXTENSIONS
+            gkomatrix->compute_column_vector_sum(res.get());
+            res->scale(xAvg.get());
+#else
+            // if column vector sum is not availible use dot product
+            auto xAvg_vec =
+                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
+
+            auto xAvg_host =
+                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+
+            xAvg_host->copy_from(xAvg.get());
+            xAvg_vec->fill(xAvg_host->get_values()[0]);
+
+            gkomatrix->apply(xAvg_vec.get(), res.get());
+#endif
+        }
+
+
+        scalar compute_normfactor(
+            std::shared_ptr<const gko::Executor> device_exec, const vec *r,
+            std::shared_ptr<const mtx> gkomatrix, std::shared_ptr<vec> x,
+            std::shared_ptr<const vec> b) const
+        {
+            // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
+            // computes        || Ax - x* ||        + || b - x* ||
+            // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
+            const label nCells{x->get_size()[0]};
+
+            // TODO store colA vector
+            auto Axref =
+                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
+
+            compute_Axref(device_exec, gkomatrix, x, Axref);
+
+            auto b_norm =
+                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+            b->compute_norm1(b_norm.get());
+
+            auto unity = gko::initialize<gko::matrix::Dense<scalar>>(
+                1, {1.0}, device_exec);
+
+            auto b_sub_xstar = b->clone();
+            b_sub_xstar->sub_scaled(unity.get(), Axref.get());
+
+            auto norm_part2 = b_sub_xstar->compute_absolute();
+
+            b_sub_xstar->sub_scaled(unity.get(), r);
+            b_sub_xstar->compute_absolute_inplace();
+
+            b_sub_xstar->add_scaled(unity.get(), norm_part2.get());
+            auto res = vec::create(device_exec, gko::dim<2>{1, 1});
+            b_sub_xstar->compute_norm1(res.get());
+
+            auto res_host =
+                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+            res_host->copy_from(res.get());
+
+            return res_host->get_values()[0];
+        }
+
         bool check_impl(gko::uint8 stoppingId, bool setFinalized,
                         gko::Array<gko::stopping_status> *stop_status,
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+            if (iter_ % parameters_.frequency != 0) {
+                iter_++;
+                return false;
+            }
+            if (iter_ > 0 && iter_ < parameters_.openfoam_minIter) {
+                iter_++;
+                return false;
+            }
+
+            const auto exec = this->get_executor();
+            if (iter_ == 0) {
+                norm1_ = vec::create(exec, gko::dim<2>{1, 1});
+                norm1_host_ =
+                    vec::create(exec->get_master(), gko::dim<2>{1, 1});
+            }
             auto *dense_r = gko::as<vec>(updater.residual_);
-            auto exec = dense_r->get_executor();
 
-            auto res = gko::share(vec::create(exec, gko::dim<2>{1, 1}));
-            dense_r->compute_norm1(res.get());
+            dense_r->compute_norm1(norm1_.get());
 
-            auto res_host = vec::create(exec->get_master(), gko::dim<2>{1, 1});
-            res_host->copy_from(res.get());
+            norm1_host_->copy_from(norm1_.get());
+
+            scalar residual_norm = norm1_host_->at(0);
 
             bool result = false;
-            scalar residual_norm =
-                res_host->at(0) / parameters_.openfoam_norm_factor;
+            // Store initial residual
+            if (iter_ == 0) {
+                norm_factor_ =
+                    compute_normfactor(exec, dense_r, parameters_.gkomatrix,
+                                       parameters_.x, parameters_.b);
+
+                *(parameters_.init_residual_norm) =
+                    residual_norm / norm_factor_;
+            }
+
+            residual_norm /= norm_factor_;
 
             *(parameters_.residual_norm) = residual_norm;
 
-            // Store initial residual
-            if (iter_ == 0) {
-                *(parameters_.init_residual_norm) = residual_norm;
-            }
             scalar init_residual = *(parameters_.init_residual_norm);
 
             // stop if maximum number of iterations was reached
@@ -141,7 +248,13 @@ class StoppingCriterion {
               parameters_{factory->get_parameters()}
         {}
 
+        mutable std::shared_ptr<vec> norm1_{};
+
+        mutable std::shared_ptr<vec> norm1_host_{};
+
         mutable bool first_iter_ = true;
+
+        mutable scalar norm_factor_ = 0;
     };
 
     mutable label maxIter_;
@@ -152,10 +265,15 @@ class StoppingCriterion {
 
     const scalar relTol_;
 
+    const label frequency_;
+
+    const scalar relaxationFactor_;
+
+    const bool adapt_minIter_;
+
     mutable scalar init_normalised_res_norm_;
 
     mutable scalar normalised_res_norm_;
-
 
 public:
     StoppingCriterion(const dictionary &controlDict)
@@ -163,6 +281,11 @@ public:
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+          frequency_(controlDict.lookupOrDefault("evalFrequency", label(10))),
+          relaxationFactor_(
+              controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
+          adapt_minIter_(
+              controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0)
     {
@@ -170,16 +293,27 @@ public:
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
-        std::shared_ptr<gko::Executor> device_exec, scalar norm_factor) const
+        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+        std::shared_ptr<vec> b, bool verbose, label prev_solve_iters) const
     {
+        label minIter = minIter_;
+        label frequency = frequency_;
+        if (prev_solve_iters > 0 && adapt_minIter_) {
+            minIter = prev_solve_iters * relaxationFactor_;
+            frequency = max(1, minIter / 20);
+        }
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
-            .with_openfoam_norm_factor(norm_factor)
-            .with_openfoam_minIter(minIter_)
+            .with_openfoam_minIter(minIter)
             .with_openfoam_maxIter(maxIter_)
+            .with_frequency(frequency)
             .with_init_residual_norm(&init_normalised_res_norm_)
             .with_residual_norm(&normalised_res_norm_)
+            .with_gkomatrix(gkomatrix)
+            .with_x(x)
+            .with_b(b)
             .on(device_exec);
     }
 

@@ -47,10 +47,10 @@ SourceFiles
     F auto end_##NAME = std::chrono::steady_clock::now();                   \
     if (VERBOSE) {                                                          \
         std::cout << "[OGL LOG] " #NAME " : "                               \
-                  << std::chrono::duration_cast<std::chrono::milliseconds>( \
+                  << std::chrono::duration_cast<std::chrono::microseconds>( \
                          end_##NAME - start_##NAME)                         \
                          .count()                                           \
-                  << " ms\n";                                               \
+                  << " mu s\n";                                             \
     }
 
 
