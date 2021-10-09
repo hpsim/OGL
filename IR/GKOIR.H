@@ -29,6 +29,7 @@ SourceFiles
 #define GKOIR_H
 
 #include "../BaseWrapper/lduBase/GKOlduBase.H"
+#include "../common/StoppingCriterion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -38,56 +39,67 @@ class GKOIRFactory {
 private:
     using ir = gko::solver::Ir<scalar>;
     // executor where Ginkgo will perform the computation
-    //
-    const word inner_solver_;
+    const dictionary &solverControls_;
 
-    const scalar inner_reduction_factor_;
+    const StoppingCriterion outerStoppingCriterion_;
 
-    const label blockSize_;
+    mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        outerStoppingCriterionVec_;
 
 public:
-    GKOIRFactory(const dictionary &dictionary)
-        : inner_solver_(dictionary.lookupOrDefault("innerSolver", word("CG"))),
-          inner_reduction_factor_(
-              dictionary.lookupOrDefault("innerReductionFactor", scalar(1e-2))),
-          blockSize_(dictionary.lookupOrDefault("maxBlockSize", label(16))){};
+    GKOIRFactory(const dictionary &solverControls)
+        : solverControls_(solverControls),
+          outerStoppingCriterion_(solverControls){};
 
     std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
-    create_solver(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::log::Logger> logger,
-        std::shared_ptr<gko::LinOp> precond) const
+    create_solver(std::shared_ptr<gko::Executor> exec,
+                  std::shared_ptr<gko::log::Logger> logger,
+                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+                  std::shared_ptr<vec> b, label prev_solve_iters,
+                  const bool verbose, std::shared_ptr<gko::LinOp> precond) const
 
     {
-        if (inner_solver_ == "scalarJacobi") {
-            return create_scalar_jacobi(exec, criterion_vec, logger);
-        }
-        return create_default(exec, criterion_vec, logger);
+        outerStoppingCriterionVec_.push_back(
+            outerStoppingCriterion_.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, prev_solve_iters));
+
+        // if (solverinner_solver_ == "scalarJacobi") {
+        //     return create_scalar_jacobi(exec, gkomatrix, x, b,
+        //     prev_solve_iters,
+        //                                 logger, verbose);
+        // }
+        return create_default(exec, gkomatrix, x, b, prev_solve_iters, logger,
+                              verbose);
     };
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
-    create_default(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::log::Logger> logger) const
+    create_default(std::shared_ptr<gko::Executor> exec,
+                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+                   std::shared_ptr<vec> b, label prev_solve_iters,
+                   std::shared_ptr<gko::log::Logger> logger,
+                   const bool verbose) const
     {
-        auto inner = gko::share(
-            gko::solver::Cg<scalar>::build()
-                .with_criteria(
-                    gko::stop::ResidualNorm<scalar>::build()
-                        .with_reduction_factor(inner_reduction_factor_)
-                        .on(exec))
-                .on(exec));
+        auto innerStoppingCriterionFactory =
+            StoppingCriterion(solverControls_.subDict("inner"));
+
+        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+            innerStoppingCriterion{};
+
+        innerStoppingCriterion.push_back(
+            innerStoppingCriterionFactory.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, prev_solve_iters));
+
+
+        auto inner = gko::share(gko::solver::Cg<scalar>::build()
+                                    .with_criteria(innerStoppingCriterion)
+                                    .on(exec));
 
         inner->add_logger(logger);
 
         auto ir = ir::build()
                       .with_solver(inner)
-                      .with_criteria(criterion_vec)
+                      .with_criteria(outerStoppingCriterionVec_)
                       .on(exec);
 
         ir->add_logger(logger);
@@ -99,25 +111,39 @@ public:
     create_scalar_jacobi(
         std::shared_ptr<gko::Executor> exec,
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::log::Logger> logger) const
+            outerStoppingCriterion,
+        std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+        std::shared_ptr<vec> b, label prev_solve_iters,
+        std::shared_ptr<gko::log::Logger> logger, const bool verbose) const
     {
         int sweeps = 3;
         using bj = gko::preconditioner::Jacobi<>;
+        label blockSize = solverControls_.subDict("inner").lookupOrDefault(
+            "maxBlockSize", label(4));
         auto bj_factory = bj::build()
-                              .with_max_block_size(blockSize_)
+                              .with_max_block_size(blockSize)
                               // .with_storage_optimization(
                               //     gko::precision_reduction::autodetect())
                               .on(exec);
 
         auto ir = ir::build()
                       .with_solver(gko::share(bj_factory))
-                      .with_criteria(criterion_vec)
+                      .with_criteria(outerStoppingCriterionVec_)
                       .on(exec);
 
         ir->add_logger(logger);
         return ir;
     };
+
+    scalar get_init_res_norm() const
+    {
+        return outerStoppingCriterion_.get_init_res_norm();
+    }
+
+    scalar get_res_norm() const
+    {
+        return outerStoppingCriterion_.get_res_norm();
+    }
 };
 
 /*---------------------------------------------------------------------------*\

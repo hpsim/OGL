@@ -43,12 +43,12 @@ namespace Foam {
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public HostMatrix<MatrixType>,
                    public SolverFactory,
-                   public StoppingCriterion,
                    public IOSortingIdxHandler,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
 private:
     using vec = gko::matrix::Dense<scalar>;
+    const dictionary &solverControls_;
     const bool verbose_;
 
 public:
@@ -60,12 +60,12 @@ public:
         : HostMatrix<lduMatrix>(fieldName, matrix, interfaceBouCoeffs,
                                 interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory(solverControls),
-          StoppingCriterion(solverControls),
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
           IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
+          solverControls_(solverControls),
           verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
     {
         init_base();
@@ -77,12 +77,12 @@ public:
                const dictionary &solverControls)
         : HostMatrix<MatrixType>(fieldName, matrix, solverControls),
           SolverFactory(solverControls),
-          StoppingCriterion(solverControls),
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
           IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
+          solverControls_(solverControls),
           verbose_(solverControls.lookupOrDefault<Switch>("verbose", false))
     {
         init_base();
@@ -183,19 +183,16 @@ public:
 
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
-        criterion_vec.push_back(build_stopping_criterion(
-            device_exec, gkomatrix, x[0], b[0], verbose_,
-            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
-
         // Generate solver
-        auto solver_gen = this->create_solver(device_exec, criterion_vec);
+        // auto solver_gen = this->create_solver(
+        //     device_exec, criterion_vec);
 
-        auto solver = solver_gen->generate(gko::share(gkomatrix));
+        // auto solver = solver_gen->generate(gko::share(gkomatrix));
 
-        for (int i = 0; i < 3; i++) {
-            SIMPLE_TIME(verbose_, solve,
-                        solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
-        }
+        // for (int i = 0; i < 3; i++) {
+        //     SIMPLE_TIME(verbose_, solve,
+        //                 solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
+        // }
 
         // copy back
         copy_result_back(psi, this->nCells());
@@ -237,11 +234,6 @@ public:
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        criterion_vec.push_back(build_stopping_criterion(
-            device_exec, gkomatrix, x[0], b, verbose_,
-            this->get_solve_prev_iters(this->matrix().mesh().thisDb())));
-
-
         SIMPLE_TIME(verbose_, init_preconditioner,
                     this->init_preconditioner(this->matrix().mesh().thisDb(),
                                               gkomatrix, device_exec);)
@@ -249,15 +241,14 @@ public:
         // Instantiate an iteration logger.
         auto logger = std::make_shared<IterationLogger>(device_exec);
         auto solver_gen = this->create_solver(
-            device_exec, criterion_vec, logger, this->get_preconditioner());
+            device_exec, logger, gkomatrix, x[0], b,
+            this->get_solve_prev_iters(this->matrix().mesh().thisDb()),
+            verbose_, this->get_preconditioner());
 
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
                           gko::lend(x[0]), gko::lend(b),
                           this->matrix().mesh().thisDb().time().timeName());
-
-
-        solverPerf.initialResidual() = this->get_init_res_norm();
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 

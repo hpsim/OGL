@@ -192,11 +192,15 @@ class StoppingCriterion {
             scalar residual_norm = norm1_host_->at(0);
 
             bool result = false;
+
             // Store initial residual
             if (iter_ == 0) {
-                norm_factor_ =
-                    compute_normfactor(exec, dense_r, parameters_.gkomatrix,
-                                       parameters_.x, parameters_.b);
+                //
+                if (eval_norm_factor_) {
+                    norm_factor_ =
+                        compute_normfactor(exec, dense_r, parameters_.gkomatrix,
+                                           parameters_.x, parameters_.b);
+                }
 
                 *(parameters_.init_residual_norm) =
                     residual_norm / norm_factor_;
@@ -248,13 +252,20 @@ class StoppingCriterion {
               parameters_{factory->get_parameters()}
         {}
 
+        void set_eval_norm_factor(bool eval_norm_factor)
+        {
+            eval_norm_factor_ = eval_norm_factor;
+        }
+
         mutable std::shared_ptr<vec> norm1_{};
 
         mutable std::shared_ptr<vec> norm1_host_{};
 
         mutable bool first_iter_ = true;
 
-        mutable scalar norm_factor_ = 0;
+        mutable scalar norm_factor_ = 1;
+
+        mutable bool eval_norm_factor_ = true;
     };
 
     mutable label maxIter_;
