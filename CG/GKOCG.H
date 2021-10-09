@@ -37,7 +37,12 @@ namespace Foam {
 class GKOCGFactory {
 private:
     using cg = gko::solver::Cg<scalar>;
-    // executor where Ginkgo will perform the computation
+
+    const dictionary &solverControls_;
+
+    const objectRegistry &db_;
+
+    const word sysMatrixName_;
 
     const word preconditioner_;
 
@@ -47,45 +52,45 @@ private:
         stoppingCriterionVec_;
 
 public:
-    GKOCGFactory(const dictionary &solverControls)
-        : preconditioner_(
+    GKOCGFactory(const dictionary &solverControls, const objectRegistry &db,
+                 word sysMatrixName)
+        : solverControls_(solverControls),
+          db_(db),
+          sysMatrixName_(sysMatrixName),
+          preconditioner_(
               solverControls.lookupOrDefault("preconditioner", word("none"))),
           stoppingCriterion_(solverControls){};
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
-                  std::shared_ptr<gko::log::Logger> logger,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, label prev_solve_iters,
-                  const bool verbose, std::shared_ptr<gko::LinOp> precond) const
+                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<gko::LinOp> precond) const
     {
         stoppingCriterionVec_.push_back(
             stoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, prev_solve_iters));
+                exec, gkomatrix, x, b, verbose,
+                get_prev_number_of_iterations()));
 
-        if (precond != NULL) return create_precond(exec, logger, precond);
-        return create_default(exec, logger);
+        if (precond != NULL) return create_precond(exec, precond);
+        return create_default(exec);
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<gko::log::Logger> logger) const
+    create_default(std::shared_ptr<gko::Executor> exec) const
     {
         auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
-        cg->add_logger(logger);
         return cg;
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_precond(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<gko::log::Logger> logger,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto cg = cg::build()
                       .with_criteria(stoppingCriterionVec_)
                       .with_generated_preconditioner(precond)
                       .on(exec);
-        cg->add_logger(logger);
         return cg;
     };
 
@@ -95,6 +100,15 @@ public:
     }
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
+
+    void store_number_of_iterations() const {}
+
+    label get_prev_number_of_iterations() const { return 0; }
+
+    label get_number_of_iterations() const
+    {
+        return stoppingCriterion_.get_num_iters();
+    }
 };
 
 /*---------------------------------------------------------------------------*\

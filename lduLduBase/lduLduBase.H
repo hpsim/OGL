@@ -59,7 +59,7 @@ public:
                const dictionary &solverControls)
         : HostMatrix<lduMatrix>(fieldName, matrix, interfaceBouCoeffs,
                                 interfaceIntCoeffs, interfaces, solverControls),
-          SolverFactory(solverControls),
+          SolverFactory(solverControls, matrix.mesh().thisDb(), fieldName),
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
@@ -76,7 +76,7 @@ public:
     lduLduBase(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
         : HostMatrix<MatrixType>(fieldName, matrix, solverControls),
-          SolverFactory(solverControls),
+          SolverFactory(solverControls, matrix.mesh().thisDb(), fieldName),
           IOSortingIdxHandler(
               matrix.mesh().thisDb(), this->nElems(),
               solverControls.lookupOrDefault<Switch>("sort", true)),
@@ -196,7 +196,6 @@ public:
 
         // copy back
         copy_result_back(psi, this->nCells());
-        this->set_solve_prev_iters(this->matrix().mesh().thisDb(), 0);
 
         return solverPerf;
     };
@@ -239,11 +238,9 @@ public:
                                               gkomatrix, device_exec);)
 
         // Instantiate an iteration logger.
-        auto logger = std::make_shared<IterationLogger>(device_exec);
-        auto solver_gen = this->create_solver(
-            device_exec, logger, gkomatrix, x[0], b,
-            this->get_solve_prev_iters(this->matrix().mesh().thisDb()),
-            verbose_, this->get_preconditioner());
+        auto solver_gen =
+            this->create_solver(device_exec, gkomatrix, x[0], b, verbose_,
+                                this->get_preconditioner());
 
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
@@ -260,10 +257,8 @@ public:
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
-
-        solverPerf.nIterations() = logger->get_iters();
-        this->set_solve_prev_iters(this->matrix().mesh().thisDb(),
-                                   logger->get_iters());
+        solverPerf.nIterations() = this->get_number_of_iterations();
+        this->store_number_of_iterations();
 
         return solverPerf;
     };

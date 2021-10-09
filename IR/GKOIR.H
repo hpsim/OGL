@@ -38,8 +38,12 @@ namespace Foam {
 class GKOIRFactory {
 private:
     using ir = gko::solver::Ir<scalar>;
-    // executor where Ginkgo will perform the computation
+
     const dictionary &solverControls_;
+
+    const objectRegistry &db_;
+
+    const word sysMatrixName_;
 
     const StoppingCriterion outerStoppingCriterion_;
 
@@ -47,38 +51,37 @@ private:
         outerStoppingCriterionVec_;
 
 public:
-    GKOIRFactory(const dictionary &solverControls)
+    GKOIRFactory(const dictionary &solverControls, const objectRegistry &db,
+                 word sysMatrixName)
         : solverControls_(solverControls),
+          db_(db),
+          sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls){};
 
     std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
-                  std::shared_ptr<gko::log::Logger> logger,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, label prev_solve_iters,
-                  const bool verbose, std::shared_ptr<gko::LinOp> precond) const
+                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<gko::LinOp> precond) const
 
     {
         outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, prev_solve_iters));
+            outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
+                                                             b, verbose, 0));
 
         // if (solverinner_solver_ == "scalarJacobi") {
         //     return create_scalar_jacobi(exec, gkomatrix, x, b,
         //     prev_solve_iters,
         //                                 logger, verbose);
         // }
-        return create_default(exec, gkomatrix, x, b, prev_solve_iters, logger,
-                              verbose);
+        return create_default(exec, gkomatrix, x, b, verbose);
     };
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec,
                    std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                   std::shared_ptr<vec> b, label prev_solve_iters,
-                   std::shared_ptr<gko::log::Logger> logger,
-                   const bool verbose) const
+                   std::shared_ptr<vec> b, const bool verbose) const
     {
         auto innerStoppingCriterionFactory =
             StoppingCriterion(solverControls_.subDict("inner"));
@@ -88,21 +91,18 @@ public:
 
         innerStoppingCriterion.push_back(
             innerStoppingCriterionFactory.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, prev_solve_iters));
+                exec, gkomatrix, x, b, verbose, 0));
 
 
         auto inner = gko::share(gko::solver::Cg<scalar>::build()
                                     .with_criteria(innerStoppingCriterion)
                                     .on(exec));
 
-        inner->add_logger(logger);
-
         auto ir = ir::build()
                       .with_solver(inner)
                       .with_criteria(outerStoppingCriterionVec_)
                       .on(exec);
 
-        ir->add_logger(logger);
         return ir;
     };
 
@@ -114,7 +114,7 @@ public:
             outerStoppingCriterion,
         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
         std::shared_ptr<vec> b, label prev_solve_iters,
-        std::shared_ptr<gko::log::Logger> logger, const bool verbose) const
+        const bool verbose) const
     {
         int sweeps = 3;
         using bj = gko::preconditioner::Jacobi<>;
@@ -131,7 +131,6 @@ public:
                       .with_criteria(outerStoppingCriterionVec_)
                       .on(exec);
 
-        ir->add_logger(logger);
         return ir;
     };
 
@@ -143,6 +142,13 @@ public:
     scalar get_res_norm() const
     {
         return outerStoppingCriterion_.get_res_norm();
+    }
+
+    void store_number_of_iterations() const {}
+
+    label get_number_of_iterations() const
+    {
+        return outerStoppingCriterion_.get_num_iters();
     }
 };
 

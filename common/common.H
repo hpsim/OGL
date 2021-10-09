@@ -230,6 +230,11 @@ private:
 };
 
 
+void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
+                          label prev_solve_iters);
+
+label get_solve_prev_iters(const word sys_matrix_name,
+                           const objectRegistry &db);
 }  // namespace Foam
 
 #endif
