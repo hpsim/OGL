@@ -175,11 +175,6 @@ class StoppingCriterion {
             }
 
             const auto exec = this->get_executor();
-            if (*(parameters_.iter) == 0) {
-                norm1_ = vec::create(exec, gko::dim<2>{1, 1});
-                norm1_host_ =
-                    vec::create(exec->get_master(), gko::dim<2>{1, 1});
-            }
 
             if (*(parameters_.iter) % parameters_.frequency != 0) {
                 *(parameters_.iter) += 1;
@@ -187,9 +182,12 @@ class StoppingCriterion {
             }
 
             auto *dense_r = gko::as<vec>(updater.residual_);
-            dense_r->compute_norm1(norm1_.get());
-            norm1_host_->copy_from(norm1_.get());
-            scalar residual_norm = norm1_host_->at(0);
+            auto norm1 = vec::create(exec, gko::dim<2>{1, 1});
+            dense_r->compute_norm1(norm1.get());
+            auto norm1_host =
+                vec::create(exec->get_master(), gko::dim<2>{1, 1});
+            norm1_host->copy_from(norm1.get());
+            scalar residual_norm = norm1_host->at(0);
 
             bool result = false;
 
@@ -255,10 +253,6 @@ class StoppingCriterion {
         {
             eval_norm_factor_ = eval_norm_factor;
         }
-
-        mutable std::shared_ptr<vec> norm1_{};
-
-        mutable std::shared_ptr<vec> norm1_host_{};
 
         mutable bool first_iter_ = true;
 
