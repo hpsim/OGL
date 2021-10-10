@@ -41,6 +41,8 @@ private:
 
     const dictionary &solverControls_;
 
+    const dictionary &innerSolverControls_;
+
     const objectRegistry &db_;
 
     const word sysMatrixName_;
@@ -59,11 +61,11 @@ public:
     GKOIRFactory(const dictionary &solverControls, const objectRegistry &db,
                  word sysMatrixName)
         : solverControls_(solverControls),
+          innerSolverControls_(solverControls.subDict("inner")),
           db_(db),
           sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls),
-          innerStoppingCriterion_(
-              StoppingCriterion(solverControls.subDict("inner"))){};
+          innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)){};
 
     std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
@@ -76,11 +78,10 @@ public:
             outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
                                                              b, verbose, 0));
 
-        // if (solverinner_solver_ == "scalarJacobi") {
-        //     return create_scalar_jacobi(exec, gkomatrix, x, b,
-        //     prev_solve_iters,
-        //                                 logger, verbose);
-        // }
+        if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
+            "scalarJacobi") {
+            return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
+        }
         return create_default(exec, gkomatrix, x, b, verbose);
     };
 
@@ -109,17 +110,13 @@ public:
 
     std::unique_ptr<gko::solver::Ir<double>::Factory,
                     std::default_delete<gko::solver::Ir<double>::Factory>>
-    create_scalar_jacobi(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            outerStoppingCriterion,
-        std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b, label prev_solve_iters,
-        const bool verbose) const
+    create_scalar_jacobi(std::shared_ptr<gko::Executor> exec,
+                         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+                         std::shared_ptr<vec> b, const bool verbose) const
     {
         using bj = gko::preconditioner::Jacobi<>;
-        label blockSize = solverControls_.subDict("inner").lookupOrDefault(
-            "maxBlockSize", label(4));
+        label blockSize =
+            innerSolverControls_.lookupOrDefault("maxBlockSize", label(1));
         auto bj_factory = bj::build()
                               .with_max_block_size(blockSize)
                               // .with_storage_optimization(
@@ -152,7 +149,8 @@ public:
 
     label get_number_of_iterations() const
     {
-        return innerStoppingCriterion_.get_num_iters();
+        return innerStoppingCriterion_.get_num_iters() +
+               outerStoppingCriterion_.get_num_iters();
     }
 };
 
