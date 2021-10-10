@@ -109,9 +109,17 @@ public:
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
 
-    void store_number_of_iterations() const {}
+    void store_number_of_iterations() const
+    {
+        set_solve_prev_iters(sysMatrixName_, db_,
+                             stoppingCriterion_.get_num_iters());
+    }
 
-    label get_prev_number_of_iterations() const { return 0; }
+
+    label get_prev_number_of_iterations() const
+    {
+        return get_solve_prev_iters(sysMatrixName_, db_);
+    }
 
     label get_number_of_iterations() const
     {

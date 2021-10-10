@@ -168,28 +168,27 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-            if (*(parameters_.iter) % parameters_.frequency != 0) {
-                *(parameters_.iter)++;
-                return false;
-            }
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
-                *(parameters_.iter)++;
+                *(parameters_.iter) += 1;
                 return false;
             }
 
             const auto exec = this->get_executor();
-            if (parameters_.iter == 0) {
+            if (*(parameters_.iter) == 0) {
                 norm1_ = vec::create(exec, gko::dim<2>{1, 1});
                 norm1_host_ =
                     vec::create(exec->get_master(), gko::dim<2>{1, 1});
             }
+
+            if (*(parameters_.iter) % parameters_.frequency != 0) {
+                *(parameters_.iter) += 1;
+                return false;
+            }
+
             auto *dense_r = gko::as<vec>(updater.residual_);
-
             dense_r->compute_norm1(norm1_.get());
-
             norm1_host_->copy_from(norm1_.get());
-
             scalar residual_norm = norm1_host_->at(0);
 
             bool result = false;
@@ -216,17 +215,16 @@ class StoppingCriterion {
             // stop if maximum number of iterations was reached
             if (*(parameters_.iter) == parameters_.openfoam_maxIter) {
                 result = true;
-            } else if (*(parameters_.iter) > parameters_.openfoam_minIter) {
-                // check if absolute tolerance is hit
-                if (residual_norm < parameters_.openfoam_absolute_tolerance) {
-                    result = true;
-                }
-                // check if relative tolerance is hit
-                if (parameters_.openfoam_relative_tolerance > 0 &&
-                    residual_norm < parameters_.openfoam_relative_tolerance *
-                                        init_residual) {
-                    result = true;
-                }
+            }
+            // check if absolute tolerance is hit
+            if (residual_norm < parameters_.openfoam_absolute_tolerance) {
+                result = true;
+            }
+            // check if relative tolerance is hit
+            if (parameters_.openfoam_relative_tolerance > 0 &&
+                residual_norm <
+                    parameters_.openfoam_relative_tolerance * init_residual) {
+                result = true;
             }
 
             if (result) {
@@ -234,7 +232,7 @@ class StoppingCriterion {
                 *one_changed = true;
             }
 
-            *(parameters_.iter)++;
+            *(parameters_.iter) += 1;
             return result;
         }
 
@@ -318,6 +316,7 @@ public:
             minIter = prev_solve_iters * relaxationFactor_;
             frequency = max(1, minIter / 20);
         }
+        Info << "frequency " << frequency << " minIter " << minIter << endl;
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
@@ -337,7 +336,7 @@ public:
 
     scalar get_res_norm() const { return normalised_res_norm_; }
 
-    label get_num_iters() const { return 0; }
+    label get_num_iters() const { return iter_; }
 };
 }  // namespace Foam
 

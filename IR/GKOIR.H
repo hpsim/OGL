@@ -47,8 +47,13 @@ private:
 
     const StoppingCriterion outerStoppingCriterion_;
 
+    const StoppingCriterion innerStoppingCriterion_;
+
     mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-        outerStoppingCriterionVec_;
+        outerStoppingCriterionVec_ = {};
+
+    mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        innerStoppingCriterionVec_ = {};
 
 public:
     GKOIRFactory(const dictionary &solverControls, const objectRegistry &db,
@@ -56,7 +61,9 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          outerStoppingCriterion_(solverControls){};
+          outerStoppingCriterion_(solverControls),
+          innerStoppingCriterion_(
+              StoppingCriterion(solverControls.subDict("inner"))){};
 
     std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
@@ -83,19 +90,13 @@ public:
                    std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                    std::shared_ptr<vec> b, const bool verbose) const
     {
-        auto innerStoppingCriterionFactory =
-            StoppingCriterion(solverControls_.subDict("inner"));
-
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            innerStoppingCriterion{};
-
-        innerStoppingCriterion.push_back(
-            innerStoppingCriterionFactory.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, 0));
+        innerStoppingCriterionVec_.push_back(
+            innerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
+                                                             b, verbose, 0));
 
 
         auto inner = gko::share(gko::solver::Cg<scalar>::build()
-                                    .with_criteria(innerStoppingCriterion)
+                                    .with_criteria(innerStoppingCriterionVec_)
                                     .on(exec));
 
         auto ir = ir::build()
@@ -116,7 +117,6 @@ public:
         std::shared_ptr<vec> b, label prev_solve_iters,
         const bool verbose) const
     {
-        int sweeps = 3;
         using bj = gko::preconditioner::Jacobi<>;
         label blockSize = solverControls_.subDict("inner").lookupOrDefault(
             "maxBlockSize", label(4));
@@ -144,11 +144,15 @@ public:
         return outerStoppingCriterion_.get_res_norm();
     }
 
-    void store_number_of_iterations() const {}
+    void store_number_of_iterations() const
+    {
+        set_solve_prev_iters(sysMatrixName_, db_,
+                             innerStoppingCriterion_.get_num_iters());
+    }
 
     label get_number_of_iterations() const
     {
-        return outerStoppingCriterion_.get_num_iters();
+        return innerStoppingCriterion_.get_num_iters();
     }
 };
 
