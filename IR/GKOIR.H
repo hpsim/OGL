@@ -119,6 +119,7 @@ public:
             innerSolverControls_.lookupOrDefault("maxBlockSize", label(1));
         auto bj_factory = bj::build()
                               .with_max_block_size(blockSize)
+                              .with_skip_sorting(true)
                               // .with_storage_optimization(
                               //     gko::precision_reduction::autodetect())
                               .on(exec);

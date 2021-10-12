@@ -58,11 +58,15 @@ private:
 
     const word smoother_solver_;
 
+    const label max_block_size_;
+
     const scalar inner_relaxation_factor_;
 
     const scalar smoother_relaxation_factor_;
 
     const label smoother_max_iters_;
+
+    const label coarse_max_iters_;
 
     const label max_levels_;
 
@@ -85,12 +89,16 @@ public:
           innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)),
           smoother_solver_(innerSolverControls_.lookupOrDefault(
               "smootherSolver", word("CG"))),
+          max_block_size_(
+              innerSolverControls_.lookupOrDefault("maxBlockSize", label(4))),
           inner_relaxation_factor_(innerSolverControls_.lookupOrDefault(
               "innerRelaxationFactor", scalar(0.9))),
           smoother_relaxation_factor_(innerSolverControls_.lookupOrDefault(
               "smootherRelaxationFactor", scalar(0.9))),
           smoother_max_iters_(innerSolverControls_.lookupOrDefault(
               "smootherMaxIters", label(2))),
+          coarse_max_iters_(
+              innerSolverControls_.lookupOrDefault("coarseMaxIters", label(4))),
           max_levels_(
               innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
           min_coarse_rows_(innerSolverControls_.lookupOrDefault("minCoarseRows",
@@ -107,7 +115,10 @@ public:
             outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
                                                              b, verbose, 0));
         auto inner_solver_gen =
-            gko::share(bj::build().with_max_block_size(1u).on(exec));
+            gko::share(bj::build()
+                           .with_skip_sorting(true)
+                           .with_max_block_size(max_block_size_)
+                           .on(exec));
 
         auto smoother_gen = gko::share(
             ir::build()
@@ -118,15 +129,19 @@ public:
                                    .on(exec))
                 .on(exec));
         // Create MultigridLevel factory
-        auto mg_level_gen = amgx_pgm::build().with_deterministic(true).on(exec);
+        auto mg_level_gen = amgx_pgm::build()
+                                .with_deterministic(true)
+                                .with_skip_sorting(true)
+                                .on(exec);
         // Create CoarsestSolver factory
-        auto coarsest_gen = gko::share(
-            ir::build()
-                .with_solver(inner_solver_gen)
-                .with_relaxation_factor(inner_relaxation_factor_)
-                .with_criteria(
-                    gko::stop::Iteration::build().with_max_iters(4u).on(exec))
-                .on(exec));
+        auto coarsest_gen =
+            gko::share(ir::build()
+                           .with_solver(inner_solver_gen)
+                           .with_relaxation_factor(inner_relaxation_factor_)
+                           .with_criteria(gko::stop::Iteration::build()
+                                              .with_max_iters(coarse_max_iters_)
+                                              .on(exec))
+                           .on(exec));
 
         // Create multigrid factory
         auto ret = mg::build()
@@ -136,7 +151,7 @@ public:
                        .with_post_uses_pre(true)
                        .with_mg_level(gko::share(mg_level_gen))
                        .with_coarsest_solver(coarsest_gen)
-                       .with_zero_guess(true)
+                       .with_zero_guess(false)
                        .with_criteria(outerStoppingCriterionVec_)
                        .on(exec);
 
