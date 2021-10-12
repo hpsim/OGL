@@ -43,9 +43,6 @@ class StoppingCriterion {
                                                   gko::stop::Criterion>;
         using Criterion = gko::stop::Criterion;
 
-    private:
-        label iter_ = 0;
-
     public:
         GKO_CREATE_FACTORY_PARAMETERS(parameters, Factory)
         {
@@ -61,7 +58,10 @@ class StoppingCriterion {
 
             label GKO_FACTORY_PARAMETER(openfoam_maxIter, 0);
 
-            label GKO_FACTORY_PARAMETER(frequency, 10);
+            label GKO_FACTORY_PARAMETER(frequency, 1);
+
+            std::add_pointer<label>::type GKO_FACTORY_PARAMETER_SCALAR(iter,
+                                                                       NULL);
 
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
@@ -168,35 +168,37 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-            if (iter_ % parameters_.frequency != 0) {
-                iter_++;
-                return false;
-            }
-            if (iter_ > 0 && iter_ < parameters_.openfoam_minIter) {
-                iter_++;
+            if (*(parameters_.iter) > 0 &&
+                *(parameters_.iter) < parameters_.openfoam_minIter) {
+                *(parameters_.iter) += 1;
                 return false;
             }
 
             const auto exec = this->get_executor();
-            if (iter_ == 0) {
-                norm1_ = vec::create(exec, gko::dim<2>{1, 1});
-                norm1_host_ =
-                    vec::create(exec->get_master(), gko::dim<2>{1, 1});
+
+            if (*(parameters_.iter) % parameters_.frequency != 0) {
+                *(parameters_.iter) += 1;
+                return false;
             }
+
             auto *dense_r = gko::as<vec>(updater.residual_);
-
-            dense_r->compute_norm1(norm1_.get());
-
-            norm1_host_->copy_from(norm1_.get());
-
-            scalar residual_norm = norm1_host_->at(0);
+            auto norm1 = vec::create(exec, gko::dim<2>{1, 1});
+            dense_r->compute_norm1(norm1.get());
+            auto norm1_host =
+                vec::create(exec->get_master(), gko::dim<2>{1, 1});
+            norm1_host->copy_from(norm1.get());
+            scalar residual_norm = norm1_host->at(0);
 
             bool result = false;
+
             // Store initial residual
-            if (iter_ == 0) {
-                norm_factor_ =
-                    compute_normfactor(exec, dense_r, parameters_.gkomatrix,
-                                       parameters_.x, parameters_.b);
+            if (*(parameters_.iter) == 0) {
+                //
+                if (eval_norm_factor_) {
+                    norm_factor_ =
+                        compute_normfactor(exec, dense_r, parameters_.gkomatrix,
+                                           parameters_.x, parameters_.b);
+                }
 
                 *(parameters_.init_residual_norm) =
                     residual_norm / norm_factor_;
@@ -209,19 +211,18 @@ class StoppingCriterion {
             scalar init_residual = *(parameters_.init_residual_norm);
 
             // stop if maximum number of iterations was reached
-            if (iter_ == parameters_.openfoam_maxIter) {
+            if (*(parameters_.iter) == parameters_.openfoam_maxIter) {
                 result = true;
-            } else if (iter_ > parameters_.openfoam_minIter) {
-                // check if absolute tolerance is hit
-                if (residual_norm < parameters_.openfoam_absolute_tolerance) {
-                    result = true;
-                }
-                // check if relative tolerance is hit
-                if (parameters_.openfoam_relative_tolerance > 0 &&
-                    residual_norm < parameters_.openfoam_relative_tolerance *
-                                        init_residual) {
-                    result = true;
-                }
+            }
+            // check if absolute tolerance is hit
+            if (residual_norm < parameters_.openfoam_absolute_tolerance) {
+                result = true;
+            }
+            // check if relative tolerance is hit
+            if (parameters_.openfoam_relative_tolerance > 0 &&
+                residual_norm <
+                    parameters_.openfoam_relative_tolerance * init_residual) {
+                result = true;
             }
 
             if (result) {
@@ -229,7 +230,7 @@ class StoppingCriterion {
                 *one_changed = true;
             }
 
-            iter_++;
+            *(parameters_.iter) += 1;
             return result;
         }
 
@@ -248,13 +249,16 @@ class StoppingCriterion {
               parameters_{factory->get_parameters()}
         {}
 
-        mutable std::shared_ptr<vec> norm1_{};
-
-        mutable std::shared_ptr<vec> norm1_host_{};
+        void set_eval_norm_factor(bool eval_norm_factor)
+        {
+            eval_norm_factor_ = eval_norm_factor;
+        }
 
         mutable bool first_iter_ = true;
 
-        mutable scalar norm_factor_ = 0;
+        mutable scalar norm_factor_ = 1;
+
+        mutable bool eval_norm_factor_ = true;
     };
 
     mutable label maxIter_;
@@ -275,6 +279,8 @@ class StoppingCriterion {
 
     mutable scalar normalised_res_norm_;
 
+    mutable label iter_;
+
 public:
     StoppingCriterion(const dictionary &controlDict)
         : maxIter_(controlDict.lookupOrDefault("maxIter", label(1000))),
@@ -287,7 +293,8 @@ public:
           adapt_minIter_(
               controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           init_normalised_res_norm_(0),
-          normalised_res_norm_(0)
+          normalised_res_norm_(0),
+          iter_(0)
     {
         if (word(controlDict.lookup("solver")) == "GKOBiCGStab") maxIter_ *= 2;
     }
@@ -303,6 +310,7 @@ public:
             minIter = prev_solve_iters * relaxationFactor_;
             frequency = max(1, minIter / 20);
         }
+        Info << "frequency " << frequency << " minIter " << minIter << endl;
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
@@ -311,6 +319,7 @@ public:
             .with_frequency(frequency)
             .with_init_residual_norm(&init_normalised_res_norm_)
             .with_residual_norm(&normalised_res_norm_)
+            .with_iter(&iter_)
             .with_gkomatrix(gkomatrix)
             .with_x(x)
             .with_b(b)
@@ -320,6 +329,8 @@ public:
     scalar get_init_res_norm() const { return init_normalised_res_norm_; }
 
     scalar get_res_norm() const { return normalised_res_norm_; }
+
+    label get_num_iters() const { return iter_; }
 };
 }  // namespace Foam
 
