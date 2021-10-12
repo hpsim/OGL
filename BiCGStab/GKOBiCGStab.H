@@ -65,8 +65,7 @@ public:
               solverControls.lookupOrDefault("preconditioner", word("none"))),
           stoppingCriterion_(solverControls){};
 
-    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
-                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
+    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                   std::shared_ptr<vec> b, const bool verbose,
@@ -81,8 +80,7 @@ public:
         return create_default(exec);
     };
 
-    std::unique_ptr<gko::solver::Bicgstab<double>::Factory,
-                    std::default_delete<gko::solver::Bicgstab<double>::Factory>>
+    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
         auto bicgstab = gko::solver::Bicgstab<scalar>::build()
@@ -95,7 +93,7 @@ public:
     create_precond(std::shared_ptr<gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
-        auto bicgstab = gko::solver::Bicgstab<scalar>::build()
+        auto bicgstab = bicgstab::build()
                             .with_criteria(stoppingCriterionVec_)
                             .with_generated_preconditioner(precond)
                             .on(exec);
