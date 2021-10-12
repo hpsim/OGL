@@ -29,6 +29,7 @@ SourceFiles
 #define OGL_IOGKOMultigrid_INCLUDED_H
 
 #include "../BaseWrapper/lduBase/GKOlduBase.H"
+#include "../common/StoppingCriterion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -36,9 +37,28 @@ namespace Foam {
 
 class GKOMultigridFactory {
 private:
-    // executor where Ginkgo will perform the computation
-    //
+    using fcg = gko::solver::Fcg<scalar>;
+    using cg = gko::solver::Cg<scalar>;
+    using ir = gko::solver::Ir<scalar>;
+    using mg = gko::solver::Multigrid;
+    using bj = gko::preconditioner::Jacobi<scalar, label>;
+    using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+
+    const dictionary &solverControls_;
+
+    const dictionary &innerSolverControls_;
+
+    const objectRegistry &db_;
+
+    const word sysMatrixName_;
+
+    const StoppingCriterion outerStoppingCriterion_;
+
+    const StoppingCriterion innerStoppingCriterion_;
+
     const word smoother_solver_;
+
+    const scalar inner_relaxation_factor_;
 
     const scalar smoother_relaxation_factor_;
 
@@ -48,29 +68,47 @@ private:
 
     const label min_coarse_rows_;
 
+    mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        outerStoppingCriterionVec_ = {};
+
+    mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        innerStoppingCriterionVec_ = {};
+
 public:
-    GKOMultigridFactory(const dictionary &dictionary)
-        : smoother_solver_(
-              dictionary.lookupOrDefault("smootherSolver", word("CG"))),
-          smoother_relaxation_factor_(dictionary.lookupOrDefault(
+    GKOMultigridFactory(const dictionary &solverControls,
+                        const objectRegistry &db, word sysMatrixName)
+        : solverControls_(solverControls),
+          innerSolverControls_(solverControls.subDict("inner")),
+          db_(db),
+          sysMatrixName_(sysMatrixName),
+          outerStoppingCriterion_(solverControls),
+          innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)),
+          smoother_solver_(innerSolverControls_.lookupOrDefault(
+              "smootherSolver", word("CG"))),
+          inner_relaxation_factor_(innerSolverControls_.lookupOrDefault(
+              "innerRelaxationFactor", scalar(0.9))),
+          smoother_relaxation_factor_(innerSolverControls_.lookupOrDefault(
               "smootherRelaxationFactor", scalar(0.9))),
-          smoother_max_iters_(
-              dictionary.lookupOrDefault("smootherMaxIters", label(2))),
-          max_levels_(dictionary.lookupOrDefault("maxLevels", label(9))),
-          min_coarse_rows_(
-              dictionary.lookupOrDefault("minCoarseRows", label(10))){};
+          smoother_max_iters_(innerSolverControls_.lookupOrDefault(
+              "smootherMaxIters", label(2))),
+          max_levels_(
+              innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
+          min_coarse_rows_(innerSolverControls_.lookupOrDefault("minCoarseRows",
+                                                                label(10))){};
 
     // Create solver
-    std::unique_ptr<gko::solver::Ir<double>::Factory,
-                    std::default_delete<gko::solver::Ir<double>::Factory>>
-    create_solver(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::LinOp> precond) const
+    std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
+    create_solver(std::shared_ptr<gko::Executor> exec,
+                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<gko::LinOp> precond) const
     {
+        outerStoppingCriterionVec_.push_back(
+            outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
+                                                             b, verbose, 0));
         auto inner_solver_gen =
             gko::share(bj::build().with_max_block_size(1u).on(exec));
+
         auto smoother_gen = gko::share(
             ir::build()
                 .with_solver(inner_solver_gen)
@@ -91,17 +129,40 @@ public:
                 .on(exec));
 
         // Create multigrid factory
-        return mg::build()
-            .with_max_levels(max_levels_)
-            .with_min_coarse_rows(min_coarse_rows_)
-            .with_pre_smoother(smoother_gen)
-            .with_post_uses_pre(true)
-            .with_mg_level(gko::share(mg_level_gen))
-            .with_coarsest_solver(coarsest_gen)
-            .with_zero_guess(true)
-            .with_criteria(
-                gko::stop::Iteration::build().with_max_iters(1u).on(exec));
+        auto ret = mg::build()
+                       .with_max_levels(max_levels_)
+                       .with_min_coarse_rows(min_coarse_rows_)
+                       .with_pre_smoother(smoother_gen)
+                       .with_post_uses_pre(true)
+                       .with_mg_level(gko::share(mg_level_gen))
+                       .with_coarsest_solver(coarsest_gen)
+                       .with_zero_guess(true)
+                       .with_criteria(outerStoppingCriterionVec_)
+                       .on(exec);
+
+        return ret;
     };
+
+    scalar get_init_res_norm() const
+    {
+        return outerStoppingCriterion_.get_init_res_norm();
+    }
+
+    scalar get_res_norm() const
+    {
+        return outerStoppingCriterion_.get_res_norm();
+    }
+
+    void store_number_of_iterations() const
+    {
+        set_solve_prev_iters(sysMatrixName_, db_,
+                             innerStoppingCriterion_.get_num_iters());
+    }
+
+    label get_number_of_iterations() const
+    {
+        return outerStoppingCriterion_.get_num_iters();
+    }
 };
 
 /*---------------------------------------------------------------------------*\

@@ -45,12 +45,14 @@ Currently, the following solver are supported
 
 * CG
 * BiCGStab
-* IR
+* IR (experimental)
+* Multigrid (experimental)
 
 additionally, the following preconditioner are availible
 
 * BJ, block Jacobi
-* ILU, incomplete LU
+* ILU, incomplete LU (experimental)
+* IC, incomplete Cholesky (experimental)
 
 The following optional solver arguments are supported
 
