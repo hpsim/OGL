@@ -111,6 +111,7 @@ BaseWrapper/LduBase/GKOLduBase.C
 CG/GKOCG.C
 BiCGStab/GKOBiCGStab.C
 IR/GKOIR.C
+Multigrid/GKOMultigrid.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
 common/common.H
@@ -124,6 +125,7 @@ BaseWrapper/lduBase/GKOlduBase.H
 BaseWrapper/LduBase/GKOLduBase.H
 CG/GKOCG.H
 IR/GKOIR.H
+Multigrid/GKOMultigrid.H
 BiCGStab/GKOBiCGStab.H
 LduMatrix/GKOACG/GKOACG.H
   )

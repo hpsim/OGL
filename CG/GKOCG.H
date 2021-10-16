@@ -37,51 +37,85 @@ namespace Foam {
 class GKOCGFactory {
 private:
     using cg = gko::solver::Cg<scalar>;
-    // executor where Ginkgo will perform the computation
+
+    const dictionary &solverControls_;
+
+    const objectRegistry &db_;
+
+    const word sysMatrixName_;
 
     const word preconditioner_;
 
-    const label blockSize_;
+    const StoppingCriterion stoppingCriterion_;
+
+    mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        stoppingCriterionVec_;
 
 public:
-    GKOCGFactory(const dictionary &dictionary_)
-        : preconditioner_(
-              dictionary_.lookupOrDefault("preconditioner", word("none"))),
-          blockSize_(dictionary_.lookupOrDefault("maxBlockSize", label(16))){};
+    GKOCGFactory(const dictionary &solverControls, const objectRegistry &db,
+                 word sysMatrixName)
+        : solverControls_(solverControls),
+          db_(db),
+          sysMatrixName_(sysMatrixName),
+          preconditioner_(
+              solverControls.lookupOrDefault("preconditioner", word("none"))),
+          stoppingCriterion_(solverControls){};
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_solver(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::LinOp> precond) const
+    create_solver(std::shared_ptr<gko::Executor> exec,
+                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
+                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<gko::LinOp> precond) const
     {
-        if (precond != NULL)
-            return create_precond(exec, criterion_vec, precond);
-        return create_default(exec, criterion_vec);
+        stoppingCriterionVec_.push_back(
+            stoppingCriterion_.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose,
+                get_prev_number_of_iterations()));
+
+        if (precond != NULL) return create_precond(exec, precond);
+        return create_default(exec);
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_default(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec) const
+    create_default(std::shared_ptr<gko::Executor> exec) const
     {
-        return cg::build().with_criteria(criterion_vec).on(exec);
+        auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
+        return cg;
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_precond(
-        std::shared_ptr<gko::Executor> exec,
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec,
-        std::shared_ptr<gko::LinOp> precond) const
+    create_precond(std::shared_ptr<gko::Executor> exec,
+                   std::shared_ptr<gko::LinOp> precond) const
     {
-        return cg::build()
-            .with_criteria(criterion_vec)
-            .with_generated_preconditioner(precond)
-            .on(exec);
+        auto cg = cg::build()
+                      .with_criteria(stoppingCriterionVec_)
+                      .with_generated_preconditioner(precond)
+                      .on(exec);
+        return cg;
     };
+
+    scalar get_init_res_norm() const
+    {
+        return stoppingCriterion_.get_init_res_norm();
+    }
+
+    scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
+
+    void store_number_of_iterations() const
+    {
+        set_solve_prev_iters(sysMatrixName_, db_,
+                             stoppingCriterion_.get_num_iters());
+    }
+
+    label get_prev_number_of_iterations() const
+    {
+        return get_solve_prev_iters(sysMatrixName_, db_);
+    }
+
+    label get_number_of_iterations() const
+    {
+        return stoppingCriterion_.get_num_iters();
+    }
 };
 
 /*---------------------------------------------------------------------------*\

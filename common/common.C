@@ -52,4 +52,31 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     gko::write(stream_x, x);
 };
 
+void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
+                          label prev_solve_iters)
+{
+    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        const_cast<objectRegistry &>(db)
+            .lookupObjectRef<IOdictionary>(solvPropsDict)
+            .set<label>("prev_solve_iters", prev_solve_iters);
+    } else {
+        auto gkoSolverProperties =
+            new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
+                                      IOobject::NO_READ, IOobject::NO_WRITE));
+        gkoSolverProperties->add("prev_solve_iters", prev_solve_iters, true);
+    }
+}
+
+label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
+{
+    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        label pre_solve_iters =
+            db.lookupObject<IOdictionary>(solvPropsDict)
+                .lookupOrDefault<label>("prev_solve_iters", 0);
+        return pre_solve_iters;
+    }
+    return 0;
+}
 }  // namespace Foam
