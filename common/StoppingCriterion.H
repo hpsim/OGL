@@ -87,15 +87,13 @@ class StoppingCriterion {
                            std::shared_ptr<vec> x,
                            std::shared_ptr<vec> res) const
         {
-            auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {0.0}, device_exec);
-
             const label nCells{x->get_size()[0]};
 
             val_array x_array{
                 val_array::view(device_exec, nCells, x->get_values())};
 
-            ::gko::reduce(x_array, xAvg->get_values());
+            auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
+                1, {::gko::reduce_add(x_array)}, device_exec);
 
             auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {scalar(nCells)}, device_exec);
