@@ -68,6 +68,9 @@ class StoppingCriterion {
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
 
+            std::add_pointer<std::vector<scalar>>::type
+                GKO_FACTORY_PARAMETER_SCALAR(residual_norms, NULL);
+
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 init_residual_norm, NULL);
 
@@ -211,7 +214,7 @@ class StoppingCriterion {
             residual_norm /= norm_factor_;
 
             if (parameters_.export_res) {
-                res_norms_.push_back(residual_norm);
+                *(parameters_.residual_norms).push_back(residual_norm);
             }
 
             *(parameters_.residual_norm) = residual_norm;
@@ -236,22 +239,6 @@ class StoppingCriterion {
             if (result) {
                 this->set_all_statuses(stoppingId, setFinalized, stop_status);
                 *one_changed = true;
-
-                // write residual norms
-                // TODO store residuals vector and write getter
-                if (parameters_.export_res) {
-                    std::unique_ptr<val_array> norms_array{new val_array{
-                        exec, res_norms_.begin(), res_norms_.end()}};
-
-                    auto res_norms = gko::share(vec::create(
-                        exec->get_master(), gko::dim<2>(res_norms_.size(), 1),
-                        norms_array->as_view(), 1));
-
-                    std::string fn_x{"export/p_res_norms.mtx"};
-                    std::ofstream stream_x{fn_x};
-                    std::cerr << "Writing " << fn_x << std::endl;
-                    gko::write(stream_x, res_norms.get());
-                }
             }
 
             *(parameters_.iter) += 1;
@@ -307,6 +294,8 @@ class StoppingCriterion {
 
     mutable label iter_;
 
+    mutable std::vector<scalar> normalised_res_norms_{};
+
 public:
     StoppingCriterion(const dictionary &controlDict)
         : maxIter_(controlDict.lookupOrDefault("maxIter", label(1000))),
@@ -350,6 +339,7 @@ public:
             .with_verbose(verbose)
             .with_export_res(export_res)
             .with_init_residual_norm(&init_normalised_res_norm_)
+            .with_init_residual_norms(&init_normalised_res_norms_)
             .with_residual_norm(&normalised_res_norm_)
             .with_iter(&iter_)
             .with_gkomatrix(gkomatrix)
@@ -361,6 +351,23 @@ public:
     scalar get_init_res_norm() const { return init_normalised_res_norm_; }
 
     scalar get_res_norm() const { return normalised_res_norm_; }
+
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        std::unique_ptr<val_array> norms_array{new val_array{
+            exec, normalised_res_norms_.begin(), normalised_res_norms_.end()}};
+
+        auto res_norms = gko::share(
+            vec::create(exec->get_master(), gko::dim<2>(res_norms_.size(), 1),
+                        norms_array->as_view(), 1));
+
+        std::string fn_x{"export/p_res_norms.mtx"};
+        std::ofstream stream_x{fn_x};
+        std::cerr << "Writing " << fn_x << std::endl;
+        gko::write(stream_x, res_norms.get());
+
+        return {}
+    }
 
     label get_num_iters() const { return iter_; }
 };
