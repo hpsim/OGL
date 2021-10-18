@@ -230,6 +230,11 @@ public:
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
+        if (get_export())
+            export_system(this->fieldName(), gko::lend(gkomatrix),
+                          gko::lend(x[0]), gko::lend(b),
+                          this->matrix().mesh().thisDb().time().timeName());
+
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
@@ -241,11 +246,6 @@ public:
         auto solver_gen =
             this->create_solver(device_exec, gkomatrix, x[0], b, verbose_,
                                 this->get_preconditioner());
-
-        if (get_export())
-            export_system(this->fieldName(), gko::lend(gkomatrix),
-                          gko::lend(x[0]), gko::lend(b),
-                          this->matrix().mesh().thisDb().time().timeName());
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
