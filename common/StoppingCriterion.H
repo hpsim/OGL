@@ -29,10 +29,12 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "common.H"
+#include "../common/common.H"
+
 #include "fvCFD.H"
 
 namespace Foam {
+
 
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
@@ -72,7 +74,9 @@ class StoppingCriterion {
             bool GKO_FACTORY_PARAMETER(verbose, true);
 
             std::shared_ptr<mtx> GKO_FACTORY_PARAMETER(gkomatrix, {});
+
             std::shared_ptr<vec> GKO_FACTORY_PARAMETER(x, {});
+
             std::shared_ptr<vec> GKO_FACTORY_PARAMETER(b, {});
         };
 
@@ -206,6 +210,8 @@ class StoppingCriterion {
 
             residual_norm /= norm_factor_;
 
+            res_norms_.push_back(residual_norm);
+
             *(parameters_.residual_norm) = residual_norm;
 
             scalar init_residual = *(parameters_.init_residual_norm);
@@ -228,6 +234,15 @@ class StoppingCriterion {
             if (result) {
                 this->set_all_statuses(stoppingId, setFinalized, stop_status);
                 *one_changed = true;
+
+                // write residual norms
+                val_array norms_array{val_array::view(exec, res_norms_.size(),
+                                                      res_norms_.begin())};
+                auto res_norms = vec::create(exec->get_master(), norms_array);
+                std::string fn_x{"p_res_norms.mtx"};
+                std::ofstream stream_x{fn_x};
+                std::cerr << "Writing " << fn_x << std::endl;
+                gko::write(stream_x, res_norms.get());
             }
 
             *(parameters_.iter) += 1;
@@ -259,6 +274,8 @@ class StoppingCriterion {
         mutable scalar norm_factor_ = 1;
 
         mutable bool eval_norm_factor_ = true;
+
+        mutable std::vector<scalar> res_norms_{};
     };
 
     mutable label maxIter_;

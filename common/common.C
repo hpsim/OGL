@@ -52,6 +52,16 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     gko::write(stream_x, x);
 };
 
+
+// void export_residuals(const word fieldName, const vec *res_norms,
+//                       const word time)
+// {
+//     std::string fn_x{time + "_" + fieldName + "_res_norms.mtx"};
+//     std::ofstream stream_x{fn_x};
+//     std::cerr << "Writing " << fn_x << std::endl;
+//     gko::write(stream_x, res_norms);
+// };
+
 void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
                           label prev_solve_iters)
 {
