@@ -234,8 +234,10 @@ class StoppingCriterion {
                 *one_changed = true;
 
                 // write residual norms
-                val_array norms_array{val_array::view(exec, res_norms_.size(),
-                                                      res_norms_.begin())};
+
+                std::unique_ptr<val_array> norms_array{
+                    new val_array{exec, res_norms_.begin(), res_norms_.end()}};
+
                 auto res_norms = vec::create(exec->get_master(), norms_array);
                 std::string fn_x{"p_res_norms.mtx"};
                 std::ofstream stream_x{fn_x};
