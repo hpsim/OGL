@@ -260,10 +260,14 @@ public:
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
 
-        if (get_export())
-            export_system(this->fieldName(), this->get_residual_norms(),
-                          gko::lend(b),
-                          this->matrix().mesh().thisDb().time().timeName());
+        if (get_export()) {
+            this->get_residual_norms();
+        }
+        // export_system(
+        //     device_exec,
+        //     this->fieldName(), this->get_residual_norms(),
+        //               gko::lend(b),
+        //               this->matrix().mesh().thisDb().time().timeName());
 
         return solverPerf;
     };
