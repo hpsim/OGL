@@ -29,13 +29,13 @@ SourceFiles
 #define OGL_lduLduBase_INCLUDED_H
 
 namespace Foam {
+#include "../common/common.H"
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
-#include "../common/common.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
@@ -245,7 +245,7 @@ public:
         // Instantiate an iteration logger.
         auto solver_gen =
             this->create_solver(device_exec, gkomatrix, x[0], b, verbose_,
-                                this->get_preconditioner());
+                                this->get_export(), this->get_preconditioner());
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 

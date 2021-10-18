@@ -29,7 +29,7 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "../common/common.H"
+#include "common.H"
 
 #include "fvCFD.H"
 
@@ -71,7 +71,9 @@ class StoppingCriterion {
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 init_residual_norm, NULL);
 
-            bool GKO_FACTORY_PARAMETER(verbose, true);
+            bool GKO_FACTORY_PARAMETER(verbose, false);
+
+            bool GKO_FACTORY_PARAMETER(export_res, false);
 
             std::shared_ptr<mtx> GKO_FACTORY_PARAMETER(gkomatrix, {});
 
@@ -208,7 +210,9 @@ class StoppingCriterion {
 
             residual_norm /= norm_factor_;
 
-            res_norms_.push_back(residual_norm);
+            if (parameters_.export_res) {
+                res_norms_.push_back(residual_norm);
+            }
 
             *(parameters_.residual_norm) = residual_norm;
 
@@ -234,15 +238,20 @@ class StoppingCriterion {
                 *one_changed = true;
 
                 // write residual norms
+                // TODO store residuals vector and write getter
+                if (parameters_.export_res) {
+                    std::unique_ptr<val_array> norms_array{new val_array{
+                        exec, res_norms_.begin(), res_norms_.end()}};
 
-                std::unique_ptr<val_array> norms_array{
-                    new val_array{exec, res_norms_.begin(), res_norms_.end()}};
+                    auto res_norms = gko::share(vec::create(
+                        exec->get_master(), gko::dim<2>(res_norms_.size(), 1),
+                        norms_array->as_view(), 1));
 
-                auto res_norms = vec::create(exec->get_master(), norms_array);
-                std::string fn_x{"p_res_norms.mtx"};
-                std::ofstream stream_x{fn_x};
-                std::cerr << "Writing " << fn_x << std::endl;
-                gko::write(stream_x, res_norms.get());
+                    std::string fn_x{"export/p_res_norms.mtx"};
+                    std::ofstream stream_x{fn_x};
+                    std::cerr << "Writing " << fn_x << std::endl;
+                    gko::write(stream_x, res_norms.get());
+                }
             }
 
             *(parameters_.iter) += 1;
@@ -319,7 +328,8 @@ public:
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
         std::shared_ptr<gko::Executor> device_exec,
         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b, bool verbose, label prev_solve_iters) const
+        std::shared_ptr<vec> b, bool verbose, bool export_res,
+        label prev_solve_iters) const
     {
         label minIter = minIter_;
         label frequency = frequency_;
@@ -327,13 +337,18 @@ public:
             minIter = prev_solve_iters * relaxationFactor_;
             frequency = max(1, minIter / 20);
         }
-        Info << "frequency " << frequency << " minIter " << minIter << endl;
+        // SIMPLE_LOG(verbose,
+        //            "frequency " + word(frequency) + " minIter " +
+        //            word(minIter))
+
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
             .with_openfoam_minIter(minIter)
             .with_openfoam_maxIter(maxIter_)
             .with_frequency(frequency)
+            .with_verbose(verbose)
+            .with_export_res(export_res)
             .with_init_residual_norm(&init_normalised_res_norm_)
             .with_residual_norm(&normalised_res_norm_)
             .with_iter(&iter_)

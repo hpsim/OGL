@@ -37,6 +37,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+namespace Foam {
+
 #define SIMPLE_LOG(VERBOSE, MSG)                       \
     if (VERBOSE) {                                     \
         std::cout << "[OGL LOG] " << MSG << std::endl; \
@@ -53,8 +55,6 @@ SourceFiles
                   << " mu s\n";                                             \
     }
 
-
-namespace Foam {
 
 template <class MatrixType>
 class HostMatrix : public MatrixType::solver {
@@ -209,7 +209,6 @@ struct IterationLogger : gko::log::Logger {
         const gko::Array<gko::stopping_status> *status, const bool &one_changed,
         const bool &all_converged) const override
     {
-        Info << "on complete" << endl;
         if (one_changed) {
             this->total_iters += num_iters;
         }

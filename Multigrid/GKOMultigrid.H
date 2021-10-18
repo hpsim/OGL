@@ -109,11 +109,13 @@ public:
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                   std::shared_ptr<vec> b, const bool verbose,
+                  const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
     {
         outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
-                                                             b, verbose, 0));
+            outerStoppingCriterion_.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, export_res, 0));
+
         auto inner_solver_gen =
             gko::share(bj::build()
                            .with_skip_sorting(true)
