@@ -184,6 +184,9 @@ public:
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time);
 
+// void export_residuals(const word fieldName, const vec *residual_norms,
+//                       const word time);
+
 
 // Logs the number of
 // iteration executed
