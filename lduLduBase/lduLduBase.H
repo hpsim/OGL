@@ -230,10 +230,11 @@ public:
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
+        const word timeName = this->matrix().mesh().thisDb().time().timeName();
+
         if (get_export())
             export_system(this->fieldName(), gko::lend(gkomatrix),
-                          gko::lend(x[0]), gko::lend(b),
-                          this->matrix().mesh().thisDb().time().timeName());
+                          gko::lend(x[0]), gko::lend(b), timeName);
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -261,13 +262,9 @@ public:
         this->store_number_of_iterations();
 
         if (get_export()) {
-            this->get_residual_norms();
+            export_vec(this->fieldName() + "_residuals",
+                       gko::lend(this->get_res_norms()), timeName);
         }
-        // export_system(
-        //     device_exec,
-        //     this->fieldName(), this->get_residual_norms(),
-        //               gko::lend(b),
-        //               this->matrix().mesh().thisDb().time().timeName());
 
         return solverPerf;
     };

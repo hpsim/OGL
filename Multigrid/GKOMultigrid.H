@@ -170,6 +170,11 @@ public:
         return outerStoppingCriterion_.get_res_norm();
     }
 
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        return outerStoppingCriterion_.get_res_norms();
+    }
+
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,

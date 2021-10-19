@@ -47,6 +47,12 @@ void export_x(const std::string fn, const mtx *A)
     gko::write(stream, A, gko::layout_type::coordinate);
 };
 
+void export_vec(const word fieldName, const vec *x, const word time)
+{
+    system("mkdir -p export/" + time);
+    std::string fn_mtx{"export/" + time + "/" + fieldName + ".mtx"};
+    export_x(fn_mtx, x);
+};
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time)
