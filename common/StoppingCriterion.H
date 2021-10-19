@@ -327,9 +327,11 @@ public:
     {
         label minIter = minIter_;
         label frequency = frequency_;
-        if (prev_solve_iters > 0 && adapt_minIter_) {
-            minIter = prev_solve_iters * relaxationFactor_;
-            frequency = max(1, minIter / 20);
+        if (!export_res) {
+            if (prev_solve_iters > 0 && adapt_minIter_) {
+                minIter = prev_solve_iters * relaxationFactor_;
+                frequency = max(1, minIter / 20);
+            }
         }
         // SIMPLE_LOG(verbose,
         //            "frequency " + word(frequency) + " minIter " +
