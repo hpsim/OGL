@@ -29,13 +29,13 @@ SourceFiles
 #define OGL_lduLduBase_INCLUDED_H
 
 namespace Foam {
+#include "../common/common.H"
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
-#include "../common/common.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
@@ -230,6 +230,12 @@ public:
         // Generate solver
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
+        const word timeName = this->matrix().mesh().thisDb().time().timeName();
+
+        if (get_export())
+            export_system(this->fieldName(), gko::lend(gkomatrix),
+                          gko::lend(x[0]), gko::lend(b), timeName);
+
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
@@ -240,12 +246,7 @@ public:
         // Instantiate an iteration logger.
         auto solver_gen =
             this->create_solver(device_exec, gkomatrix, x[0], b, verbose_,
-                                this->get_preconditioner());
-
-        if (get_export())
-            export_system(this->fieldName(), gko::lend(gkomatrix),
-                          gko::lend(x[0]), gko::lend(b),
-                          this->matrix().mesh().thisDb().time().timeName());
+                                this->get_export(), this->get_preconditioner());
 
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
@@ -259,6 +260,11 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
+
+        if (get_export()) {
+            export_vec(this->fieldName() + "_residuals",
+                       gko::lend(this->get_res_norms()), timeName);
+        }
 
         return solverPerf;
     };

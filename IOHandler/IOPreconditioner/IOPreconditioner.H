@@ -82,27 +82,37 @@ public:
         }
         if (name_ == "ILU") {
             auto factorizaton_factory =
-                gko::factorization::Ilu<scalar, label>::build().on(device_exec);
+                gko::factorization::Ilu<scalar, label>::build()
+                    .with_skip_sorting(true)
+                    .on(device_exec);
 
-            auto par_ilu = gko::share(factorizaton_factory->generate(gkomatrix));
+            auto par_ilu =
+                gko::share(factorizaton_factory->generate(gkomatrix));
 
             auto ilu_pre_factory =
                 gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
-                gko::solver::UpperTrs<scalar, label>,
-                false>::build()
+                                         gko::solver::UpperTrs<scalar, label>,
+                                         false>::build()
                     .on(device_exec);
 
             // Use incomplete factors to generate ILU preconditioner auto
-            auto pre_generated = gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
+            auto pre_generated =
+                gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
 
             io_precond_ptr_ =
                 new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
         if (name_ == "IC") {
+            auto factorizaton_factory =
+                gko::factorization::Ic<scalar, label>::build()
+                    .with_skip_sorting(true)
+                    .on(device_exec);
+
+            auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
             auto pre_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
 
-            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            auto pre_generated = gko::share(pre_factory->generate(ic));
             io_precond_ptr_ =
                 new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }

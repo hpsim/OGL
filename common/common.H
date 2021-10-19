@@ -37,6 +37,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+namespace Foam {
+
 #define SIMPLE_LOG(VERBOSE, MSG)                       \
     if (VERBOSE) {                                     \
         std::cout << "[OGL LOG] " << MSG << std::endl; \
@@ -53,8 +55,6 @@ SourceFiles
                   << " mu s\n";                                             \
     }
 
-
-namespace Foam {
 
 template <class MatrixType>
 class HostMatrix : public MatrixType::solver {
@@ -184,51 +184,7 @@ public:
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time);
 
-
-// Logs the number of
-// iteration executed
-//
-struct IterationLogger : gko::log::Logger {
-    void on_iteration_complete(const gko::LinOp *,
-                               const gko::size_type &num_iterations,
-                               const gko::LinOp *residual,
-                               const gko::LinOp *res_norm,
-                               const gko::LinOp *) const override
-    {
-        this->num_iters++;
-    }
-
-    void on_criterion_check_completed(
-        const gko::stop::Criterion *criterion, const gko::size_type &it,
-        const gko::LinOp *r, const gko::LinOp *tau,
-        const gko::LinOp *implicit_tau_sq, const gko::LinOp *x,
-        const gko::uint8 &stopping_id, const bool &set_finalized,
-        const gko::Array<gko::stopping_status> *status, const bool &one_changed,
-        const bool &all_converged) const override
-    {
-        Info << "on complete" << endl;
-        if (one_changed) {
-            this->total_iters += num_iters;
-        }
-    }
-
-    IterationLogger(std::shared_ptr<const gko::Executor> exec)
-        : gko::log::Logger(exec, gko::log::Logger::iteration_complete_mask),
-          exec(exec),
-          num_iters(0),
-          total_iters(0)
-    {}
-
-    gko::size_type get_iters() { return num_iters; }
-
-    gko::size_type get_outer_iters() { return num_iters; }
-
-private:
-    std::shared_ptr<const gko::Executor> exec;
-    mutable gko::size_type num_iters;
-    mutable gko::size_type total_iters;
-};
-
+void export_vec(const word fieldName, const vec *x, const word time);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters);

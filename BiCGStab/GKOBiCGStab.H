@@ -69,11 +69,12 @@ public:
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                   std::shared_ptr<vec> b, const bool verbose,
+                  const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
     {
         stoppingCriterionVec_.push_back(
             stoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose,
+                exec, gkomatrix, x, b, verbose, export_res,
                 get_prev_number_of_iterations()));
 
         if (precond != NULL) return create_precond(exec, precond);
@@ -106,6 +107,11 @@ public:
     }
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
+
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        return stoppingCriterion_.get_res_norms();
+    }
 
     void store_number_of_iterations() const
     {
