@@ -134,7 +134,7 @@ public:
             using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
 
             auto inner_solver_gen =
-                gko::share(bj::build().with_max_block_size(1u).on(exec));
+                gko::share(bj::build().with_max_block_size(1u).on(device_exec));
 
             auto smoother_gen = gko::share(
                 ir::build()
@@ -142,12 +142,12 @@ public:
                     .with_relaxation_factor(0.9)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(2u).on(
-                            exec))
-                    .on(exec));
+                            device_exec))
+                    .on(device_exec));
 
             // Create MultigridLevel factory
             auto mg_level_gen =
-                amgx_pgm::build().with_deterministic(true).on(exec);
+                amgx_pgm::build().with_deterministic(true).on(device_exec);
 
             // Create CoarsestSolver factory
             auto coarsest_gen = gko::share(
@@ -156,8 +156,8 @@ public:
                     .with_relaxation_factor(0.9)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(4u).on(
-                            exec))
-                    .on(exec));
+                            device_exec))
+                    .on(device_exec));
 
             // Create multigrid factory
             auto pre_factory =
@@ -171,8 +171,8 @@ public:
                     .with_zero_guess(true)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
-                            exec))
-                    .on(exec);
+                            device_exec))
+                    .on(device_exec);
 
             auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
             io_precond_ptr_ =
