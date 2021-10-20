@@ -95,6 +95,50 @@ void IOGKOMatrixHandler::init_device_matrix(
     io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
 };
 
+void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
+                                            const objectRegistry &db,
+                                            const label nCells,
+                                            const word postFix) const
+{
+    std::shared_ptr<gko::Executor> device_exec = get_device_executor();
+
+    if (init_guess_vector_stored_ && !update_init_guess_vector_) {
+        io_init_guess_ptrs_.push_back(&db.lookupObjectRef<GKOVECIOPtr>(
+            init_guess_vector_name_ + postFix));
+        return;
+    }
+
+    auto psi_view = val_array::view(gko::ReferenceExecutor::create(), nCells,
+                                    const_cast<scalar *>(psi));
+
+    auto x = gko::share(
+        vec::create(device_exec, gko::dim<2>(nCells, 1), psi_view, 1));
+
+    const fileName path_init_guess = init_guess_vector_name_ + postFix;
+    io_init_guess_ptrs_.push_back(
+        new GKOVECIOPtr(IOobject(path_init_guess, db), x));
+}
+
+void IOGKOMatrixHandler::copy_result_back(const scalarField &psi,
+                                          const label nCells) const
+{
+    auto device_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
+
+    std::vector<std::shared_ptr<vec>> device_xs_ptr{};
+    get_initial_guess(device_xs_ptr);
+    device_x->copy_from(gko::lend(device_xs_ptr[0]));
+
+    auto x_view = val_array::view(ref_exec(), nCells, device_x->get_values());
+    // for (label i = 0; i < nCells; i++) {
+    //     std::cout << x_view[i] << std::endl;
+    // }
+
+    // move frome device
+    auto psi_view =
+        val_array::view(ref_exec(), nCells, const_cast<scalar *>(&psi[0]));
+
+    psi_view = x_view;
+}
 
 defineTemplateTypeNameWithName(GKOIDXIOPtr, "IDXIOPtr");
 defineTemplateTypeNameWithName(GKOCSRIOPtr, "CSRIOPtr");
