@@ -37,7 +37,6 @@ namespace Foam {
 
 class GKOMultigridFactory {
 private:
-    using fcg = gko::solver::Fcg<scalar>;
     using cg = gko::solver::Cg<scalar>;
     using ir = gko::solver::Ir<scalar>;
     using mg = gko::solver::Multigrid;
