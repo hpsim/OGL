@@ -127,6 +127,57 @@ public:
             io_precond_ptr_ =
                 new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
         }
+        if (name_ == "Multigrid") {
+            using ir = gko::solver::Ir<scalar>;
+            using mg = gko::solver::Multigrid;
+            using bj = gko::preconditioner::Jacobi<scalar, label>;
+            using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+
+            auto inner_solver_gen =
+                gko::share(bj::build().with_max_block_size(1u).on(device_exec));
+
+            auto smoother_gen = gko::share(
+                ir::build()
+                    .with_solver(inner_solver_gen)
+                    .with_relaxation_factor(0.9)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(2u).on(
+                            device_exec))
+                    .on(device_exec));
+
+            // Create MultigridLevel factory
+            auto mg_level_gen =
+                amgx_pgm::build().with_deterministic(true).on(device_exec);
+
+            // Create CoarsestSolver factory
+            auto coarsest_gen = gko::share(
+                ir::build()
+                    .with_solver(inner_solver_gen)
+                    .with_relaxation_factor(0.9)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(4u).on(
+                            device_exec))
+                    .on(device_exec));
+
+            // Create multigrid factory
+            auto pre_factory =
+                mg::build()
+                    .with_max_levels(9u)
+                    .with_min_coarse_rows(10u)
+                    .with_pre_smoother(smoother_gen)
+                    .with_post_uses_pre(true)
+                    .with_mg_level(gko::share(mg_level_gen))
+                    .with_coarsest_solver(coarsest_gen)
+                    .with_zero_guess(true)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(1u).on(
+                            device_exec))
+                    .on(device_exec);
+
+            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
+            io_precond_ptr_ =
+                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+        }
     };
 
     std::shared_ptr<gko::LinOp> get_preconditioner() const

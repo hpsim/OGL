@@ -53,6 +53,8 @@ additionally, the following preconditioner are availible
 * BJ, block Jacobi
 * ILU, incomplete LU (experimental)
 * IC, incomplete Cholesky (experimental)
+* ISAI (experimental)
+* Multigrid, algebraic multigrid (experimental)
 
 The following optional solver arguments are supported
 
