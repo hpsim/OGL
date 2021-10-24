@@ -138,7 +138,7 @@ public:
 
         init_device_matrix(this->matrix().mesh().thisDb(), this->values(),
                            this->col_idxs(), this->row_idxs(), this->nElems(),
-                           this->nCells(), !get_update_sys_matrix());
+                           this->nCells(), get_update_sys_matrix());
     }
 
 

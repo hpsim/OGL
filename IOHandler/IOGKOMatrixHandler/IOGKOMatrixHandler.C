@@ -26,6 +26,7 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 #include <ginkgo/ginkgo.hpp>
 #include "IOGKOMatrixHandler.H"
+#include "common.H"
 
 namespace Foam {
 
@@ -75,7 +76,9 @@ void IOGKOMatrixHandler::init_device_matrix(
     auto gkomatrix =
         gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
 
+    SIMPLE_TIME(verbose_, convert_coo_to_csr,
     coo_mtx->convert_to(gkomatrix.get());
+    )
 
 
     // if updating system matrix is not needed store ptr in obj registry
@@ -88,8 +91,7 @@ void IOGKOMatrixHandler::init_device_matrix(
         io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
         io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
     } else {
-        Info << "!!! matrix has been updated " << endl;
-        // TODO delet old pointer
+        SIMPLE_LOG(verbose_, "Matrix has been updated ");
         gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
     }
 };
