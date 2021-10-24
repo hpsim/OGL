@@ -32,11 +32,11 @@ namespace Foam {
 void IOGKOMatrixHandler::init_device_matrix(
     const objectRegistry &db, std::vector<scalar> &values_host,
     std::vector<label> &col_idxs_host, std::vector<label> &row_idxs_host,
-    const label nElems, const label nCells, const bool store) const
+    const label nElems, const label nCells, const bool update) const
 {
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
-    if (sys_matrix_stored_) {
+    if (sys_matrix_stored_ && !update) {
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
         return;
     }
@@ -79,20 +79,19 @@ void IOGKOMatrixHandler::init_device_matrix(
 
 
     // if updating system matrix is not needed store ptr in obj registry
-    if (store) {
-        const fileName path = sys_matrix_name_;
+    const fileName path = sys_matrix_name_;
+    if (!sys_matrix_stored_) {
         gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
+        // in any case store sparsity pattern
+        const fileName path_col = sparsity_pattern_name_cols_;
+        const fileName path_row = sparsity_pattern_name_rows_;
+        io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
+        io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
     } else {
-        gkomatrix_ptr_ = NULL;
-        gkomatrix_ = gkomatrix;
+        Info << "!!! matrix has been updated " << endl;
+        // TODO delet old pointer
+        gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
     }
-
-
-    // in any case store sparsity pattern
-    const fileName path_col = sparsity_pattern_name_cols_;
-    const fileName path_row = sparsity_pattern_name_rows_;
-    io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
-    io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
 };
 
 

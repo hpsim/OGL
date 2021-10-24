@@ -99,6 +99,11 @@ public:
 
     bool get_sys_matrix_stored() const { return sys_matrix_stored_; };
 
+    bool get_sparsity_pattern_stored() const
+    {
+        return sparsity_pattern_stored_;
+    };
+
     void init_device_matrix(const objectRegistry &db,
                             std::vector<scalar> &values_host,
                             std::vector<label> &col_idxs_host,

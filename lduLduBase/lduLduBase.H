@@ -94,8 +94,11 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
-            SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
-                        this->init_host_sparsity_pattern();)
+            if (!this->sparsity_pattern_stored) {
+                SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
+                            this->init_host_sparsity_pattern();)
+            }
+
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
             SIMPLE_TIME(verbose_, update_host_mtx,
                         this->update_host_matrix_data();)
