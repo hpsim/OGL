@@ -96,6 +96,7 @@ public:
         if (!stored) {
             SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
                         this->init_host_sparsity_pattern();)
+
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
             SIMPLE_TIME(verbose_, update_host_mtx,
                         this->update_host_matrix_data();)
@@ -108,6 +109,10 @@ public:
                     "matrix is stored and update of host matrix requested")
                 SIMPLE_TIME(verbose_, exp_update_host_mtx,
                             this->update_host_matrix_data();)
+                SIMPLE_LOG(verbose_, "host matrix needs to be resorted")
+                SIMPLE_TIME(
+                    verbose_, sort_host_mtx,
+                    this->sort_host_matrix_data(this->get_sorting_idxs());)
             }
         }
 
@@ -133,7 +138,7 @@ public:
 
         init_device_matrix(this->matrix().mesh().thisDb(), this->values(),
                            this->col_idxs(), this->row_idxs(), this->nElems(),
-                           this->nCells(), !get_update_sys_matrix());
+                           this->nCells(), get_update_sys_matrix());
     }
 
 

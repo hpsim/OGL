@@ -61,6 +61,8 @@ private:
 
     const bool update_init_guess_vector_;
 
+    const bool verbose_;
+
     const bool export_;
 
     mutable label prev_solve_iters_ = 0;
@@ -94,17 +96,23 @@ public:
               db.foundObject<regIOobject>(init_guess_vector_name_)),
           update_init_guess_vector_(
               controlDict.lookupOrDefault<Switch>("updateInitVector", false)),
-
+          verbose_(
+              controlDict.lookupOrDefault<Switch>("verbose", false)),
           export_(controlDict.lookupOrDefault<Switch>("export", false)){};
 
     bool get_sys_matrix_stored() const { return sys_matrix_stored_; };
+
+    bool get_sparsity_pattern_stored() const
+    {
+        return sparsity_pattern_stored_;
+    };
 
     void init_device_matrix(const objectRegistry &db,
                             std::vector<scalar> &values_host,
                             std::vector<label> &col_idxs_host,
                             std::vector<label> &row_idxs_host,
                             const label nElems, const label nCells,
-                            const bool store) const;
+                            const bool update) const;
 
     std::shared_ptr<mtx> get_gkomatrix() const
     {
