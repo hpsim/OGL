@@ -109,6 +109,10 @@ public:
                     "matrix is stored and update of host matrix requested")
                 SIMPLE_TIME(verbose_, exp_update_host_mtx,
                             this->update_host_matrix_data();)
+                SIMPLE_LOG(verbose_, "host matrix needs to be resorted")
+                SIMPLE_TIME(
+                    verbose_, sort_host_mtx,
+                    this->sort_host_matrix_data(this->get_sorting_idxs());)
             }
         }
 
