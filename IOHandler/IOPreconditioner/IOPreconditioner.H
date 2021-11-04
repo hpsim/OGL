@@ -48,6 +48,8 @@ private:
 
     const bool preconditioner_stored_;
 
+    const bool update_preconditioner_;
+
     mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
 
 public:
@@ -57,14 +59,16 @@ public:
           maxBlockSize_(controlDict.lookupOrDefault("maxBlockSize", label(16))),
           preconditioner_db_name_("preconditioner_" + fieldName),
           preconditioner_stored_(
-              db.foundObject<regIOobject>(preconditioner_db_name_)){};
+              db.foundObject<regIOobject>(preconditioner_db_name_)),
+          update_preconditioner_(solverControls.lookupOrDefault<Switch>(
+              "update_preconditioner", true)){};
 
     void init_preconditioner(const objectRegistry &db,
                              std::shared_ptr<mtx> gkomatrix,
                              std::shared_ptr<gko::Executor> device_exec) const
     {
         // TODO get field specific preconditioner
-        if (preconditioner_stored_) {
+        if (preconditioner_stored_ && !update_preconditioner_) {
             io_precond_ptr_ =
                 &db.lookupObjectRef<GKOLinOPIOPtr>(preconditioner_db_name_);
             return;
