@@ -53,10 +53,11 @@ private:
     mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
 
 public:
-    IOPreconditioner(const objectRegistry &db, const dictionary &controlDict,
+    IOPreconditioner(const objectRegistry &db, const dictionary &solverControls,
                      const word fieldName)
-        : name_(controlDict.lookupOrDefault("preconditioner", word("none"))),
-          maxBlockSize_(controlDict.lookupOrDefault("maxBlockSize", label(16))),
+        : name_(solverControls.lookupOrDefault("preconditioner", word("none"))),
+          maxBlockSize_(
+              solverControls.lookupOrDefault("maxBlockSize", label(16))),
           preconditioner_db_name_("preconditioner_" + fieldName),
           preconditioner_stored_(
               db.foundObject<regIOobject>(preconditioner_db_name_)),
