@@ -127,8 +127,8 @@ public:
 
         for (label i = 0; i < nElems(); i++) {
             label j = sorting_idxs->operator[](i);
-            col_idxs_[i] = tmp_col_idxs[j];
-            row_idxs_[i] = tmp_row_idxs[j];
+            col_idxs_[j] = tmp_col_idxs[i];
+            row_idxs_[j] = tmp_row_idxs[i];
         }
     };
 

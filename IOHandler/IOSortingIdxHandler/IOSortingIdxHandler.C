@@ -42,6 +42,11 @@ void IOSortingIdxHandler::compute_sorting_idxs(
             return std::tie(row_idxs[i1], col_idxs[i1]) <
                    std::tie(row_idxs[i2], col_idxs[i2]);
         });
+
+    auto *tmp_sorting_idxs = sorting_idxs_->clone();
+    for (label i = 0; i < nElems_; i++) {
+        sorting_idxs->operator[](tmp_sorting_idxs->operator[](i)) = i;
+    }
 };
 
 void IOSortingIdxHandler::init_sorting_idxs()
