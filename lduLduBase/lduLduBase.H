@@ -97,9 +97,17 @@ public:
             SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
                         this->init_host_sparsity_pattern();)
 
+            SIMPLE_LOG(verbose_,
+                       "matrix is not yet sorted, compute sorting idxs")
+            SIMPLE_TIME(
+                verbose_, compute_sort,
+                this->compute_sorting_idxs(this->row_idxs(), this->col_idxs(),
+                                           this->nCells());)
+
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
-            SIMPLE_TIME(verbose_, update_host_mtx,
-                        this->update_host_matrix_data();)
+            SIMPLE_TIME(
+                verbose_, update_host_mtx,
+                this->update_host_matrix_data(this->get_sorting_idxs());)
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
@@ -107,33 +115,11 @@ public:
                 SIMPLE_LOG(
                     verbose_,
                     "matrix is stored and update of host matrix requested")
-                SIMPLE_TIME(verbose_, exp_update_host_mtx,
-                            this->update_host_matrix_data();)
-                SIMPLE_LOG(verbose_, "host matrix needs to be resorted")
                 SIMPLE_TIME(
-                    verbose_, sort_host_mtx,
-                    this->sort_host_matrix_data(this->get_sorting_idxs());)
+                    verbose_, exp_update_host_mtx,
+                    this->update_host_matrix_data(this->get_sorting_idxs());)
+                SIMPLE_LOG(verbose_, "host matrix needs to be resorted")
             }
-        }
-
-        // after updating the host matrix the host matrix needs to be sorted
-        if (!get_is_sorted()) {
-            SIMPLE_LOG(verbose_,
-                       "matrix is not yet sorted, compute sorting idxs")
-            SIMPLE_TIME(
-                verbose_, compute_sort,
-                this->compute_sorting_idxs(this->row_idxs(), this->col_idxs(),
-                                           this->nCells());)
-        }
-
-        if (!stored && get_sort()) {
-            SIMPLE_LOG(verbose_,
-                       "matrix is not yet sorted, sorting host matrix")
-            SIMPLE_TIME(
-                verbose_, sort_host_mtx_sparsity_pattern,
-                this->sort_host_matrix_sparsity_pattern(get_sorting_idxs());)
-            SIMPLE_TIME(verbose_, sort_host_mtx,
-                        this->sort_host_matrix_data(this->get_sorting_idxs());)
         }
 
         init_device_matrix(this->matrix().mesh().thisDb(), this->values(),

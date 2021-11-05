@@ -133,26 +133,31 @@ public:
     };
 
 
-    void update_host_matrix_data() const
+    void update_host_matrix_data(const IOField<label> *sorting_idxs) const
     {
         // reset
         // vectors
-        values_.resize(0);
+        values_.resize(nElems());
 
-        values_.reserve(nElems());
+        // values_.reserve(nElems());
 
         // fill vectors
         // unsorted
+        label nCells_ = nCells();
+        label nNeighbours_ = nNeighbours();
+
         for (label i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(this->matrix().lower()[i]);
+            values_[sorting_idxs->operator[](i)] = this->matrix().lower()[i];
         }
 
         for (label i = 0; i < nCells(); ++i) {
-            values_.push_back(this->matrix().diag()[i]);
+            values_[sorting_idxs->operator[](i + nNeighbours_)] =
+                this->matrix().diag()[i];
         }
 
         for (label i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(this->matrix().upper()[i]);
+            values_[sorting_idxs->operator[](i + nCells_ + nNeighbours_)] =
+                this->matrix().upper()[i];
         }
     };
 
