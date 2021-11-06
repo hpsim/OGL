@@ -142,19 +142,20 @@ public:
         values_ = std::make_shared<val_array>(gko::ReferenceExecutor::create(),
                                               nElems());
 
+	auto values = values_->get_data();
+	auto lower = this->matrix().lower();
+	auto upper = this->matrix().upper();
         for (label i = 0; i < nNeighbours(); ++i) {
-            values_->get_data()[sorting_idxs->operator[](i)] =
-                this->matrix().lower()[i];
+            values[sorting_idxs->operator[](i)] = lower[i];
+            values[sorting_idxs->operator[](
+                i + nCells_ + nNeighbours_)] = upper[i];
         }
-        for (label i = 0; i < nNeighbours(); ++i) {
-            values_->get_data()[sorting_idxs->operator[](
-                i + nCells_ + nNeighbours_)] = this->matrix().upper()[i];
-        }
+
         // TODO does this even need to look up the sorting?
         // d values could be added to l or u values
+	auto diag = this->matrix().diag();
         for (label i = 0; i < nCells(); ++i) {
-            values_->get_data()[sorting_idxs->operator[](i + nNeighbours_)] =
-                this->matrix().diag()[i];
+            values[sorting_idxs->operator[](i + nNeighbours_)] = diag[i];
         }
     };
 
