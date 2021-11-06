@@ -26,6 +26,7 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 #ifndef OGL_IOSortingIdxHandler_INCLUDED_H
 #define OGL_IOSortingIdxHandler_INCLUDED_H
+#include <ginkgo/ginkgo.hpp>
 
 #include <vector>
 #include "fvCFD.H"
@@ -35,6 +36,9 @@ SourceFiles
 namespace Foam {
 class IOSortingIdxHandler {
 private:
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     const label nElems_;
 
     // if sorting_idxs_ was found in object registry it does not
@@ -53,8 +57,8 @@ public:
 
     void init_sorting_idxs();
 
-    void compute_sorting_idxs(const std::vector<label> &row_idxs,
-                              const std::vector<label> &col_idxs,
+    void compute_sorting_idxs(const std::shared_ptr<idx_array> row_idxs,
+                              const std::shared_ptr<idx_array> col_idxs,
                               const label nCells);
 
     bool get_sort() const { return sort_; }

@@ -47,6 +47,9 @@ class lduLduBase : public HostMatrix<MatrixType>,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
 private:
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+    using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     const dictionary &solverControls_;
     const bool verbose_;

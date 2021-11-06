@@ -31,9 +31,10 @@ SourceFiles
 namespace Foam {
 
 void IOGKOMatrixHandler::init_device_matrix(
-    const objectRegistry &db, std::vector<scalar> &values_host,
-    std::vector<label> &col_idxs_host, std::vector<label> &row_idxs_host,
-    const label nElems, const label nCells, const bool update) const
+    const objectRegistry &db, std::shared_ptr<val_array> values_host,
+    std::shared_ptr<idx_array> col_idxs_host,
+    std::shared_ptr<idx_array> row_idxs_host, const label nElems,
+    const label nCells, const bool update) const
 {
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
@@ -54,31 +55,25 @@ void IOGKOMatrixHandler::init_device_matrix(
     } else {
         // if not stored yet create sparsity pattern from correspondent
         // views
-        auto col_idx_view = idx_array::view(gko::ReferenceExecutor::create(),
-                                            nElems, &col_idxs_host[0]);
-        auto row_idx_view = idx_array::view(gko::ReferenceExecutor::create(),
-                                            nElems, &row_idxs_host[0]);
-
-        // copy sparsity pattern to device and leave it there
-        col_idx = std::make_shared<idx_array>(col_idx_view);
-        col_idx->set_executor(device_exec);
-        row_idx = std::make_shared<idx_array>(row_idx_view);
-        row_idx->set_executor(device_exec);
+        col_idx =
+            std::make_shared<idx_array>(device_exec, *col_idxs_host.get());
+        row_idx =
+            std::make_shared<idx_array>(device_exec, *row_idxs_host.get());
     }
 
     // if system matrix is not stored create it and set shared pointer
+    std::shared_ptr<val_array> values =
+        std::make_shared<val_array>(device_exec, *values_host.get());
+
     auto coo_mtx = gko::share(
-        coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
-                        val_array::view(gko::ReferenceExecutor::create(),
-                                        nElems, &values_host[0]),
+        coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells), *values.get(),
                         *col_idx.get(), *row_idx.get()));
 
     auto gkomatrix =
         gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
 
     SIMPLE_TIME(verbose_, convert_coo_to_csr,
-    coo_mtx->convert_to(gkomatrix.get());
-    )
+                coo_mtx->convert_to(gkomatrix.get());)
 
 
     // if updating system matrix is not needed store ptr in obj registry

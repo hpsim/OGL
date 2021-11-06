@@ -38,6 +38,8 @@ SourceFiles
 #include <map>
 
 namespace Foam {
+using mtx = gko::matrix::Csr<scalar>;
+using vec = gko::matrix::Dense<scalar>;
 
 #define SIMPLE_LOG(VERBOSE, MSG)                       \
     if (VERBOSE) {                                     \
@@ -59,17 +61,20 @@ namespace Foam {
 template <class MatrixType>
 class HostMatrix : public MatrixType::solver {
 private:
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     const label nCells_;
 
     const label nNeighbours_;
 
     const label nElems_;
 
-    mutable std::vector<scalar> values_;
+    mutable std::shared_ptr<val_array> values_;
 
-    mutable std::vector<label> col_idxs_;
+    mutable std::shared_ptr<idx_array> col_idxs_;
 
-    mutable std::vector<label> row_idxs_;
+    mutable std::shared_ptr<idx_array> row_idxs_;
 
 public:
     HostMatrix(const word &fieldName, const MatrixType &matrix,
@@ -92,84 +97,64 @@ public:
 
     void init_host_sparsity_pattern() const
     {
-        col_idxs_.resize(0);
-        row_idxs_.resize(0);
+        col_idxs_ = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), nElems());
 
-        col_idxs_.reserve(nElems());
-        row_idxs_.reserve(nElems());
+        row_idxs_ = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), nElems());
 
         // fill vectors
         // unsorted
         for (label i = 0; i < nNeighbours(); ++i) {
-            row_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
-            col_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
+            row_idxs_->get_data()[i] = this->matrix().lduAddr().lowerAddr()[i];
+            col_idxs_->get_data()[i] = this->matrix().lduAddr().upperAddr()[i];
         }
 
-        for (label i = 0; i < nCells(); ++i) {
-            col_idxs_.push_back(i);
-            row_idxs_.push_back(i);
+        for (label i = nNeighbours(); i < nCells() + nNeighbours(); ++i) {
+            col_idxs_->get_data()[i] = i;
+            row_idxs_->get_data()[i] = i;
         }
 
-        for (label i = 0; i < nNeighbours(); ++i) {
-            row_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
-            col_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
+        for (label i = nCells() + nNeighbours(); i < nElems(); ++i) {
+            row_idxs_->get_data()[i] = this->matrix().lduAddr().upperAddr()[i];
+            col_idxs_->get_data()[i] = this->matrix().lduAddr().lowerAddr()[i];
         }
     }
 
     void sort_host_matrix_sparsity_pattern(
         const IOField<label> *sorting_idxs) const
     {
-        std::vector<label> tmp_col_idxs(nElems());
-        std::vector<label> tmp_row_idxs(nElems());
-
-        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
-        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
+        idx_array tmp_col_idxs{col_idxs_};
+        idx_array tmp_row_idxs{row_idxs_};
 
         for (label i = 0; i < nElems(); i++) {
             label j = sorting_idxs->operator[](i);
-            col_idxs_[j] = tmp_col_idxs[i];
-            row_idxs_[j] = tmp_row_idxs[i];
+            col_idxs_->get_data()[j] = tmp_col_idxs.get_data()[i];
+            row_idxs_->get_data()[j] = tmp_row_idxs.get_data()[i];
         }
     };
 
 
     void update_host_matrix_data(const IOField<label> *sorting_idxs) const
     {
-        // reset
-        // vectors
-        values_.resize(nElems());
-
-        // values_.reserve(nElems());
-
-        // fill vectors
-        // unsorted
         label nCells_ = nCells();
         label nNeighbours_ = nNeighbours();
 
+        values_ = std::make_shared<val_array>(gko::ReferenceExecutor::create(),
+                                              nElems());
+
         for (label i = 0; i < nNeighbours(); ++i) {
-            values_[sorting_idxs->operator[](i)] = this->matrix().lower()[i];
+            values_->get_data()[sorting_idxs->operator[](i)] =
+                this->matrix().lower()[i];
+            values_->get_data()[sorting_idxs->operator[](
+                i + nCells_ + nNeighbours_)] = this->matrix().upper()[i];
         }
 
+        // TODO does this even need to look up the sorting?
+        // d values could be added to l or u values
         for (label i = 0; i < nCells(); ++i) {
-            values_[sorting_idxs->operator[](i + nNeighbours_)] =
+            values_->get_data()[sorting_idxs->operator[](i + nNeighbours_)] =
                 this->matrix().diag()[i];
-        }
-
-        for (label i = 0; i < nNeighbours(); ++i) {
-            values_[sorting_idxs->operator[](i + nCells_ + nNeighbours_)] =
-                this->matrix().upper()[i];
-        }
-    };
-
-    void sort_host_matrix_data(const IOField<label> *sorting_idxs) const
-    {
-        std::vector<scalar> tmp_values(nElems());
-
-        for (label i = 0; i < nElems(); i++) tmp_values[i] = values_[i];
-
-        for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs->operator[](i);
-            values_[i] = tmp_values[j];
         }
     };
 
@@ -179,11 +164,11 @@ public:
 
     label nNeighbours() const { return nNeighbours_; };
 
-    std::vector<scalar> &values() const { return values_; };
+    std::shared_ptr<val_array> values() const { return values_; };
 
-    std::vector<label> &col_idxs() const { return col_idxs_; };
+    std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
 
-    std::vector<label> &row_idxs() const { return row_idxs_; };
+    std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
 };
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
