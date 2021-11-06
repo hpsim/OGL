@@ -108,24 +108,23 @@ public:
         for (label i = 0; i < nNeighbours(); ++i) {
             row_idxs_->get_data()[i] = this->matrix().lduAddr().lowerAddr()[i];
             col_idxs_->get_data()[i] = this->matrix().lduAddr().upperAddr()[i];
+
+            row_idxs_->get_data()[i+nCells()+nNeighbours()] = this->matrix().lduAddr().upperAddr()[i];
+            col_idxs_->get_data()[i+nCells()+nNeighbours()] = this->matrix().lduAddr().lowerAddr()[i];
         }
 
-        for (label i = nNeighbours(); i < nCells() + nNeighbours(); ++i) {
-            col_idxs_->get_data()[i] = i;
-            row_idxs_->get_data()[i] = i;
+        for (label i = 0; i < nCells() ; ++i) {
+            col_idxs_->get_data()[i+nNeighbours()] = i;
+            row_idxs_->get_data()[i+nNeighbours()] = i;
         }
 
-        for (label i = nCells() + nNeighbours(); i < nElems(); ++i) {
-            row_idxs_->get_data()[i] = this->matrix().lduAddr().upperAddr()[i];
-            col_idxs_->get_data()[i] = this->matrix().lduAddr().lowerAddr()[i];
-        }
     }
 
     void sort_host_matrix_sparsity_pattern(
         const IOField<label> *sorting_idxs) const
     {
-        idx_array tmp_col_idxs{col_idxs_};
-        idx_array tmp_row_idxs{row_idxs_};
+        idx_array tmp_col_idxs{*col_idxs_.get()};
+        idx_array tmp_row_idxs{*row_idxs_.get()};
 
         for (label i = 0; i < nElems(); i++) {
             label j = sorting_idxs->operator[](i);
@@ -146,10 +145,11 @@ public:
         for (label i = 0; i < nNeighbours(); ++i) {
             values_->get_data()[sorting_idxs->operator[](i)] =
                 this->matrix().lower()[i];
+        }
+        for (label i = 0; i < nNeighbours(); ++i) {
             values_->get_data()[sorting_idxs->operator[](
                 i + nCells_ + nNeighbours_)] = this->matrix().upper()[i];
         }
-
         // TODO does this even need to look up the sorting?
         // d values could be added to l or u values
         for (label i = 0; i < nCells(); ++i) {

@@ -62,11 +62,9 @@ void IOGKOMatrixHandler::init_device_matrix(
     }
 
     // if system matrix is not stored create it and set shared pointer
-    std::shared_ptr<val_array> values =
-        std::make_shared<val_array>(device_exec, *values_host.get());
-
     auto coo_mtx = gko::share(
-        coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells), *values.get(),
+        coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells), 
+		        val_array(device_exec, *values_host.get()),
                         *col_idx.get(), *row_idx.get()));
 
     auto gkomatrix =

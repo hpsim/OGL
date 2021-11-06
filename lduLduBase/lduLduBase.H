@@ -107,6 +107,10 @@ public:
                 this->compute_sorting_idxs(this->row_idxs(), this->col_idxs(),
                                            this->nCells());)
 
+            SIMPLE_TIME(
+                verbose_, sort_host_sparsity_pattern,
+                this->sort_host_matrix_sparsity_pattern(this->get_sorting_idxs());)
+
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
             SIMPLE_TIME(
                 verbose_, update_host_mtx,
