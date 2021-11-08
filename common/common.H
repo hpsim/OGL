@@ -35,9 +35,9 @@ SourceFiles
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
-#include <map>
-#include <list>
 #include <iterator>
+#include <list>
+#include <map>
 
 namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
@@ -97,7 +97,7 @@ public:
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_){};
 
-    void init_host_sparsity_pattern(IOField<label>* sorting_idxs) const
+    void init_host_sparsity_pattern(IOField<label> *sorting_idxs) const
     {
         col_idxs_ = std::make_shared<idx_array>(
             gko::ReferenceExecutor::create(), nElems());
@@ -105,48 +105,53 @@ public:
         row_idxs_ = std::make_shared<idx_array>(
             gko::ReferenceExecutor::create(), nElems());
 
-	auto lower = this->matrix().lduAddr().lowerAddr();
-	auto upper = this->matrix().lduAddr().upperAddr();
+        auto lower = this->matrix().lduAddr().lowerAddr();
+        auto upper = this->matrix().lduAddr().upperAddr();
 
-	auto rows =row_idxs_->get_data();
-	auto cols =col_idxs_->get_data();
+        auto rows = row_idxs_->get_data();
+        auto cols = col_idxs_->get_data();
 
-	label element_ctr = 0;
-	label upper_ctr = 0;
-	std::vector<std::vector<std::pair<label,label>>> lower_stack(nNeighbours_);
-	for (label row=0; row<nCells(); row++) {
-		// add lower elements
-		// for now just scan till current upper ctr
-		if (!lower_stack[row].empty()) {
-			for (const auto &element : lower_stack[row] ) {
-				rows[element_ctr] = element.first;
-				cols[element_ctr] = element.second;
-				element_ctr++;
-			}
-		}
+        label element_ctr = 0;
+        label upper_ctr = 0;
+        label lower_ctr = 0;
+        std::vector<std::vector<std::pair<label, label>>> lower_stack(
+            nNeighbours_);
+        for (label row = 0; row < nCells(); row++) {
+            // add lower elements
+            // for now just scan till current upper ctr
+            if (!lower_stack[row].empty()) {
+                for (const auto &element : lower_stack[row]) {
+                    rows[element_ctr] = element.first;
+                    cols[element_ctr] = element.second;
+                    sorting_idxs->operator[](lower_ctr + nNeighbours_) =
+                        element_ctr;
+                    lower_ctr++;
+                    element_ctr++;
+                }
+            }
 
-		// add diagonal elemnts
-		rows[element_ctr] = row;
-		cols[element_ctr] = row;
-		element_ctr++;
-		sorting_idxs->operator[](nNeighbours_ + row) = element_ctr;
+            // add diagonal elemnts
+            rows[element_ctr] = row;
+            cols[element_ctr] = row;
+            element_ctr++;
+            sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
 
-		// add upper elemnts
-		while (lower[upper_ctr] == row && upper_ctr < nNeighbours_ ) {
-			label row = lower[upper_ctr]; 
-			label col = upper[upper_ctr];
-			rows[element_ctr] = row;
-			cols[element_ctr] = col; 
+            // add upper elemnts
+            while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
+                label row = lower[upper_ctr];
+                label col = upper[upper_ctr];
+                rows[element_ctr] = row;
+                cols[element_ctr] = col;
 
-			// insert into lower_stack
-			// find insert position
-			lower_stack[col].emplace_back(col,row);
-			sorting_idxs->operator[](upper_ctr) = element_ctr;
+                // insert into lower_stack
+                // find insert position
+                lower_stack[col].emplace_back(col, row);
+                sorting_idxs->operator[](upper_ctr) = element_ctr;
 
-			element_ctr++;
-			upper_ctr++;
-		}
-	}
+                element_ctr++;
+                upper_ctr++;
+            }
+        }
     }
 
 
@@ -158,47 +163,32 @@ public:
         values_ = std::make_shared<val_array>(gko::ReferenceExecutor::create(),
                                               nElems());
 
-	auto values = values_->get_data();
-	auto diag = this->matrix().diag();
-	auto lower = this->matrix().lower();
-	auto upper = this->matrix().upper();
-	auto lower_idx = this->matrix().lduAddr().lowerAddr();
-	auto upper_idx = this->matrix().lduAddr().upperAddr();
-	label element_ctr = 0;
-	label upper_ctr = 0;
-	label lower_ctr = 0;
-	for (label row=0; row<nCells(); row++) {
-		// add lower elements
-		while (upper_idx[lower_ctr] == row && lower_ctr < nNeighbours_ ) {
-			values[element_ctr] = lower[lower_ctr]; 
-			element_ctr++;
-			lower_ctr++;
-		}
+        auto values = values_->get_data();
+        auto lower = this->matrix().lower();
+        auto upper = this->matrix().upper();
+        for (label i = 0; i < nNeighbours(); ++i) {
+            values[sorting_idxs->operator[](i)] = upper[i];
+            values[sorting_idxs->operator[](i + nNeighbours_)] = lower[i];
+        }
 
-		// add diagonal elemnts
-		values[element_ctr] = diag[row];
-		element_ctr++;
-
-		// add upper elemnts
-		while (lower_idx[upper_ctr] == row && upper_ctr < nNeighbours_ ) {
-			values[element_ctr] = upper[upper_ctr]; 
-			element_ctr++;
-			upper_ctr++;
-		}
-	}
+        auto diag = this->matrix().diag();
+        for (label i = 0; i < nCells(); ++i) {
+            values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
+        }
     };
+};
 
-    label nCells() const { return nCells_; };
+label nCells() const { return nCells_; };
 
-    label nElems() const { return nElems_; };
+label nElems() const { return nElems_; };
 
-    label nNeighbours() const { return nNeighbours_; };
+label nNeighbours() const { return nNeighbours_; };
 
-    std::shared_ptr<val_array> values() const { return values_; };
+std::shared_ptr<val_array> values() const { return values_; };
 
-    std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
+std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
 
-    std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
+std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
 };
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
