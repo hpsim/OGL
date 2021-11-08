@@ -36,6 +36,8 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
+#include <list>
+#include <iterator>
 
 namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
@@ -103,38 +105,67 @@ public:
         row_idxs_ = std::make_shared<idx_array>(
             gko::ReferenceExecutor::create(), nElems());
 
-        // fill vectors
-        // unsorted
-        for (label i = 0; i < nNeighbours(); ++i) {
-            row_idxs_->get_data()[i] = this->matrix().lduAddr().lowerAddr()[i];
-            col_idxs_->get_data()[i] = this->matrix().lduAddr().upperAddr()[i];
+	auto lower = this->matrix().lduAddr().lowerAddr();
+	auto upper = this->matrix().lduAddr().upperAddr();
 
-            row_idxs_->get_data()[i+nCells()+nNeighbours()] = this->matrix().lduAddr().upperAddr()[i];
-            col_idxs_->get_data()[i+nCells()+nNeighbours()] = this->matrix().lduAddr().lowerAddr()[i];
-        }
+	auto rows =row_idxs_->get_data();
+	auto cols =col_idxs_->get_data();
 
-        for (label i = 0; i < nCells() ; ++i) {
-            col_idxs_->get_data()[i+nNeighbours()] = i;
-            row_idxs_->get_data()[i+nNeighbours()] = i;
-        }
+	label element_ctr = 0;
+	label upper_ctr = 0;
+	std::list<std::pair<label,label>> lower_stack;
+	auto lower_pos = lower_stack.begin();
+	for (label row=0; row<nCells(); row++) {
+		// add lower elements
+		// for now just scan till current upper ctr
+		if (!lower_stack.empty()) {
+			while (lower_stack.front().first == row ) {
+				rows[element_ctr] = lower_stack.front().first;
+				cols[element_ctr] = lower_stack.front().second;
+				element_ctr++;
+				lower_stack.pop_front();
+			}
+		}
+		// since upper elements seem to be sorted 
+		// jumping back is only needed after inserting 
+		// all upper coeffs
+		// also after poping the front the iterator
+		// needs to be refreshed
+		lower_pos = lower_stack.begin();
 
+		// add diagonal elemnts
+		rows[element_ctr] = row;
+		cols[element_ctr] = row;
+		element_ctr++;
+
+		// add upper elemnts
+		while (lower[upper_ctr] == row && upper_ctr < nNeighbours_ ) {
+			label row = lower[upper_ctr]; 
+			label col = upper[upper_ctr];
+			rows[element_ctr] = row;
+			cols[element_ctr] = col; 
+
+			// insert into lower_stack
+			// find insert position
+			if (!lower_stack.empty()) {
+				while (
+				     lower_pos != lower_stack.end()
+				 &&		lower_pos->first <= col
+				    ) {
+					lower_pos++;
+				}
+			}
+		        lower_stack.emplace(col,row);
+			lower_pos++;
+
+			element_ctr++;
+			upper_ctr++;
+		}
+	}
     }
 
-    void sort_host_matrix_sparsity_pattern(
-        const IOField<label> *sorting_idxs) const
-    {
-        idx_array tmp_col_idxs{*col_idxs_.get()};
-        idx_array tmp_row_idxs{*row_idxs_.get()};
 
-        for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs->operator[](i);
-            col_idxs_->get_data()[j] = tmp_col_idxs.get_data()[i];
-            row_idxs_->get_data()[j] = tmp_row_idxs.get_data()[i];
-        }
-    };
-
-
-    void update_host_matrix_data(const IOField<label> *sorting_idxs) const
+    void update_host_matrix_data() const
     {
         label nCells_ = nCells();
         label nNeighbours_ = nNeighbours();
@@ -143,20 +174,33 @@ public:
                                               nElems());
 
 	auto values = values_->get_data();
+	auto diag = this->matrix().diag();
 	auto lower = this->matrix().lower();
 	auto upper = this->matrix().upper();
-        for (label i = 0; i < nNeighbours(); ++i) {
-            values[sorting_idxs->operator[](i)] = lower[i];
-            values[sorting_idxs->operator[](
-                i + nCells_ + nNeighbours_)] = upper[i];
-        }
+	auto lower_idx = this->matrix().lduAddr().lowerAddr();
+	auto upper_idx = this->matrix().lduAddr().upperAddr();
+	label element_ctr = 0;
+	label upper_ctr = 0;
+	label lower_ctr = 0;
+	for (label row=0; row<nCells(); row++) {
+		// add lower elements
+		while (upper_idx[lower_ctr] == row && lower_ctr < nNeighbours_ ) {
+			values[element_ctr] = lower[lower_ctr]; 
+			element_ctr++;
+			lower_ctr++;
+		}
 
-        // TODO does this even need to look up the sorting?
-        // d values could be added to l or u values
-	auto diag = this->matrix().diag();
-        for (label i = 0; i < nCells(); ++i) {
-            values[sorting_idxs->operator[](i + nNeighbours_)] = diag[i];
-        }
+		// add diagonal elemnts
+		values[element_ctr] = diag[row];
+		element_ctr++;
+
+		// add upper elemnts
+		while (lower_idx[upper_ctr] == row && upper_ctr < nNeighbours_ ) {
+			values[element_ctr] = upper[upper_ctr]; 
+			element_ctr++;
+			upper_ctr++;
+		}
+	}
     };
 
     label nCells() const { return nCells_; };
