@@ -97,7 +97,7 @@ public:
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_){};
 
-    void init_host_sparsity_pattern() const
+    void init_host_sparsity_pattern(IOField<label>* sorting_idxs) const
     {
         col_idxs_ = std::make_shared<idx_array>(
             gko::ReferenceExecutor::create(), nElems());
@@ -113,30 +113,23 @@ public:
 
 	label element_ctr = 0;
 	label upper_ctr = 0;
-	std::list<std::pair<label,label>> lower_stack;
-	auto lower_pos = lower_stack.begin();
+	std::vector<std::vector<std::pair<label,label>>> lower_stack(nNeighbours_);
 	for (label row=0; row<nCells(); row++) {
 		// add lower elements
 		// for now just scan till current upper ctr
-		if (!lower_stack.empty()) {
-			while (lower_stack.front().first == row ) {
-				rows[element_ctr] = lower_stack.front().first;
-				cols[element_ctr] = lower_stack.front().second;
+		if (!lower_stack[row].empty()) {
+			for (const auto &element : lower_stack[row] ) {
+				rows[element_ctr] = element.first;
+				cols[element_ctr] = element.second;
 				element_ctr++;
-				lower_stack.pop_front();
 			}
 		}
-		// since upper elements seem to be sorted 
-		// jumping back is only needed after inserting 
-		// all upper coeffs
-		// also after poping the front the iterator
-		// needs to be refreshed
-		lower_pos = lower_stack.begin();
 
 		// add diagonal elemnts
 		rows[element_ctr] = row;
 		cols[element_ctr] = row;
 		element_ctr++;
+		sorting_idxs->operator[](nNeighbours_ + row) = element_ctr;
 
 		// add upper elemnts
 		while (lower[upper_ctr] == row && upper_ctr < nNeighbours_ ) {
@@ -147,16 +140,8 @@ public:
 
 			// insert into lower_stack
 			// find insert position
-			if (!lower_stack.empty()) {
-				while (
-				     lower_pos != lower_stack.end()
-				 &&		lower_pos->first <= col
-				    ) {
-					lower_pos++;
-				}
-			}
-		        lower_stack.emplace(col,row);
-			lower_pos++;
+			lower_stack[col].emplace_back(col,row);
+			sorting_idxs->operator[](upper_ctr) = element_ctr;
 
 			element_ctr++;
 			upper_ctr++;
@@ -165,7 +150,7 @@ public:
     }
 
 
-    void update_host_matrix_data() const
+    void update_host_matrix_data(const IOField<label> *sorting_idxs) const
     {
         label nCells_ = nCells();
         label nNeighbours_ = nNeighbours();

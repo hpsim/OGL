@@ -98,18 +98,8 @@ public:
         bool stored = get_sys_matrix_stored();
         if (!stored) {
             SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
-                        this->init_host_sparsity_pattern();)
+                        this->init_host_sparsity_pattern(this->get_sorting_idxs());)
 
-            SIMPLE_LOG(verbose_,
-                       "matrix is not yet sorted, compute sorting idxs")
-            SIMPLE_TIME(
-                verbose_, compute_sort,
-                this->compute_sorting_idxs(this->row_idxs(), this->col_idxs(),
-                                           this->nCells());)
-
-            SIMPLE_TIME(
-                verbose_, sort_host_sparsity_pattern,
-                this->sort_host_matrix_sparsity_pattern(this->get_sorting_idxs());)
 
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
             SIMPLE_TIME(
@@ -125,7 +115,6 @@ public:
                 SIMPLE_TIME(
                     verbose_, exp_update_host_mtx,
                     this->update_host_matrix_data(this->get_sorting_idxs());)
-                SIMPLE_LOG(verbose_, "host matrix needs to be resorted")
             }
         }
 

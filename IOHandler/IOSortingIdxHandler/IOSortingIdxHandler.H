@@ -49,7 +49,7 @@ private:
     // should be sorted
     const bool sort_;
 
-    IOField<label> *sorting_idxs_ = NULL;
+    mutable IOField<label> *sorting_idxs_ = NULL;
 
 public:
     IOSortingIdxHandler(const objectRegistry &db, const label nElems,
@@ -67,7 +67,7 @@ public:
 
     bool get_is_sorted() const { return is_sorted_; }
 
-    const IOField<label> *get_sorting_idxs() const { return sorting_idxs_; }
+    IOField<label> *get_sorting_idxs() const { return sorting_idxs_; }
 };
 }  // namespace Foam
 
