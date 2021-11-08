@@ -35,9 +35,6 @@ SourceFiles
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
-#include <iterator>
-#include <list>
-#include <map>
 
 namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
@@ -125,6 +122,7 @@ public:
                     cols[element_ctr] = element.second;
                     sorting_idxs->operator[](lower_ctr + nNeighbours_) =
                         element_ctr;
+
                     lower_ctr++;
                     element_ctr++;
                 }
@@ -133,8 +131,9 @@ public:
             // add diagonal elemnts
             rows[element_ctr] = row;
             cols[element_ctr] = row;
-            element_ctr++;
             sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
+
+            element_ctr++;
 
             // add upper elemnts
             while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
@@ -176,7 +175,6 @@ public:
             values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
         }
     };
-};
 
 label nCells() const { return nCells_; };
 
