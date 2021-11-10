@@ -41,7 +41,12 @@ void IOGKOMatrixHandler::init_device_matrix(
     if (sys_matrix_stored_ && !update) {
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
         return;
-    }
+    } 
+
+    if (sys_matrix_stored_ && update) {
+        gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
+	gkomatrix_ptr_->get_ptr().reset();
+    } 
 
     std::shared_ptr<idx_array> col_idx;
     std::shared_ptr<idx_array> row_idx;
@@ -84,7 +89,6 @@ void IOGKOMatrixHandler::init_device_matrix(
         io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
         io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
     } else {
-        SIMPLE_LOG(verbose_, "Matrix has been updated ");
         gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
     }
 };

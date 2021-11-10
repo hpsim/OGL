@@ -35,9 +35,6 @@ SourceFiles
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
-#include <iterator>
-#include <list>
-#include <map>
 
 namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
@@ -121,10 +118,12 @@ public:
             // for now just scan till current upper ctr
             if (!lower_stack[row].empty()) {
                 for (const auto &element : lower_stack[row]) {
-                    rows[element_ctr] = element.first;
+                    rows[element_ctr] = row;
                     cols[element_ctr] = element.second;
-                    sorting_idxs->operator[](lower_ctr + nNeighbours_) =
+		    // lower_ctr doesnt correspond to same element as upper_ctr
+                    sorting_idxs->operator[](element.first + nNeighbours_) =
                         element_ctr;
+
                     lower_ctr++;
                     element_ctr++;
                 }
@@ -133,8 +132,9 @@ public:
             // add diagonal elemnts
             rows[element_ctr] = row;
             cols[element_ctr] = row;
-            element_ctr++;
             sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
+
+            element_ctr++;
 
             // add upper elemnts
             while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
@@ -145,7 +145,7 @@ public:
 
                 // insert into lower_stack
                 // find insert position
-                lower_stack[col].emplace_back(col, row);
+                lower_stack[col].emplace_back(upper_ctr, row);
                 sorting_idxs->operator[](upper_ctr) = element_ctr;
 
                 element_ctr++;
@@ -166,7 +166,7 @@ public:
         auto values = values_->get_data();
         auto lower = this->matrix().lower();
         auto upper = this->matrix().upper();
-        for (label i = 0; i < nNeighbours(); ++i) {
+        for (label i = 0; i < nNeighbours(); i++) {
             values[sorting_idxs->operator[](i)] = upper[i];
             values[sorting_idxs->operator[](i + nNeighbours_)] = lower[i];
         }
@@ -176,7 +176,6 @@ public:
             values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
         }
     };
-};
 
 label nCells() const { return nCells_; };
 
