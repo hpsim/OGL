@@ -41,12 +41,12 @@ void IOGKOMatrixHandler::init_device_matrix(
     if (sys_matrix_stored_ && !update) {
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
         return;
-    } 
+    }
 
     if (sys_matrix_stored_ && update) {
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
-	gkomatrix_ptr_->get_ptr().reset();
-    } 
+        gkomatrix_ptr_->get_ptr().reset();
+    }
 
     std::shared_ptr<idx_array> col_idx;
     std::shared_ptr<idx_array> row_idx;
