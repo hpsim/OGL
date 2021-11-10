@@ -27,10 +27,8 @@ IOSortingIdxHandler::IOSortingIdxHandler(const objectRegistry &db,
 
 
 void IOSortingIdxHandler::compute_sorting_idxs(
-    const std::vector<label> &row_idxs, const std::vector<label> &col_idxs,
-    const label nCells
-
-)
+    const std::shared_ptr<idx_array> row_idxs,
+    const std::shared_ptr<idx_array> col_idxs, const label nCells)
 {
     // sort indexes based on comparing values in v
     // using std::stable_sort instead of std::sort
@@ -39,9 +37,19 @@ void IOSortingIdxHandler::compute_sorting_idxs(
     std::stable_sort(
         sorting_idxs_->data(), &sorting_idxs_->data()[nElems_],
         [this, &row_idxs, &col_idxs, nCells](size_t i1, size_t i2) {
-            return std::tie(row_idxs[i1], col_idxs[i1]) <
-                   std::tie(row_idxs[i2], col_idxs[i2]);
+            return std::tie(row_idxs->get_data()[i1],
+                            col_idxs->get_data()[i1]) <
+                   std::tie(row_idxs->get_data()[i2], col_idxs->get_data()[i2]);
         });
+
+    std::vector<label> tmp_sorting_idxs(nElems_);
+    for (label i = 0; i < nElems_; i++) {
+        tmp_sorting_idxs[i] = sorting_idxs_->operator[](i);
+    }
+
+    for (label i = 0; i < nElems_; i++) {
+        sorting_idxs_->operator[](tmp_sorting_idxs[i]) = i;
+    }
 };
 
 void IOSortingIdxHandler::init_sorting_idxs()
