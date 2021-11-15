@@ -35,7 +35,10 @@ SourceFiles
 #include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
-#include <map>
+
+namespace Foam {
+using mtx = gko::matrix::Csr<scalar>;
+using vec = gko::matrix::Dense<scalar>;
 
 #define SIMPLE_LOG(VERBOSE, MSG)                       \
     if (VERBOSE) {                                     \
@@ -54,22 +57,23 @@ SourceFiles
     }
 
 
-namespace Foam {
-
 template <class MatrixType>
 class HostMatrix : public MatrixType::solver {
 private:
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     const label nCells_;
 
     const label nNeighbours_;
 
     const label nElems_;
 
-    mutable std::vector<scalar> values_;
+    mutable std::shared_ptr<val_array> values_;
 
-    mutable std::vector<label> col_idxs_;
+    mutable std::shared_ptr<idx_array> col_idxs_;
 
-    mutable std::vector<label> row_idxs_;
+    mutable std::shared_ptr<idx_array> row_idxs_;
 
 public:
     HostMatrix(const word &fieldName, const MatrixType &matrix,
@@ -90,145 +94,106 @@ public:
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_){};
 
-    void init_host_sparsity_pattern() const
+    void init_host_sparsity_pattern(IOField<label> *sorting_idxs) const
     {
-        col_idxs_.resize(0);
-        row_idxs_.resize(0);
+        col_idxs_ = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), nElems());
 
-        col_idxs_.reserve(nElems());
-        row_idxs_.reserve(nElems());
+        row_idxs_ = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), nElems());
 
-        // fill vectors
-        // unsorted
-        for (label i = 0; i < nNeighbours(); ++i) {
-            row_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
-            col_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
-        }
+        auto lower = this->matrix().lduAddr().lowerAddr();
+        auto upper = this->matrix().lduAddr().upperAddr();
 
-        for (label i = 0; i < nCells(); ++i) {
-            col_idxs_.push_back(i);
-            row_idxs_.push_back(i);
-        }
+        auto rows = row_idxs_->get_data();
+        auto cols = col_idxs_->get_data();
 
-        for (label i = 0; i < nNeighbours(); ++i) {
-            row_idxs_.push_back(this->matrix().lduAddr().upperAddr()[i]);
-            col_idxs_.push_back(this->matrix().lduAddr().lowerAddr()[i]);
+        label element_ctr = 0;
+        label upper_ctr = 0;
+        label lower_ctr = 0;
+        std::vector<std::vector<std::pair<label, label>>> lower_stack(
+            nNeighbours_);
+        for (label row = 0; row < nCells(); row++) {
+            // add lower elements
+            // for now just scan till current upper ctr
+            if (!lower_stack[row].empty()) {
+                for (const auto &element : lower_stack[row]) {
+                    rows[element_ctr] = row;
+                    cols[element_ctr] = element.second;
+		    // lower_ctr doesnt correspond to same element as upper_ctr
+                    sorting_idxs->operator[](element.first + nNeighbours_) =
+                        element_ctr;
+
+                    lower_ctr++;
+                    element_ctr++;
+                }
+            }
+
+            // add diagonal elemnts
+            rows[element_ctr] = row;
+            cols[element_ctr] = row;
+            sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
+
+            element_ctr++;
+
+            // add upper elemnts
+            while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
+                label row = lower[upper_ctr];
+                label col = upper[upper_ctr];
+                rows[element_ctr] = row;
+                cols[element_ctr] = col;
+
+                // insert into lower_stack
+                // find insert position
+                lower_stack[col].emplace_back(upper_ctr, row);
+                sorting_idxs->operator[](upper_ctr) = element_ctr;
+
+                element_ctr++;
+                upper_ctr++;
+            }
         }
     }
 
-    void sort_host_matrix_sparsity_pattern(
-        const IOField<label> *sorting_idxs) const
+
+    void update_host_matrix_data(const IOField<label> *sorting_idxs) const
     {
-        std::vector<label> tmp_col_idxs(nElems());
-        std::vector<label> tmp_row_idxs(nElems());
+        label nCells_ = nCells();
+        label nNeighbours_ = nNeighbours();
 
-        for (label i = 0; i < nElems(); i++) tmp_col_idxs[i] = col_idxs_[i];
-        for (label i = 0; i < nElems(); i++) tmp_row_idxs[i] = row_idxs_[i];
+        values_ = std::make_shared<val_array>(gko::ReferenceExecutor::create(),
+                                              nElems());
 
-        for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs->operator[](i);
-            col_idxs_[i] = tmp_col_idxs[j];
-            row_idxs_[i] = tmp_row_idxs[j];
-        }
-    };
-
-
-    void update_host_matrix_data() const
-    {
-        // reset
-        // vectors
-        values_.resize(0);
-
-        values_.reserve(nElems());
-
-        // fill vectors
-        // unsorted
-        for (label i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(this->matrix().lower()[i]);
+        auto values = values_->get_data();
+        auto lower = this->matrix().lower();
+        auto upper = this->matrix().upper();
+        for (label i = 0; i < nNeighbours(); i++) {
+            values[sorting_idxs->operator[](i)] = upper[i];
+            values[sorting_idxs->operator[](i + nNeighbours_)] = lower[i];
         }
 
+        auto diag = this->matrix().diag();
         for (label i = 0; i < nCells(); ++i) {
-            values_.push_back(this->matrix().diag()[i]);
-        }
-
-        for (label i = 0; i < nNeighbours(); ++i) {
-            values_.push_back(this->matrix().upper()[i]);
+            values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
         }
     };
 
-    void sort_host_matrix_data(const IOField<label> *sorting_idxs) const
-    {
-        std::vector<scalar> tmp_values(nElems());
+label nCells() const { return nCells_; };
 
-        for (label i = 0; i < nElems(); i++) tmp_values[i] = values_[i];
+label nElems() const { return nElems_; };
 
-        for (label i = 0; i < nElems(); i++) {
-            label j = sorting_idxs->operator[](i);
-            values_[i] = tmp_values[j];
-        }
-    };
+label nNeighbours() const { return nNeighbours_; };
 
-    label nCells() const { return nCells_; };
+std::shared_ptr<val_array> values() const { return values_; };
 
-    label nElems() const { return nElems_; };
+std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
 
-    label nNeighbours() const { return nNeighbours_; };
-
-    std::vector<scalar> &values() const { return values_; };
-
-    std::vector<label> &col_idxs() const { return col_idxs_; };
-
-    std::vector<label> &row_idxs() const { return row_idxs_; };
+std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
 };
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time);
 
-
-// Logs the number of
-// iteration executed
-//
-struct IterationLogger : gko::log::Logger {
-    void on_iteration_complete(const gko::LinOp *,
-                               const gko::size_type &num_iterations,
-                               const gko::LinOp *residual,
-                               const gko::LinOp *res_norm,
-                               const gko::LinOp *) const override
-    {
-        this->num_iters++;
-    }
-
-    void on_criterion_check_completed(
-        const gko::stop::Criterion *criterion, const gko::size_type &it,
-        const gko::LinOp *r, const gko::LinOp *tau,
-        const gko::LinOp *implicit_tau_sq, const gko::LinOp *x,
-        const gko::uint8 &stopping_id, const bool &set_finalized,
-        const gko::Array<gko::stopping_status> *status, const bool &one_changed,
-        const bool &all_converged) const override
-    {
-        Info << "on complete" << endl;
-        if (one_changed) {
-            this->total_iters += num_iters;
-        }
-    }
-
-    IterationLogger(std::shared_ptr<const gko::Executor> exec)
-        : gko::log::Logger(exec, gko::log::Logger::iteration_complete_mask),
-          exec(exec),
-          num_iters(0),
-          total_iters(0)
-    {}
-
-    gko::size_type get_iters() { return num_iters; }
-
-    gko::size_type get_outer_iters() { return num_iters; }
-
-private:
-    std::shared_ptr<const gko::Executor> exec;
-    mutable gko::size_type num_iters;
-    mutable gko::size_type total_iters;
-};
-
+void export_vec(const word fieldName, const vec *x, const word time);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters);

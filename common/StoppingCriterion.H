@@ -29,10 +29,12 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "common.H"
+#include "../common/common.H"
+
 #include "fvCFD.H"
 
 namespace Foam {
+
 
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
@@ -66,13 +68,20 @@ class StoppingCriterion {
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
 
+            std::shared_ptr<vec> GKO_FACTORY_PARAMETER_SCALAR(residual_norms,
+                                                              {});
+
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 init_residual_norm, NULL);
 
-            bool GKO_FACTORY_PARAMETER(verbose, true);
+            bool GKO_FACTORY_PARAMETER(verbose, false);
+
+            bool GKO_FACTORY_PARAMETER(export_res, false);
 
             std::shared_ptr<mtx> GKO_FACTORY_PARAMETER(gkomatrix, {});
+
             std::shared_ptr<vec> GKO_FACTORY_PARAMETER(x, {});
+
             std::shared_ptr<vec> GKO_FACTORY_PARAMETER(b, {});
         };
 
@@ -204,6 +213,11 @@ class StoppingCriterion {
 
             residual_norm /= norm_factor_;
 
+            if (parameters_.export_res) {
+                parameters_.residual_norms->at(*(parameters_.iter)) =
+                    residual_norm;
+            }
+
             *(parameters_.residual_norm) = residual_norm;
 
             scalar init_residual = *(parameters_.init_residual_norm);
@@ -257,6 +271,8 @@ class StoppingCriterion {
         mutable scalar norm_factor_ = 1;
 
         mutable bool eval_norm_factor_ = true;
+
+        mutable std::vector<scalar> res_norms_{};
     };
 
     mutable label maxIter_;
@@ -273,11 +289,14 @@ class StoppingCriterion {
 
     const bool adapt_minIter_;
 
+    const std::shared_ptr<vec> normalised_res_norms_;
+
     mutable scalar init_normalised_res_norm_;
 
     mutable scalar normalised_res_norm_;
 
     mutable label iter_;
+
 
 public:
     StoppingCriterion(const dictionary &controlDict)
@@ -290,33 +309,45 @@ public:
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
           adapt_minIter_(
               controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
+          normalised_res_norms_(gko::share(vec::create(
+              gko::ReferenceExecutor::create(), gko::dim<2>{maxIter_, 1}))),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0),
           iter_(0)
     {
+        normalised_res_norms_->fill(0.0);
         if (word(controlDict.lookup("solver")) == "GKOBiCGStab") maxIter_ *= 2;
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
         std::shared_ptr<gko::Executor> device_exec,
         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b, bool verbose, label prev_solve_iters) const
+        std::shared_ptr<vec> b, bool verbose, bool export_res,
+        label prev_solve_iters) const
     {
         label minIter = minIter_;
         label frequency = frequency_;
-        if (prev_solve_iters > 0 && adapt_minIter_) {
-            minIter = prev_solve_iters * relaxationFactor_;
-            frequency = max(1, minIter / 20);
+        if (!export_res) {
+            if (prev_solve_iters > 0 && adapt_minIter_) {
+                minIter = prev_solve_iters * relaxationFactor_;
+                frequency = max(1, minIter / 20);
+            }
         }
-        Info << "frequency " << frequency << " minIter " << minIter << endl;
+        // SIMPLE_LOG(verbose,
+        //            "frequency " + word(frequency) + " minIter " +
+        //            word(minIter))
+
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
             .with_openfoam_relative_tolerance(relTol_)
             .with_openfoam_minIter(minIter)
             .with_openfoam_maxIter(maxIter_)
             .with_frequency(frequency)
+            .with_verbose(verbose)
+            .with_export_res(export_res)
             .with_init_residual_norm(&init_normalised_res_norm_)
             .with_residual_norm(&normalised_res_norm_)
+            .with_residual_norms(normalised_res_norms_)
             .with_iter(&iter_)
             .with_gkomatrix(gkomatrix)
             .with_x(x)
@@ -327,6 +358,25 @@ public:
     scalar get_init_res_norm() const { return init_normalised_res_norm_; }
 
     scalar get_res_norm() const { return normalised_res_norm_; }
+
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        // std::unique_ptr<val_array> norms_array{new val_array{
+        //     exec, normalised_res_norms_.begin(),
+        //     normalised_res_norms_.end()}};
+
+        // auto res_norms = gko::share(
+        //     vec::create(exec->get_master(), gko::dim<2>(res_norms_.size(),
+        //     1),
+        //                 norms_array->as_view(), 1));
+
+        // std::string fn_x{"export/p_res_norms.mtx"};
+        // std::ofstream stream_x{fn_x};
+        // std::cerr << "Writing " << fn_x << std::endl;
+        // gko::write(stream_x, res_norms.get());
+
+        return normalised_res_norms_;
+    }
 
     label get_num_iters() const { return iter_; }
 };

@@ -71,12 +71,13 @@ public:
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                   std::shared_ptr<vec> b, const bool verbose,
+                  const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
 
     {
         outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
-                                                             b, verbose, 0));
+            outerStoppingCriterion_.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, export_res, 0));
 
         if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
             "scalarJacobi") {
@@ -92,8 +93,8 @@ public:
                    std::shared_ptr<vec> b, const bool verbose) const
     {
         innerStoppingCriterionVec_.push_back(
-            innerStoppingCriterion_.build_stopping_criterion(exec, gkomatrix, x,
-                                                             b, verbose, 0));
+            innerStoppingCriterion_.build_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, false, 0));
 
 
         auto inner = gko::share(gko::solver::Cg<scalar>::build()
@@ -140,6 +141,11 @@ public:
     scalar get_res_norm() const
     {
         return outerStoppingCriterion_.get_res_norm();
+    }
+
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        return outerStoppingCriterion_.get_res_norms();
     }
 
     void store_number_of_iterations() const

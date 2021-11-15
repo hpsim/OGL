@@ -33,24 +33,41 @@ SourceFiles
 
 namespace Foam {
 
+void export_x(const std::string fn, const vec *x)
+{
+    std::ofstream stream_x{fn};
+    SIMPLE_LOG(true, "Writing " + fn)
+    gko::write(stream_x, x);
+};
+
+void export_x(const std::string fn, const mtx *A)
+{
+    SIMPLE_LOG(true, "Writing " + fn)
+    std::ofstream stream{fn};
+    gko::write(stream, A, gko::layout_type::coordinate);
+};
+
+void export_vec(const word fieldName, const vec *x, const word time)
+{
+    system("mkdir -p export/" + time);
+    std::string fn_mtx{"export/" + time + "/" + fieldName + ".mtx"};
+    export_x(fn_mtx, x);
+};
+
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time)
 {
-    std::string fn_mtx{time + "_" + fieldName + "_A.mtx"};
-    std::ofstream stream{fn_mtx};
-    std::cerr << "Writing " << fn_mtx << std::endl;
-    gko::write(stream, A, gko::layout_type::coordinate);
+    system("mkdir -p export/" + time);
+    std::string fn_mtx{"export/" + time + "/" + fieldName + "_A.mtx"};
+    export_x(fn_mtx, A);
 
-    std::string fn_b{time + "_" + fieldName + "_b.mtx"};
-    std::ofstream stream_b{fn_b};
-    std::cerr << "Writing " << fn_b << std::endl;
-    gko::write(stream_b, b);
+    std::string fn_b{"export/" + time + "/" + fieldName + "_b.mtx"};
+    export_x(fn_b, b);
 
-    std::string fn_x{time + "_" + fieldName + "_x0.mtx"};
-    std::ofstream stream_x{fn_x};
-    std::cerr << "Writing " << fn_x << std::endl;
-    gko::write(stream_x, x);
+    std::string fn_x{"export/" + time + "/" + fieldName + "_x0.mtx"};
+    export_x(fn_x, x);
 };
+
 
 void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
                           label prev_solve_iters)
