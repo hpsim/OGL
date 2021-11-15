@@ -45,7 +45,13 @@ void IOGKOMatrixHandler::init_device_matrix(
 
     if (sys_matrix_stored_ && update) {
         gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
-        gkomatrix_ptr_->get_ptr().reset();
+        auto gkomatrix = gkomatrix_ptr_->get_ptr();
+        auto values_view =
+            val_array::view(device_exec, nElems, gkomatrix->get_values());
+
+        // move values to device
+        values_view = *values_host.get();
+        return;
     }
 
     std::shared_ptr<idx_array> col_idx;
