@@ -38,18 +38,26 @@ void IOGKOMatrixHandler::init_device_matrix(
 {
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
-    if (sys_matrix_stored_ && !update) {
-        gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
-        return;
-    }
+    if (sys_matrix_stored_) {
+        if (!update) {
+            gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
+            return;
+        } else {
+            gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
+            auto gkomatrix = gkomatrix_ptr_->get_ptr();
+            auto values_view =
+                val_array::view(device_exec, nElems, gkomatrix->get_values());
 
-    if (sys_matrix_stored_ && update) {
-        gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
-        gkomatrix_ptr_->get_ptr().reset();
+            // copy values to device
+            values_view = *values_host.get();
+            return;
+        }
     }
 
     std::shared_ptr<idx_array> col_idx;
     std::shared_ptr<idx_array> row_idx;
+    // sparsity pattern can be stored, ie from other system_matrices,
+    // even if the corr system matrix
     if (sparsity_pattern_stored_) {
         io_col_idxs_ptr_ =
             &db.lookupObjectRef<GKOIDXIOPtr>(sparsity_pattern_name_cols_);
@@ -81,16 +89,12 @@ void IOGKOMatrixHandler::init_device_matrix(
 
     // if updating system matrix is not needed store ptr in obj registry
     const fileName path = sys_matrix_name_;
-    if (!sys_matrix_stored_) {
-        gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
-        // in any case store sparsity pattern
-        const fileName path_col = sparsity_pattern_name_cols_;
-        const fileName path_row = sparsity_pattern_name_rows_;
-        io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
-        io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
-    } else {
-        gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
-    }
+    gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
+    // in any case store sparsity pattern
+    const fileName path_col = sparsity_pattern_name_cols_;
+    const fileName path_row = sparsity_pattern_name_rows_;
+    io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
+    io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
 };
 
 
