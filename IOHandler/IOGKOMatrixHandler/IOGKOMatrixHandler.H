@@ -35,14 +35,15 @@ SourceFiles
 
 namespace Foam {
 
-using coo_mtx = gko::matrix::Coo<scalar>;
-using mtx = gko::matrix::Csr<scalar>;
-using vec = gko::matrix::Dense<scalar>;
-using val_array = gko::Array<scalar>;
-using idx_array = gko::Array<label>;
 
 class IOGKOMatrixHandler : public IOExecutorHandler {
 private:
+    using coo_mtx = gko::matrix::Coo<scalar>;
+    using mtx = gko::matrix::Csr<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     const word sys_matrix_name_;
 
     const bool sys_matrix_stored_;
@@ -60,6 +61,8 @@ private:
     const bool init_guess_vector_stored_;
 
     const bool update_init_guess_vector_;
+
+    const bool verbose_;
 
     const bool export_;
 
@@ -94,17 +97,22 @@ public:
               db.foundObject<regIOobject>(init_guess_vector_name_)),
           update_init_guess_vector_(
               controlDict.lookupOrDefault<Switch>("updateInitVector", false)),
-
+          verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)),
           export_(controlDict.lookupOrDefault<Switch>("export", false)){};
 
     bool get_sys_matrix_stored() const { return sys_matrix_stored_; };
 
+    bool get_sparsity_pattern_stored() const
+    {
+        return sparsity_pattern_stored_;
+    };
+
     void init_device_matrix(const objectRegistry &db,
-                            std::vector<scalar> &values_host,
-                            std::vector<label> &col_idxs_host,
-                            std::vector<label> &row_idxs_host,
+                            std::shared_ptr<val_array> values_host,
+                            std::shared_ptr<idx_array> col_idxs_host,
+                            std::shared_ptr<idx_array> row_idxs_host,
                             const label nElems, const label nCells,
-                            const bool store) const;
+                            const bool update) const;
 
     std::shared_ptr<mtx> get_gkomatrix() const
     {

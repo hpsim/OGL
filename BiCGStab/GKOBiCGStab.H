@@ -115,8 +115,7 @@ public:
 
     void store_number_of_iterations() const
     {
-        set_solve_prev_iters(sysMatrixName_, db_,
-                             stoppingCriterion_.get_num_iters());
+        set_solve_prev_iters(sysMatrixName_, db_, get_number_of_iterations());
     }
 
 
@@ -127,7 +126,7 @@ public:
 
     label get_number_of_iterations() const
     {
-        return stoppingCriterion_.get_num_iters();
+        return stoppingCriterion_.get_num_iters() / 2;
     }
 };
 
