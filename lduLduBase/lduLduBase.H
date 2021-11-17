@@ -33,6 +33,7 @@ namespace Foam {
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
+#include "../IOGlobalIndex/globalIndex.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
@@ -97,8 +98,9 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
-            SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
-                        this->init_host_sparsity_pattern(this->get_sorting_idxs());)
+            SIMPLE_TIME(
+                verbose_, init_host_sparsity_pattern,
+                this->init_host_sparsity_pattern(this->get_sorting_idxs());)
 
 
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
@@ -138,6 +140,9 @@ public:
     template <class Type>
     SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
     {
+        auto gI = globalIndex();
+
+
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 
