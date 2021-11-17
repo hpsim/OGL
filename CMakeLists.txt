@@ -106,6 +106,7 @@ IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
 IOHandler/IOExecutorHandler/IOExecutorHandler.C
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
 IOHandler/IOPreconditioner/IOPreconditioner.C
+IOHandler/IOGlobalIndex/globalIndex.C
 BaseWrapper/lduBase/GKOlduBase.C
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
 CG/GKOCG.C
@@ -121,6 +122,7 @@ IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
 IOHandler/IOExecutorHandler/IOExecutorHandler.H
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
 IOHandler/IOPreconditioner/IOPreconditioner.H
+IOHandler/IOGlobalIndex/globalIndex.H
 BaseWrapper/lduBase/GKOlduBase.H
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
 CG/GKOCG.H
@@ -145,6 +147,7 @@ target_include_directories(OGL
   IOHandler/IOSortingIdxHandler/
   IOHandler/IOGKOMatrixHandler/
   IOHandler/IOPreconditioner/
+  IOHandler/IOGlobalIndex/
   )
 
 
