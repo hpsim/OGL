@@ -33,7 +33,6 @@ namespace Foam {
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
-#include "../IOGlobalIndex/globalIndex.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
@@ -140,7 +139,8 @@ public:
     template <class Type>
     SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
     {
-        auto gI = globalIndex();
+        auto gI = globalIndex(this->nCells());
+        Info << "global size" << gI.size() << endl;
 
 
         std::shared_ptr<gko::Executor> device_exec =
@@ -196,6 +196,10 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
+        auto gI = globalIndex(this->nCells());
+        Info << "global size" << gI.size() << endl;
+        Info << "local size" << gI.localSize() << endl;
+
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
 

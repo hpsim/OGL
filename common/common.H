@@ -30,6 +30,7 @@ SourceFiles
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
+#include "../IOGlobalIndex/globalIndex.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
@@ -69,6 +70,10 @@ private:
 
     const label nElems_;
 
+    const globalIndex globalIndexCells_;
+
+    const globalIndex globalIndexNeighbours_;
+
     mutable std::shared_ptr<val_array> values_;
 
     mutable std::shared_ptr<idx_array> col_idxs_;
@@ -83,25 +88,46 @@ public:
                const dictionary &solverControls)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
-          nCells_(matrix.diag().size()),
+          GlobalIndex(matrix.diag().size()) nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nElems_(nCells_ + 2 * nNeighbours_){};
+          nElems_(nCells_ + 2 * nNeighbours_),
+          globalIndexCells(globalIndex(nCells_)),
+          globalIndexNeighbours(globalIndex(nNeighbours_)),
+          {};
 
     HostMatrix(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
         : MatrixType::solver(fieldName, matrix, solverControls),
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nElems_(nCells_ + 2 * nNeighbours_){};
+          nElems_(nCells_ + 2 * nNeighbours_),
+          globalIndexCells(globalIndex(nCells_)),
+          globalIndexNeighbours(globalIndex(nNeighbours_)),
+          {};
 
     void init_host_sparsity_pattern(IOField<label> *sorting_idxs) const
     {
-        col_idxs_ = std::make_shared<idx_array>(
-            gko::ReferenceExecutor::create(), nElems());
+        auto col_idxs_global =
+            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
+                                        globalIndexNeighbours_.globalSize());
 
-        row_idxs_ = std::make_shared<idx_array>(
-            gko::ReferenceExecutor::create(), nElems());
+        auto row_idxs_global =
+            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
+                                        globalIndexNeighbours_.globalSize());
 
+        col_idxs_ = ( Pstream::parRun() ) ?
+            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
+                                        globIndexCells_.localSize())
+            : col_idxs_global;
+
+        row_idxs_ = ( Pstream::parRun() ) ?
+            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
+                                        globalIndexNeighbours_.localSize())
+            : row_idxs_global;
+
+        // gather lduAdressing
+
+        // locally write ldu adressing in row column order
         auto lower = this->matrix().lduAddr().lowerAddr();
         auto upper = this->matrix().lduAddr().upperAddr();
 
@@ -120,7 +146,7 @@ public:
                 for (const auto &element : lower_stack[row]) {
                     rows[element_ctr] = row;
                     cols[element_ctr] = element.second;
-		    // lower_ctr doesnt correspond to same element as upper_ctr
+                    // lower_ctr doesnt correspond to same element as upper_ctr
                     sorting_idxs->operator[](element.first + nNeighbours_) =
                         element_ctr;
 
@@ -177,17 +203,17 @@ public:
         }
     };
 
-label nCells() const { return nCells_; };
+    label nCells() const { return nCells_; };
 
-label nElems() const { return nElems_; };
+    label nElems() const { return nElems_; };
 
-label nNeighbours() const { return nNeighbours_; };
+    label nNeighbours() const { return nNeighbours_; };
 
-std::shared_ptr<val_array> values() const { return values_; };
+    std::shared_ptr<val_array> values() const { return values_; };
 
-std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
+    std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
 
-std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
+    std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
 };
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
