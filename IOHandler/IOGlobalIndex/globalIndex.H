@@ -34,6 +34,7 @@ SourceFiles
 #include "labelList.H"
 
 //#include "CompactListList.H"
+#include <memory>
 #include "DynamicList.H"
 #include "Pstream.H"
 
@@ -195,58 +196,38 @@ public:
 
     //- Collect data in processor order on master (== procIDs[0]).
     //  Needs offsets only on master.
-    template <class Container, class Type>
+    template <class Container, class GKOArray>
     static void gather(
         const labelUList &offsets, const label comm, const Container &procIDs,
-        const UList<Type> &fld, List<Type> &allFld,
+        const std::shared_ptr<GKOArray> localDataIn,
+        std::shared_ptr<GKOArray> globalDataOut,
         const int tag = UPstream::msgType(),
         const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
     {
         if (Pstream::master()) {
-            allFld.setSize(offsets.last());
-
             // Assign my local data
-            SubList<Type>(allFld, fld.size(), 0) = fld;
+
+            // SubList<Type>(allFld, fld.size(), 0) = fld;
 
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
                 for (label i = 1; i < procIDs.size(); ++i) {
-                    SubList<Type> procSlot(allFld, offsets[i + 1] - offsets[i],
-                                           offsets[i]);
-
-                    // TODO
-                    // if (is_contiguous<Type>::value) {
-                    // For now assum contiguous data only
-                    IPstream::read(commsType, procIDs[i],
-                                   reinterpret_cast<char *>(procSlot.data()),
-                                   procSlot.byteSize(), tag, comm);
-                    // } else {
-                    //     IPstream fromSlave(commsType, procIDs[i], 0, tag,
-                    //     comm);
-                    //     fromSlave >> procSlot;
-                    // }
+                    label nSubElems = offsets[i + 1] - offsets[i];
+                    IPstream::read(
+                        commsType, procIDs[i],
+                        reinterpret_cast<char *>(globalDataOut->get_data()),
+                        nSubElems * sizeof(label), tag, comm);
                 }
             } else {
-                // nonBlocking
-
-                // TODO
-                // if (!is_contiguous<Type>::value) {
-                //     FatalErrorInFunction
-                //         << "nonBlocking not supported for non-contiguous
-                //         data"
-                //         << exit(FatalError);
-                // }
-
                 label startOfRequests = Pstream::nRequests();
 
                 // Set up reads
                 for (label i = 1; i < procIDs.size(); ++i) {
-                    SubList<Type> procSlot(allFld, offsets[i + 1] - offsets[i],
-                                           offsets[i]);
-
-                    IPstream::read(commsType, procIDs[i],
-                                   reinterpret_cast<char *>(procSlot.data()),
-                                   procSlot.byteSize(), tag, comm);
+                    label nSubElems = offsets[i + 1] - offsets[i];
+                    IPstream::read(
+                        commsType, procIDs[i],
+                        reinterpret_cast<char *>(globalDataOut->get_data()),
+                        nSubElems * sizeof(label), tag, comm);
                 }
 
                 // Wait for all to finish
@@ -256,31 +237,18 @@ public:
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
                 // TODO
-                // if (is_contiguous<Type>::value) {
-                OPstream::write(commsType, procIDs[0],
-                                reinterpret_cast<const char *>(fld.cdata()),
-                                fld.byteSize(), tag, comm);
-                // } else {
-                //     OPstream toMaster(commsType, procIDs[0], 0, tag, comm);
-                //     toMaster << fld;
-                // }
+                OPstream::write(
+                    commsType, procIDs[0],
+                    reinterpret_cast<char *>(localDataIn->get_data()),
+                    localDataIn->get_num_elems() * sizeof(label), tag, comm);
             } else {
-                // nonBlocking
-
-                // TODO
-                // if (!is_contiguous<Type>::value) {
-                //     FatalErrorInFunction
-                //         << "nonBlocking not supported for non-contiguous
-                //         data"
-                //         << exit(FatalError);
-                // }
-
                 label startOfRequests = Pstream::nRequests();
 
                 // Set up write
-                OPstream::write(commsType, procIDs[0],
-                                reinterpret_cast<const char *>(fld.cdata()),
-                                fld.byteSize(), tag, comm);
+                OPstream::write(
+                    commsType, procIDs[0],
+                    reinterpret_cast<char *>(localDataIn->get_data()),
+                    localDataIn->get_num_elems() * sizeof(label), tag, comm);
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -290,26 +258,29 @@ public:
 
     //- Collect data in processor order on master (== procIDs[0]).
     //  Needs offsets only on master.
-    template <class Container, class Type>
+    template <class Container, class GKOArray>
     void gather(const label comm, const Container &procIDs,
-                const UList<Type> &fld, List<Type> &allFld,
+                const std::shared_ptr<GKOArray> localDataIn,
+                std::shared_ptr<GKOArray> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
     {
-        gather(offsets_, comm, procIDs, fld, allFld, tag, commsType);
+        gather(offsets_, comm, procIDs, localDataIn, globalDataOut, tag,
+               commsType);
     }
 
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
-    template <class Type>
-    void gather(const UList<Type> &fld, List<Type> &allFld,
+    template <class GKOArray>
+    void gather(const std::shared_ptr<GKOArray> localDataIn,
+                std::shared_ptr<GKOArray> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
     {
-        gather(UPstream::worldComm, UPstream::procID(UPstream::worldComm), fld,
-               allFld, tag, commsType);
+        gather(UPstream::worldComm, UPstream::procID(UPstream::worldComm),
+               localDataIn, globalDataOut, tag, commsType);
     }
 
     // //- Collect data in processor order on master.

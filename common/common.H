@@ -88,12 +88,11 @@ public:
                const dictionary &solverControls)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
-          GlobalIndex(matrix.diag().size()) nCells_(matrix.diag().size()),
+          nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
-          globalIndexCells(globalIndex(nCells_)),
-          globalIndexNeighbours(globalIndex(nNeighbours_)),
-          {};
+          globalIndexCells_(globalIndex(nCells_)),
+          globalIndexNeighbours_(globalIndex(nNeighbours_)){};
 
     HostMatrix(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
@@ -101,29 +100,34 @@ public:
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
-          globalIndexCells(globalIndex(nCells_)),
-          globalIndexNeighbours(globalIndex(nNeighbours_)),
-          {};
+          globalIndexCells_(globalIndex(nCells_)),
+          globalIndexNeighbours_(globalIndex(nNeighbours_)){};
 
     void init_host_sparsity_pattern(IOField<label> *sorting_idxs) const
     {
-        auto col_idxs_global =
-            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
-                                        globalIndexNeighbours_.globalSize());
+        Info << "init_host_sparsity_pattern"
+             << "  globalIndexNeighbours.local "
+             << globalIndexNeighbours_.localSize()
+             << "  globalIndexNeighbours.global "
+             << globalIndexNeighbours_.size() << endl;
 
-        auto row_idxs_global =
-            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
-                                        globalIndexNeighbours_.globalSize());
+        auto col_idxs_global = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), globalIndexNeighbours_.size());
 
-        col_idxs_ = ( Pstream::parRun() ) ?
-            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
-                                        globIndexCells_.localSize())
-            : col_idxs_global;
+        auto row_idxs_global = std::make_shared<idx_array>(
+            gko::ReferenceExecutor::create(), globalIndexNeighbours_.size());
 
-        row_idxs_ = ( Pstream::parRun() ) ?
-            std::make_shared<idx_array>(gko::ReferenceExecutor::create(),
-                                        globalIndexNeighbours_.localSize())
-            : row_idxs_global;
+        col_idxs_ = (Pstream::parRun())
+                        ? std::make_shared<idx_array>(
+                              gko::ReferenceExecutor::create(),
+                              globalIndexNeighbours_.localSize())
+                        : col_idxs_global;
+
+        row_idxs_ = (Pstream::parRun())
+                        ? std::make_shared<idx_array>(
+                              gko::ReferenceExecutor::create(),
+                              globalIndexNeighbours_.localSize())
+                        : row_idxs_global;
 
         // gather lduAdressing
 
@@ -137,8 +141,18 @@ public:
         label element_ctr = 0;
         label upper_ctr = 0;
         label lower_ctr = 0;
+        Info << "init_host_sparsity_pattern 3" << endl;
+        // std::vector<std::vector<std::pair<label, label>>> lower_stack(
+        //     nNeighbours_);
         std::vector<std::vector<std::pair<label, label>>> lower_stack(
-            nNeighbours_);
+            2 * globalIndexNeighbours_.size());
+
+        Info << "init_host_sparsity_pattern 3" << endl;
+        for (auto &row : lower_stack) {
+            row.reserve(10);
+        }
+        Info << "init_host_sparsity_pattern 3" << endl;
+
         for (label row = 0; row < nCells(); row++) {
             // add lower elements
             // for now just scan till current upper ctr
@@ -168,16 +182,23 @@ public:
                 label col = upper[upper_ctr];
                 rows[element_ctr] = row;
                 cols[element_ctr] = col;
+                Info << "init_host_sparsity_pattern 4.5 " << col << endl;
 
                 // insert into lower_stack
                 // find insert position
-                lower_stack[col].emplace_back(upper_ctr, row);
+                // lower_stack[col].emplace_back(0, 0);
+                Info << "init_host_sparsity_pattern 4.5 " << col << endl;
+                lower_stack[col].push_back(
+                    std::pair<label, label>{upper_ctr, row});
+                Info << "init_host_sparsity_pattern 4.6 " << endl;
                 sorting_idxs->operator[](upper_ctr) = element_ctr;
 
                 element_ctr++;
                 upper_ctr++;
             }
+            Info << "init_host_sparsity_pattern 4.8 " << endl;
         }
+        Info << "init_host_sparsity_pattern 5" << endl;
     }
 
 
