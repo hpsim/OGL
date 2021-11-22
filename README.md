@@ -72,7 +72,7 @@ relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 
 ## Known Limitations
 
-Currently cyclic boundary conditions are not supported.
+Currently cyclic boundary conditions and coupled matrices are not supported.
 
 ## Citing
 
