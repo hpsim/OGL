@@ -26,9 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "ListOps.H"
 #include "globalIndex.H"
-// #include "labelRange.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 

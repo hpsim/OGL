@@ -43,7 +43,6 @@ namespace Foam {
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public HostMatrix<MatrixType>,
                    public SolverFactory,
-                   public IOSortingIdxHandler,
                    public IOGKOMatrixHandler,
                    public IOPreconditioner {
 private:
@@ -63,9 +62,6 @@ public:
         : HostMatrix<lduMatrix>(fieldName, matrix, interfaceBouCoeffs,
                                 interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory(solverControls, matrix.mesh().thisDb(), fieldName),
-          IOSortingIdxHandler(
-              matrix.mesh().thisDb(), this->nElems(),
-              solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
           IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
           solverControls_(solverControls),
@@ -80,9 +76,6 @@ public:
                const dictionary &solverControls)
         : HostMatrix<MatrixType>(fieldName, matrix, solverControls),
           SolverFactory(solverControls, matrix.mesh().thisDb(), fieldName),
-          IOSortingIdxHandler(
-              matrix.mesh().thisDb(), this->nElems(),
-              solverControls.lookupOrDefault<Switch>("sort", true)),
           IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
           IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
           solverControls_(solverControls),
@@ -97,15 +90,13 @@ public:
         // initially
         bool stored = get_sys_matrix_stored();
         if (!stored) {
-            SIMPLE_TIME(
-                verbose_, init_host_sparsity_pattern,
-                this->init_host_sparsity_pattern(this->get_sorting_idxs());)
+            SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
+                        this->init_host_sparsity_pattern();)
 
 
             SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
-            SIMPLE_TIME(
-                verbose_, update_host_mtx,
-                this->update_host_matrix_data(this->get_sorting_idxs());)
+            SIMPLE_TIME(verbose_, update_host_mtx,
+                        this->update_host_matrix_data();)
         } else {
             // if sys_matrix is  stored updating is only neccesary
             // when requested explictly
@@ -113,9 +104,8 @@ public:
                 SIMPLE_LOG(
                     verbose_,
                     "matrix is stored and update of host matrix requested")
-                SIMPLE_TIME(
-                    verbose_, exp_update_host_mtx,
-                    this->update_host_matrix_data(this->get_sorting_idxs());)
+                SIMPLE_TIME(verbose_, exp_update_host_mtx,
+                            this->update_host_matrix_data();)
             }
         }
 

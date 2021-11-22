@@ -30,7 +30,7 @@ SourceFiles
 #ifndef OGL_IOGlobalIndex_INCLUDED_H
 #define OGL_IOGlobalIndex_INCLUDED_H
 
-
+#include <ginkgo/ginkgo.hpp>
 #include "labelList.H"
 
 //#include "CompactListList.H"
@@ -41,10 +41,8 @@ SourceFiles
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
-
-// Forward declarations
-template <class T>
-class CompactListList;
+using val_array = gko::Array<scalar>;
+using idx_array = gko::Array<label>;
 
 
 /*---------------------------------------------------------------------------*\
@@ -199,15 +197,16 @@ public:
     template <class Container, class GKOArray>
     static void gather(
         const labelUList &offsets, const label comm, const Container &procIDs,
-        const std::shared_ptr<GKOArray> localDataIn,
-        std::shared_ptr<GKOArray> globalDataOut,
+        const GKOArray &localDataIn, GKOArray &globalDataOut,
         const int tag = UPstream::msgType(),
         const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
     {
         if (Pstream::master()) {
             // Assign my local data
-
-            // SubList<Type>(allFld, fld.size(), 0) = fld;
+            idx_array::view(gko::ReferenceExecutor::create(),
+                            localDataIn.get_num_elems(),
+                            globalDataOut.get_data()) = localDataIn;
+            Info << "!!!! on master created view" << endl;
 
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
@@ -215,19 +214,23 @@ public:
                     label nSubElems = offsets[i + 1] - offsets[i];
                     IPstream::read(
                         commsType, procIDs[i],
-                        reinterpret_cast<char *>(globalDataOut->get_data()),
+                        reinterpret_cast<char *>(globalDataOut.get_data()),
                         nSubElems * sizeof(label), tag, comm);
                 }
             } else {
                 label startOfRequests = Pstream::nRequests();
+                Info << "!!!! on master requests " << startOfRequests << endl;
 
                 // Set up reads
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
+                    Info << "!!!! on master read sub elems " << nSubElems
+                         << endl;
                     IPstream::read(
                         commsType, procIDs[i],
-                        reinterpret_cast<char *>(globalDataOut->get_data()),
+                        reinterpret_cast<char *>(globalDataOut.get_data()),
                         nSubElems * sizeof(label), tag, comm);
+                    Info << "!!!! on master read sub elems done" << endl;
                 }
 
                 // Wait for all to finish
@@ -236,19 +239,26 @@ public:
         } else {
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
-                // TODO
-                OPstream::write(
-                    commsType, procIDs[0],
-                    reinterpret_cast<char *>(localDataIn->get_data()),
-                    localDataIn->get_num_elems() * sizeof(label), tag, comm);
+                std::cout << "!!!! on agent requests 1 " << endl;
+                OPstream::write(commsType, procIDs[0],
+                                reinterpret_cast<const char *>(
+                                    localDataIn.get_const_data()),
+                                localDataIn.get_num_elems() * sizeof(label),
+                                tag, comm);
+                std::cout << "!!!! on agent requests 1 write done " << endl;
             } else {
                 label startOfRequests = Pstream::nRequests();
+                std::cout << "!!!! on agent requests " << startOfRequests
+                          << endl;
 
                 // Set up write
-                OPstream::write(
-                    commsType, procIDs[0],
-                    reinterpret_cast<char *>(localDataIn->get_data()),
-                    localDataIn->get_num_elems() * sizeof(label), tag, comm);
+                OPstream::write(commsType, procIDs[0],
+                                reinterpret_cast<const char *>(
+                                    localDataIn.get_const_data()),
+                                localDataIn.get_num_elems() * sizeof(label),
+                                tag, comm);
+                std::cout << "!!!! on agent requests write done "
+                          << startOfRequests << endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -260,8 +270,7 @@ public:
     //  Needs offsets only on master.
     template <class Container, class GKOArray>
     void gather(const label comm, const Container &procIDs,
-                const std::shared_ptr<GKOArray> localDataIn,
-                std::shared_ptr<GKOArray> globalDataOut,
+                const GKOArray &localDataIn, GKOArray &globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
@@ -273,8 +282,7 @@ public:
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
     template <class GKOArray>
-    void gather(const std::shared_ptr<GKOArray> localDataIn,
-                std::shared_ptr<GKOArray> globalDataOut,
+    void gather(const GKOArray &localDataIn, GKOArray &globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const

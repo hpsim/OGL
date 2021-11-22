@@ -41,19 +41,12 @@ private:
 
     const label nElems_;
 
-    // if sorting_idxs_ was found in object registry it does not
-    // need to be resorted
     mutable bool is_sorted_;
-
-    // flag to set wheter the idxs for creating the gko coo matrix
-    // should be sorted
-    const bool sort_;
 
     mutable IOField<label> *sorting_idxs_ = NULL;
 
 public:
-    IOSortingIdxHandler(const objectRegistry &db, const label nElems,
-                        const bool sort);
+    IOSortingIdxHandler(const objectRegistry &db, const label nElems);
 
     void init_sorting_idxs();
 
@@ -61,13 +54,18 @@ public:
                               const std::shared_ptr<idx_array> col_idxs,
                               const label nCells);
 
-    bool get_sort() const { return sort_; }
+    bool get_sort() const { return true; }
 
     void set_is_sorted(bool is_sorted) const { is_sorted_ = is_sorted; }
 
     bool get_is_sorted() const { return is_sorted_; }
 
     IOField<label> *get_sorting_idxs() const { return sorting_idxs_; }
+
+    const IOField<label> *get_const_sorting_idxs() const
+    {
+        return sorting_idxs_;
+    }
 };
 }  // namespace Foam
 

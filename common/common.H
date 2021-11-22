@@ -74,6 +74,10 @@ private:
 
     const globalIndex globalIndexNeighbours_;
 
+    const label nGlobalElems_;
+
+    const IOSortingIdxHandler sortingIdxHandler_;
+
     mutable std::shared_ptr<val_array> values_;
 
     mutable std::shared_ptr<idx_array> col_idxs_;
@@ -92,7 +96,11 @@ public:
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
           globalIndexCells_(globalIndex(nCells_)),
-          globalIndexNeighbours_(globalIndex(nNeighbours_)){};
+          globalIndexNeighbours_(globalIndex(nNeighbours_)),
+          nGlobalElems_(2 * globalIndexNeighbours_.size() +
+                        globalIndexCells_.size()),
+          sortingIdxHandler_(
+              IOSortingIdxHandler(matrix.mesh().thisDb(), nElems_)){};
 
     HostMatrix(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
@@ -101,68 +109,56 @@ public:
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
           globalIndexCells_(globalIndex(nCells_)),
-          globalIndexNeighbours_(globalIndex(nNeighbours_)){};
+          globalIndexNeighbours_(globalIndex(nNeighbours_)),
+          nGlobalElems_(2 * globalIndexNeighbours_.size() +
+                        globalIndexCells_.size()),
+          sortingIdxHandler_(
+              IOSortingIdxHandler(matrix.mesh().thisDb(), nElems_)){};
 
-    void init_host_sparsity_pattern(IOField<label> *sorting_idxs) const
+    void init_host_sparsity_pattern() const
     {
-        Info << "init_host_sparsity_pattern"
-             << "  globalIndexNeighbours.local "
-             << globalIndexNeighbours_.localSize()
-             << "  globalIndexNeighbours.global "
-             << globalIndexNeighbours_.size() << endl;
+        // Step 1 local ldu -> csr conversion
+        // including local processor offset
 
-        auto col_idxs_global = std::make_shared<idx_array>(
-            gko::ReferenceExecutor::create(), globalIndexNeighbours_.size());
+        auto ref_exec = gko::ReferenceExecutor::create();
 
-        auto row_idxs_global = std::make_shared<idx_array>(
-            gko::ReferenceExecutor::create(), globalIndexNeighbours_.size());
 
-        col_idxs_ = (Pstream::parRun())
-                        ? std::make_shared<idx_array>(
-                              gko::ReferenceExecutor::create(),
-                              globalIndexNeighbours_.localSize())
-                        : col_idxs_global;
+        auto lower_local = idx_array::view(
+            ref_exec, nNeighbours_,
+            const_cast<label *>(&this->matrix().lduAddr().lowerAddr()[0]));
 
-        row_idxs_ = (Pstream::parRun())
-                        ? std::make_shared<idx_array>(
-                              gko::ReferenceExecutor::create(),
-                              globalIndexNeighbours_.localSize())
-                        : row_idxs_global;
+        auto upper_local = idx_array::view(
+            ref_exec, nNeighbours_,
+            const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
 
-        // gather lduAdressing
+        const auto lower = lower_local.get_const_data();
+        const auto upper = upper_local.get_const_data();
 
-        // locally write ldu adressing in row column order
-        auto lower = this->matrix().lduAddr().lowerAddr();
-        auto upper = this->matrix().lduAddr().upperAddr();
+        auto col_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
 
-        auto rows = row_idxs_->get_data();
-        auto cols = col_idxs_->get_data();
+        auto row_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
+
+        auto rows = row_idxs_local->get_data();
+        auto cols = col_idxs_local->get_data();
 
         label element_ctr = 0;
         label upper_ctr = 0;
         label lower_ctr = 0;
-        Info << "init_host_sparsity_pattern 3" << endl;
-        // std::vector<std::vector<std::pair<label, label>>> lower_stack(
-        //     nNeighbours_);
+
         std::vector<std::vector<std::pair<label, label>>> lower_stack(
-            2 * globalIndexNeighbours_.size());
+            nNeighbours_);
 
-        Info << "init_host_sparsity_pattern 3" << endl;
-        for (auto &row : lower_stack) {
-            row.reserve(10);
-        }
-        Info << "init_host_sparsity_pattern 3" << endl;
+        auto sorting_idxs = sortingIdxHandler_.get_sorting_idxs();
 
-        for (label row = 0; row < nCells(); row++) {
+        for (label row = 0; row < nCells_; row++) {
             // add lower elements
             // for now just scan till current upper ctr
             if (!lower_stack[row].empty()) {
                 for (const auto &element : lower_stack[row]) {
-                    rows[element_ctr] = row;
+                    rows[element_ctr] = element.first;
                     cols[element_ctr] = element.second;
                     // lower_ctr doesnt correspond to same element as upper_ctr
-                    sorting_idxs->operator[](element.first + nNeighbours_) =
-                        element_ctr;
+                    sorting_idxs->operator[](row + nNeighbours_) = element_ctr;
 
                     lower_ctr++;
                     element_ctr++;
@@ -170,58 +166,94 @@ public:
             }
 
             // add diagonal elemnts
-            rows[element_ctr] = row;
-            cols[element_ctr] = row;
+            rows[element_ctr] = globalIndexCells_.toGlobal(row);
+            cols[element_ctr] = globalIndexCells_.toGlobal(row);
             sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
 
             element_ctr++;
 
             // add upper elemnts
             while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
-                label row = lower[upper_ctr];
-                label col = upper[upper_ctr];
-                rows[element_ctr] = row;
-                cols[element_ctr] = col;
-                Info << "init_host_sparsity_pattern 4.5 " << col << endl;
+                label row_upper = globalIndexCells_.toGlobal(lower[upper_ctr]);
+                label col_upper = globalIndexCells_.toGlobal(upper[upper_ctr]);
+                rows[element_ctr] = row_upper;
+                cols[element_ctr] = col_upper;
 
                 // insert into lower_stack
                 // find insert position
-                // lower_stack[col].emplace_back(0, 0);
-                Info << "init_host_sparsity_pattern 4.5 " << col << endl;
-                lower_stack[col].push_back(
-                    std::pair<label, label>{upper_ctr, row});
-                Info << "init_host_sparsity_pattern 4.6 " << endl;
+                lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
+                                                           row_upper);
                 sorting_idxs->operator[](upper_ctr) = element_ctr;
 
                 element_ctr++;
                 upper_ctr++;
             }
-            Info << "init_host_sparsity_pattern 4.8 " << endl;
         }
-        Info << "init_host_sparsity_pattern 5" << endl;
+        // Step 2. gather on master
+        if (Pstream::parRun) {
+            // std::cout << "cout myProcNo" << Pstream::myProcNo(UPstream::worldComm)<< endl;
+            // Info << "Info myProcNo" << Pstream::myProcNo(UPstream::worldComm)<< endl;
+                // if (Pstream::master()) {
+                Info << "!!!! on master" << endl;
+                const label nGlobalNeighbours = globalIndexNeighbours_.size();
+
+                auto col_idxs_global =
+                    std::make_shared<idx_array>(ref_exec, nGlobalElems_);
+
+                auto row_idxs_global =
+                    std::make_shared<idx_array>(ref_exec, nGlobalElems_);
+
+                // gather lduAdressing
+                // pass row and col idxs as reference instead of shared_ptr
+                // row and col idxs are stored as shared_ptr to keep them in
+                // objectReg
+                Info << "!!! on master gathering " << endl;
+                globalIndexNeighbours_.gather(*col_idxs_local.get(),
+                                              *col_idxs_global.get());
+                Info << "!!! on master gathering done 1 " << endl;
+                globalIndexNeighbours_.gather(*row_idxs_local.get(),
+                                              *row_idxs_global.get());
+                Info << "!!! on master gathering done 2 " << endl;
+
+                for (int i = 0; i < nGlobalElems_; ++i) {
+                    Info << "!!! global idx ("
+                              << row_idxs_global->get_data()[i] << " "
+                              << col_idxs_global->get_data()[i] << ")\n";
+                }
+        } else {
+            std::cout << "not parRun" << endl;
+        }
     }
 
 
-    void update_host_matrix_data(const IOField<label> *sorting_idxs) const
-    {
-        label nCells_ = nCells();
-        label nNeighbours_ = nNeighbours();
+    void update_host_matrix_data() const {
+        // const label nGlobalCells = globalIndexCells_.size();
+        // const label nLocalCells = globalIndexCells_.localSize();
+        // auto ref_exec = gko::ReferenceExecutor::create();
 
-        values_ = std::make_shared<val_array>(gko::ReferenceExecutor::create(),
-                                              nElems());
+        // auto values_local = idx_array::view(
+        //     ref_exec, nCells_,
+        //     const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
 
-        auto values = values_->get_data();
-        auto lower = this->matrix().lower();
-        auto upper = this->matrix().upper();
-        for (label i = 0; i < nNeighbours(); i++) {
-            values[sorting_idxs->operator[](i)] = upper[i];
-            values[sorting_idxs->operator[](i + nNeighbours_)] = lower[i];
-        }
+        // auto values_global =
+        //     std::make_shared<idx_array>(ref_exec, nGlobalCells);
 
-        auto diag = this->matrix().diag();
-        for (label i = 0; i < nCells(); ++i) {
-            values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
-        }
+        // values_ =
+        // std::make_shared<val_array>(gko::ReferenceExecutor::create(),
+        //                                       nElems());
+
+        // auto sorting_idxs = sortingIdxHandler_.get_sorting_idxs();
+        // auto lower = this->matrix().lower();
+        // auto upper = this->matrix().upper();
+        // for (label i = 0; i < nNeighbours(); i++) {
+        //     values[sorting_idxs->operator[](i)] = upper[i];
+        //     values[sorting_idxs->operator[](i + nNeighbours_)] = lower[i];
+        // }
+
+        // auto diag = this->matrix().diag();
+        // for (label i = 0; i < nCells(); ++i) {
+        //     values[sorting_idxs->operator[](i + 2 * nNeighbours_)] = diag[i];
+        // }
     };
 
     label nCells() const { return nCells_; };
