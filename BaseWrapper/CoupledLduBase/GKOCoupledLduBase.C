@@ -27,7 +27,7 @@ License
 #include <map>
 #include <type_traits>
 
-#include "GKOLduBase.H"
+#include "GKOCoupledLduBase.H"
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 // ************************************************************************* //

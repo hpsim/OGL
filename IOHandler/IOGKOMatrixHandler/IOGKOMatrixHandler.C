@@ -36,6 +36,11 @@ void IOGKOMatrixHandler::init_device_matrix(
     std::shared_ptr<idx_array> row_idxs_host, const label nElems,
     const label nCells, const bool update) const
 {
+    // only do something on the master
+    if (Pstream::parRun() && !Pstream::master()) {
+        return;
+    }
+
     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
 
     if (sys_matrix_stored_) {

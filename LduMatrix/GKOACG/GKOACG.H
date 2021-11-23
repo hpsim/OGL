@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOACG_H
 #define GKOACG_H
 
-#include "GKOLduBase.H"
+#include "GKOCoupledLduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

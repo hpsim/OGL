@@ -106,9 +106,9 @@ IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
 IOHandler/IOExecutorHandler/IOExecutorHandler.C
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
 IOHandler/IOPreconditioner/IOPreconditioner.C
-IOHandler/IOGlobalIndex/globalIndex.C
+IOHandler/IOGlobalIndex/gkoGlobalIndex.C
 BaseWrapper/lduBase/GKOlduBase.C
-BaseWrapper/LduBase/GKOLduBase.C
+BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
 CG/GKOCG.C
 BiCGStab/GKOBiCGStab.C
 IR/GKOIR.C
@@ -122,9 +122,9 @@ IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
 IOHandler/IOExecutorHandler/IOExecutorHandler.H
 IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
 IOHandler/IOPreconditioner/IOPreconditioner.H
-IOHandler/IOGlobalIndex/globalIndex.H
+IOHandler/IOGlobalIndex/gkoGlobalIndex.H
 BaseWrapper/lduBase/GKOlduBase.H
-BaseWrapper/LduBase/GKOLduBase.H
+BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
 CG/GKOCG.H
 IR/GKOIR.H
 Multigrid/GKOMultigrid.H
@@ -141,7 +141,7 @@ target_include_directories(OGL
   $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
   common/
   BaseWrapper/lduBase/
-  BaseWrapper/LduBase/
+  BaseWrapper/CoupledLduBase/
   IOHandler/IOPtr
   IOHandler/IOExecutorHandler/
   IOHandler/IOSortingIdxHandler/

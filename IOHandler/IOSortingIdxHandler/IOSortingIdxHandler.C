@@ -6,8 +6,8 @@
 namespace Foam {
 
 IOSortingIdxHandler::IOSortingIdxHandler(const objectRegistry &db,
-                                         const label nElems, const bool sort)
-    : nElems_(nElems), is_sorted_(false), sort_(sort)
+                                         const label nElems)
+    : nElems_(nElems), is_sorted_(false)
 {
     // check object registry if sorting idxs exists
     word sorting_idxs_name = "sorting_idxs_";
