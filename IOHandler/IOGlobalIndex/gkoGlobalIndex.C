@@ -133,6 +133,9 @@ bool gkoGlobalIndex::isLocal(const label i) const
 
 label gkoGlobalIndex::toGlobal(const label proci, const label i) const
 {
+    if (!Pstream::parRun()) {
+        return i;
+    }
     return i + offsets_[proci];
 }
 

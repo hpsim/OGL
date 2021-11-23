@@ -43,18 +43,32 @@ using vec = gko::matrix::Dense<scalar>;
 
 #define SIMPLE_LOG(VERBOSE, MSG)                       \
     if (VERBOSE) {                                     \
+    if (Pstream::parRun()) {                           \
+    std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo()   \
+    << "]" << MSG << std::endl;                        \
+    } else {                                           \
         std::cout << "[OGL LOG] " << MSG << std::endl; \
-    }
+}                                                      \
+    } 
 
 #define SIMPLE_TIME(VERBOSE, NAME, F)                                       \
     auto start_##NAME = std::chrono::steady_clock::now();                   \
     F auto end_##NAME = std::chrono::steady_clock::now();                   \
     if (VERBOSE) {                                                          \
+    if (Pstream::parRun()) {                                                \
+        std::cout << "[OGL LOG][Proc: "                                           \
+                  << Pstream::myProcNo() << "]" #NAME " : "                 \                           
+                  << std::chrono::duration_cast<std::chrono::microseconds>( \
+                         end_##NAME - start_##NAME)                         \
+                         .count()                                           \
+                  << " mu s\n";                                             \
+    } else {                                                                \
         std::cout << "[OGL LOG] " #NAME " : "                               \
                   << std::chrono::duration_cast<std::chrono::microseconds>( \
                          end_##NAME - start_##NAME)                         \
                          .count()                                           \
                   << " mu s\n";                                             \
+    }                                                                       \
     }
 
 
@@ -140,7 +154,6 @@ public:
         const auto upper = upper_local.get_const_data();
 
         auto col_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
-
         auto row_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
 
         auto rows = row_idxs_local->get_data();
@@ -186,8 +199,7 @@ public:
 
                 // insert into lower_stack
                 // find insert position
-                lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
-                                                           row_upper);
+                lower_stack[col_upper].emplace_back(upper_ctr, row_upper);
                 sorting_idxs->operator[](upper_ctr) = element_ctr;
 
                 element_ctr++;

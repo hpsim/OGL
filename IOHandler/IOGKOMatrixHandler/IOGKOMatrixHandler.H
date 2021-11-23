@@ -31,6 +31,7 @@ SourceFiles
 #include "regIOobject.H"
 
 #include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../IOGlobalIndex/gkoGlobalIndex.H"
 #include "../IOPtr/IOPtr.H"
 
 namespace Foam {
@@ -124,22 +125,26 @@ public:
 
     void init_initial_guess_vector(const Field<vector> &psi,
                                    const objectRegistry &db,
+                                   const gkoGlobalIndex &globalIndex,
                                    const label nCells) const
     {
         std::vector<word> postFixes{"", "y", "z"};
         for (int i = 0; i < 3; i++) {
-            init_initial_guess(&psi[0][i], db, nCells, postFixes[i]);
+            init_initial_guess(&psi[0][i], db, globalIndex, nCells,
+                               postFixes[i]);
         }
     }
 
     void init_initial_guess_vector(const Field<scalar> &psi,
                                    const objectRegistry &db,
+                                   const gkoGlobalIndex &globalIndex,
                                    const label nCells) const
     {
-        init_initial_guess(&psi[0], db, nCells, "");
+        init_initial_guess(&psi[0], db, globalIndex, nCells, "");
     }
 
     void init_initial_guess(const scalar *psi, const objectRegistry &db,
+                            const gkoGlobalIndex &globalIndex,
                             const label nCells, const word postFix) const;
 
 

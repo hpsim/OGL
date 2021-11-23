@@ -126,67 +126,70 @@ public:
         }
     }
 
+    // the solve_impl_ version called from the LduMatrix, ie for
+    // coupled matrices
     template <class Type>
-    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
-    {
-        auto gI = globalIndex(this->nCells());
-        Info << "global size" << gI.size() << endl;
+    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const {
+        // auto gI = globalIndex(this->nCells());
+        // Info << "global size" << gI.size() << endl;
 
 
-        std::shared_ptr<gko::Executor> device_exec =
-            this->get_device_executor();
+        // std::shared_ptr<gko::Executor> device_exec =
+        //     this->get_device_executor();
 
-        // --- Setup class containing solver performance data
-        // Implement
-        word preconditionerName(this->controlDict_.lookup("preconditioner"));
+        // // --- Setup class containing solver performance data
+        // // Implement
+        // word preconditionerName(this->controlDict_.lookup("preconditioner"));
 
-        SolverPerformance<Type> solverPerf(
-            this->get_device_executor_name() + preconditionerName,
-            this->fieldName_);
+        // SolverPerformance<Type> solverPerf(
+        //     this->get_device_executor_name() + preconditionerName,
+        //     this->fieldName_);
 
-        std::vector<val_array> source_views{};
+        // std::vector<val_array> source_views{};
 
-        init_vector_views(source_views, this->matrix().source());
+        // init_vector_views(source_views, gI, this->matrix().source());
 
-        std::vector<std::shared_ptr<vec>> b{};
-        for (int i = 0; i < 3; i++) {
-            b.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(), 1),
-                                    source_views[i], 3));
-        }
-
-        init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
-                                  this->nCells());
-        std::vector<std::shared_ptr<vec>> x{};
-        this->get_initial_guess(x);
-
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec{};
-
-
-        std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
-
-        // Generate solver
-        // auto solver_gen = this->create_solver(
-        //     device_exec, criterion_vec);
-
-        // auto solver = solver_gen->generate(gko::share(gkomatrix));
-
+        // std::vector<std::shared_ptr<vec>> b{};
         // for (int i = 0; i < 3; i++) {
-        //     SIMPLE_TIME(verbose_, solve,
-        //                 solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
+        //     b.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(),
+        //     1),
+        //                             source_views[i], 3));
         // }
 
-        // copy back
-        copy_result_back(psi, this->nCells());
+        // init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
+        //                           this->nCells());
+        // std::vector<std::shared_ptr<vec>> x{};
+        // this->get_initial_guess(x);
 
-        return solverPerf;
+        // std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
+        //     criterion_vec{};
+
+
+        // std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
+
+        // // Generate solver
+        // // auto solver_gen = this->create_solver(
+        // //     device_exec, criterion_vec);
+
+        // // auto solver = solver_gen->generate(gko::share(gkomatrix));
+
+        // // for (int i = 0; i < 3; i++) {
+        // //     SIMPLE_TIME(verbose_, solve,
+        // //                 solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
+        // // }
+
+        // // copy back
+        // copy_result_back(psi, this->nCells());
+
+        // return solverPerf;
     };
 
     solverPerformance solve_impl_(word typeName, scalarField &psi,
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
-        auto globalAddr = gkoGlobalIndex(this->nCells());
+        SIMPLE_TIME(verbose_, generate_global_index,
+                    auto globalAddr = gkoGlobalIndex(this->nCells());)
 
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
@@ -216,7 +219,7 @@ public:
 
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
-                                  this->nCells());
+                                  globalAddr, this->nCells());
         std::vector<std::shared_ptr<vec>> x{};
         this->get_initial_guess(x);
 
@@ -244,7 +247,12 @@ public:
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         // Solve system
-        if (Pstream::parRun() && Pstream::master()) {
+        if (Pstream::parRun()) {
+            if (Pstream::master()) {
+                SIMPLE_TIME(verbose_, solve,
+                            solver->apply(gko::lend(b), gko::lend(x[0]));)
+            }
+        } else {
             SIMPLE_TIME(verbose_, solve,
                         solver->apply(gko::lend(b), gko::lend(x[0]));)
         }

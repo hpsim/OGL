@@ -104,6 +104,7 @@ void IOGKOMatrixHandler::init_device_matrix(
 
 void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
                                             const objectRegistry &db,
+                                            const gkoGlobalIndex &globalAddr,
                                             const label nCells,
                                             const word postFix) const
 {
@@ -114,9 +115,23 @@ void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
             init_guess_vector_name_ + postFix));
         return;
     }
+    auto ref_exec = gko::ReferenceExecutor::create();
 
-    auto psi_view = val_array::view(gko::ReferenceExecutor::create(), nCells,
-                                    const_cast<scalar *>(psi));
+    auto psi_view =
+        val_array::view(ref_exec, nCells, const_cast<scalar *>(psi));
+
+    if (Pstream::parRun()) {
+        auto psi_global =
+            std::make_shared<val_array>(ref_exec, globalAddr.size());
+
+        globalAddr.gather(psi_view, *psi_global.get());
+
+        if (!Pstream::master()) {
+            return;
+        }
+
+        psi_view = *psi_global.get();
+    }
 
     auto x = gko::share(
         vec::create(device_exec, gko::dim<2>(nCells, 1), psi_view, 1));
