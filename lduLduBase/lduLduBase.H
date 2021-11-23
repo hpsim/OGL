@@ -186,9 +186,7 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
-        auto gI = globalIndex(this->nCells());
-        Info << "global size" << gI.size() << endl;
-        Info << "local size" << gI.localSize() << endl;
+        auto globalAddr = gkoGlobalIndex(this->nCells());
 
         std::shared_ptr<gko::Executor> device_exec =
             this->get_device_executor();
@@ -202,11 +200,20 @@ public:
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
 
+        if (Pstream::parRun()) {
+            auto source_global =
+                std::make_shared<val_array>(ref_exec(), globalAddr.size());
+
+            globalAddr.gather(source_view, *source_global.get());
+            source_view = *source_global.get();
+        }
+
         std::vector<val_array> source_views{source_view};
         SIMPLE_TIME(verbose_, create_and_push_b,
                     auto b = gko::share(
                         vec::create(device_exec, gko::dim<2>(this->nCells(), 1),
                                     source_views[0], 1));)
+
 
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   this->nCells());
@@ -237,8 +244,10 @@ public:
         auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         // Solve system
-        SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(b), gko::lend(x[0]));)
+        if (Pstream::parRun() && Pstream::master()) {
+            SIMPLE_TIME(verbose_, solve,
+                        solver->apply(gko::lend(b), gko::lend(x[0]));)
+        }
 
         this->copy_result_back(psi, this->nCells());
 

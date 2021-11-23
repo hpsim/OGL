@@ -26,116 +26,125 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "globalIndex.H"
+#include "gkoGlobalIndex.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 namespace Foam {
-globalIndex::globalIndex(const label localSize) : globalIndex()
+gkoGlobalIndex::gkoGlobalIndex(const label localSize) : gkoGlobalIndex()
 {
     init(localSize);
 }
 
-globalIndex::globalIndex(const label localSize, const int tag, const label comm,
-                         const bool parallel)
-    : globalIndex()
+gkoGlobalIndex::gkoGlobalIndex(const label localSize, const int tag,
+                               const label comm, const bool parallel)
+    : gkoGlobalIndex()
 {
     init(localSize, tag, comm, parallel);
 }
 
 
-globalIndex::globalIndex(const labelUList &offsets) : offsets_(offsets) {}
+gkoGlobalIndex::gkoGlobalIndex(const labelUList &offsets) : offsets_(offsets) {}
 
 
-globalIndex::globalIndex(labelList &&offsets) : offsets_(std::move(offsets)) {}
+gkoGlobalIndex::gkoGlobalIndex(labelList &&offsets)
+    : offsets_(std::move(offsets))
+{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool globalIndex::empty() const
+bool gkoGlobalIndex::empty() const
 {
     return offsets_.empty() || offsets_.last() == 0;
 }
 
 
-const labelList &globalIndex::offsets() const { return offsets_; }
+const labelList &gkoGlobalIndex::offsets() const { return offsets_; }
 
 
-labelList &globalIndex::offsets() { return offsets_; }
+labelList &gkoGlobalIndex::offsets() { return offsets_; }
 
 
-label globalIndex::size() const
+label gkoGlobalIndex::size() const
 {
     return offsets_.empty() ? 0 : offsets_.last();
 }
 
 
-void globalIndex::init(const label localSize)
+void gkoGlobalIndex::init(const label localSize)
 {
     init(localSize, Pstream::msgType(), UPstream::worldComm, Pstream::parRun());
 }
 
 
-label globalIndex::offset(const label proci) const { return offsets_[proci]; }
-
-
-label globalIndex::localStart(const label proci) const
+label gkoGlobalIndex::offset(const label proci) const
 {
     return offsets_[proci];
 }
 
 
-label globalIndex::localStart() const
+label gkoGlobalIndex::localStart(const label proci) const
+{
+    return offsets_[proci];
+}
+
+
+label gkoGlobalIndex::localStart() const
 {
     return localStart(Pstream::myProcNo());
 }
 
 
-label globalIndex::localSize(const label proci) const
+label gkoGlobalIndex::localSize(const label proci) const
 {
     return offsets_[proci + 1] - offsets_[proci];
 }
 
 
-label globalIndex::localSize() const { return localSize(Pstream::myProcNo()); }
+label gkoGlobalIndex::localSize() const
+{
+    return localSize(Pstream::myProcNo());
+}
 
 
-// labelRange globalIndex::range(const label proci) const
+// labelRange gkoGlobalIndex::range(const label proci) const
 // {
 //     return labelRange(offsets_[proci], offsets_[proci + 1] -
 //     offsets_[proci]);
 // }
 
 
-// labelRange globalIndex::range() const { return range(Pstream::myProcNo()); }
+// labelRange gkoGlobalIndex::range() const { return range(Pstream::myProcNo());
+// }
 
 
-bool globalIndex::isLocal(const label proci, const label i) const
+bool gkoGlobalIndex::isLocal(const label proci, const label i) const
 {
     return i >= offsets_[proci] && i < offsets_[proci + 1];
 }
 
 
-bool globalIndex::isLocal(const label i) const
+bool gkoGlobalIndex::isLocal(const label i) const
 {
     return isLocal(Pstream::myProcNo(), i);
 }
 
 
-label globalIndex::toGlobal(const label proci, const label i) const
+label gkoGlobalIndex::toGlobal(const label proci, const label i) const
 {
     return i + offsets_[proci];
 }
 
 
-label globalIndex::toGlobal(const label i) const
+label gkoGlobalIndex::toGlobal(const label i) const
 {
     return toGlobal(Pstream::myProcNo(), i);
 }
 
 
-labelList globalIndex::toGlobal(const label proci,
-                                const labelUList &labels) const
+labelList gkoGlobalIndex::toGlobal(const label proci,
+                                   const labelUList &labels) const
 {
     labelList result(labels);
     inplaceToGlobal(proci, result);
@@ -144,13 +153,13 @@ labelList globalIndex::toGlobal(const label proci,
 }
 
 
-labelList globalIndex::toGlobal(const labelUList &labels) const
+labelList gkoGlobalIndex::toGlobal(const labelUList &labels) const
 {
     return toGlobal(Pstream::myProcNo(), labels);
 }
 
 
-void globalIndex::inplaceToGlobal(const label proci, labelList &labels) const
+void gkoGlobalIndex::inplaceToGlobal(const label proci, labelList &labels) const
 {
     const label off = offsets_[proci];
 
@@ -160,13 +169,13 @@ void globalIndex::inplaceToGlobal(const label proci, labelList &labels) const
 }
 
 
-void globalIndex::inplaceToGlobal(labelList &labels) const
+void gkoGlobalIndex::inplaceToGlobal(labelList &labels) const
 {
     inplaceToGlobal(Pstream::myProcNo(), labels);
 }
 
 
-label globalIndex::toLocal(const label proci, const label i) const
+label gkoGlobalIndex::toLocal(const label proci, const label i) const
 {
     const label locali = i - offsets_[proci];
 
@@ -179,13 +188,13 @@ label globalIndex::toLocal(const label proci, const label i) const
 }
 
 
-label globalIndex::toLocal(const label i) const
+label gkoGlobalIndex::toLocal(const label i) const
 {
     return toLocal(Pstream::myProcNo(), i);
 }
 
 
-label globalIndex::whichProcID(const label i) const
+label gkoGlobalIndex::whichProcID(const label i) const
 {
     // if (i < 0 || i >= size()) {
     //     FatalErrorInFunction << "Global " << i
@@ -196,7 +205,7 @@ label globalIndex::whichProcID(const label i) const
     return findLower(offsets_, i + 1);
 }
 // template <class Container, class Type>
-// void globalIndex::gather(const labelUList &off, const label comm,
+// void gkoGlobalIndex::gather(const labelUList &off, const label comm,
 //                          const Container &procIDs, const UList<Type> &fld,
 //                          List<Type> &allFld, const int tag,
 //                          const Pstream::commsTypes commsType)
@@ -287,7 +296,7 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type>
-// void globalIndex::gather(const UList<Type> &fld, List<Type> &allFld,
+// void gkoGlobalIndex::gather(const UList<Type> &fld, List<Type> &allFld,
 //                          const int tag,
 //                          const Pstream::commsTypes commsType) const
 // {
@@ -297,16 +306,16 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type>
-// void globalIndex::gatherOp(const UList<Type> &fld, List<Type> &allFld,
+// void gkoGlobalIndex::gatherOp(const UList<Type> &fld, List<Type> &allFld,
 //                            const int tag, const Pstream::commsTypes
 //                            commsType)
 // {
-//     globalIndex(fld.size()).gather(fld, allFld, tag, commsType);
+//     gkoGlobalIndex(fld.size()).gather(fld, allFld, tag, commsType);
 // }
 
 
 // template <class Container, class Type>
-// void globalIndex::gather(const labelUList &off, const label comm,
+// void gkoGlobalIndex::gather(const labelUList &off, const label comm,
 //                          const Container &procIDs, List<Type> &fld,
 //                          const int tag, const Pstream::commsTypes commsType)
 // {
@@ -321,7 +330,7 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type>
-// void globalIndex::gather(List<Type> &fld, const int tag,
+// void gkoGlobalIndex::gather(List<Type> &fld, const int tag,
 //                          const Pstream::commsTypes commsType) const
 // {
 //     List<Type> allFld;
@@ -338,15 +347,15 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type>
-// void globalIndex::gatherOp(List<Type> &fld, const int tag,
+// void gkoGlobalIndex::gatherOp(List<Type> &fld, const int tag,
 //                            const Pstream::commsTypes commsType)
 // {
-//     globalIndex(fld.size()).gather(fld, tag, commsType);
+//     gkoGlobalIndex(fld.size()).gather(fld, tag, commsType);
 // }
 
 
 // template <class Container, class Type>
-// void globalIndex::scatter(const labelUList &off, const label comm,
+// void gkoGlobalIndex::scatter(const labelUList &off, const label comm,
 //                           const Container &procIDs, const UList<Type>
 //                           &allFld, UList<Type> &fld, const int tag, const
 //                           Pstream::commsTypes commsType)
@@ -434,7 +443,7 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type>
-// void globalIndex::scatter(const UList<Type> &allFld, UList<Type> &fld,
+// void gkoGlobalIndex::scatter(const UList<Type> &allFld, UList<Type> &fld,
 //                           const int tag,
 //                           const Pstream::commsTypes commsType) const
 // {
@@ -445,7 +454,7 @@ label globalIndex::whichProcID(const label i) const
 
 
 // template <class Type, class CombineOp>
-// void globalIndex::get(List<Type> &allFld, const labelUList &globalIds,
+// void gkoGlobalIndex::get(List<Type> &allFld, const labelUList &globalIds,
 //                       const CombineOp &cop, const label comm,
 //                       const int tag) const
 // {
@@ -506,13 +515,14 @@ label globalIndex::whichProcID(const label i) const
 //         // }
 //     }
 // }
-// globalIndex::globalIndex(Istream &is) { is >> offsets_; }
+// gkoGlobalIndex::gkoGlobalIndex(Istream &is) { is >> offsets_; }
 
 
 // // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * *
 // //
 
-// void globalIndex::bin(const labelUList &offsets, const labelUList &globalIds,
+// void gkoGlobalIndex::bin(const labelUList &offsets, const labelUList
+// &globalIds,
 //                       labelList &order, CompactListList<label> &bins,
 //                       DynamicList<label> &validBins)
 // {
@@ -560,8 +570,8 @@ label globalIndex::whichProcID(const label i) const
 // }
 
 
-void globalIndex::init(const label localSize, const int tag, const label comm,
-                       const bool parallel)
+void gkoGlobalIndex::init(const label localSize, const int tag,
+                          const label comm, const bool parallel)
 {
     const label nProcs = Pstream::nProcs(comm);
     offsets_.resize(nProcs + 1);
@@ -593,7 +603,7 @@ void globalIndex::init(const label localSize, const int tag, const label comm,
 }
 
 
-labelList globalIndex::sizes() const
+labelList gkoGlobalIndex::sizes() const
 {
     labelList values;
 
@@ -615,11 +625,12 @@ labelList globalIndex::sizes() const
 
 // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
-// Istream &operator>>(Istream &is, globalIndex &gi) { return is >> gi.offsets_;
+// Istream &operator>>(Istream &is, gkoGlobalIndex &gi) { return is >>
+// gi.offsets_;
 // }
 
 
-// Ostream &operator<<(Ostream &os, const globalIndex &gi)
+// Ostream &operator<<(Ostream &os, const gkoGlobalIndex &gi)
 // {
 //     return os << gi.offsets_;
 // }
