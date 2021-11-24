@@ -180,7 +180,8 @@ public:
                     rows[element_ctr] = globalIndexCells_.toGlobal(row);
                     cols[element_ctr] = element.second;
                     // lower_ctr doesnt correspond to same element as upper_ctr
-                    sorting_idxs->operator[](row + nNeighbours_) = element_ctr;
+                    sorting_idxs->operator[](element.first + nNeighbours_) =
+                        element_ctr;
 
                     lower_ctr++;
                     element_ctr++;

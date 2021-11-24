@@ -46,6 +46,7 @@ private:
     mutable IOField<label> *sorting_idxs_ = NULL;
 
 public:
+    // TODO handle sorting idxs per rank
     IOSortingIdxHandler(const objectRegistry &db, const label nElems);
 
     void init_sorting_idxs();

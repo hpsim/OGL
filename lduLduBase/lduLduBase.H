@@ -275,6 +275,10 @@ public:
                     export_vec(this->fieldName() + "_residuals",
                                gko::lend(this->get_res_norms()), timeName);
                 }
+                solverPerf.initialResidual() = this->get_init_res_norm();
+                solverPerf.finalResidual() = this->get_res_norm();
+                solverPerf.nIterations() = this->get_number_of_iterations();
+                this->store_number_of_iterations();
             }
         } else {
             auto solver_gen = this->create_solver(
