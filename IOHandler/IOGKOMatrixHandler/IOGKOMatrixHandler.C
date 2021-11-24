@@ -31,7 +31,8 @@ SourceFiles
 namespace Foam {
 
 void IOGKOMatrixHandler::init_device_matrix(
-    const objectRegistry &db, std::shared_ptr<val_array> values_host,
+    const objectRegistry &db, const gkoGlobalIndex &globalIndex,
+    std::shared_ptr<val_array> values_host,
     std::shared_ptr<idx_array> col_idxs_host,
     std::shared_ptr<idx_array> row_idxs_host, const label nElems,
     const label nCells, const bool update) const
@@ -50,8 +51,8 @@ void IOGKOMatrixHandler::init_device_matrix(
         } else {
             gkomatrix_ptr_ = &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_);
             auto gkomatrix = gkomatrix_ptr_->get_ptr();
-            auto values_view =
-                val_array::view(device_exec, nElems, gkomatrix->get_values());
+            auto values_view = val_array::view(device_exec, globalIndex.size(),
+                                               gkomatrix->get_values());
 
             // copy values to device
             values_view = *values_host.get();
@@ -121,16 +122,19 @@ void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
         val_array::view(ref_exec, nCells, const_cast<scalar *>(psi));
 
     if (Pstream::parRun()) {
-        auto psi_global =
-            std::make_shared<val_array>(ref_exec, globalAddr.size());
+        auto psi_global = val_array(ref_exec, globalAddr.size());
 
-        globalAddr.gather(psi_view, *psi_global.get());
+        globalAddr.gather(psi_view, psi_global);
 
         if (!Pstream::master()) {
             return;
         }
-
-        psi_view = *psi_global.get();
+        auto x = gko::share(
+            vec::create(device_exec, gko::dim<2>(nCells, 1), psi_global, 1));
+        const fileName path_init_guess = init_guess_vector_name_ + postFix;
+        io_init_guess_ptrs_.push_back(
+            new GKOVECIOPtr(IOobject(path_init_guess, db), x));
+        return;
     }
 
     auto x = gko::share(

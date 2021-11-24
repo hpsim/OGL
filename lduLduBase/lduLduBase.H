@@ -108,10 +108,15 @@ public:
                             this->update_host_matrix_data();)
             }
         }
+        auto globalAddr = gkoGlobalIndex(this->nCells());
 
-        init_device_matrix(this->matrix().mesh().thisDb(), this->values(),
-                           this->col_idxs(), this->row_idxs(), this->nElems(),
-                           this->nCells(), get_update_sys_matrix());
+
+        SIMPLE_TIME(
+            verbose_, init_device_matrix,
+            init_device_matrix(this->matrix().mesh().thisDb(), globalAddr,
+                               this->values(), this->col_idxs(),
+                               this->row_idxs(), this->nElems(), this->nCells(),
+                               get_update_sys_matrix());)
     }
 
 
@@ -203,71 +208,88 @@ public:
         auto source_view = val_array::view(ref_exec(), this->nCells(),
                                            const_cast<scalar *>(&source[0]));
 
-        if (Pstream::parRun()) {
-            auto source_global =
-                std::make_shared<val_array>(ref_exec(), globalAddr.size());
 
-            globalAddr.gather(source_view, *source_global.get());
-            source_view = *source_global.get();
+        std::vector<val_array> source_views{};
+        if (Pstream::parRun()) {
+            auto source_global = val_array(ref_exec(), globalAddr.size());
+
+            globalAddr.gather(source_view, source_global);
+            source_views.push_back(source_global);
+        } else {
+            source_views.push_back(source_view);
         }
 
-        std::vector<val_array> source_views{source_view};
         SIMPLE_TIME(verbose_, create_and_push_b,
                     auto b = gko::share(
                         vec::create(device_exec, gko::dim<2>(this->nCells(), 1),
                                     source_views[0], 1));)
 
-
+        SIMPLE_LOG(verbose_, "init_initial_guess")
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   globalAddr, this->nCells());
+        SIMPLE_LOG(verbose_, "init_initial_guess done")
         std::vector<std::shared_ptr<vec>> x{};
         this->get_initial_guess(x);
+        SIMPLE_LOG(verbose_, "get init_initial_guess done")
 
         // Generate solver
+        SIMPLE_LOG(verbose_, "get_gkomatrix")
         std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
 
         const word timeName = this->matrix().mesh().thisDb().time().timeName();
 
-        if (get_export())
-            export_system(this->fieldName(), gko::lend(gkomatrix),
-                          gko::lend(x[0]), gko::lend(b), timeName);
+        if (Pstream::master()) {
+            if (get_export())
+                export_system(this->fieldName(), gko::lend(gkomatrix),
+                              gko::lend(x[0]), gko::lend(b), timeName);
+        }
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
 
-        SIMPLE_TIME(verbose_, init_preconditioner,
-                    this->init_preconditioner(this->matrix().mesh().thisDb(),
-                                              gkomatrix, device_exec);)
+        SIMPLE_LOG(verbose_, "create precond")
+        if (Pstream::master()) {
+            SIMPLE_TIME(
+                verbose_, init_preconditioner,
+                this->init_preconditioner(this->matrix().mesh().thisDb(),
+                                          gkomatrix, device_exec);)
+        }
+        SIMPLE_LOG(verbose_, "create precond done")
 
         // Instantiate an iteration logger.
-        auto solver_gen =
-            this->create_solver(device_exec, gkomatrix, x[0], b, verbose_,
-                                this->get_export(), this->get_preconditioner());
 
-        auto solver = solver_gen->generate(gko::share(gkomatrix));
 
         // Solve system
         if (Pstream::parRun()) {
             if (Pstream::master()) {
+                SIMPLE_LOG(verbose_, "create solver")
+                auto solver_gen = this->create_solver(
+                    device_exec, gkomatrix, x[0], b, verbose_,
+                    this->get_export(), this->get_preconditioner());
+                auto solver = solver_gen->generate(gko::share(gkomatrix));
                 SIMPLE_TIME(verbose_, solve,
                             solver->apply(gko::lend(b), gko::lend(x[0]));)
+                //        this->copy_result_back(psi, this->nCells());
+                SIMPLE_LOG(verbose_, "create solver done")
+                if (get_export()) {
+                    export_vec(this->fieldName() + "_residuals",
+                               gko::lend(this->get_res_norms()), timeName);
+                }
             }
         } else {
+            auto solver_gen = this->create_solver(
+                device_exec, gkomatrix, x[0], b, verbose_, this->get_export(),
+                this->get_preconditioner());
+            auto solver = solver_gen->generate(gko::share(gkomatrix));
             SIMPLE_TIME(verbose_, solve,
                         solver->apply(gko::lend(b), gko::lend(x[0]));)
+            this->copy_result_back(psi, this->nCells());
+            solverPerf.initialResidual() = this->get_init_res_norm();
+            solverPerf.finalResidual() = this->get_res_norm();
+            solverPerf.nIterations() = this->get_number_of_iterations();
+            this->store_number_of_iterations();
         }
 
-        this->copy_result_back(psi, this->nCells());
-
-        solverPerf.initialResidual() = this->get_init_res_norm();
-        solverPerf.finalResidual() = this->get_res_norm();
-        solverPerf.nIterations() = this->get_number_of_iterations();
-        this->store_number_of_iterations();
-
-        if (get_export()) {
-            export_vec(this->fieldName() + "_residuals",
-                       gko::lend(this->get_res_norms()), timeName);
-        }
 
         return solverPerf;
     };

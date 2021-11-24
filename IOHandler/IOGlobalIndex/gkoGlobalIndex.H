@@ -203,9 +203,12 @@ public:
     {
         if (Pstream::master()) {
             // Assign my local data
+            std::cout << "create view  " << endl;
             gko::Array<Value>::view(gko::ReferenceExecutor::create(),
                                     localDataIn.get_num_elems(),
                                     globalDataOut.get_data()) = localDataIn;
+            std::cout << "create view done  " << endl;
+
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
                 for (label i = 1; i < procIDs.size(); ++i) {
@@ -220,6 +223,7 @@ public:
                 label startOfRequests = Pstream::nRequests();
 
                 // Set up reads
+                std::cout << "start reads  " << endl;
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
                     auto sub_view = gko::Array<Value>::view(
@@ -230,6 +234,7 @@ public:
                         reinterpret_cast<char *>(sub_view.get_data()),
                         nSubElems * sizeof(Value), tag, comm);
                 }
+                std::cout << "start reads done " << endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -245,11 +250,13 @@ public:
             } else {
                 label startOfRequests = Pstream::nRequests();
                 // Set up write
+                std::cout << "start write  " << endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
                                     localDataIn.get_const_data()),
                                 localDataIn.get_num_elems() * sizeof(Value),
                                 tag, comm);
+                std::cout << "start write done  " << endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -259,9 +266,10 @@ public:
 
     //- Collect data in processor order on master (== procIDs[0]).
     //  Needs offsets only on master.
-    template <class Container, class GKOArray>
+    template <class Container, class Value>
     void gather(const label comm, const Container &procIDs,
-                const GKOArray &localDataIn, GKOArray &globalDataOut,
+                const gko::Array<Value> &localDataIn,
+                gko::Array<Value> &globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
@@ -272,8 +280,9 @@ public:
 
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
-    template <class GKOArray>
-    void gather(const GKOArray &localDataIn, GKOArray &globalDataOut,
+    template <class Value>
+    void gather(const gko::Array<Value> &localDataIn,
+                gko::Array<Value> &globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const

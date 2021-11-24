@@ -109,6 +109,7 @@ public:
     };
 
     void init_device_matrix(const objectRegistry &db,
+                            const gkoGlobalIndex &globalIndex,
                             std::shared_ptr<val_array> values_host,
                             std::shared_ptr<idx_array> col_idxs_host,
                             std::shared_ptr<idx_array> row_idxs_host,

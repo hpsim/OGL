@@ -41,34 +41,37 @@ namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
 using vec = gko::matrix::Dense<scalar>;
 
-#define SIMPLE_LOG(VERBOSE, MSG)                       \
-    if (VERBOSE) {                                     \
-    if (Pstream::parRun()) {                           \
-    std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo()   \
-    << "]" << MSG << std::endl;                        \
-    } else {                                           \
-        std::cout << "[OGL LOG] " << MSG << std::endl; \
-}                                                      \
-    } 
+#define SIMPLE_LOG(VERBOSE, MSG)                                          \
+    if (VERBOSE) {                                                        \
+        if (Pstream::parRun()) {                                          \
+            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "]" \
+                      << MSG << std::endl;                                \
+        } else {                                                          \
+            std::cout << "[OGL LOG] " << MSG << std::endl;                \
+        }                                                                 \
+    }
 
-#define SIMPLE_TIME(VERBOSE, NAME, F)                                       \
-    auto start_##NAME = std::chrono::steady_clock::now();                   \
-    F auto end_##NAME = std::chrono::steady_clock::now();                   \
-    if (VERBOSE) {                                                          \
-    if (Pstream::parRun()) {                                                \
-        std::cout << "[OGL LOG][Proc: "                                           \
-                  << Pstream::myProcNo() << "]" #NAME " : "                 \                           
-                  << std::chrono::duration_cast<std::chrono::microseconds>( \
-                         end_##NAME - start_##NAME)                         \
-                         .count()                                           \
-                  << " mu s\n";                                             \
-    } else {                                                                \
-        std::cout << "[OGL LOG] " #NAME " : "                               \
-                  << std::chrono::duration_cast<std::chrono::microseconds>( \
-                         end_##NAME - start_##NAME)                         \
-                         .count()                                           \
-                  << " mu s\n";                                             \
-    }                                                                       \
+#define SIMPLE_TIME(VERBOSE, NAME, F)                                     \
+    auto start_##NAME = std::chrono::steady_clock::now();                 \
+    F auto end_##NAME = std::chrono::steady_clock::now();                 \
+    if (VERBOSE) {                                                        \
+        if (Pstream::parRun()) {                                          \
+            std::cout                                                     \
+                << "[OGL LOG][Proc: " << Pstream::myProcNo()              \
+                << "]" #NAME " : "                                        \
+                                                                          \
+                << std::chrono::duration_cast<std::chrono::microseconds>( \
+                       end_##NAME - start_##NAME)                         \
+                       .count()                                           \
+                << " mu s\n";                                             \
+        } else {                                                          \
+            std::cout                                                     \
+                << "[OGL LOG] " #NAME " : "                               \
+                << std::chrono::duration_cast<std::chrono::microseconds>( \
+                       end_##NAME - start_##NAME)                         \
+                       .count()                                           \
+                << " mu s\n";                                             \
+        }                                                                 \
     }
 
 
@@ -166,6 +169,7 @@ public:
         std::vector<std::vector<std::pair<label, label>>> lower_stack(
             nNeighbours_);
 
+
         auto sorting_idxs = sortingIdxHandler_.get_sorting_idxs();
 
         for (label row = 0; row < nCells_; row++) {
@@ -199,7 +203,12 @@ public:
 
                 // insert into lower_stack
                 // find insert position
-                lower_stack[col_upper].emplace_back(upper_ctr, row_upper);
+                // std::cout << " Proc " << Pstream::myProcNo() << "col_upper "
+                //           << col_upper << "  row " << row << "  element_ctr"
+                //           << element_ctr << endl;
+                lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
+                                                           row_upper);
+                // std::cout << "done" << endl;
                 sorting_idxs->operator[](upper_ctr) = element_ctr;
 
                 element_ctr++;
