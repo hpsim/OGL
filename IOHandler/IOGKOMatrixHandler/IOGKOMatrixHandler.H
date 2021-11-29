@@ -124,6 +124,7 @@ public:
         return gkomatrix_ptr_->get_ptr();
     };
 
+    // initialize the local initial guess
     void init_initial_guess_vector(const Field<vector> &psi,
                                    const objectRegistry &db,
                                    const gkoGlobalIndex &globalIndex,
@@ -135,6 +136,7 @@ public:
                                postFixes[i]);
         }
     }
+
 
     void init_initial_guess_vector(const Field<scalar> &psi,
                                    const objectRegistry &db,
@@ -148,7 +150,6 @@ public:
                             const gkoGlobalIndex &globalIndex,
                             const label nCells, const word postFix) const;
 
-
     void get_initial_guess(std::vector<std::shared_ptr<vec>> &init_guess) const
     {
         if (io_init_guess_ptrs_.size() == 0) {
@@ -159,6 +160,8 @@ public:
         }
     }
 
+
+    // TODO clean up with scalarField version
     template <class OFField>
     void copy_result_back(const OFField &psi, const label nCells) const
     {
@@ -174,6 +177,38 @@ public:
                                             const_cast<scalar *>(&psi[0][i]));
             psi_view = host_x_view;
         }
+    }
+
+    // TODO clean up with scalarField version
+    void copy_result_back(const gkoGlobalIndex &globalAddr,
+                          const scalarField &local_psi) const
+    {
+        Info << "copy result back parallel" << endl;
+        const label globalNCells{globalAddr.size()};
+        const label nCells{globalAddr.localSize()};
+
+        // TODO can this be avoided on non master
+        // ranks, for example by passing null ptrs?
+        auto global_host_x = val_array(ref_exec(), globalNCells);
+
+        if (Pstream::master()) {
+            std::vector<std::shared_ptr<vec>> device_xs_ptr{};
+            get_initial_guess(device_xs_ptr);
+
+            auto device_xs_view = val_array::view(
+                app_exec(), globalNCells, device_xs_ptr[0]->get_values());
+
+            global_host_x = device_xs_view;
+        }
+
+        auto local_host_x = val_array(ref_exec(), nCells);
+
+        globalAddr.scatter(global_host_x, local_host_x);
+
+        auto psi_view = val_array::view(ref_exec(), nCells,
+                                        const_cast<scalar *>(&local_psi[0]));
+
+        psi_view = local_host_x;
     }
 
     void copy_result_back(const scalarField &psi, const label nCells) const;

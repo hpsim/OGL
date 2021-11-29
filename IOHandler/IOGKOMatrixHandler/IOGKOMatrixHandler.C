@@ -148,6 +148,7 @@ void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
 void IOGKOMatrixHandler::copy_result_back(const scalarField &psi,
                                           const label nCells) const
 {
+    // TODO rename to host_x
     auto device_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
 
     std::vector<std::shared_ptr<vec>> device_xs_ptr{};

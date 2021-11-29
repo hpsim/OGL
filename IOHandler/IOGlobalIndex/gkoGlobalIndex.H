@@ -344,7 +344,57 @@ public:
         const labelUList &offsets, const label comm, const Container &procIDs,
         const gko::Array<Value> &globalDataIn, gko::Array<Value> &localDataOut,
         const int tag = UPstream::msgType(),
-        const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking);
+        const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
+    {
+        if (Pstream::master()) {
+            // copy its own data to local array.
+            std::cout << "scatter create view  " << endl;
+            localDataOut = gko::detail::array_const_cast(
+                gko::Array<Value>::const_view(gko::ReferenceExecutor::create(),
+                                              localDataOut.get_num_elems(),
+                                              globalDataIn.get_const_data()));
+            std::cout << "scatter create view done  " << endl;
+
+            if (commsType == Pstream::commsTypes::scheduled ||
+                commsType == Pstream::commsTypes::blocking) {
+                for (label i = 1; i < procIDs.size(); ++i) {
+                    label nSubElems = offsets[i + 1] - offsets[i];
+
+                    OPstream::write(
+                        commsType, procIDs[i],
+                        reinterpret_cast<const char *>(
+                            &globalDataIn.get_const_data()[offsets[i + 1]]),
+                        nSubElems * sizeof(Value), tag, comm);
+                }
+            } else {
+                // nonBlocking
+                label startOfRequests = Pstream::nRequests();
+
+                // Set up writes
+                for (label i = 1; i < procIDs.size(); ++i) {
+                    label nSubElems = offsets[i + 1] - offsets[i];
+
+                    OPstream::write(
+                        commsType, procIDs[i],
+                        reinterpret_cast<const char *>(
+                            &globalDataIn.get_const_data()[offsets[i + 1]]),
+                        nSubElems * sizeof(Value), tag, comm);
+                }
+
+                // Wait for all to finish
+                Pstream::waitRequests(startOfRequests);
+            }
+        } else {
+            if (commsType == Pstream::commsTypes::scheduled ||
+                commsType == Pstream::commsTypes::blocking) {
+                IPstream::read(
+                    commsType, procIDs[0],
+                    reinterpret_cast<char *>(localDataOut.get_data()),
+                    localDataOut.get_num_elems() * sizeof(Value), tag, comm);
+            }
+        }
+    }
+
 
     //- Distribute data in processor order. Requires fld to be sized!
     template <class Container, class Value>
@@ -366,7 +416,12 @@ public:
                  gko::Array<Value> &localDataOut,
                  const int tag = UPstream::msgType(),
                  const Pstream::commsTypes commsType =
-                     Pstream::commsTypes::nonBlocking) const;
+                     Pstream::commsTypes::nonBlocking) const
+    {
+        scatter(offsets_, UPstream::worldComm,
+                UPstream::procID(UPstream::worldComm), globalDataIn,
+                localDataOut, tag, commsType);
+    }
 
     // //- Get (potentially remote) data. Elements required given as
     // //  global indices
@@ -383,7 +438,8 @@ public:
 };
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// //
 
 }  // End namespace Foam
 

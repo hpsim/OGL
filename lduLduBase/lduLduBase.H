@@ -227,10 +227,6 @@ public:
         SIMPLE_LOG(verbose_, "init_initial_guess")
         init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
                                   globalAddr, this->nCells());
-        SIMPLE_LOG(verbose_, "init_initial_guess done")
-        std::vector<std::shared_ptr<vec>> x{};
-        this->get_initial_guess(x);
-        SIMPLE_LOG(verbose_, "get init_initial_guess done")
 
         // Generate solver
         SIMPLE_LOG(verbose_, "get_gkomatrix")
@@ -238,11 +234,11 @@ public:
 
         const word timeName = this->matrix().mesh().thisDb().time().timeName();
 
-        if (Pstream::master()) {
-            if (get_export())
-                export_system(this->fieldName(), gko::lend(gkomatrix),
-                              gko::lend(x[0]), gko::lend(b), timeName);
-        }
+        // if (Pstream::master()) {
+        //     if (get_export())
+        //         export_system(this->fieldName(), gko::lend(gkomatrix),
+        //                       gko::lend(x[0]), gko::lend(b), timeName);
+        // }
 
         std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
             criterion_vec{};
@@ -262,6 +258,10 @@ public:
         // Solve system
         if (Pstream::parRun()) {
             if (Pstream::master()) {
+                SIMPLE_LOG(verbose_, "init_initial_guess done")
+                std::vector<std::shared_ptr<vec>> x{};
+                this->get_initial_guess(x);
+                SIMPLE_LOG(verbose_, "get init_initial_guess done")
                 SIMPLE_LOG(verbose_, "create solver")
                 auto solver_gen = this->create_solver(
                     device_exec, gkomatrix, x[0], b, verbose_,
@@ -279,8 +279,13 @@ public:
                 solverPerf.finalResidual() = this->get_res_norm();
                 solverPerf.nIterations() = this->get_number_of_iterations();
                 this->store_number_of_iterations();
+                this->copy_result_back(globalAddr, psi);
             }
         } else {
+            SIMPLE_LOG(verbose_, "init_initial_guess done")
+            std::vector<std::shared_ptr<vec>> x{};
+            this->get_initial_guess(x);
+            SIMPLE_LOG(verbose_, "get init_initial_guess done")
             auto solver_gen = this->create_solver(
                 device_exec, gkomatrix, x[0], b, verbose_, this->get_export(),
                 this->get_preconditioner());
