@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.13.0)
 
 project(OGL LANGUAGES C CXX DESCRIPTION "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
 
@@ -13,6 +13,13 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
+option(GINKGO_BUILD_CUDA "Build ginkgo with cuda backend" FALSE)
+option(GINKGO_BUILD_HIP "Build ginkgo with hip backend" FALSE)
+option(GINKGO_BUILD_OMP "Build ginkgo with omp backend" FALSE)
+option(GINKGO_BUILD_REFERENCE "Build ginkgo with reference backend" TRUE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
+
+
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
@@ -20,13 +27,14 @@ check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 include(cmake/package_helpers.cmake)
 include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
+
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
 
 # If ginkgo wasn't found so far look for the third_party installation
-if (NOT Ginkgo_FOUND)
-  find_package(Ginkgo 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
+if(NOT ${OGL_USE_EXTERNAL_GINKGO})
+  find_package(Ginkgo CONFIG 1.4.0 REQUIRED PATHS ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
 # To interface with ginkgo at least C++ 14 is needed
@@ -92,31 +100,51 @@ add_compile_definitions(
 
 target_sources(OGL
   PRIVATE
-lduMatrix/GKOlduBase/GKOlduBase.C
-lduMatrix/GKOCG/GKOCG.C
-lduMatrix/GKOIR/GKOIR.C
-lduMatrix/GKOBiCGStab/GKOBiCGStab.C
-LduMatrix/GKOLduBase/GKOLduBase.C
+common/common.C
+IOHandler/IOPtr/IOPtr.C
+IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
+IOHandler/IOExecutorHandler/IOExecutorHandler.C
+IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
+IOHandler/IOPreconditioner/IOPreconditioner.C
+BaseWrapper/lduBase/GKOlduBase.C
+BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
+CG/GKOCG.C
+BiCGStab/GKOBiCGStab.C
+IR/GKOIR.C
+Multigrid/GKOMultigrid.C
 LduMatrix/GKOACG/GKOACG.C
   PUBLIC
-lduMatrix/GKOlduBase/GKOlduBase.H
-lduMatrix/GKOCG/GKOCG.H
-lduMatrix/GKOIR/GKOIR.H
-lduMatrix/GKOBiCGStab/GKOBiCGStab.H
-LduMatrix/GKOLduBase/GKOLduBase.H
+common/common.H
+lduLduBase/lduLduBase.H
+IOHandler/IOPtr/IOPtr.H
+IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
+IOHandler/IOExecutorHandler/IOExecutorHandler.H
+IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
+IOHandler/IOPreconditioner/IOPreconditioner.H
+BaseWrapper/lduBase/GKOlduBase.H
+BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
+CG/GKOCG.H
+IR/GKOIR.H
+Multigrid/GKOMultigrid.H
+BiCGStab/GKOBiCGStab.H
 LduMatrix/GKOACG/GKOACG.H
   )
 
 
 target_include_directories(OGL
   PUBLIC
-  $ENV{FOAM_SRC}/OpenFOAM/lnInclude
-  $ENV{FOAM_SRC}/meshTools/lnInclude
   $ENV{FOAM_SRC}/finiteVolume/lnInclude
+  $ENV{FOAM_SRC}/meshTools/lnInclude
+  $ENV{FOAM_SRC}/OpenFOAM/lnInclude
   $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
-    common/
-    lduMatrix/GKOlduBase
-    LduMatrix/GKOLduBase
+  common/
+  BaseWrapper/lduBase/
+  BaseWrapper/CoupledLduBase/
+  IOHandler/IOPtr
+  IOHandler/IOExecutorHandler/
+  IOHandler/IOSortingIdxHandler/
+  IOHandler/IOGKOMatrixHandler/
+  IOHandler/IOPreconditioner/
   )
 
 
@@ -125,13 +153,12 @@ target_link_libraries(OGL
     Ginkgo::ginkgo
   )
 
-install(TARGETS OGL 
-    DESTINATION $ENV{FOAM_USER_LIBBIN}
-    )
-
-if(NOT ${OGL_USE_EXTERNAL_GINKGO})
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/
-    DESTINATION $ENV{FOAM_USER_LIBBIN}
-    )
+if (${GINKGO_WITH_OGL_EXTENSIONS})
+  target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1 )
 endif()
 
+
+
+install(TARGETS OGL
+    DESTINATION $ENV{FOAM_USER_LIBBIN}
+  )

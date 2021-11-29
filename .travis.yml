@@ -7,14 +7,14 @@ dist: focal
 os:
   - linux
 
-env:
-    - VERSION=8
-    - VERSION=7
 
 cache:
   directories:
-  - $HOME/OpenFOAM
+  - $HOME/cache
 
+stages:
+  - build
+  - run
 
 addons:
   apt:
@@ -24,21 +24,181 @@ addons:
       - libfl-dev
       - lcov
       - libopenmpi-dev
+      - ipython3
 
-before_install:
-  - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
-  - sudo add-apt-repository http://dl.openfoam.org/ubuntu
-  - sudo apt update
+script: skip
 
-install:
-  - sudo apt-get -y install openfoam$VERSION
-  - source /opt/openfoam$VERSION/etc/bashrc
+_build: &_build
+  stage: build
+  if:
+    branch = dev OR env(EXTERNAL_GINKGO) = OFF
+  before_install:
+    - sudo sh -c "wget --no-check-certificate -O - https://dl.openfoam.org/gpg.key | apt-key add -"
+    - sudo add-apt-repository http://dl.openfoam.org/ubuntu
+    - sudo apt update
+    - sudo apt-get -y install openfoam$VERSION
+    - source /opt/openfoam$VERSION/etc/bashrc
+    - mkdir -p $HOME/data
 
-before_script:
-  - cmake --version
-  - mkdir build
-  - cd build
-  - cmake ..
+  install:
+    - ./scripts/travis_install_external_ginkgo.sh
 
-script:
-  - make -j4
+  before_script:
+    - cmake --version
+    - mkdir build
+    - cd build
+    - cmake -DOGL_USE_EXTERNAL_GINKGO=$EXTERNAL_GINKGO ..
+
+  script:
+    - make -j4 && make install
+
+
+_run: &_run
+  stage: run
+  before_install:
+    - git clone -b develop https://github.com/greole/owls.git $HOME/owls
+    - cd $HOME/owls
+    - python setup.py install --user
+    - source /opt/openfoam$VERSION/etc/bashrc
+
+  install:
+    - git clone https://github.com/greole/OBR.git $HOME/OBR
+    - pip install docopt --user
+    - pip install packaging --user
+    - cd $HOME/OBR/
+    - if [[ ! -d $HOME/cache/airFoil2D ]]; then python obr_create_tree.py --folder $HOME/cache/airFoil2D --parameters examples/airFoil2DCI.json; fi
+
+
+
+  script:
+      - ls /opt
+      - ls $FOAM_SRC
+      - ls $FOAM_USER_LIBBIN
+      - cd $HOME/OBR
+      - cat $HOME/OBR/examples/airFoil2DCI.json
+      - python obr_benchmark_cases.py --folder $HOME/cache/airFoil2D --results_folder=Test --report=report.csv
+      - mkdir -p $HOME/data
+      - cp report.csv $HOME/data/report.csv
+      - cat $HOME/data/report.csv
+
+_validate: &_validate
+  stage: validate
+  script:
+      - cat $HOME/data/report.csv
+      - echo $TRAVIS_BUILD_DIR
+      - python $TRAVIS_BUILD_DIR/scripts/travis_check_results.py $HOME/data/report.csv
+
+jobs:
+  Include:
+    # Version 8 builds
+    - <<: *_build
+      ENV:
+      - VERSION=8
+      - EXTERNAL_GINKGO=OFF
+      - GINKGO_VERSION=ogl
+      workspaces:
+        create:
+          name:
+            foam_env_8
+          paths:
+            - /home/travis/OpenFOAM/travis-8
+            - /opt/openfoam8
+    - <<: *_build
+      ENV:
+      - VERSION=8
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=ogl
+      workspaces:
+        create:
+          name:
+            foam_user_libbin_8
+          paths:
+            /home/travis/OpenFOAM/travis-8
+    # - <<: *_build
+    #   ENV:
+    #   - VERSION=8
+    #   - EXTERNAL_GINKGO=ON
+    #   - GINKGO_VERSION=ogl
+    # - <<: *_build
+    #   ENV:
+    #   - VERSION=8
+    #   - EXTERNAL_GINKGO=ON
+    #   - GINKGO_VERSION=ogl
+    # Version 9 builds
+    - <<: *_build
+      ENV:
+      - VERSION=9
+      - EXTERNAL_GINKGO=ON
+      - GINKGO_VERSION=ogl
+    - <<: *_build
+      ENV:
+      - VERSION=9
+      - EXTERNAL_GINKGO=OFF
+      - GINKGO_VERSION=ogl
+    # Runs
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=CG
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+        create:
+          name:
+            CGData
+          paths:
+            /home/travis/data
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=BiCGStab
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+        create:
+          name:
+            BiCGStabData
+          paths:
+            /home/travis/data
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=CG
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_9
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=BiCGStab
+      - PRECOND=BJ
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_run
+      ENV:
+      - VERSION=8
+      - SOLVER=IR
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+    - <<: *_validate
+      ENV:
+      - SOLVER=CG
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+          - CGData
+    - <<: *_validate
+      ENV:
+      - SOLVER=BiCGStab
+      - PRECOND=NoPrecond
+      workspaces:
+        use:
+          - foam_env_8
+          - BiCGStabData

@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOACG_H
 #define GKOACG_H
 
-#include "GKOLduBase.H"
+#include "GKOCoupledLduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -36,14 +36,22 @@ namespace Foam {
 
 class GKOACGFactory {
 private:
-    // executor where Ginkgo will perform the computation
+    const dictionary &solverControls_;
+
+    const objectRegistry &db_;
+
+    const word sysMatrixName_;
 
     const word preconditioner_;
 
 public:
-    GKOACGFactory(const dictionary &controlDict_)
-        : preconditioner_(
-              controlDict_.lookupOrDefault("preconditioner", word("none"))){};
+    GKOACGFactory(const dictionary &solverControls, const objectRegistry &db,
+                  word sysMatrixName)
+        : solverControls_(solverControls),
+          db_(db),
+          sysMatrixName_(sysMatrixName),
+          preconditioner_(solverControls_.lookupOrDefault("preconditioner",
+                                                          word("none"))){};
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
