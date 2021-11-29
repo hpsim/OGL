@@ -338,32 +338,35 @@ public:
     //     Pstream::commsTypes::nonBlocking);
 
 
-    // //- Distribute data in processor order. Requires fld to be sized!
-    // template <class Container, class Type>
-    // static void scatter(
-    //     const labelUList &offsets, const label comm, const Container
-    //     &procIDs, const UList<Type> &allFld, UList<Type> &fld, const int tag
-    //     = UPstream::msgType(), const Pstream::commsTypes commsType =
-    //     Pstream::commsTypes::nonBlocking);
+    //- Distribute data in processor order. Requires fld to be sized!
+    template <class Container, class Value>
+    static void scatter(
+        const labelUList &offsets, const label comm, const Container &procIDs,
+        const gko::Array<Value> &globalDataIn, gko::Array<Value> &localDataOut,
+        const int tag = UPstream::msgType(),
+        const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking);
 
-    // //- Distribute data in processor order. Requires fld to be sized!
-    // template <class Container, class Type>
-    // void scatter(const label comm, const Container &procIDs,
-    //              const UList<Type> &allFld, UList<Type> &fld,
-    //              const int tag = UPstream::msgType(),
-    //              const Pstream::commsTypes commsType =
-    //                  Pstream::commsTypes::nonBlocking) const
-    // {
-    //     scatter(offsets_, comm, procIDs, allFld, fld, tag, commsType);
-    // }
+    //- Distribute data in processor order. Requires fld to be sized!
+    template <class Container, class Value>
+    void scatter(const label comm, const Container &procIDs,
+                 const gko::Array<Value> &globalDataIn,
+                 gko::Array<Value> &localDataOut,
+                 const int tag = UPstream::msgType(),
+                 const Pstream::commsTypes commsType =
+                     Pstream::commsTypes::nonBlocking) const
+    {
+        scatter(offsets_, comm, procIDs, globalDataIn, localDataOut, tag,
+                commsType);
+    }
 
-    // //- Distribute data in processor order. Requires fld to be sized!
-    // //  Does communication with default communicator and message tag.
-    // template <class Type>
-    // void scatter(const UList<Type> &allFld, UList<Type> &fld,
-    //              const int tag = UPstream::msgType(),
-    //              const Pstream::commsTypes commsType =
-    //                  Pstream::commsTypes::nonBlocking) const;
+    //- Distribute data in processor order. Requires fld to be sized!
+    //  Does communication with default communicator and message tag.
+    template <class Value>
+    void scatter(const gko::Array<Value> &globalDataIn,
+                 gko::Array<Value> &localDataOut,
+                 const int tag = UPstream::msgType(),
+                 const Pstream::commsTypes commsType =
+                     Pstream::commsTypes::nonBlocking) const;
 
     // //- Get (potentially remote) data. Elements required given as
     // //  global indices
