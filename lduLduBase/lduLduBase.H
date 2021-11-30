@@ -35,7 +35,6 @@ namespace Foam {
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOHandler/IOPreconditioner/IOPreconditioner.H"
 #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
-#include "../common/StoppingCriterion.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
@@ -239,9 +238,6 @@ public:
         //         export_system(this->fieldName(), gko::lend(gkomatrix),
         //                       gko::lend(x[0]), gko::lend(b), timeName);
         // }
-
-        std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-            criterion_vec{};
 
         SIMPLE_LOG(verbose_, "create precond")
         if (Pstream::master()) {
