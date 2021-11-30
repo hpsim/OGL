@@ -37,10 +37,17 @@ using mtx = gko::matrix::Csr<scalar>;
 using val_array = gko::Array<scalar>;
 using idx_array = gko::Array<label>;
 
+/* Base class for storing ginkgo and OGL data structures in the Objectregistry
+ *
+ *
+ *
+ *  */
 template <class T>
-class IOPtr : public regIOobject {
+class DevicePersistentBase : public regIOobject {
 private:
     std::shared_ptr<T> ptr_;
+
+    const bool update_;
 
 public:
     // - Runtime type information
@@ -50,6 +57,7 @@ public:
     IOPtr(const IOobject &io, std::shared_ptr<T> in_ptr)
         : regIOobject(io), ptr_(in_ptr){};
 
+    // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; };
 
     bool writeData(Ostream &) const { return false; };
