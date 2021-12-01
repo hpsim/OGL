@@ -34,7 +34,7 @@ SourceFiles
 
 
 namespace Foam {
-class IOSortingIdxHandler {
+class IOSortingIdxHandler : public DevicePersistentField<label> {
 private:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;

@@ -95,10 +95,14 @@ void IOGKOMatrixHandler::init_device_matrix(
 
     // if updating system matrix is not needed store ptr in obj registry
     const fileName path = sys_matrix_name_;
+    // FIXME here a new is used to avoid deletion when leaving the scope
+    // if this implemented as DevicePersistentCsr no raw new is needed
     gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
     // in any case store sparsity pattern
     const fileName path_col = sparsity_pattern_name_cols_;
     const fileName path_row = sparsity_pattern_name_rows_;
+    // FIXME also the global row and col ptrs don't need to be stored
+    // since we can use views to update data if needed
     io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
     io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
 };

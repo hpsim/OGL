@@ -37,6 +37,44 @@ SourceFiles
 namespace Foam {
 
 
+//  A wrapper class for the LduCsrConversion
+//
+//  The template parameter a can be either a ldu (segregated) matrix
+//  or a Ldu (coupled) matrix
+template <class MatrixType>
+class LduCsrWrapper {
+private:
+    using coo_mtx = gko::matrix::Coo<scalar>;
+    using mtx = gko::matrix::Csr<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
+    // data members
+    const PersistentHostMatrix ldu_;
+
+    const PersistentCsrMatrix csr_;
+
+    // constructor for segregated ldu matrix
+    LduCsrWrapper(const objectRegistry &db, const MatrixType &matrix,
+                  const FieldField<Field, scalar> &interfaceBouCoeffs,
+                  const FieldField<Field, scalar> &interfaceIntCoeffs,
+                  const lduInterfaceFieldPtrsList &interfaces,
+                  const dictionary &solverControls, const word sys_matrix_name)
+        : ldu_(HostMatrix(db, matrix, interfaceBouCoeffs, interfaceIntCoeffs,
+                          interfaces, sys_matrix_name, solverControls)),
+          csr_(PersistentCsrMatrix(db, ldu_, solverControls))
+    {}
+
+    LduCsrWrapper(const objectRegistry &db, const MatrixType &matrix,
+                  const dictionary &solverControls, const word sys_matrix_name)
+        : ldu_(HostMatrix(db, matrix, sys_matrix_name, solverControls)),
+          csr_(PersistentCsrMatrix(db, ldu_, solverControls))
+    {}
+
+
+}
+
 class IOGKOMatrixHandler : public IOExecutorHandler {
 private:
     using coo_mtx = gko::matrix::Coo<scalar>;
