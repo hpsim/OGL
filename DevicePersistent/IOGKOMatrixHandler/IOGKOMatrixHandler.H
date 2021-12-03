@@ -51,19 +51,25 @@ private:
     using idx_array = gko::Array<label>;
 
     // data members
-    const PersistentHostMatrix ldu_;
+    const HostMatrixWrapper ldu_;
 
-    const PersistentCsrMatrix csr_;
+    const CsrMatrixWrapper csr_;
 
     // constructor for segregated ldu matrix
-    LduCsrWrapper(const objectRegistry &db, const MatrixType &matrix,
+    LduCsrWrapper(const objectRegistry &db, const PersistenExecutor &exec;
+                  const MatrixType &matrix,
                   const FieldField<Field, scalar> &interfaceBouCoeffs,
                   const FieldField<Field, scalar> &interfaceIntCoeffs,
                   const lduInterfaceFieldPtrsList &interfaces,
                   const dictionary &solverControls, const word sys_matrix_name)
-        : ldu_(HostMatrix(db, matrix, interfaceBouCoeffs, interfaceIntCoeffs,
-                          interfaces, sys_matrix_name, solverControls)),
-          csr_(PersistentCsrMatrix(db, ldu_, solverControls))
+        : ldu_{db,
+               matrix,
+               interfaceBouCoeffs,
+               interfaceIntCoeffs,
+               interfaces,
+               sys_matrix_name,
+               solverControls},
+          csr_{db, ldu_, solverControls}
     {}
 
     LduCsrWrapper(const objectRegistry &db, const MatrixType &matrix,

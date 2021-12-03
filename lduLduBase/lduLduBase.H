@@ -40,30 +40,46 @@ namespace Foam {
 #include <map>
 
 template <class MatrixType, class SolverFactory>
-class lduLduBase : public HostMatrix<MatrixType>,
-                   public SolverFactory,
-                   public IOGKOMatrixHandler,
-                   public IOPreconditioner {
+class lduLduBase : public SolverFactory, public IOPreconditioner {
 private:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
-    const dictionary &solverControls_;
+
+
+    const objecRegistry &db_;
+
+    const IOExecutorHandler exec_;
+
+    const LduCsrWrapper<MatrixType> ldu_csr_wrapper_;
+
+    const SolverFactory gkoSolverFactory_;
+
+    // TODO rename to Preconditioner factory
+    const IOPreconditioner gkoPreconditionerFactory_;
+
     const bool verbose_;
 
 public:
+    // constructor for segregated solver
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
                const FieldField<Field, scalar> &interfaceBouCoeffs,
                const FieldField<Field, scalar> &interfaceIntCoeffs,
                const lduInterfaceFieldPtrsList &interfaces,
                const dictionary &solverControls)
-        : HostMatrix<lduMatrix>(fieldName, matrix, interfaceBouCoeffs,
-                                interfaceIntCoeffs, interfaces, solverControls),
-          SolverFactory(solverControls, matrix.mesh().thisDb(), fieldName),
-          IOGKOMatrixHandler(matrix.mesh().thisDb(), solverControls, fieldName),
-          IOPreconditioner(matrix.mesh().thisDb(), solverControls, fieldName),
-          solverControls_(solverControls),
+        : db_(matrix.mesh().thisDb()),
+          exec_{db_, solverControls},
+          ldu_csr_wrapper_{db_,
+                           exec_,
+                           matrix,
+                           interfaceBouCoeffs,
+                           interfaceIntCoeffs,
+                           interfaces,
+                           solverControls,
+                           fieldname},
+          gkoSolverFactory_{solverControls, db_, fieldName},
+          gkoPreconditionerFactory_{db_, solverControls, fieldName},
           verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
     {
         init_base();
@@ -85,37 +101,38 @@ public:
 
     void init_base()
     {
+        // TODO remove since this is moved to host matrix now
         // if sys_matrix is not stored updating is neccesary
         // initially
-        bool stored = get_sys_matrix_stored();
-        if (!stored) {
-            SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
-                        this->init_host_sparsity_pattern();)
+        // bool stored = get_sys_matrix_stored();
+        // if (!stored) {
+        //     SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
+        //                 this->init_host_sparsity_pattern();)
 
 
-            SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
-            SIMPLE_TIME(verbose_, update_host_mtx,
-                        this->update_host_matrix_data();)
-        } else {
-            // if sys_matrix is  stored updating is only neccesary
-            // when requested explictly
-            if (get_update_sys_matrix()) {
-                SIMPLE_LOG(
-                    verbose_,
-                    "matrix is stored and update of host matrix requested")
-                SIMPLE_TIME(verbose_, exp_update_host_mtx,
-                            this->update_host_matrix_data();)
-            }
-        }
-        auto globalAddr = gkoGlobalIndex(this->nCells());
+        //     SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
+        //     SIMPLE_TIME(verbose_, update_host_mtx,
+        //                 this->update_host_matrix_data();)
+        // } else {
+        //     // if sys_matrix is  stored updating is only neccesary
+        //     // when requested explictly
+        //     if (get_update_sys_matrix()) {
+        //         SIMPLE_LOG(
+        //             verbose_,
+        //             "matrix is stored and update of host matrix requested")
+        //         SIMPLE_TIME(verbose_, exp_update_host_mtx,
+        //                     this->update_host_matrix_data();)
+        //     }
+        // }
+        // auto globalAddr = gkoGlobalIndex(this->nCells());
 
 
-        SIMPLE_TIME(
-            verbose_, init_device_matrix,
-            init_device_matrix(this->matrix().mesh().thisDb(), globalAddr,
-                               this->values(), this->col_idxs(),
-                               this->row_idxs(), this->nElems(), this->nCells(),
-                               get_update_sys_matrix());)
+        // SIMPLE_TIME(
+        //     verbose_, init_device_matrix,
+        //     init_device_matrix(this->matrix().mesh().thisDb(), globalAddr,
+        //                        this->values(), this->col_idxs(),
+        //                        this->row_idxs(), this->nElems(),
+        //                        this->nCells(), get_update_sys_matrix());)
     }
 
 

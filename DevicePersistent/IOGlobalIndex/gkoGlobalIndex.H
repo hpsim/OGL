@@ -197,16 +197,17 @@ public:
     template <class Container, class Value>
     static void gather(
         const labelUList &offsets, const label comm, const Container &procIDs,
-        const gko::Array<Value> &localDataIn, gko::Array<Value> &globalDataOut,
+        std::shared_ptr<const gko::Array<Value>> localDataIn,
+        std::shared_ptr<gko::Array<Value>> globalDataOut,
         const int tag = UPstream::msgType(),
         const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
     {
         if (Pstream::master()) {
             // Assign my local data
             std::cout << "create view  " << endl;
-            gko::Array<Value>::view(gko::ReferenceExecutor::create(),
-                                    localDataIn.get_num_elems(),
-                                    globalDataOut.get_data()) = localDataIn;
+            gko::Array<Value>::view(
+                gko::ReferenceExecutor::create(), localDataIn->get_num_elems(),
+                globalDataOut->get_data()) = *localDataIn.get();
             std::cout << "create view done  " << endl;
 
             if (commsType == Pstream::commsTypes::scheduled ||
@@ -216,7 +217,7 @@ public:
                     IPstream::read(
                         commsType, procIDs[i],
                         reinterpret_cast<char *>(
-                            &globalDataOut.get_data()[offsets[i + 1]]),
+                            &globalDataOut->get_data()[offsets[i + 1]]),
                         nSubElems * sizeof(Value), tag, comm);
                 }
             } else {
@@ -228,7 +229,7 @@ public:
                     label nSubElems = offsets[i + 1] - offsets[i];
                     auto sub_view = gko::Array<Value>::view(
                         gko::ReferenceExecutor::create(), nSubElems,
-                        &globalDataOut.get_data()[offsets[i]]);
+                        &globalDataOut->get_data()[offsets[i]]);
                     IPstream::read(
                         commsType, procIDs[i],
                         reinterpret_cast<char *>(sub_view.get_data()),
@@ -244,8 +245,8 @@ public:
                 commsType == Pstream::commsTypes::blocking) {
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
-                                    localDataIn.get_const_data()),
-                                localDataIn.get_num_elems() * sizeof(Value),
+                                    localDataIn->get_const_data()),
+                                localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
             } else {
                 label startOfRequests = Pstream::nRequests();
@@ -253,8 +254,8 @@ public:
                 std::cout << "start write  " << endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
-                                    localDataIn.get_const_data()),
-                                localDataIn.get_num_elems() * sizeof(Value),
+                                    localDataIn->get_const_data()),
+                                localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
                 std::cout << "start write done  " << endl;
 
@@ -268,8 +269,8 @@ public:
     //  Needs offsets only on master.
     template <class Container, class Value>
     void gather(const label comm, const Container &procIDs,
-                const gko::Array<Value> &localDataIn,
-                gko::Array<Value> &globalDataOut,
+                std::shared_ptr<const gko::Array<Value>> localDataIn,
+                std::shared_ptr<gko::Array<Value>> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
@@ -281,8 +282,8 @@ public:
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
     template <class Value>
-    void gather(const gko::Array<Value> &localDataIn,
-                gko::Array<Value> &globalDataOut,
+    void gather(std::shared_ptr<const gko::Array<Value>> localDataIn,
+                std::shared_ptr<gko::Array<Value>> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const

@@ -59,7 +59,8 @@ private:
     GKODpcppExecPtr *dpcpp_exec_ptr_;
 
 public:
-    IOExecutorHandler(const objectRegistry &db, const dictionary &controlDict);
+    IOExecutorHandler(const objectRegistry &db,
+                      const dictionary &solverControls);
 
     word get_device_executor_name() const { return device_executor_name_; }
 

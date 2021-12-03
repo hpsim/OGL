@@ -33,41 +33,7 @@ SourceFiles
 #include "regIOobject.H"
 
 
-namespace Foam {
-class IOSortingIdxHandler : public DevicePersistentField<label> {
-private:
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
-
-    const label nElems_;
-
-    mutable bool is_sorted_;
-
-    mutable IOField<label> *sorting_idxs_ = NULL;
-
-public:
-    // TODO handle sorting idxs per rank
-    IOSortingIdxHandler(const objectRegistry &db, const label nElems);
-
-    void init_sorting_idxs();
-
-    void compute_sorting_idxs(const std::shared_ptr<idx_array> row_idxs,
-                              const std::shared_ptr<idx_array> col_idxs,
-                              const label nCells);
-
-    bool get_sort() const { return true; }
-
-    void set_is_sorted(bool is_sorted) const { is_sorted_ = is_sorted; }
-
-    bool get_is_sorted() const { return is_sorted_; }
-
-    IOField<label> *get_sorting_idxs() const { return sorting_idxs_; }
-
-    const IOField<label> *get_const_sorting_idxs() const
-    {
-        return sorting_idxs_;
-    }
-};
+namespace Foam {};
 }  // namespace Foam
 
 #endif
