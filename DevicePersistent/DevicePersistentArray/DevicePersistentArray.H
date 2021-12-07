@@ -119,7 +119,7 @@ public:
 
     word get_name() const { return name_; }
 
-    word get_db() const { return db_; }
+    const objectRegistry &get_db() const { return db_; }
 
     bool get_stored() const { return from_registry_; }
 
