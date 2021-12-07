@@ -46,14 +46,18 @@ struct CsrInitFunctor {
     const PersistentArray<label> &col_idxs_;
     const PersistentArray<label> &row_idxs_;
     const PersistentArray<scalar> &values_;
+
+    const label size_;
     const bool verbose_;
 
     CsrInitFunctor(const PersistentArray<label> &col_idxs,
                    const PersistentArray<label> &row_idxs,
-                   const PersistentArray<scalar> &values, const bool verbose)
+                   const PersistentArray<scalar> &values, const label size,
+                   const bool verbose)
         : col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),
+          size_(size),
           verbose_(verbose)
     {}
 
@@ -71,7 +75,9 @@ struct CsrInitFunctor {
     std::shared_ptr<mtx> init() const
     {
         const auto device_exec = values_.get_device_exec();
-        const label nCells = values_.get_global_size();
+        const label nCells = size_;
+        word msg{"init csr matrix of size" + std::to_string(nCells)};
+        SIMPLE_LOG(verbose_, msg)
 
         auto coo_mtx = gko::share(coo_mtx::create(
             device_exec, gko::dim<2>(nCells, nCells),
@@ -137,16 +143,16 @@ public:
                      const PersistentArray<label> &row_idxs,
                      const PersistentArray<scalar> &values,
                      const dictionary &controlDict, const word sys_matrix_name,
-                     const bool verbose)
-        : verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)),
+                     const label size, const bool verbose)
+        : verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
               sys_matrix_name + "csr",
               db,
               exec,
-              CsrInitFunctor(col_idxs, row_idxs, values, verbose_),
+              CsrInitFunctor(col_idxs, row_idxs, values, size, verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
-              verbose}
+              verbose_}
     {}
 
     // bool get_sys_matrix_stored() const { return sys_matrix_stored_; }

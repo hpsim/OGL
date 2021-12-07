@@ -188,7 +188,7 @@ struct ArrayInitFunctor {
         auto exec = (on_device_) ? exec_.get_device_exec() : exec_.ref_exec();
         word msg{"initialising on array of size " +
                  std::to_string(global_index_.localSize())};
-        msg += (on_device_) ? "device" : "host";
+        msg += (on_device_) ? " on device" : " on host";
         SIMPLE_LOG(verbose_, msg)
 
         if (other_ != NULL) {
