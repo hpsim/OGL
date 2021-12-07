@@ -51,7 +51,6 @@ namespace Foam {
  *
  * TODO either make storing optional or the gather method static
  * */
-
 template <class T, class InitFunctor>
 class PersistentBase {
 private:
@@ -66,6 +65,8 @@ private:
     // restored from the object registry
     mutable bool from_registry_;
 
+    const bool verbose_;
+
     // This needs to be a pointer so that it can be assigned
     // during the constructor, since regIOobject needs arguments
     // to be constructed
@@ -75,13 +76,17 @@ private:
 public:
     PersistentBase(const word name, const objectRegistry &db,
                    const IOExecutorHandler &exec, const InitFunctor f,
-                   const bool update)
+                   const bool update, const bool verbose)
         : name_(name),
           db_(db),
           exec_(exec),
-          from_registry_{db.foundObject<regIOobject>(name_)}
+          from_registry_{db.foundObject<regIOobject>(name_)},
+          verbose_(verbose)
     {
         if (from_registry_) {
+            word msg = "reading " + name_ + " from registry";
+            SIMPLE_LOG(verbose_, msg)
+
             if (update) {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
@@ -94,6 +99,8 @@ public:
             }
 
         } else {
+            word msg = "initialising " + name_;
+            SIMPLE_LOG(verbose_, msg)
             const fileName path = name_;
 
             persistent_object_ =
@@ -132,6 +139,8 @@ struct ArrayInitFunctor {
 
     const gkoGlobalIndex &global_index_;
 
+    const bool verbose_;
+
     const bool on_device_;
 
     // Memory
@@ -139,20 +148,22 @@ struct ArrayInitFunctor {
 
 
     ArrayInitFunctor(const IOExecutorHandler &exec,
-                     const gkoGlobalIndex &global_index,
+                     const gkoGlobalIndex &global_index, const bool verbose,
                      const bool on_device = false)
         : exec_(exec),
           global_index_(global_index),
           on_device_(on_device),
+          verbose_(verbose),
           other_(NULL)
     {}
 
     ArrayInitFunctor(const IOExecutorHandler &exec,
                      const gkoGlobalIndex &global_index, const T *other,
-                     const bool on_device = false)
+                     const bool verbose, const bool on_device = false)
         : exec_(exec),
           global_index_(global_index),
           on_device_(on_device),
+          verbose_(verbose),
           other_(other)
     {}
 
@@ -212,10 +223,11 @@ class PersistentArray
 public:
     PersistentArray(const word name, const objectRegistry &db,
                     const IOExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index,
+                    const gkoGlobalIndex &global_index, const bool verbose,
                     const bool update = false, const bool global = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, exec, ArrayInitFunctor<T>(exec, global_index), update),
+              name, db, exec, ArrayInitFunctor<T>(exec, global_index, verbose),
+              update, verbose),
           global_index_(global_index),
           update_(update),
           store_global_(false)
@@ -224,11 +236,13 @@ public:
     PersistentArray(const word name, const objectRegistry &db,
                     const IOExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const T *memory,
-                    const bool update = false, const bool on_device = false)
+                    const bool verbose, const bool update = false,
+                    const bool on_device = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db, exec,
-              ArrayInitFunctor<T>(exec, global_index, memory, on_device),
-              update),
+              ArrayInitFunctor<T>(exec, global_index, memory, verbose,
+                                  on_device),
+              update, verbose),
           global_index_(global_index),
           update_(update),
           store_global_(false)

@@ -52,6 +52,8 @@ private:
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
+    const bool verbose_;
+
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
     // TODO use devicePersistentFields here
@@ -66,6 +68,7 @@ private:
     mutable PersistentArray<label> col_idxs_;
 
     mutable PersistentArray<label> row_idxs_;
+
 
 public:
     // segregated wrapper constructor
@@ -82,11 +85,17 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db, exec_,
-                               global_matrix_index_, false},  //,
-          values_{fieldName + "values", db, exec_, global_matrix_index_, false},
-          col_idxs_{fieldName + "cols", db, exec_, global_matrix_index_, false},
-          row_idxs_{fieldName + "rows", db, exec_, global_matrix_index_, false}
+          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true)),
+          ldu_csr_idx_mapping_{
+              fieldName + "ldu_csr_map", db,       exec_,
+              global_matrix_index_,      verbose_, false,
+          },  //,
+          values_{fieldName + "values", db,       exec_,
+                  global_matrix_index_, verbose_, false},
+          col_idxs_{fieldName + "cols",   db,       exec_,
+                    global_matrix_index_, verbose_, false},
+          row_idxs_{fieldName + "rows",   db,       exec_,
+                    global_matrix_index_, verbose_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
@@ -108,11 +117,15 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db, exec_,
-                               global_matrix_index_, false},
-          values_{fieldName + "values", db, exec_, global_matrix_index_, false},
-          col_idxs_{fieldName + "cols", db, exec_, global_matrix_index_, false},
-          row_idxs_{fieldName + "rows", db, exec_, global_matrix_index_, false}
+          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true)),
+          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db,       exec_,
+                               global_matrix_index_,      verbose_, false},
+          values_{fieldName + "values", db,       exec_,
+                  global_matrix_index_, verbose_, false},
+          col_idxs_{fieldName + "cols",   db,       exec_,
+                    global_matrix_index_, verbose_, false},
+          row_idxs_{fieldName + "rows",   db,       exec_,
+                    global_matrix_index_, verbose_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
@@ -245,6 +258,8 @@ public:
         // col_idxs_ = col_idxs_local;
         // row_idxs_ = row_idxs_local;
     }
+
+    bool get_verbose() const { return verbose_; }
 
     void update_host_matrix_data() const
     {

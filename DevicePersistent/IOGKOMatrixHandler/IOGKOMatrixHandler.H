@@ -136,7 +136,8 @@ public:
                      const PersistentArray<label> &col_idxs,
                      const PersistentArray<label> &row_idxs,
                      const PersistentArray<scalar> &values,
-                     const dictionary &controlDict, const word sys_matrix_name)
+                     const dictionary &controlDict, const word sys_matrix_name,
+                     const bool verbose)
         : verbose_(controlDict.lookupOrDefault<Switch>("verbose", false)),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
@@ -145,7 +146,7 @@ public:
               exec,
               CsrInitFunctor(col_idxs, row_idxs, values, verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
-          }
+              verbose}
     {}
 
     // bool get_sys_matrix_stored() const { return sys_matrix_stored_; }

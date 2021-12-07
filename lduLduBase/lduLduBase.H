@@ -87,7 +87,8 @@ public:
                               this->get_row_idxs(),
                               this->get_values(),
                               solverControls,
-                              fieldName},
+                              fieldName,
+                              this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
@@ -109,7 +110,8 @@ public:
                               this->get_row_idxs(),
                               this->get_values(),
                               solverControls,
-                              fieldName},
+                              fieldName,
+                              this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
