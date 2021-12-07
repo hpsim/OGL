@@ -102,10 +102,10 @@ target_sources(OGL
   PRIVATE
 common/common.C
 DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
-DevicePersistent/IOSortingIdxHandler/IOSortingIdxHandler.C
+DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
 DevicePersistent/IOExecutorHandler/IOExecutorHandler.C
 DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.C
-DevicePersistent/IOPreconditioner/IOPreconditioner.C
+# DevicePersistent/IOPreconditioner/IOPreconditioner.C
 DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
 BaseWrapper/lduBase/GKOlduBase.C
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
@@ -118,10 +118,10 @@ LduMatrix/GKOACG/GKOACG.C
 common/common.H
 lduLduBase/lduLduBase.H
 DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
-DevicePersistent/IOSortingIdxHandler/IOSortingIdxHandler.H
+DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
 DevicePersistent/IOExecutorHandler/IOExecutorHandler.H
 DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.H
-DevicePersistent/IOPreconditioner/IOPreconditioner.H
+# DevicePersistent/IOPreconditioner/IOPreconditioner.H
 DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
 BaseWrapper/lduBase/GKOlduBase.H
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
@@ -142,12 +142,11 @@ target_include_directories(OGL
   common/
   BaseWrapper/lduBase/
   BaseWrapper/CoupledLduBase/
-  IOHandler/IOPtr
-  IOHandler/IOExecutorHandler/
-  IOHandler/IOSortingIdxHandler/
-  IOHandler/IOGKOMatrixHandler/
-  IOHandler/IOPreconditioner/
-  IOHandler/IOGlobalIndex/
+  DevicePersistent/DevicePersistentBase/
+  DevicePersistent/IOExecutorHandler/
+  DevicePersistent/IOGKOMatrixHandler/
+  # DevicePersistent/IOPreconditioner/
+  DevicePersistent/IOGlobalIndex/
   )
 
 

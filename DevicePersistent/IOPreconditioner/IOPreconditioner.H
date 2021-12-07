@@ -31,10 +31,56 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
-#include "../IOPtr/IOPtr.H"
+#include "../DevicePersistentBase/DevicePersistentBase.H"
 
 
 namespace Foam {
+struct PreconditionerInitFunctor {
+    const PersistentArray<label> &col_idxs_;
+    const PersistentArray<label> &row_idxs_;
+    const PersistentArray<scalar> &values_;
+    const bool verbose_;
+
+    PreconditionerInitFunctor(const PersistentArray<label> &col_idxs,
+                              const PersistentArray<label> &row_idxs,
+                              const PersistentArray<scalar> &values,
+                              const bool verbose)
+        : col_idxs_(col_idxs),
+          row_idxs_(row_idxs),
+          values_(values),
+          verbose_(verbose)
+    {}
+
+
+    void update(std::shared_ptr<mtx> &csr_matrix) const
+    {
+        auto values_view = val_array::view(values_.get_device_exec(),
+                                           values_.get_global_size(),
+                                           csr_matrix->get_values());
+
+        // copy values to device
+        values_view = *values_.get_array().get();
+    }
+
+    std::shared_ptr<mtx> init() const
+    {
+        const auto device_exec = values_.get_device_exec();
+        const label nCells = values_.get_global_size();
+
+        auto coo_mtx = gko::share(coo_mtx::create(
+            device_exec, gko::dim<2>(nCells, nCells),
+            val_array(device_exec, *values_.get_array().get()),
+            *col_idxs_.get_array().get(), *row_idxs_.get_array().get()));
+
+        auto gkomatrix =
+            gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+
+        SIMPLE_TIME(verbose_, convert_coo_to_csr,
+                    coo_mtx->convert_to(gkomatrix.get());)
+        return gkomatrix;
+    }
+};
+
 class IOPreconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
@@ -50,7 +96,8 @@ private:
 
     const bool update_preconditioner_;
 
-    mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
+    mutable PersistentBase<, class InitFunctor> preconditioner_;
+    // mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
 
 public:
     IOPreconditioner(const objectRegistry &db, const dictionary &solverControls,

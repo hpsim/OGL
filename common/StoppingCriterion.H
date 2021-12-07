@@ -38,6 +38,9 @@ namespace Foam {
 
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     class OpenFOAMStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
                                               gko::stop::Criterion> {
@@ -96,7 +99,7 @@ class StoppingCriterion {
                            std::shared_ptr<vec> x,
                            std::shared_ptr<vec> res) const
         {
-            const label nCells{x->get_size()[0]};
+            const label nCells{(label)x->get_size()[0]};
 
             val_array x_array{
                 val_array::view(device_exec, nCells, x->get_values())};
@@ -136,7 +139,7 @@ class StoppingCriterion {
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
-            const label nCells{x->get_size()[0]};
+            const label nCells{(label)x->get_size()[0]};
 
             // TODO store colA vector
             auto Axref =

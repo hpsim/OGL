@@ -28,7 +28,7 @@ SourceFiles
 #ifndef OGL_IOExecutorHandler_INCLUDED_H
 #define OGL_IOExecutorHandler_INCLUDED_H
 
-#include "../IOPtr/IOPtr.H"
+#include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -64,7 +64,7 @@ public:
 
     word get_device_executor_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::Executor> get_device_executor() const
+    std::shared_ptr<gko::Executor> get_device_exec() const
     {
         const word device_executor_name{get_device_executor_name()};
         if (device_executor_name == "omp") {
@@ -105,5 +105,6 @@ public:
     };
 };
 
+    using PersistentExecutor = IOExecutorHandler;
 }  // namespace Foam
 #endif

@@ -29,6 +29,8 @@ SourceFiles
 #include "fvCFD.H"
 
 #include <vector>
+#include "../DevicePersistentArray/DevicePersistentArray.H"
+#include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 namespace Foam {
 
@@ -36,53 +38,55 @@ template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
     // dimensions of the local host matrix
+    //
+    const IOExecutorHandler exec_;
+
     const label nCells_;
 
     const label nNeighbours_;
 
     const label nElems_;
 
+    const gkoGlobalIndex global_cell_index_;
     // TODO make this persistent
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
-    mutable DevicePersistentArray<label> ldu_csr_idx_mapping_;
+    mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
     // TODO use devicePersistentFields here
     // TODO this will need a ->get_data() method
-    mutable DevicePersistenArray<scalar> values_;
+    mutable PersistentArray<scalar> values_;
 
     // NOTE DevicePersistentArray is used here
     // since at some point a global col_idxs row_idxs are neeeded
     // for parallel runs
     // TODO make shure the col_idxs_ arrays are not! stored since
     // they will be stored in the gko matrix
-    mutable DevicePersistentArray<label> col_idxs_;
+    mutable PersistentArray<label> col_idxs_;
 
-    mutable DevicePersistentArray<label> row_idxs_;
+    mutable PersistentArray<label> row_idxs_;
 
 public:
     // segregated wrapper constructor
-    HostMatrixWrapper(const objectRegistry &db, const IOExecutorHandler &exec,
-                      const MatrixType &matrix,
+    HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const FieldField<Field, scalar> &interfaceBouCoeffs,
                       const FieldField<Field, scalar> &interfaceIntCoeffs,
                       const lduInterfaceFieldPtrsList &interfaces,
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
+          exec_{db, solverControls},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
+          global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          ldu_csr_idx_mapping_<label>{fieldName + "ldu_csr_map", db, exec,
-                                      global_matrix_index_, false},  //,
-          values_<scalar>{fieldName + "values", db, exec, global_matrix_index_,
-                          false},
-          col_idxs_<label>{fieldName + "cols", db, exec, global_matrix_index_,
-                           false},
-          row_idxs_<label>{fieldName + "rows", db, exec, global_matrix_index_,
-                           false}
+          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db, exec_,
+                               global_matrix_index_, false},  //,
+          values_{fieldName + "values", db, exec_, global_matrix_index_, false},
+          col_idxs_{fieldName + "cols", db, exec_, global_matrix_index_, false},
+          row_idxs_{fieldName + "rows", db, exec_, global_matrix_index_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
@@ -95,22 +99,20 @@ public:
     }
 
     // coupled wrapper constructor
-    HostMatrixWrapper(const objectRegistry &db, const IOExecutorHandler &exec,
-                      const MatrixType &matrix,
+    HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, solverControls),
+          exec_{db, solverControls},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
+          global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          ldu_csr_idx_mapping_<label>{fieldName + "ldu_csr_map", db, exec,
-                                      global_matrix_index_, false},
-          values_<scalar>{fieldName + "values", db, exec, global_matrix_index_,
-                          false},
-          col_idxs_<label>{fieldName + "cols", db, exec, global_matrix_index_,
-                           false},
-          row_idxs_<label>{fieldName + "rows", db, exec, global_matrix_index_,
-                           false}
+          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db, exec_,
+                               global_matrix_index_, false},
+          values_{fieldName + "values", db, exec_, global_matrix_index_, false},
+          col_idxs_{fieldName + "cols", db, exec_, global_matrix_index_, false},
+          row_idxs_{fieldName + "rows", db, exec_, global_matrix_index_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
@@ -142,11 +144,11 @@ public:
         const auto lower = lower_local.get_const_data();
         const auto upper = upper_local.get_const_data();
 
-        auto col_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
-        auto row_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
+        // auto col_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
+        // auto row_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
 
-        auto rows = row_idxs_local->get_data();
-        auto cols = col_idxs_local->get_data();
+        auto rows = row_idxs_.get_data();  // row_idxs_local->get_data();
+        auto cols = col_idxs_.get_data();  // col_idxs_local->get_data();
 
         label element_ctr = 0;
         label upper_ctr = 0;
@@ -156,19 +158,19 @@ public:
             nNeighbours_);
 
 
-        auto sorting_idxs = sortingIdxHandler_.get_sorting_idxs();
+        const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
 
         for (label row = 0; row < nCells_; row++) {
             // add lower elements
             // for now just scan till current upper ctr
             if (!lower_stack[row].empty()) {
                 for (const auto &element : lower_stack[row]) {
-                    rows[element_ctr] = globalIndexCells_.toGlobal(row);
+                    // TODO
+                    rows[element_ctr] = global_cell_index_.toGlobal(row);
                     cols[element_ctr] = element.second;
                     // lower_ctr doesnt correspond to same element as
                     // upper_ctr
-                    sorting_idxs->operator[](element.first + nNeighbours_) =
-                        element_ctr;
+                    sorting_idxs[element.first + nNeighbours_] = element_ctr;
 
                     lower_ctr++;
                     element_ctr++;
@@ -176,16 +178,16 @@ public:
             }
 
             // add diagonal elemnts
-            rows[element_ctr] = globalIndexCells_.toGlobal(row);
-            cols[element_ctr] = globalIndexCells_.toGlobal(row);
-            sorting_idxs->operator[](2 * nNeighbours_ + row) = element_ctr;
+            rows[element_ctr] = global_cell_index_.toGlobal(row);
+            cols[element_ctr] = global_cell_index_.toGlobal(row);
+            sorting_idxs[2 * nNeighbours_ + row] = element_ctr;
 
             element_ctr++;
 
             // add upper elemnts
             while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
-                label row_upper = globalIndexCells_.toGlobal(lower[upper_ctr]);
-                label col_upper = globalIndexCells_.toGlobal(upper[upper_ctr]);
+                label row_upper = global_cell_index_.toGlobal(lower[upper_ctr]);
+                label col_upper = global_cell_index_.toGlobal(upper[upper_ctr]);
                 rows[element_ctr] = row_upper;
                 cols[element_ctr] = col_upper;
 
@@ -199,12 +201,13 @@ public:
                 lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
                                                            row_upper);
                 // std::cout << "done" << endl;
-                sorting_idxs->operator[](upper_ctr) = element_ctr;
+                sorting_idxs[upper_ctr] = element_ctr;
 
                 element_ctr++;
                 upper_ctr++;
             }
         }
+
 
         // // Step 2. gather on master
         // if (Pstream::parRun()) {
@@ -239,10 +242,9 @@ public:
         //     col_idxs_ = col_idxs_local;
         //     row_idxs_ = row_idxs_local;
         // }
-        col_idxs_ = col_idxs_local;
-        row_idxs_ = row_idxs_local;
+        // col_idxs_ = col_idxs_local;
+        // row_idxs_ = row_idxs_local;
     }
-
 
     void update_host_matrix_data() const
     {
@@ -250,8 +252,7 @@ public:
         // TODO create in ctr
         // as devicePersistent so that we can reuse the memory
 
-        values_ = std::make_shared<val_array>(ref_exec, nElems_);
-        auto values = values->get_data();
+        auto values = values_.get_data();
 
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
         auto lower = this->matrix().lower();
@@ -267,17 +268,25 @@ public:
         }
     };
 
-    label nCells() const { return nCells_; };
+    label nCells() const { return nCells_; }
 
-    label nElems() const { return nElems_; };
+    label nElems() const { return nElems_; }
 
-    label nNeighbours() const { return nNeighbours_; };
+    label nNeighbours() const { return nNeighbours_; }
 
-    std::shared_ptr<val_array> values() const { return values_; };
+    const IOExecutorHandler &get_exec_handler() const { return exec_; }
 
-    std::shared_ptr<idx_array> col_idxs() const { return col_idxs_; };
+    const gkoGlobalIndex &get_global_cell_index() const
+    {
+        return global_cell_index_;
+    }
 
-    std::shared_ptr<idx_array> row_idxs() const { return row_idxs_; };
+
+    PersistentArray<scalar> &get_values() const { return values_; };
+
+    PersistentArray<label> &get_col_idxs() const { return col_idxs_; };
+
+    PersistentArray<label> &get_row_idxs() const { return row_idxs_; };
 };
 
 

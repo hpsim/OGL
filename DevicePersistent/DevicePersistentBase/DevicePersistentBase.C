@@ -1,8 +1,9 @@
 
-#include "IOPtr.H"
+#include "DevicePersistentBase.H"
 
 namespace Foam {
 
 
-defineTemplateTypeNameWithName(GKOLinOPIOPtr, "LinOpIOPtr");
+// TODO is that neeeded?
+// defineTemplateTypeNameWithName(GKOLinOPIOPtr, "LinOpIOPtr");
 }  // namespace Foam

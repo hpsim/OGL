@@ -28,8 +28,6 @@ SourceFiles
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
 
-#include "../IOHandler/IOExecutorHandler/IOExecutorHandler.H"
-#include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 #include "../common/StoppingCriterion.H"
 #include "../common/common.H"
 #include "../lduLduBase/lduLduBase.H"

@@ -31,6 +31,7 @@ SourceFiles
 #define OGL_IOGlobalIndex_INCLUDED_H
 
 #include <ginkgo/ginkgo.hpp>
+#include "fvCFD.H"
 #include "labelList.H"
 
 //#include "CompactListList.H"
@@ -49,6 +50,8 @@ using idx_array = gko::Array<label>;
                            Class gkoGlobalIndex Declaration
 \*---------------------------------------------------------------------------*/
 
+// TODO - make labellist persistent
+//      - add executor
 class gkoGlobalIndex {
     // Private Member Functions
 
@@ -204,11 +207,11 @@ public:
     {
         if (Pstream::master()) {
             // Assign my local data
-            std::cout << "create view  " << endl;
+            std::cout << "create view  " << std::endl;
             gko::Array<Value>::view(
                 gko::ReferenceExecutor::create(), localDataIn->get_num_elems(),
                 globalDataOut->get_data()) = *localDataIn.get();
-            std::cout << "create view done  " << endl;
+            std::cout << "create view done  " << std::endl;
 
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
@@ -224,7 +227,7 @@ public:
                 label startOfRequests = Pstream::nRequests();
 
                 // Set up reads
-                std::cout << "start reads  " << endl;
+                std::cout << "start reads  " << std::endl;
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
                     auto sub_view = gko::Array<Value>::view(
@@ -235,7 +238,7 @@ public:
                         reinterpret_cast<char *>(sub_view.get_data()),
                         nSubElems * sizeof(Value), tag, comm);
                 }
-                std::cout << "start reads done " << endl;
+                std::cout << "start reads done " << std::endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -251,13 +254,13 @@ public:
             } else {
                 label startOfRequests = Pstream::nRequests();
                 // Set up write
-                std::cout << "start write  " << endl;
+                std::cout << "start write  " << std::endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
                                     localDataIn->get_const_data()),
                                 localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
-                std::cout << "start write done  " << endl;
+                std::cout << "start write done  " << std::endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
@@ -349,12 +352,12 @@ public:
     {
         if (Pstream::master()) {
             // copy its own data to local array.
-            std::cout << "scatter create view  " << endl;
+            std::cout << "scatter create view  " << std::endl;
             localDataOut = gko::detail::array_const_cast(
                 gko::Array<Value>::const_view(gko::ReferenceExecutor::create(),
                                               localDataOut.get_num_elems(),
                                               globalDataIn.get_const_data()));
-            std::cout << "scatter create view done  " << endl;
+            std::cout << "scatter create view done  " << std::endl;
 
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {

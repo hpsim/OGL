@@ -73,16 +73,15 @@ public:
                   std::shared_ptr<vec> b, const bool verbose,
                   const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
-
     {
         outerStoppingCriterionVec_.push_back(
             outerStoppingCriterion_.build_stopping_criterion(
                 exec, gkomatrix, x, b, verbose, export_res, 0));
 
-        if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
-            "scalarJacobi") {
-            return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
-        }
+        // if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
+        //     "scalarJacobi") {
+        //     return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
+        // }
         return create_default(exec, gkomatrix, x, b, verbose);
     };
 

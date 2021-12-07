@@ -37,6 +37,7 @@ namespace Foam {
 class GKOCGFactory {
 private:
     using cg = gko::solver::Cg<scalar>;
+    using val_array = gko::Array<scalar>;
 
     const dictionary &solverControls_;
 
