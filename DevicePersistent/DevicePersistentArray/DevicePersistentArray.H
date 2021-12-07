@@ -172,6 +172,10 @@ struct ArrayInitFunctor {
     void update(std::shared_ptr<gko::Array<T>> persistent_array) const
     {
         if (other_ != NULL) {
+            word msg{"updating array of size " +
+                     std::to_string(global_index_.localSize())};
+            SIMPLE_LOG(verbose_, msg)
+
             auto host_view =
                 gko::Array<T>::view(exec_.ref_exec(), global_index_.localSize(),
                                     const_cast<T *>(other_));
@@ -182,6 +186,11 @@ struct ArrayInitFunctor {
     std::shared_ptr<gko::Array<T>> init() const
     {
         auto exec = (on_device_) ? exec_.get_device_exec() : exec_.ref_exec();
+        word msg{"initialising on array of size " +
+                 std::to_string(global_index_.localSize())};
+        msg += (on_device_) ? "device" : "host";
+        SIMPLE_LOG(verbose_, msg)
+
         if (other_ != NULL) {
             auto host_view =
                 gko::Array<T>::view(exec_.ref_exec(), global_index_.localSize(),
