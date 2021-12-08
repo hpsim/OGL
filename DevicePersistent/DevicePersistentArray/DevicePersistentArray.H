@@ -280,7 +280,7 @@ public:
                             .get_ptr();
                 } else {
                     SIMPLE_LOG(this->get_verbose(),
-                               "initialising global array " + this->get_name() +
+                               "initialising global array " + global_name +
                                    " of size " +
                                    std::to_string(global_index_.size()))
                     // create a new unitialised array
@@ -298,6 +298,7 @@ public:
             SIMPLE_LOG(this->get_verbose(), "gather global array")
             global_index_.gather<T>(this->get_persistent_object(),
                                     persistent_object_global_);
+            SIMPLE_LOG(this->get_verbose(), "gather global array done")
 
             return persistent_object_global_;
         }
@@ -316,10 +317,14 @@ public:
     }
     std::shared_ptr<gko::matrix::Dense<T>> get_global_dense_vec() const
     {
-        auto host_array = get_global_array();
-        return gko::share(vec::create(
-            this->get_device_exec(),
-            gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
+        auto host_global_array = get_global_array();
+
+
+        SIMPLE_LOG(this->get_verbose(), "create global vec")
+        return gko::share(
+            vec::create(this->get_device_exec(),
+                        gko::dim<2>(host_global_array->get_num_elems(), 1),
+                        *host_global_array.get(), 1));
     }
 
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
