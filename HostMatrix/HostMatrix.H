@@ -282,8 +282,9 @@ public:
             values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
         }
     };
+    label local_nCells() const { return nCells_; }
 
-    label nCells() const { return nCells_; }
+    label nCells() const { return global_cell_index_.size(); }
 
     label nElems() const { return nElems_; }
 

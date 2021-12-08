@@ -64,32 +64,64 @@ struct CsrInitFunctor {
 
     void update(std::shared_ptr<mtx> &csr_matrix) const
     {
-        auto values_view = val_array::view(values_.get_device_exec(),
-                                           values_.get_global_size(),
-                                           csr_matrix->get_values());
-
-        // copy values to device
-        values_view = *values_.get_array().get();
+        if (Pstream::parRun()) {
+            if (Pstream::master()) {
+                auto values_view = val_array::view(values_.get_device_exec(),
+                                                   values_.get_global_size(),
+                                                   csr_matrix->get_values());
+                values_view = *values_.get_array().get();
+            }
+        } else {
+            auto values_view = val_array::view(values_.get_device_exec(),
+                                               values_.get_global_size(),
+                                               csr_matrix->get_values());
+            // copy values to device
+            values_view = *values_.get_array().get();
+        }
     }
 
     std::shared_ptr<mtx> init() const
     {
-        const auto device_exec = values_.get_device_exec();
-        const label nCells = size_;
-        word msg{"init csr matrix of size" + std::to_string(nCells)};
-        SIMPLE_LOG(verbose_, msg)
+        if (Pstream::parRun()) {
+            if (Pstream::master()) {
+                const auto device_exec = values_.get_device_exec();
+                const label nCells = size_;
+                word msg{"init global csr matrix of size " +
+                         std::to_string(nCells)};
+                SIMPLE_LOG(verbose_, msg)
 
-        auto coo_mtx = gko::share(coo_mtx::create(
-            device_exec, gko::dim<2>(nCells, nCells),
-            val_array(device_exec, *values_.get_array().get()),
-            *col_idxs_.get_array().get(), *row_idxs_.get_array().get()));
+                auto coo_mtx = gko::share(coo_mtx::create(
+                    device_exec, gko::dim<2>(nCells, nCells),
+                    val_array(device_exec, *values_.get_global_array().get()),
+                    *col_idxs_.get_global_array().get(),
+                    *row_idxs_.get_global_array().get()));
 
-        auto gkomatrix =
-            gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+                auto gkomatrix = gko::share(
+                    mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
 
-        SIMPLE_TIME(verbose_, convert_coo_to_csr,
-                    coo_mtx->convert_to(gkomatrix.get());)
-        return gkomatrix;
+                SIMPLE_TIME(verbose_, convert_coo_to_csr,
+                            coo_mtx->convert_to(gkomatrix.get());)
+                return gkomatrix;
+            }
+            return {};
+        } else {
+            const auto device_exec = values_.get_device_exec();
+            const label nCells = size_;
+            word msg{"init csr matrix of size " + std::to_string(nCells)};
+            SIMPLE_LOG(verbose_, msg)
+
+            auto coo_mtx = gko::share(coo_mtx::create(
+                device_exec, gko::dim<2>(nCells, nCells),
+                val_array(device_exec, *values_.get_array().get()),
+                *col_idxs_.get_array().get(), *row_idxs_.get_array().get()));
+
+            auto gkomatrix = gko::share(
+                mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+
+            SIMPLE_TIME(verbose_, convert_coo_to_csr,
+                        coo_mtx->convert_to(gkomatrix.get());)
+            return gkomatrix;
+        }
     }
 };
 

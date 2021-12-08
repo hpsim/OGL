@@ -261,9 +261,6 @@ public:
 
 
         // Generate solver
-        SIMPLE_LOG(verbose_, "get_gkomatrix")
-        auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
-
         // const word timeName =
         // this->matrix().mesh().thisDb().time().timeName();
 
@@ -289,6 +286,8 @@ public:
         if (Pstream::parRun()) {
             auto dense_x = x.get_global_dense_vec();
             auto dense_b = b.get_global_dense_vec();
+            SIMPLE_LOG(verbose_, "get_gkomatrix")
+            auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();
             if (Pstream::master()) {
                 SIMPLE_LOG(verbose_, "create solver factory")
 
@@ -315,6 +314,9 @@ public:
                 this->store_number_of_iterations();
             }
         } else {
+            SIMPLE_LOG(verbose_, "get_gkomatrix")
+            auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
+
             auto dense_x = x.get_dense_vec();
             auto dense_b = b.get_dense_vec();
             auto solver_gen = this->create_solver(
