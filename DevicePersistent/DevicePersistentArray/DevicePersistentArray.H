@@ -279,10 +279,14 @@ public:
                               DevicePersistentBase<gko::Array<T>>>(global_name)
                             .get_ptr();
                 } else {
-                    SIMPLE_LOG(this->get_verbose(), "initialising global array")
+                    SIMPLE_LOG(this->get_verbose(),
+                               "initialising global array " + this->get_name() +
+                                   " of size " +
+                                   std::to_string(global_index_.size()))
                     // create a new unitialised array
                     persistent_object_global_ = std::make_shared<gko::Array<T>>(
                         this->get_ref_exec(), global_index_.size());
+
                     const fileName path = global_name;
                     if (store_global_) {
                         DevicePersistentBase<gko::Array<T>>(
