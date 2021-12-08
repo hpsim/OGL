@@ -89,7 +89,7 @@ public:
           ldu_csr_idx_mapping_{
               fieldName + "ldu_csr_map", db,       exec_,
               global_matrix_index_,      verbose_, false,
-          },  //,
+          },
           values_{fieldName + "values", db,       exec_,
                   global_matrix_index_, verbose_, false},
           col_idxs_{fieldName + "cols",   db,       exec_,
@@ -278,10 +278,11 @@ public:
         }
 
         auto diag = this->matrix().diag();
-        for (label i = 0; i < nCells(); ++i) {
+        for (label i = 0; i < local_nCells(); ++i) {
             values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
         }
     };
+
     label local_nCells() const { return nCells_; }
 
     label nCells() const { return global_cell_index_.size(); }
