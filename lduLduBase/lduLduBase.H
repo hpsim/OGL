@@ -287,30 +287,28 @@ public:
 
         // Solve system
         if (Pstream::parRun()) {
-            // if (Pstream::master()) {
-            //     SIMPLE_LOG(verbose_, "init_initial_guess done")
-            //     std::vector<std::shared_ptr<vec>> x{};
-            //     this->get_initial_guess(x);
-            //     SIMPLE_LOG(verbose_, "get init_initial_guess done")
-            //     SIMPLE_LOG(verbose_, "create solver")
-            //     auto solver_gen = this->create_solver(
-            //         device_exec, gkomatrix, x[0], b, verbose_,
-            //         this->get_export(), this->get_preconditioner());
-            //     auto solver = solver_gen->generate(gko::share(gkomatrix));
-            //     SIMPLE_TIME(verbose_, solve,
-            //                 solver->apply(gko::lend(b), gko::lend(x[0]));)
-            //     //        this->copy_result_back(psi, this->nCells());
-            //     SIMPLE_LOG(verbose_, "create solver done")
-            //     if (get_export()) {
-            //         export_vec(this->fieldName() + "_residuals",
-            //                    gko::lend(this->get_res_norms()), timeName);
-            //     }
-            //     solverPerf.initialResidual() = this->get_init_res_norm();
-            //     solverPerf.finalResidual() = this->get_res_norm();
-            //     solverPerf.nIterations() = this->get_number_of_iterations();
-            //     this->store_number_of_iterations();
-            //     this->copy_result_back(globalAddr, psi);
-            // }
+            auto dense_x = x.get_global_dense_vec();
+            auto dense_b = b.get_global_dense_vec();
+            if (Pstream::master()) {
+                auto solver_gen = this->create_solver(
+                    this->get_exec_handler().get_device_exec(),
+                    gkomatrix.get_persistent_object(), dense_x, dense_b,
+                    verbose_, csr_matrix_wrapper_.get_export(),
+                    // this->get_preconditioner()
+                    std::shared_ptr<gko::LinOp>{});
+                auto solver = solver_gen->generate(
+                    gko::share(gkomatrix.get_persistent_object()));
+                SIMPLE_TIME(
+                    verbose_, solve,
+                    solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
+                // this->copy_result_back(psi, this->nCells());
+                //
+                x.copy_back(&psi[0], dense_x);
+                solverPerf.initialResidual() = this->get_init_res_norm();
+                solverPerf.finalResidual() = this->get_res_norm();
+                solverPerf.nIterations() = this->get_number_of_iterations();
+                this->store_number_of_iterations();
+            }
         } else {
             auto dense_x = x.get_dense_vec();
             auto dense_b = b.get_dense_vec();

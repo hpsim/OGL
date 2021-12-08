@@ -124,6 +124,8 @@ public:
         return persistent_object_;
     }
 
+    bool get_verbose() const { return verbose_; }
+
     word get_name() const { return name_; }
 
     const objectRegistry &get_db() const { return db_; }
@@ -260,23 +262,27 @@ public:
     // gather the underlying data and return a
     // shared_ptr to the corresponding global array
     // currently the shared_ptr is a nullptr on all but the main rank
-    std::shared_ptr<gko::Array<T>> get_global()
+    std::shared_ptr<gko::Array<T>> get_global_array() const
     {
         if (Pstream::parRun()) {
             if (Pstream::master()) {
                 const word global_name = this->get_name() + "_global";
-                auto db = this->template get_db();
+                auto &db = this->get_db();
                 bool stored{db.template foundObject<regIOobject>(global_name)};
 
                 if (stored) {
+                    SIMPLE_LOG(
+                        this->get_verbose(),
+                        "global array stored, retrieving from object registry")
                     persistent_object_global_ =
                         db.template lookupObjectRef<
                               DevicePersistentBase<gko::Array<T>>>(global_name)
                             .get_ptr();
                 } else {
+                    SIMPLE_LOG(this->get_verbose(), "initialising global array")
                     // create a new unitialised array
-                    persistent_object_global_ =
-                        std::make_shared<gko::Array<T>>(global_index_.size());
+                    persistent_object_global_ = std::make_shared<gko::Array<T>>(
+                        this->get_ref_exec(), global_index_.size());
                     const fileName path = global_name;
                     if (store_global_) {
                         DevicePersistentBase<gko::Array<T>>(
@@ -285,8 +291,9 @@ public:
                 }
             }
 
-            global_index_.gather(this->get_persistent_object(),
-                                 persistent_object_global_);
+            SIMPLE_LOG(this->get_verbose(), "gather global array")
+            global_index_.gather<T>(this->get_persistent_object(),
+                                    persistent_object_global_);
 
             return persistent_object_global_;
         }
@@ -302,6 +309,13 @@ public:
     std::shared_ptr<gko::Array<T>> get_array() const
     {
         return this->get_persistent_object();
+    }
+    std::shared_ptr<gko::matrix::Dense<T>> get_global_dense_vec() const
+    {
+        auto host_array = get_global_array();
+        return gko::share(vec::create(
+            this->get_device_exec(),
+            gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
     }
 
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
