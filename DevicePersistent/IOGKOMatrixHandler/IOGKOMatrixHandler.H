@@ -61,7 +61,6 @@ struct CsrInitFunctor {
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),
-          size_(size),
           verbose_(verbose)
     {}
 
@@ -189,7 +188,7 @@ public:
               sys_matrix_name + "csr",
               db,
               exec,
-              CsrInitFunctor(col_idxs, row_idxs, values, size, verbose_),
+              CsrInitFunctor(globalIndex, col_idxs, row_idxs, values, verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
