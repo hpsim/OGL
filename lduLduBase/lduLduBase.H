@@ -290,19 +290,24 @@ public:
             auto dense_x = x.get_global_dense_vec();
             auto dense_b = b.get_global_dense_vec();
             if (Pstream::master()) {
+                SIMPLE_LOG(verbose_, "create solver factory")
+
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
                     gkomatrix.get_persistent_object(), dense_x, dense_b,
                     verbose_, csr_matrix_wrapper_.get_export(),
                     // this->get_preconditioner()
                     std::shared_ptr<gko::LinOp>{});
+                SIMPLE_LOG(verbose_, "create solver")
                 auto solver = solver_gen->generate(
                     gko::share(gkomatrix.get_persistent_object()));
+                SIMPLE_LOG(verbose_, "solve solver")
                 SIMPLE_TIME(
                     verbose_, solve,
                     solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
                 // this->copy_result_back(psi, this->nCells());
                 //
+                SIMPLE_LOG(verbose_, "copy back")
                 x.copy_back(&psi[0], dense_x);
                 solverPerf.initialResidual() = this->get_init_res_norm();
                 solverPerf.finalResidual() = this->get_res_norm();
