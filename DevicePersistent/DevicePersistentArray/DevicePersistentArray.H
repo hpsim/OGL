@@ -319,12 +319,15 @@ public:
     {
         auto host_global_array = get_global_array();
 
-
         SIMPLE_LOG(this->get_verbose(), "create global vec")
-        return gko::share(
-            vec::create(this->get_device_exec(),
-                        gko::dim<2>(host_global_array->get_num_elems(), 1),
-                        *host_global_array.get(), 1));
+        if (Pstream::master()) {
+            return gko::share(
+                vec::create(this->get_device_exec(),
+                            gko::dim<2>(host_global_array->get_num_elems(), 1),
+                            *host_global_array.get(), 1));
+        } else {
+            return {};
+        }
     }
 
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
