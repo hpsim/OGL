@@ -201,7 +201,7 @@ public:
     //                         std::shared_ptr<idx_array> row_idxs_host,
     //                         const label nElems, const label nCells,
     //                         const bool update) const;
-    PersistentBase<mtx, CsrInitFunctor> &get_gkomatrix() const
+    PersistentBase<mtx, CsrInitFunctor> &get_global_gkomatrix() const
     {
         return gkomatrix_;
     }
