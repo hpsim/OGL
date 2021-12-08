@@ -206,6 +206,11 @@ public:
         return gkomatrix_;
     }
 
+    PersistentBase<mtx, CsrInitFunctor> &get_gkomatrix() const
+    {
+        return gkomatrix_;
+    }
+
     // initialize the local initial guess
     // void init_initial_guess_vector(const Field<vector> &psi,
     //                                const objectRegistry &db,
