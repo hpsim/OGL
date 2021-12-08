@@ -39,6 +39,8 @@ namespace Foam {
 
 
 struct CsrInitFunctor {
+    const gkoGlobalIndex &global_index_;
+
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using val_array = gko::Array<scalar>;
@@ -50,17 +52,18 @@ struct CsrInitFunctor {
     const label size_;
     const bool verbose_;
 
-    CsrInitFunctor(const PersistentArray<label> &col_idxs,
+    CsrInitFunctor(const gkoGlobalIndex &global_index,
+                   const PersistentArray<label> &col_idxs,
                    const PersistentArray<label> &row_idxs,
                    const PersistentArray<scalar> &values, const label size,
                    const bool verbose)
-        : col_idxs_(col_idxs),
+        : global_index_(global_index),
+          col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),
           size_(size),
           verbose_(verbose)
     {}
-
 
     void update(std::shared_ptr<mtx> &csr_matrix) const
     {
@@ -83,30 +86,34 @@ struct CsrInitFunctor {
     std::shared_ptr<mtx> init() const
     {
         if (Pstream::parRun()) {
+            const auto device_exec = values_.get_device_exec();
+            const label nCells = global_index_.size();
+            word msg{"init global csr matrix of size " +
+                     std::to_string(nCells)};
+            SIMPLE_LOG(verbose_, msg)
+
+            auto values = values_.get_global_array();
+            auto cols = col_idxs_.get_global_array();
+            auto rows = row_idxs_.get_global_array();
+
+            auto coo_mtx = gko::share(
+                coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
+                                val_array(device_exec, *values.get()),
+                                *cols.get(), *rows.get()));
+
+            auto gkomatrix = gko::share(
+                mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+
             if (Pstream::master()) {
-                const auto device_exec = values_.get_device_exec();
-                const label nCells = size_;
-                word msg{"init global csr matrix of size " +
-                         std::to_string(nCells)};
-                SIMPLE_LOG(verbose_, msg)
-
-                auto coo_mtx = gko::share(coo_mtx::create(
-                    device_exec, gko::dim<2>(nCells, nCells),
-                    val_array(device_exec, *values_.get_global_array().get()),
-                    *col_idxs_.get_global_array().get(),
-                    *row_idxs_.get_global_array().get()));
-
-                auto gkomatrix = gko::share(
-                    mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
-
                 SIMPLE_TIME(verbose_, convert_coo_to_csr,
                             coo_mtx->convert_to(gkomatrix.get());)
                 return gkomatrix;
+            } else {
+                return {};
             }
-            return {};
         } else {
             const auto device_exec = values_.get_device_exec();
-            const label nCells = size_;
+            const label nCells = global_index_.size();
             word msg{"init csr matrix of size " + std::to_string(nCells)};
             SIMPLE_LOG(verbose_, msg)
 
@@ -175,7 +182,7 @@ public:
                      const PersistentArray<label> &row_idxs,
                      const PersistentArray<scalar> &values,
                      const dictionary &controlDict, const word sys_matrix_name,
-                     const label size, const bool verbose)
+                     const gkoGlobalIndex &globalIndex, const bool verbose)
         : verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
