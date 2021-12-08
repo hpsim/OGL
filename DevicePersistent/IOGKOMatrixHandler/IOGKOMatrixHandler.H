@@ -93,15 +93,14 @@ struct CsrInitFunctor {
             auto cols = col_idxs_.get_global_array();
             auto rows = row_idxs_.get_global_array();
 
-            auto coo_mtx = gko::share(
-                coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
-                                val_array(device_exec, *values.get()),
-                                *cols.get(), *rows.get()));
-
-            auto gkomatrix = gko::share(
-                mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
-
             if (Pstream::master()) {
+                auto coo_mtx = gko::share(
+                    coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
+                                    val_array(device_exec, *values.get()),
+                                    *cols.get(), *rows.get()));
+
+                auto gkomatrix = gko::share(
+                    mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
                 SIMPLE_TIME(verbose_, convert_coo_to_csr,
                             coo_mtx->convert_to(gkomatrix.get());)
                 return gkomatrix;
