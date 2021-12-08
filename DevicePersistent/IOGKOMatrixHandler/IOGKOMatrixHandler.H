@@ -49,14 +49,12 @@ struct CsrInitFunctor {
     const PersistentArray<label> &row_idxs_;
     const PersistentArray<scalar> &values_;
 
-    const label size_;
     const bool verbose_;
 
     CsrInitFunctor(const gkoGlobalIndex &global_index,
                    const PersistentArray<label> &col_idxs,
                    const PersistentArray<label> &row_idxs,
-                   const PersistentArray<scalar> &values, const label size,
-                   const bool verbose)
+                   const PersistentArray<scalar> &values, const bool verbose)
         : global_index_(global_index),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
