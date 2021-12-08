@@ -242,15 +242,19 @@ public:
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
+                std::cout << "wait requests done " << std::endl;
             }
         } else {
+            std::cout << "start write  " << std::endl;
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
+                std::cout << "start write blocked write  " << std::endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
                                     localDataIn->get_const_data()),
                                 localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
+                std::cout << "done  blocked write  " << std::endl;
             } else {
                 label startOfRequests = Pstream::nRequests();
                 // Set up write
