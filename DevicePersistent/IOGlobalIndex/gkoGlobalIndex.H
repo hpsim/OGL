@@ -207,11 +207,9 @@ public:
     {
         if (Pstream::master()) {
             // Assign my local data
-            std::cout << "create view  " << std::endl;
             gko::Array<Value>::view(
                 gko::ReferenceExecutor::create(), localDataIn->get_num_elems(),
                 globalDataOut->get_data()) = *localDataIn.get();
-            std::cout << "create view done  " << std::endl;
 
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
@@ -227,7 +225,6 @@ public:
                 label startOfRequests = Pstream::nRequests();
 
                 // Set up reads
-                std::cout << "start reads  " << std::endl;
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
                     auto sub_view = gko::Array<Value>::view(
@@ -238,33 +235,26 @@ public:
                         reinterpret_cast<char *>(sub_view.get_data()),
                         nSubElems * sizeof(Value), tag, comm);
                 }
-                std::cout << "start reads done " << std::endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
-                std::cout << "wait requests done " << std::endl;
             }
         } else {
-            std::cout << "start write  " << std::endl;
             if (commsType == Pstream::commsTypes::scheduled ||
                 commsType == Pstream::commsTypes::blocking) {
-                std::cout << "start write blocked write  " << std::endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
                                     localDataIn->get_const_data()),
                                 localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
-                std::cout << "done  blocked write  " << std::endl;
             } else {
                 label startOfRequests = Pstream::nRequests();
                 // Set up write
-                std::cout << "start write  " << std::endl;
                 OPstream::write(commsType, procIDs[0],
                                 reinterpret_cast<const char *>(
                                     localDataIn->get_const_data()),
                                 localDataIn->get_num_elems() * sizeof(Value),
                                 tag, comm);
-                std::cout << "start write done  " << std::endl;
 
                 // Wait for all to finish
                 Pstream::waitRequests(startOfRequests);
