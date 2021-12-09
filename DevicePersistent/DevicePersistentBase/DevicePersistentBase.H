@@ -7,7 +7,7 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
@@ -31,14 +31,16 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include "fvCFD.H"
 
+
 namespace Foam {
 
-using mtx = gko::matrix::Csr<scalar>;
-using val_array = gko::Array<scalar>;
-using idx_array = gko::Array<label>;
-
+/* Base class for storing ginkgo and OGL data structures in the Objectregistry
+ *
+ * On creation it registers it self to the object registry and holds
+ * a shared_ptr<T> where T is a gko data type
+ *  */
 template <class T>
-class IOPtr : public regIOobject {
+class DevicePersistentBase : public regIOobject {
 private:
     std::shared_ptr<T> ptr_;
 
@@ -47,27 +49,28 @@ public:
     TypeName("IOPtr");
 
     //- Construct from IOobject and a PtrList
-    IOPtr(const IOobject &io, std::shared_ptr<T> in_ptr)
+    DevicePersistentBase(const IOobject &io, std::shared_ptr<T> in_ptr)
         : regIOobject(io), ptr_(in_ptr){};
 
+    // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; };
 
     bool writeData(Ostream &) const { return false; };
 };
 
-typedef IOPtr<gko::Executor> GKOExecPtr;
-typedef IOPtr<gko::CudaExecutor> GKOCudaExecPtr;
-typedef IOPtr<gko::ReferenceExecutor> GKOReferenceExecPtr;
-typedef IOPtr<gko::OmpExecutor> GKOOmpExecPtr;
-typedef IOPtr<gko::HipExecutor> GKOHipExecPtr;
-typedef IOPtr<gko::DpcppExecutor> GKODpcppExecPtr;
-typedef IOPtr<idx_array> GKOIDXIOPtr;
-typedef IOPtr<gko::matrix::Csr<scalar>> GKOCSRIOPtr;
-typedef IOPtr<gko::matrix::Dense<scalar>> GKOVECIOPtr;
 
-typedef IOPtr<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
-typedef IOPtr<gko::preconditioner::Ilu<>> GKOILUIOPtr;
-typedef IOPtr<gko::LinOp> GKOLinOPIOPtr;
+    // TODO is that needed?
+typedef DevicePersistentBase<gko::Executor>  GKOExecPtr;
+typedef DevicePersistentBase<gko::CudaExecutor> GKOCudaExecPtr;
+typedef DevicePersistentBase<gko::ReferenceExecutor> GKOReferenceExecPtr;
+typedef DevicePersistentBase<gko::OmpExecutor> GKOOmpExecPtr;
+typedef DevicePersistentBase<gko::HipExecutor> GKOHipExecPtr;
+typedef DevicePersistentBase<gko::DpcppExecutor> GKODpcppExecPtr;
+// typedef DevicePersistentBase<gko::matrix::Csr<scalar>> GKOCSRIOPtr;
+// typedef DevicePersistentBase<gko::matrix::Dense<scalar>> GKOVECIOPtr;
+// typedef DevicePersistentBase<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
+// typedef DevicePersistentBase<gko::preconditioner::Ilu<>> GKOILUIOPtr;
+// typedef DevicePersistentBase<gko::LinOp> GKOLinOPIOPtr;
 
 
 }  // namespace Foam

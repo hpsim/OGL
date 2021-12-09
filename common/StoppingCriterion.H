@@ -7,13 +7,13 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
     Foam::GKOCG
@@ -38,6 +38,9 @@ namespace Foam {
 
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
+    using val_array = gko::Array<scalar>;
+    using idx_array = gko::Array<label>;
+
     class OpenFOAMStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMStoppingCriterion,
                                               gko::stop::Criterion> {
@@ -96,7 +99,7 @@ class StoppingCriterion {
                            std::shared_ptr<vec> x,
                            std::shared_ptr<vec> res) const
         {
-            const label nCells{x->get_size()[0]};
+            const label nCells{(label)x->get_size()[0]};
 
             val_array x_array{
                 val_array::view(device_exec, nCells, x->get_values())};
@@ -136,7 +139,7 @@ class StoppingCriterion {
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
-            const label nCells{x->get_size()[0]};
+            const label nCells{(label)x->get_size()[0]};
 
             // TODO store colA vector
             auto Axref =

@@ -7,7 +7,7 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
@@ -28,7 +28,7 @@ SourceFiles
 #ifndef OGL_IOExecutorHandler_INCLUDED_H
 #define OGL_IOExecutorHandler_INCLUDED_H
 
-#include "../IOPtr/IOPtr.H"
+#include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -59,11 +59,12 @@ private:
     GKODpcppExecPtr *dpcpp_exec_ptr_;
 
 public:
-    IOExecutorHandler(const objectRegistry &db, const dictionary &controlDict);
+    IOExecutorHandler(const objectRegistry &db,
+                      const dictionary &solverControls);
 
     word get_device_executor_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::Executor> get_device_executor() const
+    std::shared_ptr<gko::Executor> get_device_exec() const
     {
         const word device_executor_name{get_device_executor_name()};
         if (device_executor_name == "omp") {
@@ -104,5 +105,6 @@ public:
     };
 };
 
+    using PersistentExecutor = IOExecutorHandler;
 }  // namespace Foam
 #endif

@@ -101,12 +101,12 @@ add_compile_definitions(
 target_sources(OGL
   PRIVATE
 common/common.C
-IOHandler/IOPtr/IOPtr.C
-IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.C
-IOHandler/IOExecutorHandler/IOExecutorHandler.C
-IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.C
-IOHandler/IOPreconditioner/IOPreconditioner.C
-IOHandler/IOGlobalIndex/gkoGlobalIndex.C
+DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
+DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
+DevicePersistent/IOExecutorHandler/IOExecutorHandler.C
+DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.C
+# DevicePersistent/IOPreconditioner/IOPreconditioner.C
+DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
 BaseWrapper/lduBase/GKOlduBase.C
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
 CG/GKOCG.C
@@ -117,12 +117,12 @@ LduMatrix/GKOACG/GKOACG.C
   PUBLIC
 common/common.H
 lduLduBase/lduLduBase.H
-IOHandler/IOPtr/IOPtr.H
-IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H
-IOHandler/IOExecutorHandler/IOExecutorHandler.H
-IOHandler/IOGKOMatrixHandler/IOGKOMatrixHandler.H
-IOHandler/IOPreconditioner/IOPreconditioner.H
-IOHandler/IOGlobalIndex/gkoGlobalIndex.H
+DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
+DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
+DevicePersistent/IOExecutorHandler/IOExecutorHandler.H
+DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.H
+# DevicePersistent/IOPreconditioner/IOPreconditioner.H
+DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
 BaseWrapper/lduBase/GKOlduBase.H
 BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
 CG/GKOCG.H
@@ -142,12 +142,11 @@ target_include_directories(OGL
   common/
   BaseWrapper/lduBase/
   BaseWrapper/CoupledLduBase/
-  IOHandler/IOPtr
-  IOHandler/IOExecutorHandler/
-  IOHandler/IOSortingIdxHandler/
-  IOHandler/IOGKOMatrixHandler/
-  IOHandler/IOPreconditioner/
-  IOHandler/IOGlobalIndex/
+  DevicePersistent/DevicePersistentBase/
+  DevicePersistent/IOExecutorHandler/
+  DevicePersistent/IOGKOMatrixHandler/
+  # DevicePersistent/IOPreconditioner/
+  DevicePersistent/IOGlobalIndex/
   )
 
 

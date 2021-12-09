@@ -6,11 +6,11 @@
 namespace Foam {
 
 IOExecutorHandler::IOExecutorHandler(const objectRegistry &db,
-                                     const dictionary &controlDict)
+                                     const dictionary &solverControls)
     : device_executor_name_(
-          controlDict.lookupOrDefault("executor", word("reference"))),
+          solverControls.lookupOrDefault("executor", word("reference"))),
       app_executor_name_(
-          controlDict.lookupOrDefault("app_executor", word("reference")))
+          solverControls.lookupOrDefault("app_executor", word("reference")))
 {
     // create executors
     bool app_exec_stored = db.foundObject<regIOobject>(app_executor_name_);

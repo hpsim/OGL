@@ -7,13 +7,13 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
     Foam::GKOIR
@@ -73,16 +73,15 @@ public:
                   std::shared_ptr<vec> b, const bool verbose,
                   const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
-
     {
         outerStoppingCriterionVec_.push_back(
             outerStoppingCriterion_.build_stopping_criterion(
                 exec, gkomatrix, x, b, verbose, export_res, 0));
 
-        if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
-            "scalarJacobi") {
-            return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
-        }
+        // if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
+        //     "scalarJacobi") {
+        //     return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
+        // }
         return create_default(exec, gkomatrix, x, b, verbose);
     };
 
