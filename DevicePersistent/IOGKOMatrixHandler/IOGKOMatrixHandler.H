@@ -42,11 +42,15 @@ struct CsrInitFunctor {
     const gkoGlobalIndex &global_index_;
 
     using mtx = gko::matrix::Csr<scalar>;
+
     using coo_mtx = gko::matrix::Coo<scalar>;
+
     using val_array = gko::Array<scalar>;
 
     const PersistentArray<label> &col_idxs_;
+
     const PersistentArray<label> &row_idxs_;
+
     const PersistentArray<scalar> &values_;
 
     const bool verbose_;
@@ -136,41 +140,14 @@ private:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
 
-    // const word sys_matrix_name_;
-
     const bool verbose_;
 
     const bool export_;
 
     mutable PersistentBase<mtx, CsrInitFunctor> gkomatrix_;
 
-    // const bool sys_matrix_stored_;
-
-    // const word update_sysMatrix_;
-
-    // const word sparsity_pattern_name_cols_;
-
-    // const word sparsity_pattern_name_rows_;
-
-    // const bool sparsity_pattern_stored_;
-
-    // const word init_guess_vector_name_;
-
-    // const bool init_guess_vector_stored_;
-
-    // const bool update_init_guess_vector_;
-
     mutable label prev_solve_iters_ = 0;
 
-    // mutable GKOCSRIOPtr *gkomatrix_ptr_ = NULL;
-
-    // mutable GKOIDXIOPtr *io_col_idxs_ptr_ = NULL;
-
-    // mutable GKOIDXIOPtr *io_row_idxs_ptr_ = NULL;
-
-    // mutable std::shared_ptr<vec> init_guess_ = NULL;
-
-    // mutable std::vector<GKOVECIOPtr *> io_init_guess_ptrs_ = {};
 
 public:
     CsrMatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,
@@ -190,20 +167,6 @@ public:
               verbose_}
     {}
 
-    // bool get_sys_matrix_stored() const { return sys_matrix_stored_; }
-
-    // bool get_sparsity_pattern_stored() const
-    // {
-    //     return sparsity_pattern_stored_;
-    // }
-
-    // void init_device_matrix(const objectRegistry &db,
-    //                         const gkoGlobalIndex &globalIndex,
-    //                         std::shared_ptr<val_array> values_host,
-    //                         std::shared_ptr<idx_array> col_idxs_host,
-    //                         std::shared_ptr<idx_array> row_idxs_host,
-    //                         const label nElems, const label nCells,
-    //                         const bool update) const;
     PersistentBase<mtx, CsrInitFunctor> &get_global_gkomatrix() const
     {
         return gkomatrix_;
@@ -214,99 +177,6 @@ public:
         return gkomatrix_;
     }
 
-    // initialize the local initial guess
-    // void init_initial_guess_vector(const Field<vector> &psi,
-    //                                const objectRegistry &db,
-    //                                const gkoGlobalIndex &globalIndex,
-    //                                const label nCells) const
-    // {
-    //     std::vector<word> postFixes{"", "y", "z"};
-    //     for (int i = 0; i < 3; i++) {
-    //         init_initial_guess(&psi[0][i], db, globalIndex, nCells,
-    //                            postFixes[i]);
-    //     }
-    // }
-
-
-    // void init_initial_guess_vector(const Field<scalar> &psi,
-    //                                const objectRegistry &db,
-    //                                const gkoGlobalIndex &globalIndex,
-    //                                const label nCells) const
-    // {
-    //     init_initial_guess(&psi[0], db, globalIndex, nCells, "");
-    // }
-
-    // void init_initial_guess(const scalar *psi, const objectRegistry &db,
-    //                         const gkoGlobalIndex &globalIndex,
-    //                         const label nCells, const word postFix) const;
-
-    // void get_initial_guess(std::vector<std::shared_ptr<vec>> &init_guess)
-    // const
-    // {
-    //     if (io_init_guess_ptrs_.size() == 0) {
-    //         init_guess.push_back(init_guess_);
-    //     }
-    //     for (int i = 0; i < io_init_guess_ptrs_.size(); i++) {
-    //         init_guess.push_back(io_init_guess_ptrs_[i]->get_ptr());
-    //     }
-    // }
-    // const PersistentExecutor &exec;
-
-    // TODO clean up with scalarField version
-    // template <class OFField>
-    // void copy_result_back(const OFField &psi, const label nCells) const
-    // {
-    //     std::vector<std::shared_ptr<vec>> device_xs_ptr{};
-    //     get_initial_guess(device_xs_ptr);
-
-    //     for (int i = 0; i < 3; i++) {
-    //         auto host_x = vec::create(ref_exec(), gko::dim<2>(nCells, 1));
-    //         host_x->copy_from(gko::lend(device_xs_ptr[i]));
-    //         auto host_x_view =
-    //             val_array::view(ref_exec(), nCells, host_x->get_values());
-    //         auto psi_view = val_array::view(ref_exec(), nCells,
-    //                                         const_cast<scalar
-    //                                         *>(&psi[0][i]));
-    //         psi_view = host_x_view;
-    //     }
-    // }
-
-    // // TODO clean up with scalarField version
-    // void copy_result_back(const gkoGlobalIndex &globalAddr,
-    //                       const scalarField &local_psi) const
-    // {
-    //     Info << "copy result back parallel" << endl;
-    //     const label globalNCells{globalAddr.size()};
-    //     const label nCells{globalAddr.localSize()};
-
-    //     // TODO can this be avoided on non master
-    //     // ranks, for example by passing null ptrs?
-    //     auto global_host_x = val_array(ref_exec(), globalNCells);
-
-    //     if (Pstream::master()) {
-    //         std::vector<std::shared_ptr<vec>> device_xs_ptr{};
-    //         get_initial_guess(device_xs_ptr);
-
-    //         auto device_xs_view = val_array::view(
-    //             app_exec(), globalNCells, device_xs_ptr[0]->get_values());
-
-    //         global_host_x = device_xs_view;
-    //     }
-
-    //     auto local_host_x = val_array(ref_exec(), nCells);
-
-    //     globalAddr.scatter(global_host_x, local_host_x);
-
-    //     auto psi_view = val_array::view(ref_exec(), nCells,
-    //                                     const_cast<scalar *>(&local_psi[0]));
-
-    //     psi_view = local_host_x;
-    // }
-
-    // void copy_result_back(const scalarField &psi, const label nCells) const;
-
-    // bool get_update_sys_matrix() const { return (update_sysMatrix_ == "yes");
-    // }
 
     bool get_export() const { return export_; }
 };
