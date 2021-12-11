@@ -94,9 +94,26 @@ add_compile_definitions(
   WM_LABEL_SIZE=32
   WM_ARCH_OPTION=64
   NoRepository
-  linux64
   WM_DP
   )
+
+if (APPLE)
+  message("Compiling on MacOS")
+target_link_options(
+  OGL
+  PUBLIC
+  "LINKER:-undefined,dynamic_lookup"
+  )
+add_compile_definitions(
+  APPLE
+  arm64
+  )
+else()
+add_compile_definitions(
+  linux64
+  )
+endif()
+
 
 target_sources(OGL
   PRIVATE
@@ -154,6 +171,7 @@ target_link_libraries(OGL
   PUBLIC
     Ginkgo::ginkgo
   )
+
 
 if (${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1 )

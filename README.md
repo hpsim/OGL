@@ -12,9 +12,9 @@ A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provi
 OGL has the following requirements
 
 *   _cmake 3.9+_
-*   _OpenFOAM 6+_
+*   _OpenFOAM 6+_ or _v2106_
 *   _Ginkgo 1.4.0+_
-*   C++14 compliant compiler
+*   C++14 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
@@ -28,7 +28,7 @@ By default *OGL* will fetch and build ginkgo, to specify which backend should be
 
     cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
 
-Then, make sure that the `system/controlDict` includes the `OGL.so` file:
+Then, make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
 
