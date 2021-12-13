@@ -78,9 +78,9 @@ void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
             .lookupObjectRef<IOdictionary>(solvPropsDict)
             .set<label>("prev_solve_iters", prev_solve_iters);
     } else {
-        auto gkoSolverProperties =
-            new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
-                                      IOobject::NO_READ, IOobject::NO_WRITE));
+        auto gkoSolverProperties = std::make_unique<IOdictionary>(
+            IOobject(solvPropsDict, fileName("None"), db, IOobject::NO_READ,
+                     IOobject::NO_WRITE));
         gkoSolverProperties->add("prev_solve_iters", prev_solve_iters, true);
     }
 }
