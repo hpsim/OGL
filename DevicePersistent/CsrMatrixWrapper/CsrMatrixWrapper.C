@@ -25,7 +25,7 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 #include <ginkgo/ginkgo.hpp>
-#include "IOGKOMatrixHandler.H"
+#include "CsrMatrixWrapper.H"
 #include "common.H"
 
 namespace Foam {
@@ -98,7 +98,7 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
 }
 
 
-// void IOGKOMatrixHandler::copy_result_back(const scalarField &psi,
+// void CsrMatrixWrapper::copy_result_back(const scalarField &psi,
 //                                           const label nCells) const
 // {
 //     // TODO rename to host_x

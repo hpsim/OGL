@@ -29,8 +29,8 @@ SourceFiles
 #define OGL_lduLduBase_INCLUDED_H
 
 #include "../../HostMatrix/HostMatrix.H"
+#include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
-#include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 #include "../common/common.H"
@@ -121,53 +121,8 @@ public:
         init_base();
     }
 
-    void init_base()
-    {
-        // TODO remove since this is moved to host matrix now
-        // if sys_matrix is not stored updating is neccesary
-        // initially
-        // bool stored = get_sys_matrix_stored();
-        // if (!stored) {
-        //     SIMPLE_TIME(verbose_, init_host_sparsity_pattern,
-        //                 this->init_host_sparsity_pattern();)
+    void init_base() {}
 
-
-        //     SIMPLE_LOG(verbose_, "matrix not stored update host matrix")
-        //     SIMPLE_TIME(verbose_, update_host_mtx,
-        //                 this->update_host_matrix_data();)
-        // } else {
-        //     // if sys_matrix is  stored updating is only neccesary
-        //     // when requested explictly
-        //     if (get_update_sys_matrix()) {
-        //         SIMPLE_LOG(
-        //             verbose_,
-        //             "matrix is stored and update of host matrix requested")
-        //         SIMPLE_TIME(verbose_, exp_update_host_mtx,
-        //                     this->update_host_matrix_data();)
-        //     }
-        // }
-        // auto globalAddr = gkoGlobalIndex(this->nCells());
-
-
-        // SIMPLE_TIME(
-        //     verbose_, init_device_matrix,
-        //     init_device_matrix(this->matrix().mesh().thisDb(), globalAddr,
-        //                        this->values(), this->col_idxs(),
-        //                        this->row_idxs(), this->nElems(),
-        //                        this->nCells(), get_update_sys_matrix());)
-    }
-
-
-    // template <class OFField>
-    // void init_vector_views(std::vector<val_array> &target,
-    //                        OFField &source) const
-    // {
-    //     for (int i = 0; i < 3; i++) {
-    //         target.push_back(
-    //             val_array::view(ref_exec(), 3 * this->nCells(),
-    //                             const_cast<scalar *>(&source[0][i])));
-    //     }
-    // }
 
     // the solve_impl_ version called from the LduMatrix, ie for
     // coupled matrices

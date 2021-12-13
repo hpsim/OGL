@@ -121,8 +121,10 @@ public:
             LOG_1(verbose_, msg)
             const fileName path = name_;
 
-            persistent_object_ =
-                DevicePersistentBase<T>(IOobject(path, db), f.init()).get_ptr();
+            // FIXME this probably leaks memory
+            auto po = new DevicePersistentBase<T>(IOobject(path, db), f.init());
+
+            persistent_object_ = po->get_ptr();
         }
     }
 
