@@ -30,126 +30,73 @@ SourceFiles
 
 namespace Foam {
 
-// void IOGKOMatrixHandler::init_device_matrix(
-//     const objectRegistry &db, const gkoGlobalIndex &globalIndex,
-//     std::shared_ptr<val_array> values_host,
-//     std::shared_ptr<idx_array> col_idxs_host,
-//     std::shared_ptr<idx_array> row_idxs_host, const label nElems,
-//     const label nCells, const bool update) const
-// {
-//     // only do something on the master
-//     if (Pstream::parRun() && !Pstream::master()) {
-//         return;
-//     }
+void CsrInitFunctor::update(
+    std::shared_ptr<gko::matrix::Csr<scalar>> &csr_matrix) const
+{
+    if (Pstream::parRun()) {
+        if (Pstream::master()) {
+            auto values_view = val_array::view(
+                values_.get_exec_handler().get_device_exec(),
+                values_.get_global_size(), csr_matrix->get_values());
+            values_view = *values_.get_array().get();
+        }
+    } else {
+        auto values_view = val_array::view(
+            values_.get_exec_handler().get_device_exec(),
+            values_.get_global_size(), csr_matrix->get_values());
+        // copy values to device
+        values_view = *values_.get_array().get();
+    }
+}
 
-//     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
+std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
+{
+    using coo_mtx = gko::matrix::Coo<scalar>;
 
-//     if (sys_matrix_stored_) {
-//         if (!update) {
-//             gkomatrix_ptr_ =
-//             &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_); return;
-//         } else {
-//             gkomatrix_ptr_ =
-//             &db.lookupObjectRef<GKOCSRIOPtr>(sys_matrix_name_); auto
-//             gkomatrix = gkomatrix_ptr_->get_ptr(); auto values_view =
-//             val_array::view(device_exec, globalIndex.size(),
-//                                                gkomatrix->get_values());
+    if (Pstream::parRun()) {
+        const auto device_exec = values_.get_exec_handler().get_device_exec();
+        const label nCells = global_index_.size();
+        word msg{"init global csr matrix of size " + std::to_string(nCells)};
+        LOG_1(verbose_, msg)
 
-//             // copy values to device
-//             values_view = *values_host.get();
-//             return;
-//         }
-//     }
+        auto values = values_.get_global_array();
+        auto cols = col_idxs_.get_global_array();
+        auto rows = row_idxs_.get_global_array();
 
-//     std::shared_ptr<idx_array> col_idx;
-//     std::shared_ptr<idx_array> row_idx;
-//     // sparsity pattern can be stored, ie from other system_matrices,
-//     // even if the corr system matrix
-//     if (sparsity_pattern_stored_) {
-//         io_col_idxs_ptr_ =
-//             &db.lookupObjectRef<GKOIDXIOPtr>(sparsity_pattern_name_cols_);
-//         io_row_idxs_ptr_ =
-//             &db.lookupObjectRef<GKOIDXIOPtr>(sparsity_pattern_name_rows_);
-//         col_idx = io_col_idxs_ptr_->get_ptr();
-//         row_idx = io_row_idxs_ptr_->get_ptr();
-//     } else {
-//         // if not stored yet create sparsity pattern from correspondent
-//         // views
-//         col_idx =
-//             std::make_shared<idx_array>(device_exec, *col_idxs_host.get());
-//         row_idx =
-//             std::make_shared<idx_array>(device_exec, *row_idxs_host.get());
-//     }
+        if (Pstream::master()) {
+            auto coo_mtx = gko::share(
+                coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
+                                val_array(device_exec, *values.get()),
+                                *cols.get(), *rows.get()));
 
-//     // if system matrix is not stored create it and set shared pointer
-//     auto coo_mtx =
-//         gko::share(coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
-//                                    val_array(device_exec,
-//                                    *values_host.get()), *col_idx.get(),
-//                                    *row_idx.get()));
+            auto gkomatrix = gko::share(
+                mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+            SIMPLE_TIME(verbose_, convert_coo_to_csr,
+                        coo_mtx->convert_to(gkomatrix.get());)
+            return gkomatrix;
+        } else {
+            return {};
+        }
+    } else {
+        const auto device_exec = values_.get_exec_handler().get_device_exec();
+        const label nCells = global_index_.size();
+        word msg{"init csr matrix of size " + std::to_string(nCells)};
+        LOG_1(verbose_, msg)
 
-//     auto gkomatrix =
-//         gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
+        auto coo_mtx = gko::share(coo_mtx::create(
+            device_exec, gko::dim<2>(nCells, nCells),
+            val_array(device_exec, *values_.get_array().get()),
+            *col_idxs_.get_array().get(), *row_idxs_.get_array().get()));
 
-//     SIMPLE_TIME(verbose_, convert_coo_to_csr,
-//                 coo_mtx->convert_to(gkomatrix.get());)
+        auto gkomatrix =
+            gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
 
+        SIMPLE_TIME(verbose_, convert_coo_to_csr,
+                    coo_mtx->convert_to(gkomatrix.get());)
+        return gkomatrix;
+    }
+}
 
-//     // if updating system matrix is not needed store ptr in obj registry
-//     const fileName path = sys_matrix_name_;
-//     // FIXME here a new is used to avoid deletion when leaving the scope
-//     // if this implemented as DevicePersistentCsr no raw new is needed
-//     gkomatrix_ptr_ = new GKOCSRIOPtr(IOobject(path, db), gkomatrix);
-//     // in any case store sparsity pattern
-//     const fileName path_col = sparsity_pattern_name_cols_;
-//     const fileName path_row = sparsity_pattern_name_rows_;
-//     // FIXME also the global row and col ptrs don't need to be stored
-//     // since we can use views to update data if needed
-//     io_col_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_col, db), col_idx);
-//     io_row_idxs_ptr_ = new GKOIDXIOPtr(IOobject(path_row, db), row_idx);
-// };
-
-// void IOGKOMatrixHandler::init_initial_guess(const scalar *psi,
-//                                             const objectRegistry &db,
-//                                             const gkoGlobalIndex &globalAddr,
-//                                             const label nCells,
-//                                             const word postFix) const
-// {
-//     std::shared_ptr<gko::Executor> device_exec = get_device_executor();
-
-//     if (init_guess_vector_stored_ && !update_init_guess_vector_) {
-//         io_init_guess_ptrs_.push_back(&db.lookupObjectRef<GKOVECIOPtr>(
-//             init_guess_vector_name_ + postFix));
-//         return;
-//     }
-//     auto ref_exec = gko::ReferenceExecutor::create();
-
-//     auto psi_view =
-//         val_array::view(ref_exec, nCells, const_cast<scalar *>(psi));
-
-//     if (Pstream::parRun()) {
-//         auto psi_global = val_array(ref_exec, globalAddr.size());
-
-//         globalAddr.gather(psi_view, psi_global);
-
-//         if (!Pstream::master()) {
-//             return;
-//         }
-//         auto x = gko::share(
-//             vec::create(device_exec, gko::dim<2>(nCells, 1), psi_global, 1));
-//         const fileName path_init_guess = init_guess_vector_name_ + postFix;
-//         io_init_guess_ptrs_.push_back(
-//             new GKOVECIOPtr(IOobject(path_init_guess, db), x));
-//         return;
-//     }
-
-//     auto x = gko::share(
-//         vec::create(device_exec, gko::dim<2>(nCells, 1), psi_view, 1));
-
-//     const fileName path_init_guess = init_guess_vector_name_ + postFix;
-//     io_init_guess_ptrs_.push_back(
-//         new GKOVECIOPtr(IOobject(path_init_guess, db), x));
-// }
 
 // void IOGKOMatrixHandler::copy_result_back(const scalarField &psi,
 //                                           const label nCells) const

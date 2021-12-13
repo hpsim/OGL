@@ -49,7 +49,7 @@ struct ArrayInitFunctor {
 
     const bool on_device_;
 
-    // Memory
+    // Memory from which array will be initialised
     const T *other_;
 
 
@@ -223,6 +223,7 @@ public:
     {
         return this->get_persistent_object();
     }
+
     std::shared_ptr<gko::matrix::Dense<T>> get_global_dense_vec() const
     {
         auto host_global_array = get_global_array();
