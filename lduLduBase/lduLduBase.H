@@ -63,7 +63,7 @@ private:
 
     const dictionary &solver_controls_;
 
-    const bool verbose_;
+    const label verbose_;
 
 public:
     // constructor for segregated solver
@@ -286,10 +286,10 @@ public:
         if (Pstream::parRun()) {
             auto dense_x = x.get_global_dense_vec();
             auto dense_b = b.get_global_dense_vec();
-            SIMPLE_LOG(verbose_, "get_gkomatrix")
+            LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();
             if (Pstream::master()) {
-                SIMPLE_LOG(verbose_, "create solver factory")
+                LOG_1(verbose_, "create solver factory")
 
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
@@ -297,16 +297,16 @@ public:
                     verbose_, csr_matrix_wrapper_.get_export(),
                     // this->get_preconditioner()
                     std::shared_ptr<gko::LinOp>{});
-                SIMPLE_LOG(verbose_, "create solver")
+                LOG_1(verbose_, "create solver")
                 auto solver = solver_gen->generate(
                     gko::share(gkomatrix.get_persistent_object()));
-                SIMPLE_LOG(verbose_, "solve solver")
+                LOG_1(verbose_, "solve solver")
                 SIMPLE_TIME(
                     verbose_, solve,
                     solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
                 // this->copy_result_back(psi, this->nCells());
                 //
-                SIMPLE_LOG(verbose_, "copy back")
+                LOG_1(verbose_, "copy back")
                 x.copy_back(&psi[0], dense_x);
                 solverPerf.initialResidual() = this->get_init_res_norm();
                 solverPerf.finalResidual() = this->get_res_norm();
@@ -314,7 +314,7 @@ public:
                 this->store_number_of_iterations();
             }
         } else {
-            SIMPLE_LOG(verbose_, "get_gkomatrix")
+            LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
 
             auto dense_x = x.get_dense_vec();

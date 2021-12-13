@@ -35,21 +35,31 @@ SourceFiles
 // #include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
 // #include "../common/StoppingCriterion.H"
 
+#include <string.h>
 #include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
 using mtx = gko::matrix::Csr<scalar>;
 using vec = gko::matrix::Dense<scalar>;
 
-#define SIMPLE_LOG(VERBOSE, MSG)                                          \
-    if (VERBOSE) {                                                        \
-        if (Pstream::parRun()) {                                          \
-            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "]" \
-                      << MSG << std::endl;                                \
-        } else {                                                          \
-            std::cout << "[OGL LOG] " << MSG << std::endl;                \
-        }                                                                 \
+
+#define __FILENAME__ \
+    (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
+#define SIMPLE_LOG(VERBOSE, PRIO, MSG)                                     \
+    if (VERBOSE >= PRIO) {                                                 \
+        if (Pstream::parRun()) {                                           \
+            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "][" \
+                      << __FILENAME__ << "] " << MSG << std::endl;         \
+        } else {                                                           \
+            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
+                      << std::endl;                                        \
+        }                                                                  \
     }
+
+#define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG)
+#define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG)
+#define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG)
 
 #define SIMPLE_TIME(VERBOSE, NAME, F)                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                 \

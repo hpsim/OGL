@@ -36,13 +36,13 @@ namespace Foam {
 void export_x(const std::string fn, const vec *x)
 {
     std::ofstream stream_x{fn};
-    SIMPLE_LOG(true, "Writing " + fn)
+    LOG_1(1, "Writing " + fn)
     gko::write(stream_x, x);
 };
 
 void export_x(const std::string fn, const mtx *A)
 {
-    SIMPLE_LOG(true, "Writing " + fn)
+    LOG_1(1, "Writing " + fn)
     std::ofstream stream{fn};
     gko::write(stream, A, gko::layout_type::coordinate);
 };

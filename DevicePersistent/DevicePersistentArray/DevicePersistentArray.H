@@ -65,7 +65,7 @@ private:
     // restored from the object registry
     mutable bool from_registry_;
 
-    const bool verbose_;
+    const label verbose_;
 
     // This needs to be a pointer so that it can be assigned
     // during the constructor, since regIOobject needs arguments
@@ -76,7 +76,7 @@ private:
 public:
     PersistentBase(const word name, const objectRegistry &db,
                    const IOExecutorHandler &exec, const InitFunctor f,
-                   const bool update, const bool verbose)
+                   const bool update, const label verbose)
         : name_(name),
           db_(db),
           exec_(exec),
@@ -85,7 +85,7 @@ public:
     {
         if (from_registry_) {
             word msg = "reading " + name_ + " from registry";
-            SIMPLE_LOG(verbose_, msg)
+            LOG_1(verbose_, msg)
 
             if (update) {
                 persistent_object_ =
@@ -100,7 +100,7 @@ public:
 
         } else {
             word msg = "initialising " + name_;
-            SIMPLE_LOG(verbose_, msg)
+            LOG_1(verbose_, msg)
             const fileName path = name_;
 
             persistent_object_ =
@@ -141,7 +141,7 @@ struct ArrayInitFunctor {
 
     const gkoGlobalIndex &global_index_;
 
-    const bool verbose_;
+    const label verbose_;
 
     const bool on_device_;
 
@@ -150,7 +150,7 @@ struct ArrayInitFunctor {
 
 
     ArrayInitFunctor(const IOExecutorHandler &exec,
-                     const gkoGlobalIndex &global_index, const bool verbose,
+                     const gkoGlobalIndex &global_index, const label verbose,
                      const bool on_device = false)
         : exec_(exec),
           global_index_(global_index),
@@ -161,7 +161,7 @@ struct ArrayInitFunctor {
 
     ArrayInitFunctor(const IOExecutorHandler &exec,
                      const gkoGlobalIndex &global_index, const T *other,
-                     const bool verbose, const bool on_device = false)
+                     const label verbose, const bool on_device = false)
         : exec_(exec),
           global_index_(global_index),
           on_device_(on_device),
@@ -176,7 +176,7 @@ struct ArrayInitFunctor {
         if (other_ != NULL) {
             word msg{"updating array of size " +
                      std::to_string(global_index_.localSize())};
-            SIMPLE_LOG(verbose_, msg)
+            LOG_1(verbose_, msg)
 
             auto host_view =
                 gko::Array<T>::view(exec_.ref_exec(), global_index_.localSize(),
@@ -191,7 +191,7 @@ struct ArrayInitFunctor {
         word msg{"initialising on array of size " +
                  std::to_string(global_index_.localSize())};
         msg += (on_device_) ? " on device" : " on host";
-        SIMPLE_LOG(verbose_, msg)
+        LOG_1(verbose_, msg)
 
         if (other_ != NULL) {
             auto host_view =
@@ -234,7 +234,7 @@ class PersistentArray
 public:
     PersistentArray(const word name, const objectRegistry &db,
                     const IOExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const bool verbose,
+                    const gkoGlobalIndex &global_index, const label verbose,
                     const bool update = false, const bool global = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db, exec, ArrayInitFunctor<T>(exec, global_index, verbose),
@@ -247,7 +247,7 @@ public:
     PersistentArray(const word name, const objectRegistry &db,
                     const IOExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const T *memory,
-                    const bool verbose, const bool update = false,
+                    const label verbose, const bool update = false,
                     const bool on_device = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db, exec,
@@ -271,7 +271,7 @@ public:
                 bool stored{db.template foundObject<regIOobject>(global_name)};
 
                 if (stored) {
-                    SIMPLE_LOG(
+                    LOG_1(
                         this->get_verbose(),
                         "global array stored, retrieving from object registry")
                     persistent_object_global_ =
@@ -279,10 +279,10 @@ public:
                               DevicePersistentBase<gko::Array<T>>>(global_name)
                             .get_ptr();
                 } else {
-                    SIMPLE_LOG(this->get_verbose(),
-                               "initialising global array " + global_name +
-                                   " of size " +
-                                   std::to_string(global_index_.size()))
+                    LOG_1(this->get_verbose(),
+                          "initialising global array " + global_name +
+                              " of size " +
+                              std::to_string(global_index_.size()))
                     // create a new unitialised array
                     persistent_object_global_ = std::make_shared<gko::Array<T>>(
                         this->get_ref_exec(), global_index_.size());
@@ -295,10 +295,10 @@ public:
                 }
             }
 
-            SIMPLE_LOG(this->get_verbose(), "gather global array")
+            LOG_1(this->get_verbose(), "gather global array")
             global_index_.gather<T>(this->get_persistent_object(),
                                     persistent_object_global_);
-            SIMPLE_LOG(this->get_verbose(), "gather global array done")
+            LOG_1(this->get_verbose(), "gather global array done")
 
             return persistent_object_global_;
         }
@@ -319,7 +319,7 @@ public:
     {
         auto host_global_array = get_global_array();
 
-        SIMPLE_LOG(this->get_verbose(), "create global vec")
+        LOG_1(this->get_verbose(), "create global vec")
         if (Pstream::master()) {
             return gko::share(
                 vec::create(this->get_device_exec(),

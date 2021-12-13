@@ -68,7 +68,7 @@ public:
     std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<vec> b, const label verbose,
                   const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
     {

@@ -77,7 +77,7 @@ class StoppingCriterion {
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 init_residual_norm, NULL);
 
-            bool GKO_FACTORY_PARAMETER(verbose, false);
+            label GKO_FACTORY_PARAMETER(verbose, 0);
 
             bool GKO_FACTORY_PARAMETER(export_res, false);
 
@@ -325,7 +325,7 @@ public:
     std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
         std::shared_ptr<gko::Executor> device_exec,
         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b, bool verbose, bool export_res,
+        std::shared_ptr<vec> b, label verbose, bool export_res,
         label prev_solve_iters) const
     {
         label minIter = minIter_;

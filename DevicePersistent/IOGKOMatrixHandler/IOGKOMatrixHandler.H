@@ -53,12 +53,12 @@ struct CsrInitFunctor {
 
     const PersistentArray<scalar> &values_;
 
-    const bool verbose_;
+    const label verbose_;
 
     CsrInitFunctor(const gkoGlobalIndex &global_index,
                    const PersistentArray<label> &col_idxs,
                    const PersistentArray<label> &row_idxs,
-                   const PersistentArray<scalar> &values, const bool verbose)
+                   const PersistentArray<scalar> &values, const label verbose)
         : global_index_(global_index),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
@@ -91,7 +91,7 @@ struct CsrInitFunctor {
             const label nCells = global_index_.size();
             word msg{"init global csr matrix of size " +
                      std::to_string(nCells)};
-            SIMPLE_LOG(verbose_, msg)
+            LOG_1(verbose_, msg)
 
             auto values = values_.get_global_array();
             auto cols = col_idxs_.get_global_array();
@@ -115,7 +115,7 @@ struct CsrInitFunctor {
             const auto device_exec = values_.get_device_exec();
             const label nCells = global_index_.size();
             word msg{"init csr matrix of size " + std::to_string(nCells)};
-            SIMPLE_LOG(verbose_, msg)
+            LOG_1(verbose_, msg)
 
             auto coo_mtx = gko::share(coo_mtx::create(
                 device_exec, gko::dim<2>(nCells, nCells),
@@ -140,7 +140,7 @@ private:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
 
-    const bool verbose_;
+    const label verbose_;
 
     const bool export_;
 
@@ -155,7 +155,7 @@ public:
                      const PersistentArray<label> &row_idxs,
                      const PersistentArray<scalar> &values,
                      const dictionary &controlDict, const word sys_matrix_name,
-                     const gkoGlobalIndex &globalIndex, const bool verbose)
+                     const gkoGlobalIndex &globalIndex, const label verbose)
         : verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{

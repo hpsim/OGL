@@ -70,7 +70,7 @@ public:
     std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const bool verbose,
+                  std::shared_ptr<vec> b, const label verbose,
                   const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
     {
@@ -89,7 +89,7 @@ public:
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec,
                    std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                   std::shared_ptr<vec> b, const bool verbose) const
+                   std::shared_ptr<vec> b, const label verbose) const
     {
         innerStoppingCriterionVec_.push_back(
             innerStoppingCriterion_.build_stopping_criterion(
@@ -112,7 +112,7 @@ public:
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
     create_scalar_jacobi(std::shared_ptr<gko::Executor> exec,
                          std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                         std::shared_ptr<vec> b, const bool verbose) const
+                         std::shared_ptr<vec> b, const label verbose) const
     {
         using bj = gko::preconditioner::Jacobi<>;
         label blockSize =

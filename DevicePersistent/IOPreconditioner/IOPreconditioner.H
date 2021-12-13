@@ -39,12 +39,12 @@ struct PreconditionerInitFunctor {
     const PersistentArray<label> &col_idxs_;
     const PersistentArray<label> &row_idxs_;
     const PersistentArray<scalar> &values_;
-    const bool verbose_;
+    const label verbose_;
 
     PreconditionerInitFunctor(const PersistentArray<label> &col_idxs,
                               const PersistentArray<label> &row_idxs,
                               const PersistentArray<scalar> &values,
-                              const bool verbose)
+                              const label verbose)
         : col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),

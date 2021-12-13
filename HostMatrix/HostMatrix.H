@@ -52,7 +52,7 @@ private:
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
-    const bool verbose_;
+    const label verbose_;
 
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
@@ -85,7 +85,7 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true)),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           ldu_csr_idx_mapping_{
               fieldName + "ldu_csr_map", db,       exec_,
               global_matrix_index_,      verbose_, false,
