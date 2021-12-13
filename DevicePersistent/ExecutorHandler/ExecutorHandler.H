@@ -30,7 +30,6 @@ SourceFiles
 
 #include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "fvCFD.H"
-#include "regIOobject.H"
 
 #include <ginkgo/ginkgo.hpp>
 
@@ -88,11 +87,6 @@ class ExecutorHandler
 private:
     const word device_executor_name_;
 
-    // const word app_executor_name_;
-
-    // executor where Ginkgo will perform the computation
-    // std::shared_ptr<gko::Executor> device_exec_ptr_;
-
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name)
@@ -124,5 +118,7 @@ public:
 };
 
 using PersistentExecutor = ExecutorHandler;
+
 }  // namespace Foam
+// namespace Foam
 #endif
