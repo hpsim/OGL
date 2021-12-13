@@ -120,7 +120,7 @@ target_sources(OGL
 common/common.C
 DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
 DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
-DevicePersistent/IOExecutorHandler/IOExecutorHandler.C
+DevicePersistent/ExecutorHandler/ExecutorHandler.C
 DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.C
 # DevicePersistent/IOPreconditioner/IOPreconditioner.C
 DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
@@ -136,7 +136,7 @@ common/common.H
 lduLduBase/lduLduBase.H
 DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
 DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
-DevicePersistent/IOExecutorHandler/IOExecutorHandler.H
+DevicePersistent/ExecutorHandler/ExecutorHandler.H
 DevicePersistent/IOGKOMatrixHandler/IOGKOMatrixHandler.H
 # DevicePersistent/IOPreconditioner/IOPreconditioner.H
 DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
@@ -160,7 +160,7 @@ target_include_directories(OGL
   BaseWrapper/lduBase/
   BaseWrapper/CoupledLduBase/
   DevicePersistent/DevicePersistentBase/
-  DevicePersistent/IOExecutorHandler/
+  DevicePersistent/ExecutorHandler/
   DevicePersistent/IOGKOMatrixHandler/
   # DevicePersistent/IOPreconditioner/
   DevicePersistent/IOGlobalIndex/

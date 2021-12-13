@@ -31,113 +31,17 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 #include "../DevicePersistentBase/DevicePersistentBase.H"
-#include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../ExecutorHandler/ExecutorHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 #include "../common/common.H"
 
 namespace Foam {
-/* Base class for storing ginkgo and OGL data structures in the Objectregistry
- *
- * This class creates an unitialised Ginkgo array and copies the
- * shared ptr to the DevicePersistentBase. This will prevent it from
- * beeing deleted when leaving the scope.
- *
- * Additionally, for parallel runs it can be specified, whether the local,
- * global or both data should be persistant. Here are some usecase example
- * ldu_csr_mapping, local only
- * values, local and global persistent
- * row and col ptr only global persistent
- *
- * TODO either make storing optional or the gather method static
- * */
-template <class T, class InitFunctor>
-class PersistentBase {
-private:
-    mutable word name_;
 
-    const objectRegistry &db_;
-
-    // executor where the array is initialised on
-    const IOExecutorHandler &exec_;
-
-    // indicating if the underlying object was
-    // restored from the object registry
-    mutable bool from_registry_;
-
-    const label verbose_;
-
-    // This needs to be a pointer so that it can be assigned
-    // during the constructor, since regIOobject needs arguments
-    // to be constructed
-    mutable std::shared_ptr<T> persistent_object_{};
-
-
-public:
-    PersistentBase(const word name, const objectRegistry &db,
-                   const IOExecutorHandler &exec, const InitFunctor f,
-                   const bool update, const label verbose)
-        : name_(name),
-          db_(db),
-          exec_(exec),
-          from_registry_{db.foundObject<regIOobject>(name_)},
-          verbose_(verbose)
-    {
-        if (from_registry_) {
-            word msg = "reading " + name_ + " from registry";
-            LOG_1(verbose_, msg)
-
-            if (update) {
-                persistent_object_ =
-                    db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
-                        .get_ptr();
-                f.update(persistent_object_);
-            } else {
-                persistent_object_ =
-                    db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
-                        .get_ptr();
-            }
-
-        } else {
-            word msg = "initialising " + name_;
-            LOG_1(verbose_, msg)
-            const fileName path = name_;
-
-            persistent_object_ =
-                DevicePersistentBase<T>(IOobject(path, db), f.init()).get_ptr();
-        }
-    }
-
-    std::shared_ptr<gko::Executor> get_device_exec() const
-    {
-        return exec_.get_device_exec();
-    }
-
-    std::shared_ptr<gko::Executor> get_ref_exec() const
-    {
-        return exec_.ref_exec();
-    }
-
-
-    std::shared_ptr<T> get_persistent_object() const
-    {
-        return persistent_object_;
-    }
-
-    bool get_verbose() const { return verbose_; }
-
-    word get_name() const { return name_; }
-
-    const objectRegistry &get_db() const { return db_; }
-
-    bool get_stored() const { return from_registry_; }
-
-    // copy_values back to
-};
 
 template <class T>
 struct ArrayInitFunctor {
-    const IOExecutorHandler &exec_;
+    const ExecutorHandler &exec_;
 
     const gkoGlobalIndex &global_index_;
 
@@ -149,7 +53,7 @@ struct ArrayInitFunctor {
     const T *other_;
 
 
-    ArrayInitFunctor(const IOExecutorHandler &exec,
+    ArrayInitFunctor(const ExecutorHandler &exec,
                      const gkoGlobalIndex &global_index, const label verbose,
                      const bool on_device = false)
         : exec_(exec),
@@ -159,7 +63,7 @@ struct ArrayInitFunctor {
           other_(NULL)
     {}
 
-    ArrayInitFunctor(const IOExecutorHandler &exec,
+    ArrayInitFunctor(const ExecutorHandler &exec,
                      const gkoGlobalIndex &global_index, const T *other,
                      const label verbose, const bool on_device = false)
         : exec_(exec),
@@ -178,25 +82,26 @@ struct ArrayInitFunctor {
                      std::to_string(global_index_.localSize())};
             LOG_1(verbose_, msg)
 
-            auto host_view =
-                gko::Array<T>::view(exec_.ref_exec(), global_index_.localSize(),
-                                    const_cast<T *>(other_));
+            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
+                                                 global_index_.localSize(),
+                                                 const_cast<T *>(other_));
             persistent_array->operator=(host_view);
         }
     }
 
     std::shared_ptr<gko::Array<T>> init() const
     {
-        auto exec = (on_device_) ? exec_.get_device_exec() : exec_.ref_exec();
+        auto exec =
+            (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         word msg{"initialising on array of size " +
                  std::to_string(global_index_.localSize())};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
         if (other_ != NULL) {
-            auto host_view =
-                gko::Array<T>::view(exec_.ref_exec(), global_index_.localSize(),
-                                    const_cast<T *>(other_));
+            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
+                                                 global_index_.localSize(),
+                                                 const_cast<T *>(other_));
             return std::make_shared<gko::Array<T>>(exec, host_view);
         } else {
             return std::make_shared<gko::Array<T>>(exec,
@@ -210,6 +115,8 @@ class PersistentArray
     : public PersistentBase<gko::Array<T>, ArrayInitFunctor<T>> {
     const gkoGlobalIndex &global_index_;
 
+    const ExecutorHandler &exec_;
+
     // indicating if the underlying array needs to
     // updated even if was found in the object registry
     const bool update_;
@@ -218,7 +125,6 @@ class PersistentArray
     // TODO store_global_on_device
     // to store global on the device the data has to be inialized
     // first locally, then gathered, and finally moved to the device
-    //
     const bool store_global_;
 
 
@@ -233,28 +139,30 @@ class PersistentArray
 
 public:
     PersistentArray(const word name, const objectRegistry &db,
-                    const IOExecutorHandler &exec,
+                    const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
                     const bool update = false, const bool global = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, exec, ArrayInitFunctor<T>(exec, global_index, verbose),
+              name, db, ArrayInitFunctor<T>(exec, global_index, verbose),
               update, verbose),
           global_index_(global_index),
+          exec_(exec),
           update_(update),
           store_global_(false)
     {}
 
     PersistentArray(const word name, const objectRegistry &db,
-                    const IOExecutorHandler &exec,
+                    const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const T *memory,
                     const label verbose, const bool update = false,
                     const bool on_device = false)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, exec,
+              name, db,
               ArrayInitFunctor<T>(exec, global_index, memory, verbose,
                                   on_device),
               update, verbose),
           global_index_(global_index),
+          exec_(exec),
           update_(update),
           store_global_(false)
     {}
@@ -285,7 +193,7 @@ public:
                               std::to_string(global_index_.size()))
                     // create a new unitialised array
                     persistent_object_global_ = std::make_shared<gko::Array<T>>(
-                        this->get_ref_exec(), global_index_.size());
+                        exec_.get_ref_exec(), global_index_.size());
 
                     const fileName path = global_name;
                     if (store_global_) {
@@ -322,7 +230,7 @@ public:
         LOG_1(this->get_verbose(), "create global vec")
         if (Pstream::master()) {
             return gko::share(
-                vec::create(this->get_device_exec(),
+                vec::create(exec_.get_device_exec(),
                             gko::dim<2>(host_global_array->get_num_elems(), 1),
                             *host_global_array.get(), 1));
         } else {
@@ -334,7 +242,7 @@ public:
     {
         auto host_array = get_array();
         return gko::share(vec::create(
-            this->get_device_exec(),
+            exec_.get_device_exec(),
             gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
     }
 
@@ -347,14 +255,16 @@ public:
                    const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
         const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(this->get_ref_exec(), nCells,
+        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory));
 
-        auto x_view = gko::Array<T>::view(this->get_ref_exec(), nCells,
+        auto x_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
                                           device_x->get_values());
 
         host_view = x_view;
     }
+
+    const ExecutorHandler &get_exec_handler() const { return exec_; }
 };
 
 }  // namespace Foam

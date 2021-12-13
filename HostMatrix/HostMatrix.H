@@ -39,7 +39,7 @@ class HostMatrixWrapper : public MatrixType::solver {
 private:
     // dimensions of the local host matrix
     //
-    const IOExecutorHandler exec_;
+    const ExecutorHandler exec_;
 
     const label nCells_;
 
@@ -79,7 +79,7 @@ public:
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
-          exec_{db, solverControls},
+          exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
@@ -111,7 +111,7 @@ public:
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, solverControls),
-          exec_{db, solverControls},
+          exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nElems_(nCells_ + 2 * nNeighbours_),
@@ -291,7 +291,7 @@ public:
 
     label nNeighbours() const { return nNeighbours_; }
 
-    const IOExecutorHandler &get_exec_handler() const { return exec_; }
+    const ExecutorHandler &get_exec_handler() const { return exec_; }
 
     const gkoGlobalIndex &get_global_cell_index() const
     {

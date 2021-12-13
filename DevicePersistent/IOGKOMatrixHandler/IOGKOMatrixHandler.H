@@ -32,7 +32,7 @@ SourceFiles
 
 #include "../../HostMatrix/HostMatrix.H"
 #include "../DevicePersistentBase/DevicePersistentBase.H"
-#include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../ExecutorHandler/ExecutorHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 namespace Foam {
@@ -70,15 +70,15 @@ struct CsrInitFunctor {
     {
         if (Pstream::parRun()) {
             if (Pstream::master()) {
-                auto values_view = val_array::view(values_.get_device_exec(),
-                                                   values_.get_global_size(),
-                                                   csr_matrix->get_values());
+                auto values_view = val_array::view(
+                    values_.get_exec_handler().get_device_exec(),
+                    values_.get_global_size(), csr_matrix->get_values());
                 values_view = *values_.get_array().get();
             }
         } else {
-            auto values_view = val_array::view(values_.get_device_exec(),
-                                               values_.get_global_size(),
-                                               csr_matrix->get_values());
+            auto values_view = val_array::view(
+                values_.get_exec_handler().get_device_exec(),
+                values_.get_global_size(), csr_matrix->get_values());
             // copy values to device
             values_view = *values_.get_array().get();
         }
@@ -87,7 +87,8 @@ struct CsrInitFunctor {
     std::shared_ptr<mtx> init() const
     {
         if (Pstream::parRun()) {
-            const auto device_exec = values_.get_device_exec();
+            const auto device_exec =
+                values_.get_exec_handler().get_device_exec();
             const label nCells = global_index_.size();
             word msg{"init global csr matrix of size " +
                      std::to_string(nCells)};
@@ -112,7 +113,8 @@ struct CsrInitFunctor {
                 return {};
             }
         } else {
-            const auto device_exec = values_.get_device_exec();
+            const auto device_exec =
+                values_.get_exec_handler().get_device_exec();
             const label nCells = global_index_.size();
             word msg{"init csr matrix of size " + std::to_string(nCells)};
             LOG_1(verbose_, msg)
@@ -159,9 +161,7 @@ public:
         : verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
-              sys_matrix_name + "csr",
-              db,
-              exec,
+              sys_matrix_name + "csr", db,
               CsrInitFunctor(globalIndex, col_idxs, row_idxs, values, verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}

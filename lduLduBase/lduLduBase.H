@@ -29,7 +29,7 @@ SourceFiles
 #define OGL_lduLduBase_INCLUDED_H
 
 #include "../../HostMatrix/HostMatrix.H"
-#include "../IOExecutorHandler/IOExecutorHandler.H"
+#include "../ExecutorHandler/ExecutorHandler.H"
 #include "../IOGKOMatrixHandler/IOGKOMatrixHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
@@ -237,7 +237,7 @@ public:
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
             lduMatrix::preconditioner::getName(this->controlDict_) +
-                this->get_exec_handler().get_device_executor_name() + typeName,
+                this->get_exec_handler().get_exec_name() + typeName,
             this->fieldName());
 
 
