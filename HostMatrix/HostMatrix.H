@@ -117,7 +117,7 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true)),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db,       exec_,
                                global_matrix_index_,      verbose_, false},
           values_{fieldName + "values", db,       exec_,
@@ -220,43 +220,6 @@ public:
                 upper_ctr++;
             }
         }
-
-
-        // // Step 2. gather on master
-        // if (Pstream::parRun()) {
-        //     const label nGlobalNeighbours =
-        //     globalIndexNeighbours_.size();
-
-        //     // TODO create without size
-        //     auto col_idxs_global =
-        //         std::make_shared<idx_array>(ref_exec, nGlobalElems_);
-
-        //     // TODO create without size
-        //     auto row_idxs_global =
-        //         std::make_shared<idx_array>(ref_exec, nGlobalElems_);
-
-        //     // gather lduAdressing
-        //     // pass row and col idxs as reference instead of shared_ptr
-        //     // row and col idxs are stored as shared_ptr to keep them in
-        //     // objectReg
-        //     // FIXME when col_idxs_ are properly wrapped gathering can
-        //     // happen on demand in the wrapper
-        //     globalIndex_.gather(*col_idxs_local.get(),
-        //     *col_idxs_global.get());
-        //     globalIndex_.gather(*row_idxs_local.get(),
-        //     *row_idxs_global.get());
-
-        //     if (Pstream::master()) {
-        //         col_idxs_ = col_idxs_global;
-        //         row_idxs_ = row_idxs_global;
-        //     }
-
-        // } else {
-        //     col_idxs_ = col_idxs_local;
-        //     row_idxs_ = row_idxs_local;
-        // }
-        // col_idxs_ = col_idxs_local;
-        // row_idxs_ = row_idxs_local;
     }
 
     bool get_verbose() const { return verbose_; }

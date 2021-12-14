@@ -92,7 +92,7 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {
         init_base();
     }
@@ -116,7 +116,7 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<Switch>("verbose", true))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {
         init_base();
     }
@@ -202,6 +202,7 @@ public:
             this->get_exec_handler(),
             this->get_global_cell_index(),
             &source[0],
+            verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             true};
 
@@ -211,6 +212,7 @@ public:
             this->get_exec_handler(),
             this->get_global_cell_index(),
             &psi[0],
+            verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", true),
             true};
 
