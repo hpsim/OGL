@@ -269,19 +269,31 @@ public:
         const gkoGlobalIndex &global_address, T *memory,
         const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
+        //	    std::cout << "!!!!!!!!!! copy back parallel" << std::endl;
         const label nCells = global_index_.localSize();
         auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory));
 
         auto x_view = (Pstream::master())
-                          ? gko::Array<T>::view(exec_.get_device_exec(), nCells,
+                          ? gko::Array<T>::view(exec_.get_device_exec(), global_address.size(),
                                                 device_x->get_values())
                           : gko::Array<T>(gko::ReferenceExecutor::create());
         if (Pstream::master()) {
             x_view.set_executor(exec_.get_ref_exec());
+
+	// std::cout << "!!!!!!!!!! x_view before scatter back parallel" << std::endl;
+	// for (int i=0; i< x_view.get_num_elems(); i++) {
+	// 	std::cout << i << ": " << host_view.get_const_data()[i] << std::endl;
+	// }
         }
 
         global_address.scatter(x_view, host_view);
+
+        // std::cout << "!!!!!!!!!! host_view after scatter back parallel" << std::endl;
+        // for (int i=0; i< nCells; i++) {
+        // 	std::cout << i << ": " << host_view.get_const_data()[i] << std::endl;
+        // }
+
     }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }

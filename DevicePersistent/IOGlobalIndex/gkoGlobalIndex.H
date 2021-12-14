@@ -218,7 +218,7 @@ public:
                     IPstream::read(
                         commsType, procIDs[i],
                         reinterpret_cast<char *>(
-                            &globalDataOut->get_data()[offsets[i + 1]]),
+                            &globalDataOut->get_data()[offsets[i]]),
                         nSubElems * sizeof(Value), tag, comm);
                 }
             } else {
@@ -357,11 +357,13 @@ public:
                 commsType == Pstream::commsTypes::blocking) {
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
+		    std::cout << "scatter to proc "
+			   << i << " " << nSubElems  << std::endl;
 
                     OPstream::write(
                         commsType, procIDs[i],
                         reinterpret_cast<const char *>(
-                            &globalDataIn.get_const_data()[offsets[i + 1]]),
+                            &globalDataIn.get_const_data()[offsets[i ]]),
                         nSubElems * sizeof(Value), tag, comm);
                 }
             } else {
@@ -371,11 +373,13 @@ public:
                 // Set up writes
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
+		    std::cout << "scatter to proc "
+			   << i << " " << nSubElems << " Elements"  << std::endl;
 
                     OPstream::write(
                         commsType, procIDs[i],
                         reinterpret_cast<const char *>(
-                            &globalDataIn.get_const_data()[offsets[i + 1]]),
+                            &globalDataIn.get_const_data()[offsets[i]]),
                         nSubElems * sizeof(Value), tag, comm);
                 }
 
@@ -383,14 +387,23 @@ public:
                 Pstream::waitRequests(startOfRequests);
             }
         } else {
-            if (commsType == Pstream::commsTypes::scheduled ||
-                commsType == Pstream::commsTypes::blocking) {
+                label startOfRequests = Pstream::nRequests();
+            //if (commsType == Pstream::commsTypes::scheduled ||
+            //    commsType == Pstream::commsTypes::blocking) {
+		    std::cout << "reading  on " <<
+			    Pstream::myProcNo() << " of " <<
+			localDataOut.get_num_elems() <<
+			    " create view done  " << std::endl;
+
                 IPstream::read(
                     commsType, procIDs[0],
                     reinterpret_cast<char *>(localDataOut.get_data()),
                     localDataOut.get_num_elems() * sizeof(Value), tag, comm);
-            }
+            // }
+                Pstream::waitRequests(startOfRequests);
         }
+		    std::cout << "done  on " <<
+			    Pstream::myProcNo() << std::endl;
     }
 
 
