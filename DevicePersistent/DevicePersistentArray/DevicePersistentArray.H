@@ -259,7 +259,7 @@ public:
         auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory));
 
-        auto x_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+        auto x_view = gko::Array<T>::view(exec_.get_device_exec(), nCells,
                                           device_x->get_values());
 
         host_view = x_view;
@@ -274,9 +274,12 @@ public:
                                              const_cast<T *>(memory));
 
         auto x_view = (Pstream::master())
-                          ? gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+                          ? gko::Array<T>::view(exec_.get_device_exec(), nCells,
                                                 device_x->get_values())
                           : gko::Array<T>(gko::ReferenceExecutor::create());
+        if (Pstream::master()) {
+            x_view.set_executor(exec_.get_ref_exec());
+        }
 
         global_address.scatter(x_view, host_view);
     }
