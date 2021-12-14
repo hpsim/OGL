@@ -126,61 +126,9 @@ public:
 
     // the solve_impl_ version called from the LduMatrix, ie for
     // coupled matrices
+    // TODO implement coupled solver wrapper
     template <class Type>
-    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const {
-        // auto gI = globalIndex(this->nCells());
-        // Info << "global size" << gI.size() << endl;
-
-
-        // std::shared_ptr<gko::Executor> device_exec =
-        //     this->get_device_executor();
-
-        // // --- Setup class containing solver performance data
-        // // Implement
-        // word preconditionerName(this->controlDict_.lookup("preconditioner"));
-
-        // SolverPerformance<Type> solverPerf(
-        //     this->get_device_executor_name() + preconditionerName,
-        //     this->fieldName_);
-
-        // std::vector<val_array> source_views{};
-
-        // init_vector_views(source_views, gI, this->matrix().source());
-
-        // std::vector<std::shared_ptr<vec>> b{};
-        // for (int i = 0; i < 3; i++) {
-        //     b.push_back(vec::create(ref_exec(), gko::dim<2>(this->nCells(),
-        //     1),
-        //                             source_views[i], 3));
-        // }
-
-        // init_initial_guess_vector(psi, this->matrix().mesh().thisDb(),
-        //                           this->nCells());
-        // std::vector<std::shared_ptr<vec>> x{};
-        // this->get_initial_guess(x);
-
-        // std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
-        //     criterion_vec{};
-
-
-        // std::shared_ptr<mtx> gkomatrix = get_gkomatrix();
-
-        // // Generate solver
-        // // auto solver_gen = this->create_solver(
-        // //     device_exec, criterion_vec);
-
-        // // auto solver = solver_gen->generate(gko::share(gkomatrix));
-
-        // // for (int i = 0; i < 3; i++) {
-        // //     SIMPLE_TIME(verbose_, solve,
-        // //                 solver->apply(gko::lend(b[i]), gko::lend(x[i]));)
-        // // }
-
-        // // copy back
-        // copy_result_back(psi, this->nCells());
-
-        // return solverPerf;
-    };
+    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const {};
 
     solverPerformance solve_impl_(word typeName, scalarField &psi,
                                   const scalarField &source,
@@ -261,15 +209,14 @@ public:
                 SIMPLE_TIME(
                     verbose_, solve,
                     solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-                // this->copy_result_back(psi, this->nCells());
-                //
                 LOG_1(verbose_, "copy back")
-                x.copy_back(&psi[0], dense_x);
                 solverPerf.initialResidual() = this->get_init_res_norm();
                 solverPerf.finalResidual() = this->get_res_norm();
                 solverPerf.nIterations() = this->get_number_of_iterations();
                 this->store_number_of_iterations();
             }
+            x.copy_back_parallel(this->get_global_cell_index(), &psi[0],
+                                 dense_x);
         } else {
             LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
@@ -286,8 +233,6 @@ public:
                 gko::share(gkomatrix.get_persistent_object()));
             SIMPLE_TIME(verbose_, solve,
                         solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-            // this->copy_result_back(psi, this->nCells());
-            //
             x.copy_back(&psi[0], dense_x);
             solverPerf.initialResidual() = this->get_init_res_norm();
             solverPerf.finalResidual() = this->get_res_norm();

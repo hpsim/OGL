@@ -265,6 +265,22 @@ public:
         host_view = x_view;
     }
 
+    void copy_back_parallel(
+        const gkoGlobalIndex &global_address, T *memory,
+        const std::shared_ptr<gko::matrix::Dense<T>> device_x)
+    {
+        const label nCells = global_index_.localSize();
+        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+                                             const_cast<T *>(memory));
+
+        auto x_view = (Pstream::master())
+                          ? gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+                                                device_x->get_values())
+                          : gko::Array<T>(gko::ReferenceExecutor::create());
+
+        global_address.scatter(x_view, host_view);
+    }
+
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 };
 
