@@ -138,6 +138,19 @@ public:
         }
     }
 
+    label count_elements_on_interfaces(
+        const lduInterfaceFieldPtrsList &ifaces) const
+    {
+        label ctr{0};
+        for (int i = 0; ifaces.size(); i++) {
+            if (ifaces(i) == nullptr) {
+                continue;
+            }
+            ctr += ifaces(i)->interface().faceCells().size();
+        }
+        return ctr;
+    }
+
     void init_host_sparsity_pattern() const
     {
         // Step 1 local ldu -> csr conversion
