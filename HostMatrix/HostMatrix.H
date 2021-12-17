@@ -32,6 +32,7 @@ SourceFiles
 #include "../DevicePersistentArray/DevicePersistentArray.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
+
 namespace Foam {
 
 template <class MatrixType>
@@ -81,7 +82,8 @@ public:
                              interfaceIntCoeffs, interfaces, solverControls),
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
-          nNeighbours_(matrix.lduAddr().upperAddr().size()),
+          nNeighbours_(matrix.lduAddr().upperAddr().size() +
+                       count_elements_on_interfaces(interfaces)),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
