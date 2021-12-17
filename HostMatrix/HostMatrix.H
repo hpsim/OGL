@@ -32,6 +32,7 @@ SourceFiles
 #include "../DevicePersistentArray/DevicePersistentArray.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 
+
 namespace Foam {
 
 template <class MatrixType>
@@ -44,6 +45,8 @@ private:
     const label nCells_;
 
     const label nNeighbours_;
+
+    const label nInterfaces_;
 
     const label nElems_;
 
@@ -82,6 +85,9 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
+	  nInterfaces_(
+                       count_elements_on_interfaces(interfaces)
+			  ),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -97,6 +103,7 @@ public:
           row_idxs_{fieldName + "rows",   db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
+	std::cout << "!!!!! DEBUG nElems_ + interface " << nElems_ + nInterfaces_ << "\n";
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
                         init_host_sparsity_pattern();)
@@ -114,6 +121,7 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
+	  nInterfaces_(0),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -136,6 +144,19 @@ public:
             SIMPLE_TIME(true, update_host_matrix_data,
                         update_host_matrix_data();)
         }
+    }
+
+    label count_elements_on_interfaces(
+        const lduInterfaceFieldPtrsList &ifaces) const
+    {
+        label ctr{0};
+        for (int i = 0; i<ifaces.size(); i++) {
+            if (ifaces.operator()(i) == nullptr) {
+                continue;
+            }
+            ctr +=  ifaces.operator()(i)->interface().faceCells().size();
+        }
+        return ctr;
     }
 
     void init_host_sparsity_pattern() const
