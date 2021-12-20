@@ -27,6 +27,7 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
+#include "processorLduInterface.H"
 
 #include <vector>
 #include "../DevicePersistentArray/DevicePersistentArray.H"
@@ -154,7 +155,13 @@ public:
             if (ifaces.operator()(i) == nullptr) {
                 continue;
             }
-            ctr +=  ifaces.operator()(i)->interface().faceCells().size();
+	    const auto iface {ifaces.operator()(i)};
+            ctr += iface->interface().faceCells().size();
+	    if (isA<processorLduInterface>(iface->interface())) {
+		    const processorLduInterface &pldui = refCast<
+const processorLduInterface  > (iface->interface());
+		    std::cout << "!!!!!! lduInterfaceFieldPtrs " << pldui.neighbProcNo() << "\n";
+	    }
         }
         return ctr;
     }
