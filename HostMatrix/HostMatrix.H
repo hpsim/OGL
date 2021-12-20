@@ -56,8 +56,11 @@ private:
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
+    const gkoGlobalIndex global_values_index_;
+
     const label verbose_;
 
+    // TODO
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
     // TODO use devicePersistentFields here
@@ -86,16 +89,15 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-	  nInterfaces_(
-                       count_elements_on_interfaces(interfaces)
-			  ),
-          nElems_(nCells_ + 2 * nNeighbours_),
+          nInterfaces_(count_elements_on_interfaces(interfaces) / 2),
+          nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
+          global_values_index_{nElems_ - nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           ldu_csr_idx_mapping_{
               fieldName + "ldu_csr_map", db,       exec_,
-              global_matrix_index_,      verbose_, false,
+              global_values_index_,      verbose_, false,
           },
           values_{fieldName + "values", db,       exec_,
                   global_matrix_index_, verbose_, false},
@@ -104,14 +106,13 @@ public:
           row_idxs_{fieldName + "rows",   db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
-	std::cout << "!!!!! DEBUG nElems_ + interface " << nElems_ + nInterfaces_ << "\n";
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             SIMPLE_TIME(true, init_host_sparsity_pattern,
-                        init_host_sparsity_pattern();)
+                        init_host_sparsity_pattern(interfaces);)
         }
         if (!values_.get_stored() || values_.get_update()) {
             SIMPLE_TIME(true, update_host_matrix_data,
-                        update_host_matrix_data();)
+                        update_host_matrix_data(interfaces);)
         }
     }
 
@@ -122,7 +123,7 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-	  nInterfaces_(0),
+          nInterfaces_(0),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -136,37 +137,39 @@ public:
           row_idxs_{fieldName + "rows",   db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
-        if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
-            SIMPLE_TIME(true, init_host_sparsity_pattern,
-                        init_host_sparsity_pattern();)
-        }
+        // if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
+        //     SIMPLE_TIME(true, init_host_sparsity_pattern,
+        //                 init_host_sparsity_pattern();)
+        // }
 
-        if (!values_.get_stored() || values_.get_update()) {
-            SIMPLE_TIME(true, update_host_matrix_data,
-                        update_host_matrix_data();)
-        }
+        // if (!values_.get_stored() || values_.get_update()) {
+        //     SIMPLE_TIME(true, update_host_matrix_data,
+        //                 update_host_matrix_data();)
+        // }
     }
 
     label count_elements_on_interfaces(
-        const lduInterfaceFieldPtrsList &ifaces) const
+        const lduInterfaceFieldPtrsList &interfaces_) const
     {
         label ctr{0};
-        for (int i = 0; i<ifaces.size(); i++) {
-            if (ifaces.operator()(i) == nullptr) {
+        for (int i = 0; i < interfaces_.size(); i++) {
+            if (interfaces_.operator()(i) == nullptr) {
                 continue;
             }
-	    const auto iface {ifaces.operator()(i)};
+            const auto iface{interfaces_.operator()(i)};
             ctr += iface->interface().faceCells().size();
-	    if (isA<processorLduInterface>(iface->interface())) {
-		    const processorLduInterface &pldui = refCast<
-const processorLduInterface  > (iface->interface());
-		    std::cout << "!!!!!! lduInterfaceFieldPtrs " << pldui.neighbProcNo() << "\n";
-	    }
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+                std::cout << "!!!!!! lduInterfaceFieldPtrs "
+                          << pldui.neighbProcNo() << "\n";
+            }
         }
         return ctr;
     }
 
-    void init_host_sparsity_pattern() const
+    void init_host_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const
     {
         // Step 1 local ldu -> csr conversion
         // including local processor offset
@@ -202,6 +205,44 @@ const processorLduInterface  > (iface->interface());
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
 
         for (label row = 0; row < nCells_; row++) {
+            // check for lower idxs
+            for (int i = 0; i < interfaces.size(); i++) {
+                if (interfaces.operator()(i) == nullptr) {
+                    continue;
+                }
+                const auto iface{interfaces.operator()(i)};
+
+                if (isA<processorLduInterface>(iface->interface())) {
+                    const processorLduInterface &pldui =
+                        refCast<const processorLduInterface>(
+                            iface->interface());
+
+                    // if rank of corresponding processor is greater
+                    // then own processor idx are not on lower matrix row
+                    if (pldui.neighbProcNo() > Pstream::myProcNo()) {
+                        continue;
+                    }
+
+                    // check if current cell is on the current patch
+                    bool isOnPatch{false};
+                    for (label cellI = 0;
+                         cellI < iface->interface().faceCells().size();
+                         cellI++) {
+                        if (iface->interface().faceCells()[cellI] == row) {
+                            isOnPatch = true;
+                        }
+                    }
+
+                    // leave a marker
+                    if (isOnPatch) {
+                        rows[element_ctr] = 0;
+                        cols[element_ctr] = 0;
+                    }
+
+                    element_ctr++;
+                }
+            }
+
             // add lower elements
             // for now just scan till current upper ctr
             if (!lower_stack[row].empty()) {
@@ -252,7 +293,8 @@ const processorLduInterface  > (iface->interface());
 
     bool get_verbose() const { return verbose_; }
 
-    void update_host_matrix_data() const
+    void update_host_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces) const
     {
         auto ref_exec = gko::ReferenceExecutor::create();
         // TODO create in ctr
