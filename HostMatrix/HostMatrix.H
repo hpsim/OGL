@@ -89,7 +89,7 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nInterfaces_(count_elements_on_interfaces(interfaces) / 2),
+          nInterfaces_(count_elements_on_interfaces(interfaces) ),
           nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -158,12 +158,6 @@ public:
             }
             const auto iface{interfaces_.operator()(i)};
             ctr += iface->interface().faceCells().size();
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-                std::cout << "!!!!!! lduInterfaceFieldPtrs "
-                          << pldui.neighbProcNo() << "\n";
-            }
         }
         return ctr;
     }
@@ -205,6 +199,7 @@ public:
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
 
         for (label row = 0; row < nCells_; row++) {
+
             // check for lower idxs
             for (int i = 0; i < interfaces.size(); i++) {
                 if (interfaces.operator()(i) == nullptr) {
@@ -224,22 +219,18 @@ public:
                     }
 
                     // check if current cell is on the current patch
-                    bool isOnPatch{false};
-                    for (label cellI = 0;
-                         cellI < iface->interface().faceCells().size();
-                         cellI++) {
-                        if (iface->interface().faceCells()[cellI] == row) {
-                            isOnPatch = true;
-                        }
-                    }
+		    // NOTE cells can be several times on same patch
+			for (int cellI = 0;
+			     cellI < iface->interface().faceCells().size();
+			     cellI++) {
+			    if (iface->interface().faceCells()[cellI] == row) {
+				rows[element_ctr] = global_cell_index_.toGlobal(row);
+				cols[element_ctr] = 66;
+				element_ctr++;
+			    }
+			}
 
-                    // leave a marker
-                    if (isOnPatch) {
-                        rows[element_ctr] = 0;
-                        cols[element_ctr] = 0;
-                    }
 
-                    element_ctr++;
                 }
             }
 
@@ -288,7 +279,42 @@ public:
                 element_ctr++;
                 upper_ctr++;
             }
+
+            // check for upper idxs
+            for (int i = 0; i < interfaces.size(); i++) {
+                if (interfaces.operator()(i) == nullptr) {
+                    continue;
+                }
+                const auto iface{interfaces.operator()(i)};
+
+                if (isA<processorLduInterface>(iface->interface())) {
+                    const processorLduInterface &pldui =
+                        refCast<const processorLduInterface>(
+                            iface->interface());
+
+                    // if rank of corresponding processor is smaller
+                    // then own processor idx are not on upper matrix row
+                    if (pldui.neighbProcNo() < Pstream::myProcNo()) {
+                        continue;
+                    }
+
+                    // check if current cell is on the current patch
+			for (label cellI = 0;
+			     cellI < iface->interface().faceCells().size();
+			     cellI++) {
+			    if (iface->interface().faceCells()[cellI] == row) {
+				rows[element_ctr] = global_cell_index_.toGlobal(row);
+				cols[element_ctr] = 66;
+				element_ctr++;
+			    }
+			}
+
+
+                }
+            }
         }
+	std::cout << "!!!!!!! final element " << element_ctr << " nElems " << nElems_ << "\n";
+	// TODO test if elements are unfilled
     }
 
     bool get_verbose() const { return verbose_; }
