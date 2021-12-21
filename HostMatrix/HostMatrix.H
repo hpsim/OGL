@@ -163,8 +163,8 @@ public:
     }
 
     void insert_interface_coeffs(const lduInterfaceFieldPtrsList &interfaces,
-                                 scalar *rows, scalar *cols, label &element_ctr,
-                                 const bool upper) const
+                                 int *rows, int *cols, label row,
+                                 label &element_ctr, const bool upper) const
     {
         for (int i = 0; i < interfaces.size(); i++) {
             if (interfaces.operator()(i) == nullptr) {
@@ -188,13 +188,23 @@ public:
                     }
                 }
 
+                pldui.send(Pstream::commsTypes::nonBlocking,
+                           iface->interface().faceCells());
+
+                auto otherSide_tmp =
+                    pldui.receive<label>(Pstream::commsTypes::nonBlocking,
+                                         iface->interface().faceCells().size());
+
+
                 // check if current cell is on the current patch
                 // NOTE cells can be several times on same patch
-                for (int cellI = 0;
+                for (label cellI = 0;
                      cellI < iface->interface().faceCells().size(); cellI++) {
+                    label other_side_cellID = otherSide_tmp()[cellI];
                     if (iface->interface().faceCells()[cellI] == row) {
                         rows[element_ctr] = global_cell_index_.toGlobal(row);
-                        cols[element_ctr] = 66;
+                        cols[element_ctr] = global_cell_index_.toGlobal(
+                            pldui.neighbProcNo(), other_side_cellID);
                         element_ctr++;
                     }
                 }
@@ -222,9 +232,6 @@ public:
         const auto lower = lower_local.get_const_data();
         const auto upper = upper_local.get_const_data();
 
-        // auto col_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
-        // auto row_idxs_local = std::make_shared<idx_array>(ref_exec, nElems_);
-
         auto rows = row_idxs_.get_data();  // row_idxs_local->get_data();
         auto cols = col_idxs_.get_data();  // col_idxs_local->get_data();
 
@@ -240,7 +247,8 @@ public:
 
         for (label row = 0; row < nCells_; row++) {
             // check for lower idxs
-            insert_interface_coeffs(interfaces, rows, cols, element_ctr, true);
+            insert_interface_coeffs(interfaces, rows, cols, row, element_ctr,
+                                    true);
 
             // add lower elements
             // for now just scan till current upper ctr
@@ -287,7 +295,8 @@ public:
                 element_ctr++;
                 upper_ctr++;
             }
-            insert_interface_coeffs(interfaces, rows, cols, element_ctr, false);
+            insert_interface_coeffs(interfaces, rows, cols, row, element_ctr,
+                                    false);
         }
     }
 
