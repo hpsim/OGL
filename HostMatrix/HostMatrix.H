@@ -89,7 +89,7 @@ public:
           exec_{db, solverControls, fieldName},
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nInterfaces_(count_elements_on_interfaces(interfaces) ),
+          nInterfaces_(count_elements_on_interfaces(interfaces)),
           nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -199,7 +199,6 @@ public:
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
 
         for (label row = 0; row < nCells_; row++) {
-
             // check for lower idxs
             for (int i = 0; i < interfaces.size(); i++) {
                 if (interfaces.operator()(i) == nullptr) {
@@ -219,18 +218,17 @@ public:
                     }
 
                     // check if current cell is on the current patch
-		    // NOTE cells can be several times on same patch
-			for (int cellI = 0;
-			     cellI < iface->interface().faceCells().size();
-			     cellI++) {
-			    if (iface->interface().faceCells()[cellI] == row) {
-				rows[element_ctr] = global_cell_index_.toGlobal(row);
-				cols[element_ctr] = 66;
-				element_ctr++;
-			    }
-			}
-
-
+                    // NOTE cells can be several times on same patch
+                    for (int cellI = 0;
+                         cellI < iface->interface().faceCells().size();
+                         cellI++) {
+                        if (iface->interface().faceCells()[cellI] == row) {
+                            rows[element_ctr] =
+                                global_cell_index_.toGlobal(row);
+                            cols[element_ctr] = 66;
+                            element_ctr++;
+                        }
+                    }
                 }
             }
 
@@ -299,22 +297,22 @@ public:
                     }
 
                     // check if current cell is on the current patch
-			for (label cellI = 0;
-			     cellI < iface->interface().faceCells().size();
-			     cellI++) {
-			    if (iface->interface().faceCells()[cellI] == row) {
-				rows[element_ctr] = global_cell_index_.toGlobal(row);
-				cols[element_ctr] = 66;
-				element_ctr++;
-			    }
-			}
-
-
+                    for (label cellI = 0;
+                         cellI < iface->interface().faceCells().size();
+                         cellI++) {
+                        if (iface->interface().faceCells()[cellI] == row) {
+                            rows[element_ctr] =
+                                global_cell_index_.toGlobal(row);
+                            cols[element_ctr] = 66;
+                            element_ctr++;
+                        }
+                    }
                 }
             }
         }
-	std::cout << "!!!!!!! final element " << element_ctr << " nElems " << nElems_ << "\n";
-	// TODO test if elements are unfilled
+        std::cout << "!!!!!!! final element " << element_ctr << " nElems "
+                  << nElems_ << "\n";
+        // TODO test if elements are unfilled
     }
 
     bool get_verbose() const { return verbose_; }
