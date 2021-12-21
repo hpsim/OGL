@@ -99,11 +99,11 @@ public:
               fieldName + "ldu_csr_map", db,       exec_,
               global_values_index_,      verbose_, false,
           },
-          values_{fieldName + "values", db,       exec_,
+          values_{fieldName + "_values", db,       exec_,
                   global_matrix_index_, verbose_, false},
-          col_idxs_{fieldName + "cols",   db,       exec_,
+          col_idxs_{fieldName + "_cols",   db,       exec_,
                     global_matrix_index_, verbose_, false},
-          row_idxs_{fieldName + "rows",   db,       exec_,
+          row_idxs_{fieldName + "_rows",   db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
@@ -188,12 +188,16 @@ public:
                     }
                 }
 
-                pldui.send(Pstream::commsTypes::nonBlocking,
+		std::cout << "!!!!!!! send \n" ;
+                pldui.send(Pstream::commsTypes::blocking,
                            iface->interface().faceCells());
+		std::cout << "!!!!!!! send done \n" ;
 
                 auto otherSide_tmp =
-                    pldui.receive<label>(Pstream::commsTypes::nonBlocking,
+                    pldui.receive<label>(Pstream::commsTypes::blocking,
                                          iface->interface().faceCells().size());
+		std::cout << "!!!!!!! receive done \n" ;
+
 
 
                 // check if current cell is on the current patch
@@ -201,10 +205,14 @@ public:
                 for (label cellI = 0;
                      cellI < iface->interface().faceCells().size(); cellI++) {
                     label other_side_cellID = otherSide_tmp()[cellI];
+		const label other_side_global_cellID = global_cell_index_.toGlobal(
+                            pldui.neighbProcNo(), other_side_cellID);
+		    //std::cout << " other_side_cellID " << other_side_cellID 
+	//		    <<  " other_side_global_cellID " <<  other_side_global_cellID << "\n";
+
                     if (iface->interface().faceCells()[cellI] == row) {
                         rows[element_ctr] = global_cell_index_.toGlobal(row);
-                        cols[element_ctr] = global_cell_index_.toGlobal(
-                            pldui.neighbProcNo(), other_side_cellID);
+                        cols[element_ctr] = other_side_global_cellID;
                         element_ctr++;
                     }
                 }
