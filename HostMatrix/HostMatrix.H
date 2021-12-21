@@ -162,6 +162,46 @@ public:
         return ctr;
     }
 
+    void insert_interface_coeffs(const lduInterfaceFieldPtrsList &interfaces,
+                                 scalar *rows, scalar *cols, label &element_ctr,
+                                 const bool upper) const
+    {
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                continue;
+            }
+            const auto iface{interfaces.operator()(i)};
+
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+
+                // if rank of corresponding processor is greater
+                // then own processor idx are not on lower matrix row
+                if (upper) {
+                    if (pldui.neighbProcNo() > Pstream::myProcNo()) {
+                        continue;
+                    }
+                } else {
+                    if (pldui.neighbProcNo() < Pstream::myProcNo()) {
+                        continue;
+                    }
+                }
+
+                // check if current cell is on the current patch
+                // NOTE cells can be several times on same patch
+                for (int cellI = 0;
+                     cellI < iface->interface().faceCells().size(); cellI++) {
+                    if (iface->interface().faceCells()[cellI] == row) {
+                        rows[element_ctr] = global_cell_index_.toGlobal(row);
+                        cols[element_ctr] = 66;
+                        element_ctr++;
+                    }
+                }
+            }
+        }
+    }
+
     void init_host_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const
     {
@@ -200,37 +240,7 @@ public:
 
         for (label row = 0; row < nCells_; row++) {
             // check for lower idxs
-            for (int i = 0; i < interfaces.size(); i++) {
-                if (interfaces.operator()(i) == nullptr) {
-                    continue;
-                }
-                const auto iface{interfaces.operator()(i)};
-
-                if (isA<processorLduInterface>(iface->interface())) {
-                    const processorLduInterface &pldui =
-                        refCast<const processorLduInterface>(
-                            iface->interface());
-
-                    // if rank of corresponding processor is greater
-                    // then own processor idx are not on lower matrix row
-                    if (pldui.neighbProcNo() > Pstream::myProcNo()) {
-                        continue;
-                    }
-
-                    // check if current cell is on the current patch
-                    // NOTE cells can be several times on same patch
-                    for (int cellI = 0;
-                         cellI < iface->interface().faceCells().size();
-                         cellI++) {
-                        if (iface->interface().faceCells()[cellI] == row) {
-                            rows[element_ctr] =
-                                global_cell_index_.toGlobal(row);
-                            cols[element_ctr] = 66;
-                            element_ctr++;
-                        }
-                    }
-                }
-            }
+            insert_interface_coeffs(interfaces, rows, cols, element_ctr, true);
 
             // add lower elements
             // for now just scan till current upper ctr
@@ -277,42 +287,8 @@ public:
                 element_ctr++;
                 upper_ctr++;
             }
-
-            // check for upper idxs
-            for (int i = 0; i < interfaces.size(); i++) {
-                if (interfaces.operator()(i) == nullptr) {
-                    continue;
-                }
-                const auto iface{interfaces.operator()(i)};
-
-                if (isA<processorLduInterface>(iface->interface())) {
-                    const processorLduInterface &pldui =
-                        refCast<const processorLduInterface>(
-                            iface->interface());
-
-                    // if rank of corresponding processor is smaller
-                    // then own processor idx are not on upper matrix row
-                    if (pldui.neighbProcNo() < Pstream::myProcNo()) {
-                        continue;
-                    }
-
-                    // check if current cell is on the current patch
-                    for (label cellI = 0;
-                         cellI < iface->interface().faceCells().size();
-                         cellI++) {
-                        if (iface->interface().faceCells()[cellI] == row) {
-                            rows[element_ctr] =
-                                global_cell_index_.toGlobal(row);
-                            cols[element_ctr] = 66;
-                            element_ctr++;
-                        }
-                    }
-                }
-            }
+            insert_interface_coeffs(interfaces, rows, cols, element_ctr, false);
         }
-        std::cout << "!!!!!!! final element " << element_ctr << " nElems "
-                  << nElems_ << "\n";
-        // TODO test if elements are unfilled
     }
 
     bool get_verbose() const { return verbose_; }
