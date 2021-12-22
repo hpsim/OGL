@@ -192,20 +192,22 @@ public:
                 solverPerf.nIterations() = this->get_number_of_iterations();
                 this->store_number_of_iterations();
             }
-            std::cout << "!!!! psi before copying back" << std::endl;
-            for (int i = 0; i < psi.size(); i++) {
-                std::cout << "!!!!! " << Pstream::myProcNo() << " celli " << i
-                          << " " << psi[i] << std::endl;
-            }
+            // std::cout << "!!!! psi before copying back" << std::endl;
+            // for (int i = 0; i < psi.size(); i++) {
+            //     std::cout << "!!!!! " << Pstream::myProcNo() << " celli " <<
+            //     i
+            //               << " " << psi[i] << std::endl;
+            // }
 
             x.copy_back_parallel(this->get_global_cell_index(), &psi[0],
                                  dense_x);
 
-            std::cout << "!!!! psi after copying back" << std::endl;
-            for (int i = 0; i < psi.size(); i++) {
-                std::cout << "!!!!! " << Pstream::myProcNo() << " celli " << i
-                          << " " << psi[i] << std::endl;
-            }
+            // std::cout << "!!!! psi after copying back" << std::endl;
+            // for (int i = 0; i < psi.size(); i++) {
+            //     std::cout << "!!!!! " << Pstream::myProcNo() << " celli " <<
+            //     i
+            //               << " " << psi[i] << std::endl;
+            // }
 
         } else {
             LOG_1(verbose_, "get_gkomatrix")

@@ -115,7 +115,7 @@ public:
               false,
           },
           values_{fieldName + "_values", db,       exec_,
-                  global_matrix_index_,  verbose_, false},
+                  global_matrix_index_,  verbose_, true},
           col_idxs_{fieldName + "_cols",  db,       exec_,
                     global_matrix_index_, verbose_, false},
           row_idxs_{fieldName + "_rows",  db,       exec_,
@@ -124,13 +124,13 @@ public:
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids = get_other_proc_cell_ids(interfaces);
             SIMPLE_TIME(
-                true, init_host_sparsity_pattern,
+                verbose_, init_host_sparsity_pattern,
                 init_host_sparsity_pattern(interfaces, other_proc_cell_ids);)
         }
         if (!values_.get_stored() || values_.get_update()) {
             SIMPLE_TIME(
-                true, update_host_matrix_data,
-                update_host_matrix_data(interfaces, interfaceIntCoeffs);)
+                verbose_, update_host_matrix_data,
+                update_host_matrix_data(interfaces, interfaceBouCoeffs);)
         }
     }
 
@@ -158,7 +158,7 @@ public:
               false,
           },
           values_{fieldName + "values", db,       exec_,
-                  global_matrix_index_, verbose_, false},
+                  global_matrix_index_, verbose_, true},
           col_idxs_{fieldName + "cols",   db,       exec_,
                     global_matrix_index_, verbose_, false},
           row_idxs_{fieldName + "rows",   db,       exec_,
@@ -397,7 +397,7 @@ public:
 
     void update_host_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceIntCoeffs) const
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const
     {
         auto ref_exec = gko::ReferenceExecutor::create();
         // TODO create in ctr
@@ -426,13 +426,17 @@ public:
             if (interfaces.operator()(i) == nullptr) {
                 continue;
             }
-            const label patch_size =
-                interfaces.operator()(i)->interface().faceCells().size();
+            const auto iface{interfaces.operator()(i)};
+            const label patch_size = iface->interface().faceCells().size();
+
+            if (!isA<processorLduInterface>(iface->interface())) {
+                continue;
+            }
 
             for (label cellI = 0; cellI < patch_size; cellI++) {
                 // FIXME use interfaceIntCoeffs from other proccessor
                 values[sorting_interface_idxs[interface_ctr]] =
-                    interfaceIntCoeffs[i][cellI];
+                    interfaceBouCoeffs[i][cellI];
                 interface_ctr++;
             }
         }
