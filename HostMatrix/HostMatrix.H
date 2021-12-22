@@ -436,7 +436,7 @@ public:
             for (label cellI = 0; cellI < patch_size; cellI++) {
                 // FIXME use interfaceIntCoeffs from other proccessor
                 values[sorting_interface_idxs[interface_ctr]] =
-                    interfaceBouCoeffs[i][cellI];
+                    -interfaceBouCoeffs[i][cellI];
                 interface_ctr++;
             }
         }
