@@ -145,7 +145,7 @@ public:
 
 
         PersistentArray<scalar> b{
-            this->fieldName() + "rhs",
+            this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
@@ -155,7 +155,7 @@ public:
             true};
 
         PersistentArray<scalar> x{
-            this->fieldName() + "solution",
+            this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),

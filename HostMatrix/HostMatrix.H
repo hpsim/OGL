@@ -32,6 +32,7 @@ SourceFiles
 #include <vector>
 #include "../DevicePersistentArray/DevicePersistentArray.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
+#include "../common/common.H"
 
 
 namespace Foam {
@@ -58,10 +59,15 @@ private:
 
     const gkoGlobalIndex global_values_index_;
 
+    const gkoGlobalIndex global_interface_index_;
+
     const label verbose_;
 
     // TODO
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
+
+    // TODO
+    mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
 
     // TODO use devicePersistentFields here
     // TODO this will need a ->get_data() method
@@ -94,25 +100,37 @@ public:
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
           global_values_index_{nElems_ - nInterfaces_},
+          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           ldu_csr_idx_mapping_{
-              fieldName + "ldu_csr_map", db,       exec_,
-              global_values_index_,      verbose_, false,
+              fieldName + "_ldu_csr_map", db,       exec_,
+              global_values_index_,       verbose_, false,
+          },
+          ldu_csr_idx_interface_mapping_{
+              fieldName + "_ldu_csr_interface_map",
+              db,
+              exec_,
+              global_interface_index_,
+              verbose_,
+              false,
           },
           values_{fieldName + "_values", db,       exec_,
-                  global_matrix_index_, verbose_, false},
-          col_idxs_{fieldName + "_cols",   db,       exec_,
+                  global_matrix_index_,  verbose_, false},
+          col_idxs_{fieldName + "_cols",  db,       exec_,
                     global_matrix_index_, verbose_, false},
-          row_idxs_{fieldName + "_rows",   db,       exec_,
+          row_idxs_{fieldName + "_rows",  db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
-            SIMPLE_TIME(true, init_host_sparsity_pattern,
-                        init_host_sparsity_pattern(interfaces);)
+            auto other_proc_cell_ids = get_other_proc_cell_ids(interfaces);
+            SIMPLE_TIME(
+                true, init_host_sparsity_pattern,
+                init_host_sparsity_pattern(interfaces, other_proc_cell_ids);)
         }
         if (!values_.get_stored() || values_.get_update()) {
-            SIMPLE_TIME(true, update_host_matrix_data,
-                        update_host_matrix_data(interfaces);)
+            SIMPLE_TIME(
+                true, update_host_matrix_data,
+                update_host_matrix_data(interfaces, interfaceIntCoeffs);)
         }
     }
 
@@ -127,9 +145,18 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
+          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db,       exec_,
                                global_matrix_index_,      verbose_, false},
+          ldu_csr_idx_interface_mapping_{
+              fieldName + "_ldu_csr_interface_map",
+              db,
+              exec_,
+              global_interface_index_,
+              verbose_,
+              false,
+          },
           values_{fieldName + "values", db,       exec_,
                   global_matrix_index_, verbose_, false},
           col_idxs_{fieldName + "cols",   db,       exec_,
@@ -162,15 +189,76 @@ public:
         return ctr;
     }
 
-    void insert_interface_coeffs(const lduInterfaceFieldPtrsList &interfaces,
-                                 int *rows, int *cols, label row,
-                                 label &element_ctr, const bool upper) const
+    std::vector<std::vector<label>> get_other_proc_cell_ids(
+        const lduInterfaceFieldPtrsList &interfaces)
     {
+        std::vector<std::vector<label>> ret{};
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                ret.push_back({});
+                continue;
+            }
+
+            const auto iface{interfaces.operator()(i)};
+
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+
+                word msg = "send face cells interface " + std::to_string(i) +
+                           " from proc " + std::to_string(Pstream::myProcNo()) +
+                           " to neighbour proc " +
+                           std::to_string(pldui.neighbProcNo());
+
+                LOG_2(verbose_, msg)
+                pldui.send(Pstream::commsTypes::blocking,
+                           iface->interface().faceCells());
+                LOG_2(verbose_, "send face cells done")
+
+
+                word msg_2 = "receive face cells interface " +
+                             std::to_string(i) + " from proc " +
+                             std::to_string(pldui.neighbProcNo());
+
+                LOG_2(verbose_, msg_2)
+
+                const label patch_size = iface->interface().faceCells().size();
+
+                auto otherSide_tmp = pldui.receive<label>(
+                    Pstream::commsTypes::blocking, patch_size);
+                LOG_2(verbose_, "receive face cells done")
+
+                std::vector<label> orig_cell_ids{};
+                orig_cell_ids.reserve(patch_size);
+
+                for (label cellI = 0; cellI < patch_size; cellI++) {
+                    orig_cell_ids.push_back(otherSide_tmp()[cellI]);
+                }
+                ret.push_back(orig_cell_ids);
+            }
+        }
+        word msg = "done collecting neighbouring processor cell id";
+
+        LOG_2(verbose_, msg)
+        return ret;
+    }
+
+    // TODO this is pretty much the same as get_other_proc_cell_ids
+    // and could probably trimmed down a lot
+    void insert_interface_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const std::vector<std::vector<label>> &other_proc_cell_ids, int *rows,
+        int *cols, label row, label &element_ctr, const bool upper) const
+    {
+        label interface_ctr = 0;
+        auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
         for (int i = 0; i < interfaces.size(); i++) {
             if (interfaces.operator()(i) == nullptr) {
                 continue;
             }
+
             const auto iface{interfaces.operator()(i)};
+            const label interface_size = iface->interface().faceCells().size();
 
             if (isA<processorLduInterface>(iface->interface())) {
                 const processorLduInterface &pldui =
@@ -180,48 +268,43 @@ public:
                 // then own processor idx are not on lower matrix row
                 if (upper) {
                     if (pldui.neighbProcNo() > Pstream::myProcNo()) {
+                        interface_ctr += interface_size;
                         continue;
                     }
+
                 } else {
                     if (pldui.neighbProcNo() < Pstream::myProcNo()) {
+                        interface_ctr += interface_size;
                         continue;
                     }
                 }
 
-		std::cout << "!!!!!!! send \n" ;
-                pldui.send(Pstream::commsTypes::blocking,
-                           iface->interface().faceCells());
-		std::cout << "!!!!!!! send done \n" ;
-
-                auto otherSide_tmp =
-                    pldui.receive<label>(Pstream::commsTypes::blocking,
-                                         iface->interface().faceCells().size());
-		std::cout << "!!!!!!! receive done \n" ;
-
-
-
                 // check if current cell is on the current patch
                 // NOTE cells can be several times on same patch
-                for (label cellI = 0;
-                     cellI < iface->interface().faceCells().size(); cellI++) {
-                    label other_side_cellID = otherSide_tmp()[cellI];
-		const label other_side_global_cellID = global_cell_index_.toGlobal(
-                            pldui.neighbProcNo(), other_side_cellID);
-		    //std::cout << " other_side_cellID " << other_side_cellID 
-	//		    <<  " other_side_global_cellID " <<  other_side_global_cellID << "\n";
+                for (label cellI = 0; cellI < interface_size; cellI++) {
+                    const label other_side_global_cellID =
+                        global_cell_index_.toGlobal(
+                            pldui.neighbProcNo(),
+                            other_proc_cell_ids[i][cellI]);
 
                     if (iface->interface().faceCells()[cellI] == row) {
                         rows[element_ctr] = global_cell_index_.toGlobal(row);
                         cols[element_ctr] = other_side_global_cellID;
+
+                        sorting_interface_idxs[interface_ctr + cellI] =
+                            element_ctr;
+
                         element_ctr++;
                     }
                 }
             }
+            interface_ctr += interface_size;
         }
     }
 
     void init_host_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const
+        const lduInterfaceFieldPtrsList &interfaces,
+        const std::vector<std::vector<label>> other_proc_cell_ids) const
     {
         // Step 1 local ldu -> csr conversion
         // including local processor offset
@@ -255,8 +338,8 @@ public:
 
         for (label row = 0; row < nCells_; row++) {
             // check for lower idxs
-            insert_interface_coeffs(interfaces, rows, cols, row, element_ctr,
-                                    true);
+            insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
+                                    row, element_ctr, false);
 
             // add lower elements
             // for now just scan till current upper ctr
@@ -303,15 +386,18 @@ public:
                 element_ctr++;
                 upper_ctr++;
             }
-            insert_interface_coeffs(interfaces, rows, cols, row, element_ctr,
-                                    false);
+
+            insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
+                                    row, element_ctr, true);
         }
+        LOG_1(verbose_, "done init host matrix")
     }
 
     bool get_verbose() const { return verbose_; }
 
     void update_host_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces) const
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceIntCoeffs) const
     {
         auto ref_exec = gko::ReferenceExecutor::create();
         // TODO create in ctr
@@ -320,6 +406,9 @@ public:
         auto values = values_.get_data();
 
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
+        const auto sorting_interface_idxs =
+            ldu_csr_idx_interface_mapping_.get_const_data();
+
         auto lower = this->matrix().lower();
         auto upper = this->matrix().upper();
         for (label i = 0; i < nNeighbours(); i++) {
@@ -331,7 +420,22 @@ public:
         for (label i = 0; i < local_nCells(); ++i) {
             values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
         }
-    };
+
+        label interface_ctr{0};
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                continue;
+            }
+            const label patch_size =
+                interfaces.operator()(i)->interface().faceCells().size();
+
+            for (label cellI = 0; cellI < patch_size; cellI++) {
+                values[sorting_interface_idxs[interface_ctr]] =
+                    interfaceIntCoeffs[i][cellI];
+                interface_ctr++;
+            }
+        }
+    }
 
     label local_nCells() const { return nCells_; }
 
