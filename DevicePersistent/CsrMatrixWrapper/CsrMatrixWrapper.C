@@ -35,6 +35,8 @@ void CsrInitFunctor::update(
 {
     if (Pstream::parRun()) {
         if (Pstream::master()) {
+            word msg{"update global csr matrix "};
+            LOG_1(verbose_, msg)
             auto values_view = val_array::view(
                 values_.get_exec_handler().get_device_exec(),
                 values_.get_global_size(), csr_matrix->get_values());
@@ -129,7 +131,8 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
 
 //     // move frome device
 //     auto psi_view =
-//         val_array::view(ref_exec(), nCells, const_cast<scalar *>(&psi[0]));
+//         val_array::view(ref_exec(), nCells, const_cast<scalar
+//         *>(&psi[0]));
 
 //     psi_view = x_view;
 // }
