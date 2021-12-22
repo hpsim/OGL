@@ -164,29 +164,6 @@ public:
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", true),
             true};
 
-
-        // Generate solver
-        // const word timeName =
-        // this->matrix().mesh().thisDb().time().timeName();
-
-        // // if (Pstream::master()) {
-        // //     if (get_export())
-        // //         export_system(this->fieldName(), gko::lend(gkomatrix),
-        // //                       gko::lend(x[0]), gko::lend(b), timeName);
-        // // }
-
-        // SIMPLE_LOG(verbose_, "create precond")
-        // if (Pstream::master()) {
-        //     SIMPLE_TIME(
-        //         verbose_, init_preconditioner,
-        //         this->init_preconditioner(this->matrix().mesh().thisDb(),
-        //                                   gkomatrix, device_exec);)
-        // }
-        // SIMPLE_LOG(verbose_, "create precond done")
-
-        // // Instantiate an iteration logger.
-
-
         // Solve system
         if (Pstream::parRun()) {
             auto dense_x = x.get_global_dense_vec();
@@ -205,7 +182,7 @@ public:
                 LOG_1(verbose_, "create solver")
                 auto solver = solver_gen->generate(
                     gko::share(gkomatrix.get_persistent_object()));
-                LOG_1(verbose_, "solve solver")
+                LOG_1(verbose_, "solve solver done")
                 SIMPLE_TIME(
                     verbose_, solve,
                     solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
@@ -215,8 +192,21 @@ public:
                 solverPerf.nIterations() = this->get_number_of_iterations();
                 this->store_number_of_iterations();
             }
+            std::cout << "!!!! psi before copying back" << std::endl;
+            for (int i = 0; i < psi.size(); i++) {
+                std::cout << "!!!!! " << Pstream::myProcNo() << " celli " << i
+                          << " " << psi[i] << std::endl;
+            }
+
             x.copy_back_parallel(this->get_global_cell_index(), &psi[0],
                                  dense_x);
+
+            std::cout << "!!!! psi after copying back" << std::endl;
+            for (int i = 0; i < psi.size(); i++) {
+                std::cout << "!!!!! " << Pstream::myProcNo() << " celli " << i
+                          << " " << psi[i] << std::endl;
+            }
+
         } else {
             LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();

@@ -430,6 +430,7 @@ public:
                 interfaces.operator()(i)->interface().faceCells().size();
 
             for (label cellI = 0; cellI < patch_size; cellI++) {
+                // FIXME use interfaceIntCoeffs from other proccessor
                 values[sorting_interface_idxs[interface_ctr]] =
                     interfaceIntCoeffs[i][cellI];
                 interface_ctr++;

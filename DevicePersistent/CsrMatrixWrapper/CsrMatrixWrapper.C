@@ -64,11 +64,11 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
         auto rows = row_idxs_.get_global_array();
 
         if (Pstream::master()) {
-            for (int i = 0; i < values->get_num_elems(); i++) {
-                std::cout << "(" << rows->get_const_data()[i] << ","
-                          << cols->get_const_data()[i] << ") "
-                          << values->get_const_data()[i] << std::endl;
-            }
+            // for (int i = 0; i < values->get_num_elems(); i++) {
+            //     std::cout << "(" << rows->get_const_data()[i] << ","
+            //               << cols->get_const_data()[i] << ") "
+            //               << values->get_const_data()[i] << std::endl;
+            // }
             auto coo_mtx = gko::share(
                 coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
                                 val_array(device_exec, *values.get()),
