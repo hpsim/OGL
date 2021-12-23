@@ -92,7 +92,7 @@ public:
                     const word field_name)
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
-                  field_name,
+                  +"_" + field_name,
               db,
               ExecutorInitFunctor(
                   solverControls.lookupOrDefault("executor", word("reference")),
