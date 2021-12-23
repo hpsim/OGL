@@ -248,17 +248,18 @@ public:
     void insert_interface_coeffs(
         const lduInterfaceFieldPtrsList &interfaces,
         const std::vector<std::vector<label>> &other_proc_cell_ids, int *rows,
-        int *cols, label row, label &element_ctr, const bool upper) const
+        int *cols, label row, label &element_ctr, label *sorting_interface_idxs,
+        const bool upper) const
     {
         label interface_ctr = 0;
-        auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
         for (int i = 0; i < interfaces.size(); i++) {
             if (interfaces.operator()(i) == nullptr) {
                 continue;
             }
 
             const auto iface{interfaces.operator()(i)};
-            const label interface_size = iface->interface().faceCells().size();
+            const auto face_cells{iface->interface().faceCells()};
+            const label interface_size = face_cells.size();
 
             if (isA<processorLduInterface>(iface->interface())) {
                 const processorLduInterface &pldui =
@@ -287,7 +288,7 @@ public:
                             pldui.neighbProcNo(),
                             other_proc_cell_ids[i][cellI]);
 
-                    if (iface->interface().faceCells()[cellI] == row) {
+                    if (face_cells[cellI] == row) {
                         rows[element_ctr] = global_cell_index_.toGlobal(row);
                         cols[element_ctr] = other_side_global_cellID;
 
@@ -308,16 +309,14 @@ public:
     {
         // Step 1 local ldu -> csr conversion
         // including local processor offset
-
-        auto ref_exec = gko::ReferenceExecutor::create();
-
+        LOG_1(verbose_, "start init host sparsity pattern")
 
         auto lower_local = idx_array::view(
-            ref_exec, nNeighbours_,
+            exec_.get_ref_exec(), nNeighbours_,
             const_cast<label *>(&this->matrix().lduAddr().lowerAddr()[0]));
 
         auto upper_local = idx_array::view(
-            ref_exec, nNeighbours_,
+            exec_.get_ref_exec(), nNeighbours_,
             const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
 
         const auto lower = lower_local.get_const_data();
@@ -335,11 +334,13 @@ public:
 
 
         const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
+        auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
 
         for (label row = 0; row < nCells_; row++) {
             // check for lower idxs
             insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                    row, element_ctr, false);
+                                    row, element_ctr, sorting_interface_idxs,
+                                    false);
 
             // add lower elements
             // for now just scan till current upper ctr
@@ -388,7 +389,8 @@ public:
             }
 
             insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                    row, element_ctr, true);
+                                    row, element_ctr, sorting_interface_idxs,
+                                    true);
         }
         LOG_1(verbose_, "done init host matrix")
     }
