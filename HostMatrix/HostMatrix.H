@@ -196,6 +196,7 @@ public:
         std::vector<label> ret{};
         ret.reserve(nInterfaces);
 
+        label startOfRequests = Pstream::nRequests();
         for (int i = 0; i < interfaces.size(); i++) {
             if (interfaces.operator()(i) == nullptr) {
                 continue;
@@ -215,8 +216,25 @@ public:
                            " to neighbour proc " + std::to_string(neighbProcNo);
 
                 LOG_2(verbose_, msg)
-                pldui.send(Pstream::commsTypes::blocking, face_cells);
-                LOG_2(verbose_, "send face cells done")
+                pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
+            }
+        }
+        Pstream::waitRequests(startOfRequests);
+        LOG_2(verbose_, "send face cells done")
+
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                continue;
+            }
+
+            const auto iface{interfaces.operator()(i)};
+            const auto &face_cells{iface->interface().faceCells()};
+            const label interface_size = face_cells.size();
+
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+                const label neighbProcNo = pldui.neighbProcNo();
 
                 word msg_2 = "receive face cells interface " +
                              std::to_string(i) + " from proc " +
@@ -224,7 +242,7 @@ public:
                 LOG_2(verbose_, msg_2)
 
                 auto otherSide_tmp = pldui.receive<label>(
-                    Pstream::commsTypes::blocking, interface_size);
+                    Pstream::commsTypes::nonBlocking, interface_size);
                 LOG_2(verbose_, "receive face cells done")
 
                 for (label cellI = 0; cellI < interface_size; cellI++) {
