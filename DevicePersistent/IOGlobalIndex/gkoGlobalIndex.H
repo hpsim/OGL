@@ -401,7 +401,7 @@ public:
                  gko::Array<Value> &localDataOut,
                  const int tag = UPstream::msgType(),
                  const Pstream::commsTypes commsType =
-                     Pstream::commsTypes::blocking) const
+                     Pstream::commsTypes::nonBlocking) const
     {
         scatter(offsets_, comm, procIDs, globalDataIn, localDataOut, tag,
                 commsType);
@@ -414,7 +414,7 @@ public:
                  gko::Array<Value> &localDataOut,
                  const int tag = UPstream::msgType(),
                  const Pstream::commsTypes commsType =
-                     Pstream::commsTypes::blocking) const
+                     Pstream::commsTypes::nonBlocking) const
     {
         scatter(offsets_, UPstream::worldComm,
                 UPstream::procID(UPstream::worldComm), globalDataIn,
