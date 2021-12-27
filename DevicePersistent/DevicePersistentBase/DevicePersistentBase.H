@@ -121,7 +121,9 @@ public:
             LOG_1(verbose_, msg)
             const fileName path = name_;
 
-            // FIXME this probably leaks memory
+            // NOTE when objectRegistry is deleted delete for every pointer
+            // owned by the registry is called
+            // TODO make shure isOwnedByRegistry returns true
             auto po = new DevicePersistentBase<T>(IOobject(path, db), f.init());
 
             persistent_object_ = po->get_ptr();
