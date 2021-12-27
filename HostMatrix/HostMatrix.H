@@ -129,9 +129,11 @@ public:
                 init_host_sparsity_pattern(interfaces, other_proc_cell_ids);)
         }
         if (!values_.get_stored() || values_.get_update()) {
+            auto other_proc_bou_coeffs = get_other_proc_bou_coeffs(
+                nInterfaces_, interfaces, interfaceBouCoeffs);
             SIMPLE_TIME(
                 verbose_, update_host_matrix_data,
-                update_host_matrix_data(interfaces, interfaceBouCoeffs);)
+                update_host_matrix_data(interfaces, other_proc_bou_coeffs);)
         }
     }
 
@@ -188,6 +190,74 @@ public:
             ctr += iface->interface().faceCells().size();
         }
         return ctr;
+    }
+
+    // TODO merge with get_other_proc_cell_ids
+    std::vector<scalar> get_other_proc_bou_coeffs(
+        const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> interfaceBouCoeffs)
+    {
+        std::vector<scalar> ret{};
+        ret.reserve(nInterfaces);
+
+        label startOfRequests = Pstream::nRequests();
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                continue;
+            }
+
+            const auto iface{interfaces.operator()(i)};
+            const auto &face_cells{interfaceBouCoeffs[i]};
+            const label interface_size = face_cells.size();
+
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+                const label neighbProcNo = pldui.neighbProcNo();
+
+                word msg = "send face cells interface " + std::to_string(i) +
+                           " from proc " + std::to_string(Pstream::myProcNo()) +
+                           " to neighbour proc " + std::to_string(neighbProcNo);
+
+                LOG_2(verbose_, msg)
+                pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
+            }
+        }
+        Pstream::waitRequests(startOfRequests);
+        LOG_2(verbose_, "send face cells done")
+
+        for (int i = 0; i < interfaces.size(); i++) {
+            if (interfaces.operator()(i) == nullptr) {
+                continue;
+            }
+
+            const auto iface{interfaces.operator()(i)};
+            const auto &face_cells{iface->interface().faceCells()};
+            const label interface_size = face_cells.size();
+
+            if (isA<processorLduInterface>(iface->interface())) {
+                const processorLduInterface &pldui =
+                    refCast<const processorLduInterface>(iface->interface());
+                const label neighbProcNo = pldui.neighbProcNo();
+
+                word msg_2 = "receive face cells interface " +
+                             std::to_string(i) + " from proc " +
+                             std::to_string(neighbProcNo);
+                LOG_2(verbose_, msg_2)
+
+                auto otherSide_tmp = pldui.receive<label>(
+                    Pstream::commsTypes::nonBlocking, interface_size);
+                LOG_2(verbose_, "receive face cells done")
+
+                for (label cellI = 0; cellI < interface_size; cellI++) {
+                    ret.push_back(otherSide_tmp()[cellI]);
+                }
+            }
+        }
+        word msg = "done collecting neighbouring processor cell id";
+
+        LOG_2(verbose_, msg)
+        return ret;
     }
 
     std::vector<label> get_other_proc_cell_ids(
@@ -422,7 +492,7 @@ public:
 
     void update_host_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const
+        const std::vector<scalar> &interfaceBouCoeffs) const
     {
         auto ref_exec = gko::ReferenceExecutor::create();
         // TODO create in ctr
@@ -459,9 +529,8 @@ public:
             }
 
             for (label cellI = 0; cellI < patch_size; cellI++) {
-                // FIXME use interfaceIntCoeffs from other proccessor
                 values[sorting_interface_idxs[interface_ctr]] =
-                    -interfaceBouCoeffs[i][cellI];
+                    -interfaceBouCoeffs[interface_ctr];
                 interface_ctr++;
             }
         }
