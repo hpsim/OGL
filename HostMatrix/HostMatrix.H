@@ -245,7 +245,7 @@ public:
                              std::to_string(neighbProcNo);
                 LOG_2(verbose_, msg_2)
 
-                auto otherSide_tmp = pldui.receive<label>(
+                auto otherSide_tmp = pldui.receive<scalar>(
                     Pstream::commsTypes::nonBlocking, interface_size);
                 LOG_2(verbose_, "receive face cells done")
 
@@ -391,8 +391,8 @@ public:
                         element_ctr++;
                     }
                 }
+                interface_ctr += interface_size;
             }
-            interface_ctr += interface_size;
         }
     }
 
@@ -529,10 +529,10 @@ public:
             }
 
             for (label cellI = 0; cellI < patch_size; cellI++) {
-                values[sorting_interface_idxs[interface_ctr]] =
-                    -interfaceBouCoeffs[interface_ctr];
-                interface_ctr++;
+                values[sorting_interface_idxs[interface_ctr + cellI]] =
+                    -interfaceBouCoeffs[interface_ctr + cellI];
             }
+            interface_ctr += patch_size;
         }
     }
 
