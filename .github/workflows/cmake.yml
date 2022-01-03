@@ -21,8 +21,8 @@ jobs:
               path: "openfoam"}]
     
     env:
-      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-      FOAM_USER_LIBBIN: /home/go/OpenFOAM/${{ matrix.OF.path }}/platforms
+      FOAM_SRC: $HOME/OpenFOAM/${{ matrix.OF.path }}/src
+      FOAM_USER_LIBBIN: $HOME/OpenFOAM/${{ matrix.OF.path }}/platforms
     
     steps:
     - name: Cache OpenFOAM
@@ -30,34 +30,34 @@ jobs:
       with:
         key: ${{ matrix.OF.path }}
         path: |
-          ~/OpenFOAM/${{ matrix.OF.path }}
+          $HOME/OpenFOAM/${{ matrix.OF.path }}
           
     - name: Cache Ginkgo builds
       uses: actions/cache@v2
       with:
         key: ginkgo-cache
         path: |
-          ~/ginkgo
+          $HOME/ginkgo
                 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  --depth 1 ${{ matrix.OF.repo }}  ~/OpenFOAM/${{ matrix.OF.path }}
+      run: git clone  --depth 1 ${{ matrix.OF.repo }}  $HOME/OpenFOAM/${{ matrix.OF.path }}
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
-      run: ls ~/OpenFOAM/${{ matrix.OF.path }}
+      run: ls $HOME/OpenFOAM/${{ matrix.OF.path }}
       
     - name: Clone Ginkgo 
       # Clone OpenFOAM
-      run: git clone  --depth 1 https://github.com/ginkgo-project/ginkgo.git ~/ginkgo
+      run: git clone  --depth 1 https://github.com/ginkgo-project/ginkgo.git $HOME/ginkgo
       
     - name: Create Ginkgo Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ~/ginkgo/build
+      run: cmake -E make_directory $HOME/ginkgo/build
       
     - name: Show Ginkgo folder
-      run: ls ~/ginkgo
+      run: ls $HOME/ginkgo
       
     - name: Configure Ginkgo CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -78,17 +78,18 @@ jobs:
           -DGINKGO_BUILD_REFERENCE=ON \
           -DGINKGO_BUILD_HWLOC=OFF \
           -DCMAKE_INSTALL_PREFIX=install \
-          -S ~/ginkgo \
-          -B ~/ginkgo/build
+          -S $HOME/ginkgo \
+          -B $HOME/ginkgo/build
 
     - name: Build Ginkgo
-      working-directory: ~/ginkgo/build
+      working-directory: $HOME/ginkgo/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
 
-      
-    - uses: actions/checkout@v2
+    
+    - name: Checkout OGL
+      uses: actions/checkout@v2
 
     - name: Create OGL Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
