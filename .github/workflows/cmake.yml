@@ -31,22 +31,6 @@ jobs:
         key: ${{ matrix.OF.path }}
         path: |
           $HOME/OpenFOAM/${{ matrix.OF.path }}
-    - name: Update cmake
-      run: |
-          echo Update cmake =======================================================================
-          echo cmake version before
-          cmake --version
-          # curl --silent "https://api.github.com/repos/Kitware/CMake/releases/latest" | sed -n 's/.*tag_name":\s"\(.*\)".*/\1/p' | head -2
-          # wget https://github.com/Kitware/CMake/releases/latest/download/cmake-3.16.5-Linux-x86_64.sh
-          cmake_version=$(curl --silent "https://api.github.com/repos/Kitware/CMake/releases/latest" | sed -n 's/.*tag_name":\s"\(.*\)".*/\1/p' | head -2 | cut -c 2-)
-          echo cmake download latest v$cmake_version version
-          wget https://github.com/Kitware/CMake/releases/download/v$cmake_version/cmake-$cmake_version-Linux-x86_64.sh
-          chmod +x cmake-$cmake_version-Linux-x86_64.sh
-          sudo mkdir /opt/cmake
-          sudo ./cmake-$cmake_version-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
-          sudo update-alternatives --install /usr/bin/cmake cmake /opt/cmake/bin/cmake 1 --force
-          echo cmake version after
-          cmake --version 
           
     - name: Cache Ginkgo builds
       uses: actions/cache@v2
@@ -94,8 +78,8 @@ jobs:
           -DGINKGO_BUILD_REFERENCE=ON \
           -DGINKGO_BUILD_HWLOC=OFF \
           -DCMAKE_INSTALL_PREFIX=install \
-          -S $HOME/ginkgo \
-          -B $HOME/ginkgo/build
+          -S . \
+          -B .
 
     - name: Build Ginkgo
       working-directory: $HOME/ginkgo/build
