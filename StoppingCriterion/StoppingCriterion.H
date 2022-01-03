@@ -21,7 +21,7 @@ Class
 Author: Gregor Olenik <go@hpsim.de>
 
 SourceFiles
-    GKOCG.C
+    StoppingCriterion.H
 
 \*---------------------------------------------------------------------------*/
 

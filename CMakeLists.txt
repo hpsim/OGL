@@ -68,8 +68,7 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     -Rpass=loop-vectorize \
     -ffast-math \
     "
-      # -Rpass-analysis=loop-vectorize \
-      # -Rpass-missed=loop-vectorize \
+      # -Rpass-analysis=loop-vectorize \ -Rpass-missed=loop-vectorize \
   )
 
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
@@ -108,6 +107,7 @@ endif()
 target_sources(
   OGL
   PRIVATE common/common.C
+          StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
@@ -122,6 +122,7 @@ target_sources(
           Multigrid/GKOMultigrid.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
+         StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
