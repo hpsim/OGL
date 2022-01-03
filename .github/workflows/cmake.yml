@@ -13,10 +13,17 @@ jobs:
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest    
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
+              path: "OpenFOAM-8"},
+             {repo: "https://develop.openfoam.com/Development/openfoam.git",
+              path: "openfoam"}]
+    
     env:
-      FOAM_SRC: /home/runner/OpenFOAM/OpenFOAM-8/src
-      FOAM_USER_LIBBIN: /home/go/OpenFOAM/OpenFOAM-8/platforms
+      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+      FOAM_USER_LIBBIN: /home/go/OpenFOAM/${{ matrix.OF.path }}/platforms
     
     steps:
     - name: Setup OpenFOAM Directory
@@ -25,11 +32,11 @@ jobs:
       
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  --depth 1 https://github.com/OpenFOAM/OpenFOAM-8.git  ~/OpenFOAM/OpenFOAM-8 
+      run: git clone  --depth 1 ${{ matrix.OF.repo }}  ~/OpenFOAM/${{ matrix.OF.path }}
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
-      run: ls ~/OpenFOAM/OpenFOAM-8
+      run: ls ~/OpenFOAM/${{ matrix.OF.path }}
       
     - uses: actions/checkout@v2
 
