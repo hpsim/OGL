@@ -49,7 +49,7 @@ jobs:
       
     - name: Clone Ginkgo 
       # Clone OpenFOAM
-      run: git clone  --depth 1 git@github.com:ginkgo-project/ginkgo.git ~
+      run: git clone  --depth 1 git@github.com:ginkgo-project/ginkgo.git ~/ginkgo
       
     - name: Create Ginkgo Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
