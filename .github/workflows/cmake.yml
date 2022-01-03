@@ -62,25 +62,24 @@ jobs:
     - name: Configure Ginkgo CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
-      working-directory: ~/ginkgo/build/
       shell: bash
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
-      cmake \ 
-        -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-        -DGINKGO_BUILD_BENCHMARKS=OFF \
-        -DGINKGO_BUILD_EXAMPLES=OFF \
-        -DGINKGO_BUILD_CUDA=OFF \
-        -DGINKGO_BUILD_HIP=OFF \
-        -DGINKGO_BUILD_OMP=ON \
-        -DGINKGO_BUILD_TESTS=OFF \
-        -DGINKGO_BUILD_REFERENCE=ON \
-        -DGINKGO_BUILD_HWLOC=OFF \
-        -DCMAKE_INSTALL_PREFIX=install \
-        -S ~/ginkgo \
-        -B ~/ginkgo/build
+        cmake \ 
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DGINKGO_BUILD_BENCHMARKS=OFF \
+          -DGINKGO_BUILD_EXAMPLES=OFF \
+          -DGINKGO_BUILD_CUDA=OFF \
+          -DGINKGO_BUILD_HIP=OFF \
+          -DGINKGO_BUILD_OMP=ON \
+          -DGINKGO_BUILD_TESTS=OFF \
+          -DGINKGO_BUILD_REFERENCE=ON \
+          -DGINKGO_BUILD_HWLOC=OFF \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -S ~/ginkgo \
+          -B ~/ginkgo/build
 
     - name: Build Ginkgo
       working-directory: ~/ginkgo/build
