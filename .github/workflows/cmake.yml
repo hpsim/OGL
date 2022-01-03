@@ -27,6 +27,7 @@ jobs:
     steps:
     - name: Cache OpenFOAM
       uses: actions/cache@v2
+      key: ${{ matrix.OF.path }}
       with:
         path: |
           ~/OpenFOAM
