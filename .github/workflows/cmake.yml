@@ -27,10 +27,10 @@ jobs:
     steps:
     - name: Cache OpenFOAM
       uses: actions/cache@v2
-      key: ${{ matrix.OF.path }}
       with:
+        key: ${{ matrix.OF.path }}
         path: |
-          ~/OpenFOAM
+          ~/OpenFOAM/${{ matrix.OF.path }}
                 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
