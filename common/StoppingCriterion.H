@@ -336,9 +336,12 @@ public:
                 frequency = max(1, minIter / 20);
             }
         }
-        // SIMPLE_LOG(verbose,
-        //            "frequency " + word(frequency) + " minIter " +
-        //            word(minIter))
+
+        word msg = "Creating stopping criterion with minIter " +
+                   std::to_string(minIter) + " frequency " +
+                   std::to_string(frequency);
+
+        LOG_1(verbose, msg)
 
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)

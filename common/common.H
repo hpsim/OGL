@@ -40,10 +40,11 @@ using vec = gko::matrix::Dense<scalar>;
     (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 #define SIMPLE_LOG(VERBOSE, PRIO, MSG)                                     \
-    if (VERBOSE >= PRIO) {                                                 \
+    if (VERBOSE > PRIO) {                                                  \
         if (Pstream::parRun()) {                                           \
             std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "][" \
-                      << __FILENAME__ << "] " << MSG << std::endl;         \
+                      << __FILENAME__ << ":" << __LINE__ << "] " << MSG    \
+                      << std::endl;                                        \
         } else {                                                           \
             std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
                       << std::endl;                                        \
