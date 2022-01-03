@@ -56,10 +56,12 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: cmake -E make_directory ~/ginkgo/build
       
+    - name: Show Ginkgo folder
+      run: ls ~/ginkgo
+      
     - name: Configure ginkgo CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
-      shell: bash
       working-directory: ~/ginkgo/build/
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
