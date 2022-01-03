@@ -50,8 +50,6 @@ using idx_array = gko::Array<label>;
                            Class gkoGlobalIndex Declaration
 \*---------------------------------------------------------------------------*/
 
-// TODO - make labellist persistent
-//      - add executor
 class gkoGlobalIndex {
     // Private Member Functions
 
@@ -139,9 +137,6 @@ public:
     //- My local size
     label localSize() const;
 
-    //- Return start/size range of local processor data
-    // std::pair<label, label> range() const;
-
     //- Is on local processor
     bool isLocal(const label i) const;
 
@@ -169,9 +164,6 @@ public:
 
     //- Size of proci data
     label localSize(const label proci) const;
-
-    //- Return start/size range of proci data
-    //  labelRange range(const label proci) const;
 
     //- Is on processor proci
     bool isLocal(const label proci, const label i) const;
@@ -260,6 +252,7 @@ public:
         }
     };
 
+
     //- Collect data in processor order on master (== procIDs[0]).
     //  Needs offsets only on master.
     template <class Container, class Value>
@@ -274,6 +267,7 @@ public:
                commsType);
     }
 
+
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
     template <class Value>
@@ -286,52 +280,6 @@ public:
         gather(UPstream::worldComm, UPstream::procID(UPstream::worldComm),
                localDataIn, globalDataOut, tag, commsType);
     }
-
-    // //- Collect data in processor order on master.
-    // //  Does communication with default communicator and message tag.
-    // template <class Type>
-    // static void gatherOp(
-    //     const UList<Type> &fld, List<Type> &allFld,
-    //     const int tag = UPstream::msgType(),
-    //     const Pstream::commsTypes commsType =
-    //     Pstream::commsTypes::nonBlocking);
-
-
-    // //- Inplace collect in processor order on master (== procIDs[0]).
-    // //- Needs offsets only on master.
-    // template <class Container, class Type>
-    // static void gather(
-    //     const labelUList &offsets, const label comm, const Container
-    //     &procIDs, List<Type> &fld, const int tag = UPstream::msgType(), const
-    //     Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking);
-
-    // //- Inplace collect in processor order on master (== procIDs[0]).
-    // //- Needs offsets only on master.
-    // template <class Container, class Type>
-    // void gather(const label comm, const Container &procIDs, List<Type> &fld,
-    //             const int tag = UPstream::msgType(),
-    //             const Pstream::commsTypes commsType =
-    //                 Pstream::commsTypes::nonBlocking) const
-    // {
-    //     gather(offsets_, comm, procIDs, fld, tag, commsType);
-    // }
-
-    // //- Inplace collect data in processor order on master
-    // //  Does communication with default communicator and message tag.
-    // //  After the gather, the field is zero-sized on the slaves.
-    // template <class Type>
-    // void gather(List<Type> &fld, const int tag = UPstream::msgType(),
-    //             const Pstream::commsTypes commsType =
-    //                 Pstream::commsTypes::nonBlocking) const;
-
-    // //- Inplace collect data in processor order on master
-    // //  Does communication with default communicator and message tag.
-    // //  After the gather, the field is zero-sized on the slaves.
-    // template <class Type>
-    // static void gatherOp(
-    //     List<Type> &fld, const int tag = UPstream::msgType(),
-    //     const Pstream::commsTypes commsType =
-    //     Pstream::commsTypes::nonBlocking);
 
 
     //- Distribute data in processor order. Requires fld to be sized!
@@ -407,6 +355,7 @@ public:
                 commsType);
     }
 
+
     //- Distribute data in processor order. Requires fld to be sized!
     //  Does communication with default communicator and message tag.
     template <class Value>
@@ -420,19 +369,6 @@ public:
                 UPstream::procID(UPstream::worldComm), globalDataIn,
                 localDataOut, tag, commsType);
     }
-
-    // //- Get (potentially remote) data. Elements required given as
-    // //  global indices
-    // template <class Type, class CombineOp>
-    // void get(List<Type> &allFld, const labelUList &globalIds,
-    //          const CombineOp &cop, const label comm = Pstream::worldComm,
-    //          const int tag = UPstream::msgType()) const;
-
-
-    // IOstream Operators
-
-    // friend Istream &operator>>(Istream &is, gkoGlobalIndex &gi);
-    // friend Ostream &operator<<(Ostream &os, const gkoGlobalIndex &gi);
 };
 
 
