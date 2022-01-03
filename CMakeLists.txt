@@ -117,7 +117,7 @@ target_sources(
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
-          # DevicePersistent/IOPreconditioner/IOPreconditioner.C
+          Preconditioner/Preconditioner.C
           DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
@@ -133,7 +133,7 @@ target_sources(
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
-         # DevicePersistent/IOPreconditioner/IOPreconditioner.H
+         Preconditioner/Preconditioner.H
          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
@@ -155,7 +155,7 @@ target_include_directories(
           DevicePersistent/DevicePersistentBase/
           DevicePersistent/ExecutorHandler/
           DevicePersistent/CsrMatrixWrapper/
-          # DevicePersistent/IOPreconditioner/
+          Preconditioner/
           DevicePersistent/IOGlobalIndex/)
 
 target_link_libraries(OGL PUBLIC Ginkgo::ginkgo)
