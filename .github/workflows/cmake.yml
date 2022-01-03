@@ -37,7 +37,7 @@ jobs:
       with:
         key: ginkgo-cache
         path: |
-          $HOME/ginkgo
+          /home/runner/ginkgo
                 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
@@ -49,14 +49,14 @@ jobs:
       
     - name: Clone Ginkgo 
       # Clone OpenFOAM
-      run: git clone  --depth 1 https://github.com/ginkgo-project/ginkgo.git $HOME/ginkgo
+      run: git clone  --depth 1 https://github.com/ginkgo-project/ginkgo.git /home/runner/ginkgo
       
       
     - name: Configure Ginkgo CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       shell: bash
-      working-directory: $HOME/ginkgo/
+      working-directory: /home/runner/ginkgo/
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
