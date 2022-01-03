@@ -25,10 +25,12 @@ jobs:
       FOAM_USER_LIBBIN: /home/go/OpenFOAM/${{ matrix.OF.path }}/platforms
     
     steps:
-    - name: Setup OpenFOAM Directory
-      # Create OpenFOAM directory and clone
-      run: mkdir -p ~/OpenFOAM
-      
+    - name: Cache OpenFOAM
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/OpenFOAM
+                
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
       run: git clone  --depth 1 ${{ matrix.OF.repo }}  ~/OpenFOAM/${{ matrix.OF.path }}
