@@ -35,6 +35,7 @@ SourceFiles
 #include "../common/common.H"
 
 
+
 namespace Foam {
 
 template <class MatrixType>
@@ -121,6 +122,7 @@ public:
           row_idxs_{fieldName + "_rows",  db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
+	std::cout << "!!!!! DEBUG nElems_ + interface " << nElems_ + nInterfaces_ << "\n";
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids =
                 get_other_proc_cell_ids(nInterfaces_, interfaces);
