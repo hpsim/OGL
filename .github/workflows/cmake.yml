@@ -32,7 +32,6 @@ jobs:
         path: |
           ~/OpenFOAM/${{ matrix.OF.path }}
           
-    steps:
     - name: Cache Ginkgo builds
       uses: actions/cache@v2
       with:
