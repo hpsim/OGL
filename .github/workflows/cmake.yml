@@ -52,13 +52,7 @@ jobs:
       uses: seanmiddleditch/gha-setup-ninja@v3
       with:
         # Version of ninja-build to install
-        version: # default is 1.10.0
-        # Override default platform with one of [win, mac, linux]
-        platform: # optional
-        # Destination directory, will be added to PATH
-        destination: # optional, default is ninja-build
-        # Proxy server
-        http_proxy: # optional
+        version: 1.10.0 # default is 1.10.0
 
     - uses: actions/checkout@v2
     - name: Create OGL Build Environment        
