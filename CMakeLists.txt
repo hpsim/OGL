@@ -38,7 +38,12 @@ add_subdirectory(third_party)
 # If ginkgo wasn't found so far look for the third_party installation
 if(NOT ${OGL_USE_EXTERNAL_GINKGO})
   find_package(
-    Ginkgo CONFIG 1.4.0 REQUIRED PATHS
+    Ginkgo
+    CONFIG
+    1.4.0
+    REQUIRED
+    PATHS
+    $ENV{FOAM_USER_LIBBIN}/lib
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
