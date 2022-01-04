@@ -43,7 +43,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     1.4.0
     REQUIRED
     PATHS
-    $ENV{FOAM_USER_LIBBIN}/lib
+    $ENV{FOAM_USER_LIBBIN}/lib/cmake
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
