@@ -23,7 +23,6 @@ jobs:
               version: "v2106"}]
     
     env:
-      
       FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
       FOAM_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
       FOAM_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
@@ -38,11 +37,7 @@ jobs:
         key: ${{ matrix.OF.path }}
         path: |
           $HOME/OpenFOAM
-          
-    - name: Show Env 
-      shell: bash
-      run: which make
-                
+
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
       run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
@@ -50,13 +45,26 @@ jobs:
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
       run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
-
+      
+    - name: Install ninja-build tool
+      # You may pin to the exact commit or the version.
+      # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
+      uses: seanmiddleditch/gha-setup-ninja@v3
+      with:
+        # Version of ninja-build to install
+        version: # default is 1.10.0
+        # Override default platform with one of [win, mac, linux]
+        platform: # optional
+        # Destination directory, will be added to PATH
+        destination: # optional, default is ninja-build
+        # Proxy server
+        http_proxy: # optional
 
     - uses: actions/checkout@v2
     - name: Create OGL Build Environment        
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{github.workspace}}/build
+      run: cmake -GNinja -E make_directory ${{github.workspace}}/build
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
