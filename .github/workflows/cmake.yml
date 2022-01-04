@@ -39,6 +39,8 @@ jobs:
         path: |
           $HOME/OpenFOAM
           
+    - name: Show Env 
+      run: which make
                 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
