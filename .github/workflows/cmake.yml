@@ -28,11 +28,10 @@ jobs:
     steps:
     - name: Setting up OF enviroment
       run: |
-        echo "action_state=yellow" >> $GITHUB_ENV
+        echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
+        echo "FOAM_LIBBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
         env
         # echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
-        # echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
-        # echo "FOAM_SRC=$FOAM_INST_DIR/${{ matrix.OF.path }})/src" >> $GITHUB_ENV
         #echo "FOAM_LIBBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
         #echo "FOAM_APPBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
         #echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
