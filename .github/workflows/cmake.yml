@@ -42,14 +42,14 @@ jobs:
     - name: Install build depencies  
       # Clone OpenFOAM
       run: |
-      sudo apt update
-      sudo apt install
-        tzdata \
-        git \
-        build-essential \
-        flex bison cmake zlib1g-dev \
-        libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
-        libscotch-dev libcgal-dev python python-dev
+        sudo apt update
+        sudo apt install
+          tzdata \
+          git \
+          build-essential \
+          flex bison cmake zlib1g-dev \
+          libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
+          libscotch-dev libcgal-dev python python-dev
 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
