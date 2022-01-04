@@ -23,6 +23,7 @@ jobs:
               version: "v2106"}]
     
     env:
+      Ginkgo_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo
       FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
       FOAM_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
       FOAM_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
