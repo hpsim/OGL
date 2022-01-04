@@ -43,7 +43,7 @@ jobs:
       # Clone OpenFOAM
       run: |
         sudo apt update
-        sudo apt install
+        sudo apt install \
           git \
           build-essential \
           flex bison cmake zlib1g-dev \
