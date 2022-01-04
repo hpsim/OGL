@@ -16,13 +16,20 @@ jobs:
     strategy:
       matrix:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
-              path: "OpenFOAM-8"},
+              path: "OpenFOAM-9"
+              version: "9"},
              {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam"}]
+              path: "openfoam"
+              version: "v2106"}]
     
     env:
-      FOAM_SRC: $HOME/OpenFOAM/${{ matrix.OF.path }}/src
-      FOAM_USER_LIBBIN: $HOME/OpenFOAM/${{ matrix.OF.path }}/platforms
+      
+      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+      FOAM_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+      FOAM_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+      FOAM_USER_LIBBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+      FOAM_USER_APPBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+ 
     
     steps:
     - name: Cache OpenFOAM
@@ -30,22 +37,16 @@ jobs:
       with:
         key: ${{ matrix.OF.path }}
         path: |
-          $HOME/OpenFOAM/${{ matrix.OF.path }}
+          $HOME/OpenFOAM
           
-    - name: Cache Ginkgo builds
-      uses: actions/cache@v2
-      with:
-        key: ginkgo-cache
-        path: |
-          /home/runner/ginkgo
                 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  --depth 1 ${{ matrix.OF.repo }}  $HOME/OpenFOAM/${{ matrix.OF.path }}
+      run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
-      run: ls $HOME/OpenFOAM/${{ matrix.OF.path }}
+      run: ls /home/OpenFOAM/${{ matrix.OF.path }}
 
 
     - uses: actions/checkout@v2
