@@ -46,6 +46,7 @@ jobs:
       # Clone OpenFOAM
       run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
       
+    - uses: actions/checkout@v2
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
       # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
@@ -53,9 +54,6 @@ jobs:
       with:
         # Version of ninja-build to install
         version: 1.10.0 # default is 1.10.0
-
-
-    - uses: actions/checkout@v2
     
     - name: Create OGL Build Environment        
       # Some projects don't allow in-source building, so create a separate build directory
