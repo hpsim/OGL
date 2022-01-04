@@ -25,7 +25,7 @@ jobs:
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
       Ginkgo_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo
-      FOAM_SRC: ${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/src
+      FOAM_SRC: ${{ FOAM_INST_DIR }}/${{ matrix.OF.path }}/src
       FOAM_LIBBIN: ${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
       FOAM_APPBIN: ${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
       FOAM_USER_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
