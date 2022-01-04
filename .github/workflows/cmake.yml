@@ -38,10 +38,27 @@ jobs:
         key: ${{ matrix.OF.path }}
         path: |
           $HOME/OpenFOAM
+          
+    - name: Install build depencies  
+      # Clone OpenFOAM
+      run: |
+      sudo apt
+      sudo apt install
+        tzdata \
+        git \
+        build-essential \
+        flex bison cmake zlib1g-dev \
+        libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
+        libscotch-dev libcgal-dev python python-dev
 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
       run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      
+    - name: Build OpenFOAM 
+      # Clone OpenFOAM
+      run: cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
+           ./Allwmake
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
