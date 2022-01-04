@@ -52,7 +52,6 @@ jobs:
       FOAM_SITE_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
       FOAM_ETC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc
       FOAM_APP: /home/runner/OpenFOAM/${{ matrix.OF.path }}/applications
-      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
       FOAM_TUTORIALS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/tutorials
       FOAM_UTILITIES: /home/runner/OpenFOAM/${{ matrix.OF.path }}/utilities
       FOAM_SOLVERS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/solvers
