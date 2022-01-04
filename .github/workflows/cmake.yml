@@ -56,8 +56,9 @@ jobs:
       
     - name: Build OpenFOAM 
       # Clone OpenFOAM
-      run: cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-           ./Allwmake
+      run: |
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
+         ./Allwmake
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
