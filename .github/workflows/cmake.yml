@@ -42,7 +42,7 @@ jobs:
     - name: Install build depencies  
       # Clone OpenFOAM
       run: |
-      sudo apt
+      sudo apt update
       sudo apt install
         tzdata \
         git \
