@@ -16,10 +16,10 @@ jobs:
     strategy:
       matrix:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
-              path: "OpenFOAM-9"
+              path: "OpenFOAM-9",
               version: "9"},
              {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam"
+              path: "openfoam",
               version: "v2106"}]
     
     env:
