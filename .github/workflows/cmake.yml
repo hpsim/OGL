@@ -24,49 +24,48 @@ jobs:
     
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
-      
+  
     steps:
       - name: Setting up OF enviroment
-      - run: |
-        echo "action_state=yellow" >> $GITHUB_ENV
-        env
-        # echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV 
-        # echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
-        # echo "FOAM_SRC=$FOAM_INST_DIR/${{ matrix.OF.path }})/src" >> $GITHUB_ENV
-        #echo "FOAM_LIBBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
-        #echo "FOAM_APPBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
-        #echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
-        #echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
-        #echo "WM_PROJECT=OpenFOAM" >> $GITHUB_ENV
-        #echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
-        #echo "WM_COMPILER_TYPE=system" >> $GITHUB_ENV
-        #echo "WM_COMPILER=gcc" >> $GITHUB_ENV
-        #echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
-        #echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
-        #echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
-        #echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
-        #echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
-        #WM_PROJECT_INST_DIR: ${{env.FOAM_INST_DIR}}
-        #WM_PROJECT_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
-        #WM_THIRD_PARTY_DIR: ${{env.FOAM_INST_DIR}}/openfoam/ThirdParty
-        #WM_PROJECT_USER_DIR: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}
-        #WM_ARCH: linux64
-        #WM_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake
-        #WM_LINK_LANGUAGE: c++
-        #WM_LABEL_OPTION: Int32
-        #WM_OPTIONS: linux64gccDPInt32Opt
-        #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
-        #FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
-        #FOAM_ETC: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/etc
-        #FOAM_APP: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/applications
-        #FOAM_TUTORIALS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/tutorials
-        #FOAM_UTILITIES: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/utilities
-        #FOAM_SOLVERS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/solvers
-        #FOAM_RUN: ${{env.FOAM_INST_DIR}}/go-v2106/run
-        #FOAM_API: 2106
+        run: |
+          echo "action_state=yellow" >> $GITHUB_ENV
+          env
+          # echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV 
+          # echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
+          # echo "FOAM_SRC=$FOAM_INST_DIR/${{ matrix.OF.path }})/src" >> $GITHUB_ENV
+          #echo "FOAM_LIBBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+          #echo "FOAM_APPBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+          #echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+          #echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+          #echo "WM_PROJECT=OpenFOAM" >> $GITHUB_ENV
+          #echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
+          #echo "WM_COMPILER_TYPE=system" >> $GITHUB_ENV
+          #echo "WM_COMPILER=gcc" >> $GITHUB_ENV
+          #echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
+          #echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
+          #echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
+          #echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
+          #echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
+          #WM_PROJECT_INST_DIR: ${{env.FOAM_INST_DIR}}
+          #WM_PROJECT_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
+          #WM_THIRD_PARTY_DIR: ${{env.FOAM_INST_DIR}}/openfoam/ThirdParty
+          #WM_PROJECT_USER_DIR: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}
+          #WM_ARCH: linux64
+          #WM_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake
+          #WM_LINK_LANGUAGE: c++
+          #WM_LABEL_OPTION: Int32
+          #WM_OPTIONS: linux64gccDPInt32Opt
+          #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
+          #FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
+          #FOAM_ETC: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/etc
+          #FOAM_APP: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/applications
+          #FOAM_TUTORIALS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/tutorials
+          #FOAM_UTILITIES: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/utilities
+          #FOAM_SOLVERS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/solvers
+          #FOAM_RUN: ${{env.FOAM_INST_DIR}}/go-v2106/run
+          #FOAM_API: 2106
 
     
-    steps:
     - name: Cache OpenFOAM
       uses: actions/cache@v2
       with:
