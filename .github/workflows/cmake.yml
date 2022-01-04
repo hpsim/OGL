@@ -29,7 +29,36 @@ jobs:
       FOAM_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
       FOAM_USER_LIBBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
       FOAM_USER_APPBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
- 
+      WM_PROJECT: OpenFOAM
+      WM_PROJECT_VERSION: ${{ matrix.OF.version }}
+      FOAM_INST_DIR: /home/runner/OpenFOAM/
+      WM_COMPILER_TYPE: system
+      WM_COMPILER: gcc
+      WM_PRECISION_OPTION: DP
+      WM_LABEL_SIZE: 32
+      WM_COMPILE_OPTION: Opt
+      WM_MPLIB: SYSTEMOPENMPI
+      WM_OSTYPE: POSIX
+      WM_PROJECT_INST_DIR: /home/runner/OpenFOAM/
+      WM_PROJECT_DIR: /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      WM_THIRD_PARTY_DIR: /home/runner/OpenFOAM/openfoam/ThirdParty
+      WM_PROJECT_USER_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}
+      WM_ARCH: linux64
+      WM_DIR: /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake
+      WM_LINK_LANGUAGE: c++
+      WM_LABEL_OPTION: Int32
+      WM_OPTIONS: linux64gccDPInt32Opt
+      FOAM_SITE_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
+      FOAM_SITE_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
+      FOAM_ETC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc
+      FOAM_APP: /home/runner/OpenFOAM/${{ matrix.OF.path }}/applications
+      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+      FOAM_TUTORIALS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/tutorials
+      FOAM_UTILITIES: /home/runner/OpenFOAM/${{ matrix.OF.path }}/utilities
+      FOAM_SOLVERS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/solvers
+      FOAM_RUN: /home/runner/OpenFOAM/go-v2106/run
+      FOAM_API: 2106
+
     
     steps:
     - name: Cache OpenFOAM
