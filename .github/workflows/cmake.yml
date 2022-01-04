@@ -28,8 +28,9 @@ jobs:
     steps:
     - name: Setting up OF enviroment
     - run: |
-      # echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV 
       echo "action_state=yellow" >> $GITHUB_ENV
+      env
+      # echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV 
       echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
       echo "FOAM_SRC=$FOAM_INST_DIR/${{ matrix.OF.path }})/src" >> $GITHUB_ENV
       #echo "FOAM_LIBBIN=${{ env.FOAM_INST_DIR }}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
@@ -45,7 +46,6 @@ jobs:
       #echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
       #echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
       #echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
-      env
       #WM_PROJECT_INST_DIR: ${{env.FOAM_INST_DIR}}
       #WM_PROJECT_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
       #WM_THIRD_PARTY_DIR: ${{env.FOAM_INST_DIR}}/openfoam/ThirdParty
