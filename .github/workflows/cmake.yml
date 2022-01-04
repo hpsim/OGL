@@ -92,7 +92,8 @@ jobs:
     - name: Build OpenFOAM 
       # Clone OpenFOAM
       run: |
-        cd ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
+        cd ${{env.FOAM_PATH }}
+        source etc/bashrc
         ls
         env
         ./Allwmake
