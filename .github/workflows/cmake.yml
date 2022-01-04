@@ -46,7 +46,7 @@ jobs:
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
-      run: ls /home/OpenFOAM/${{ matrix.OF.path }}
+      run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
 
 
     - uses: actions/checkout@v2
