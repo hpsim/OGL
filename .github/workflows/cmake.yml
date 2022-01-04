@@ -44,7 +44,7 @@ jobs:
         echo "WM_ARCH=linux64" >> $GITHUB_ENV
         echo "WM_LINK_LANGUAGE=c++" >> $GITHUB_ENV
         echo "WM_LABEL_OPTION=Int32" >> $GITHUB_ENV
-        echo "FOAM_PATH=${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_PATH=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "FOAM_ETC=${{env.FOAM_PATH}}/etc" >> $GITHUB_ENV
         echo "FOAM_APP=${{env.FOAM_PATH}}/applications" >> $GITHUB_ENV
         echo "FOAM_TUTORIALS=${{env.FOAM_PATH}}/tutorials" >> $GITHUB_ENV
