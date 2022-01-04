@@ -28,7 +28,7 @@ jobs:
     steps:
     - name: Setting up OF enviroment
     - run: |
-      Ginkgo_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo
+      echo "Ginkgo_DIR=/home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV 
       echo "action_state=yellow" >> $GITHUB_ENV
       echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
       echo "FOAM_SRC=$FOAM_INST_DIR/${{ matrix.OF.path }})/src" >> $GITHUB_ENV
