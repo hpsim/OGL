@@ -93,7 +93,6 @@ jobs:
       # Clone OpenFOAM
       run: |
         cd ${{env.FOAM_PATH }}
-        source etc/bashrc
         ls
         env
         ./Allwmake
