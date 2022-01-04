@@ -5,7 +5,8 @@ on: [pull_request]
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-
+  FOAM_INST_DIR: /home/runner/OpenFOAM/
+  
 jobs:
   build:
     # The CMake configure and build commands are platform agnostic and should work equally
@@ -24,14 +25,13 @@ jobs:
     
     env:
       Ginkgo_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib/cmake/Ginkgo
-      FOAM_SRC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-      FOAM_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
-      FOAM_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
-      FOAM_USER_LIBBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
-      FOAM_USER_APPBIN: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+      FOAM_SRC: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/src
+      FOAM_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+      FOAM_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/platforms/linux64DPInt32Opt/lib
+      FOAM_USER_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
+      FOAM_USER_APPBIN: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}/platforms/linux64DPInt32Opt/lib
       WM_PROJECT: OpenFOAM
       WM_PROJECT_VERSION: ${{ matrix.OF.version }}
-      FOAM_INST_DIR: /home/runner/OpenFOAM/
       WM_COMPILER_TYPE: system
       WM_COMPILER: gcc
       WM_PRECISION_OPTION: DP
@@ -39,23 +39,23 @@ jobs:
       WM_COMPILE_OPTION: Opt
       WM_MPLIB: SYSTEMOPENMPI
       WM_OSTYPE: POSIX
-      WM_PROJECT_INST_DIR: /home/runner/OpenFOAM/
-      WM_PROJECT_DIR: /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      WM_THIRD_PARTY_DIR: /home/runner/OpenFOAM/openfoam/ThirdParty
-      WM_PROJECT_USER_DIR: /home/runner/OpenFOAM/${{ github.actor }}-${{ matrix.OF.version }}
+      WM_PROJECT_INST_DIR: ${{env.FOAM_INST_DIR}}
+      WM_PROJECT_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
+      WM_THIRD_PARTY_DIR: ${{env.FOAM_INST_DIR}}/openfoam/ThirdParty
+      WM_PROJECT_USER_DIR: ${{env.FOAM_INST_DIR}}/${{ github.actor }}-${{ matrix.OF.version }}
       WM_ARCH: linux64
-      WM_DIR: /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake
+      WM_DIR: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake
       WM_LINK_LANGUAGE: c++
       WM_LABEL_OPTION: Int32
       WM_OPTIONS: linux64gccDPInt32Opt
-      FOAM_SITE_APPBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
-      FOAM_SITE_LIBBIN: /home/runner/OpenFOAM/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
-      FOAM_ETC: /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc
-      FOAM_APP: /home/runner/OpenFOAM/${{ matrix.OF.path }}/applications
-      FOAM_TUTORIALS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/tutorials
-      FOAM_UTILITIES: /home/runner/OpenFOAM/${{ matrix.OF.path }}/utilities
-      FOAM_SOLVERS: /home/runner/OpenFOAM/${{ matrix.OF.path }}/solvers
-      FOAM_RUN: /home/runner/OpenFOAM/go-v2106/run
+      FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
+      FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
+      FOAM_ETC: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/etc
+      FOAM_APP: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/applications
+      FOAM_TUTORIALS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/tutorials
+      FOAM_UTILITIES: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/utilities
+      FOAM_SOLVERS: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/solvers
+      FOAM_RUN: ${{env.FOAM_INST_DIR}}/go-v2106/run
       FOAM_API: 2106
 
     
@@ -85,8 +85,10 @@ jobs:
     - name: Build OpenFOAM 
       # Clone OpenFOAM
       run: |
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-         ./Allwmake
+        cd ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
+        ls
+        env
+        ./Allwmake
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
