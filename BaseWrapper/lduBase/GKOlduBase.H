@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
 
-#include "../common/StoppingCriterion.H"
+#include "../StoppingCriterion/StoppingCriterion.H"
 #include "../common/common.H"
 #include "../lduLduBase/lduLduBase.H"
 

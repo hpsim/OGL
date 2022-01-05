@@ -77,6 +77,9 @@ struct ExecutorInitFunctor {
         if (executor_name_ == "reference") {
             return host_exec;
         }
+
+        // NOTE Return empty pointer to avoid compiler warnings
+        return {};
     }
 
     word get_device_executor_name() const { return executor_name_; }
