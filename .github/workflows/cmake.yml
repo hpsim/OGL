@@ -33,6 +33,7 @@ jobs:
         echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
         echo "WM_OPTIONS=linux64gccDPInt32Opt" >> $GITHUB_ENV
         echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_ENV
+        echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
         echo "WM_COMPILER_TYPE=system" >> $GITHUB_ENV
         echo "WM_COMPILER=gcc" >> $GITHUB_ENV
         echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
@@ -53,10 +54,12 @@ jobs:
         echo "WM_OPTIONS=linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
         echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
+        echo "$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
         echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
+        echo "${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         env
         #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
