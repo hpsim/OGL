@@ -144,6 +144,8 @@ public:
 
             return gko::share(pre_factory->generate(gkomatrix));
         }
+
+        return {};
     };
 };
 }  // namespace Foam
