@@ -100,11 +100,6 @@ jobs:
       run: |
         [ -d /home/runner/OpenFOAM/ThirdParty-${{matrix.OF.version}} ] && cd /home/runner/OpenFOAM/ThirdParty-9 && ./Allwmake -j
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-        ls /home/runner/OpenFOAM//OpenFOAM-9/platforms/
-        ls /home/runner/OpenFOAM//OpenFOAM-9/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/
-        ls /home/runner/OpenFOAM//OpenFOAM-9/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/
-        ls /home/runner/OpenFOAM//OpenFOAM-9/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream/
-        ls /home/runner/OpenFOAM//OpenFOAM-9/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream/mpi
         ./Allwmake -j
       
     - name: Show OpenFOAM folder
