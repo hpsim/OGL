@@ -43,7 +43,7 @@ namespace Foam {
 
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public SolverFactory,
-                   public HostMatrixWrapper<MatrixType>  //,
+                   public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
     using val_array = gko::Array<scalar>;
@@ -167,13 +167,14 @@ public:
             auto dense_x = x.get_global_dense_vec();
             auto dense_b = b.get_global_dense_vec();
             SIMPLE_TIME(
-                verbose_, "gather global matrix",
+                verbose_, gather_global_matrix,
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
             if (Pstream::master()) {
                 LOG_1(verbose_, "create solver factory")
-                SIMPLE_TIME(verbose_, "init precond",
+                SIMPLE_TIME(verbose_, init_precond,
                             auto precond = this->init_preconditioner(
-                                gkomatrix, dense_x.get_device_exec()))
+                                gkomatrix.get_persistent_object(),
+                                this->get_exec_handler().get_device_exec());)
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
                     gkomatrix.get_persistent_object(), dense_x, dense_b,
@@ -213,9 +214,10 @@ public:
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
             auto dense_x = x.get_dense_vec();
             auto dense_b = b.get_dense_vec();
-            SIMPLE_TIME(verbose_, "init precond",
+            SIMPLE_TIME(verbose_, init_precond,
                         auto precond = this->init_preconditioner(
-                            gkomatrix, dense_x.get_device_exec()))
+                            gkomatrix.get_persistent_object(),
+                            this->get_exec_handler().get_device_exec());)
             auto solver_gen = this->create_solver(
                 this->get_exec_handler().get_device_exec(),
                 gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,

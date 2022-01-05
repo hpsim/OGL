@@ -33,18 +33,17 @@ SourceFiles
 
 namespace Foam {
 class Preconditioner {
+    using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
 
 private:
     const word name_;
 
-    const label maxBlockSize_;
-
 public:
     Preconditioner(const dictionary &solverControls)
-        : name_(solverControls.lookupOrDefault("preconditioner", word("none"))),
-          {};
+        : name_(
+              solverControls.lookupOrDefault("preconditioner", word("none"))){};
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<mtx> gkomatrix,
@@ -52,10 +51,9 @@ public:
     {
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            auto pre_factory = bj::build()
-                                   .with_skip_sorting(true)
-                                   .with_max_block_size(maxBlockSize_)
-                                   .on(device_exec);
+            auto pre_factory =
+                bj::build().with_skip_sorting(true).with_max_block_size(4u).on(
+                    device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
         if (name_ == "ILU") {
@@ -147,14 +145,6 @@ public:
             return gko::share(pre_factory->generate(gkomatrix));
         }
     };
-
-    std::shared_ptr<gko::LinOp> get_preconditioner() const
-    {
-        if (io_precond_ptr_ == NULL) {
-            return std::shared_ptr<gko::LinOp>{};
-        }
-        return io_precond_ptr_->get_ptr();
-    }
 };
 }  // namespace Foam
 

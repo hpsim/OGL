@@ -26,10 +26,6 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 
 #include <ginkgo/ginkgo.hpp>
-#include "IOPreconditioner.H"
+#include "Preconditioner.H"
 
-namespace Foam {
-
-defineTemplateTypeNameWithName(GKOBJIOPtr, "BJIOPtr");
-defineTemplateTypeNameWithName(GKOILUIOPtr, "ILUIOPtr");
-}  // namespace Foam
+namespace Foam {}  // namespace Foam
