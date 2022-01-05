@@ -372,14 +372,6 @@ public:
                             global_cell_index_.toGlobal(
                                 neighbProcNo,
                                 other_proc_cell_ids[interface_ctr + cellI]);
-                        std::cout << " Pstream::myProcNo() "
-                                  << Pstream::myProcNo() << " row " << row
-                                  << " face_cells[cellI]" << face_cells[cellI]
-                                  << " other_proc_cell_ids[interface_ctr + "
-                                     "cellI] "
-                                  << other_proc_cell_ids[interface_ctr + cellI]
-                                  << " other_side_global_cellID "
-                                  << other_side_global_cellID << std::endl;
 
                         rows[element_ctr] = global_cell_index_.toGlobal(row);
                         cols[element_ctr] = other_side_global_cellID;
