@@ -98,7 +98,7 @@ jobs:
     - name: Build OpenFOAM
       # Clone OpenFOAM
       run: |
-        [ -d  /home/runner/OpenFOAM/ThirdParty-9 ] cd  /home/runner/OpenFOAM/ThirdParty-9 && ./Allwmake -j
+        [ -d /home/runner/OpenFOAM/ThirdParty-9 ] && cd /home/runner/OpenFOAM/ThirdParty-9 && ./Allwmake -j
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
         ./Allwmake -j
       
