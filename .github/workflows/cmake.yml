@@ -44,7 +44,6 @@ jobs:
         echo "WM_ARCH=linux64" >> $GITHUB_ENV
         echo "WM_LINK_LANGUAGE=c++" >> $GITHUB_ENV
         echo "WM_LABEL_OPTION=Int32" >> $GITHUB_ENV
-        echo "FOAM_PATH=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $GITHUB_ENV
         echo "FOAM_APP=$FOAM_INST_DIR/${{matrix.OF.path}}/applications" >> $GITHUB_ENV
         echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $GITHUB_ENV
@@ -52,13 +51,12 @@ jobs:
         echo "FOAM_SOLVERS=$FOAM_INST_DIR/${{matrix.OF.path}}/solvers" >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "WM_OPTIONS=linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_PLATTFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/${{env.WM_OPTIONS}}" >> $GITHUB_ENV
-        echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/${{env.WM_OPTIONS}}/lib" >> $GITHUB_ENV
-        echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/${{env.WM_OPTIONS}}/bin" >> $GITHUB_ENV
+        echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
+        echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/${{env.WM_OPTIONS}}" >> $GITHUB_ENV
-        echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/${{env.WM_OPTIONS}}/lib" >> $GITHUB_ENV
-        echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/${{env.WM_OPTIONS}}/bin" >> $GITHUB_ENV
+        echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
+        echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_USER_LIBBIN}}/cmake/Ginkgo" >> $GITHUB_ENV
         env
         #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
