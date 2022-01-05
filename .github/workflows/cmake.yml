@@ -67,7 +67,7 @@ jobs:
         echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
         echo "${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
-        echo "LD_LIBRARY_PATH=${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib:        ${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib/dummy:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib64
+        echo "LD_LIBRARY_PATH=${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib:        ${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib/dummy:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib64" >> $GITHUB_ENV
         env
         #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
         #FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
