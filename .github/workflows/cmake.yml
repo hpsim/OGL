@@ -44,6 +44,7 @@ jobs:
         echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $GITHUB_ENV
         echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-$${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "WM_ARCH=linux64" >> $GITHUB_ENV
+        echo "WM_ARCH_OPTION=64" >> $GITHUB_ENV
         echo "WM_LINK_LANGUAGE=c++" >> $GITHUB_ENV
         echo "WM_LABEL_OPTION=Int32" >> $GITHUB_ENV
         echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $GITHUB_ENV
