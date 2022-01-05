@@ -60,7 +60,7 @@ using vec = gko::matrix::Dense<scalar>;
     F auto end_##NAME = std::chrono::steady_clock::now();                     \
     if (VERBOSE > 0) {                                                        \
         if (Pstream::parRun()) {                                              \
-            if (Pstream::myProcNo() == 0) {                                   \
+            if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                    \
                 std::cout                                                     \
                     << "[OGL LOG][Proc: " << Pstream::myProcNo()              \
                     << "]" #NAME " : "                                        \
