@@ -42,7 +42,7 @@ jobs:
         echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
         echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
         echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $GITHUB_ENV
-        echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-9" >> $GITHUB_ENV
+        echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-$${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "WM_ARCH=linux64" >> $GITHUB_ENV
         echo "WM_LINK_LANGUAGE=c++" >> $GITHUB_ENV
         echo "WM_LABEL_OPTION=Int32" >> $GITHUB_ENV
