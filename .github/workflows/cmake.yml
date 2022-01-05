@@ -57,7 +57,7 @@ jobs:
         echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
         echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
-        echo "Ginkgo_DIR=${{env.FOAM_USER_LIBBIN}}/cmake/Ginkgo" >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         env
         #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
         #FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
@@ -87,10 +87,10 @@ jobs:
       # Clone OpenFOAM
       run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
       
-    - name: Build OpenFOAM 
+    - name: Build OpenFOAM
+      workdir: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
       # Clone OpenFOAM
       run: |
-        cd ${{env.FOAM_PATH }}
         ls
         env
         ./Allwmake
