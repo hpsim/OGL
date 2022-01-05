@@ -18,10 +18,12 @@ jobs:
       matrix:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
               path: "OpenFOAM-9",
-              version: "9"},
+              version: "9",
+              mpi: "OPENMPI"},
              {repo: "https://develop.openfoam.com/Development/openfoam.git",
               path: "openfoam",
-              version: "v2106"}]
+              version: "v2106",
+              mpi: "SYSTEMOPENMPI"}]
     
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
@@ -40,7 +42,7 @@ jobs:
         echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
         echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
         echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
-        echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
+        echo "WM_MPLIB=${{matrix.OF.mpi}}" >> $GITHUB_ENV
         echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
         echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $GITHUB_ENV
         echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}" >> $GITHUB_ENV
@@ -95,10 +97,15 @@ jobs:
           libscotch-dev libcgal-dev python python-dev
 
     - name: Clone OpenFOAM 
-      # Clone OpenFOAM
       run: |
         git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
         git clone https://github.com/OpenFOAM/ThirdParty-9.git /home/runner/OpenFOAM/ThirdParty-9
+
+    - name: Download openmpi
+      run: |
+        cd /home/runner/OpenFOAM/ThirdParty-9
+        wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.bz2
+        tar xvf openmpi-2.1.1.tar.bz2
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
