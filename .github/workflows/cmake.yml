@@ -35,7 +35,7 @@ jobs:
         echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_ENV
         echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
         echo "WM_COMPILER_TYPE=system" >> $GITHUB_ENV
-        echo "WM_COMPILER=gcc" >> $GITHUB_ENV
+        echo "WM_COMPILER=Gcc" >> $GITHUB_ENV
         echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
         echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
         echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
@@ -97,9 +97,6 @@ jobs:
       # Clone OpenFOAM
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules
-        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules/linux64gcc
-        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules/linux64gcc/c++
         ./Allwmake
       
     - name: Show OpenFOAM folder
