@@ -97,7 +97,8 @@ jobs:
       # Clone OpenFOAM
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules/linux64gcc
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/rules/linux64gcc/c++
         ./Allwmake
       
