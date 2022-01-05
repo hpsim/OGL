@@ -151,11 +151,6 @@ typedef DevicePersistentBase<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef DevicePersistentBase<gko::OmpExecutor> GKOOmpExecPtr;
 typedef DevicePersistentBase<gko::HipExecutor> GKOHipExecPtr;
 typedef DevicePersistentBase<gko::DpcppExecutor> GKODpcppExecPtr;
-// typedef DevicePersistentBase<gko::matrix::Csr<scalar>> GKOCSRIOPtr;
-// typedef DevicePersistentBase<gko::matrix::Dense<scalar>> GKOVECIOPtr;
-// typedef DevicePersistentBase<gko::preconditioner::Jacobi<>> GKOBJIOPtr;
-// typedef DevicePersistentBase<gko::preconditioner::Ilu<>> GKOILUIOPtr;
-// typedef DevicePersistentBase<gko::LinOp> GKOLinOPIOPtr;
 
 
 }  // namespace Foam

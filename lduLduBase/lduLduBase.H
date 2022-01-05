@@ -180,8 +180,9 @@ public:
                     gkomatrix.get_persistent_object(), dense_x, dense_b,
                     verbose_, csr_matrix_wrapper_.get_export(), precond);
                 LOG_1(verbose_, "create solver")
-                auto solver = solver_gen->generate(
-                    gko::share(gkomatrix.get_persistent_object()));
+                SIMPLE_TIME(verbose_, generate_solver,
+                            auto solver = solver_gen->generate(
+                                gko::share(gkomatrix.get_persistent_object()));)
                 LOG_1(verbose_, "solve solver done")
                 SIMPLE_TIME(
                     verbose_, solve,
@@ -192,23 +193,9 @@ public:
                 solverPerf.nIterations() = this->get_number_of_iterations();
                 this->store_number_of_iterations();
             }
-            // std::cout << "!!!! psi before copying back" << std::endl;
-            // for (int i = 0; i < psi.size(); i++) {
-            //     std::cout << "!!!!! " << Pstream::myProcNo() << " celli " <<
-            //     i
-            //               << " " << psi[i] << std::endl;
-            // }
-
-            x.copy_back_parallel(this->get_global_cell_index(), &psi[0],
-                                 dense_x);
-
-            // std::cout << "!!!! psi after copying back" << std::endl;
-            // for (int i = 0; i < psi.size(); i++) {
-            //     std::cout << "!!!!! " << Pstream::myProcNo() << " celli " <<
-            //     i
-            //               << " " << psi[i] << std::endl;
-            // }
-
+            SIMPLE_TIME(verbose_, retrieve_result_from_device,
+                        x.copy_back_parallel(this->get_global_cell_index(),
+                                             &psi[0], dense_x);)
         } else {
             LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
@@ -222,11 +209,13 @@ public:
                 this->get_exec_handler().get_device_exec(),
                 gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
                 csr_matrix_wrapper_.get_export(), precond);
-            auto solver = solver_gen->generate(
-                gko::share(gkomatrix.get_persistent_object()));
+            SIMPLE_TIME(verbose_, generate_solver,
+                        auto solver = solver_gen->generate(
+                            gko::share(gkomatrix.get_persistent_object()));)
             SIMPLE_TIME(verbose_, solve,
                         solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-            x.copy_back(&psi[0], dense_x);
+            SIMPLE_TIME(verbose_, retrieve_result_from_device,
+                        x.copy_back(&psi[0], dense_x);)
             solverPerf.initialResidual() = this->get_init_res_norm();
             solverPerf.finalResidual() = this->get_res_norm();
             solverPerf.nIterations() = this->get_number_of_iterations();

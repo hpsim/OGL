@@ -19,12 +19,13 @@ License
 
 #include "gkoGlobalIndex.H"
 
+#include "../common/common.H"
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 namespace Foam {
 gkoGlobalIndex::gkoGlobalIndex(const label localSize) : gkoGlobalIndex()
 {
-    init(localSize);
+    SIMPLE_TIME(1, global_index_init, init(localSize);)
 }
 
 gkoGlobalIndex::gkoGlobalIndex(const label localSize, const int tag,

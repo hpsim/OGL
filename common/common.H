@@ -58,7 +58,7 @@ using vec = gko::matrix::Dense<scalar>;
 #define SIMPLE_TIME(VERBOSE, NAME, F)                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                 \
     F auto end_##NAME = std::chrono::steady_clock::now();                 \
-    if (VERBOSE) {                                                        \
+    if (VERBOSE > 0) {                                                    \
         if (Pstream::parRun()) {                                          \
             std::cout                                                     \
                 << "[OGL LOG][Proc: " << Pstream::myProcNo()              \
