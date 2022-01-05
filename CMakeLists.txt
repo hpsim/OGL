@@ -121,10 +121,10 @@ target_sources(
           DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          CG/GKOCG.C
-          BiCGStab/GKOBiCGStab.C
-          IR/GKOIR.C
-          Multigrid/GKOMultigrid.C
+          Solver/CG/GKOCG.C
+          Solver/BiCGStab/GKOBiCGStab.C
+          Solver/IR/GKOIR.C
+          Solver/Multigrid/GKOMultigrid.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
@@ -137,10 +137,10 @@ target_sources(
          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
-         CG/GKOCG.H
-         IR/GKOIR.H
-         Multigrid/GKOMultigrid.H
-         BiCGStab/GKOBiCGStab.H
+         Solver/CG/GKOCG.H
+         Solver/IR/GKOIR.H
+         Solver/Multigrid/GKOMultigrid.H
+         Solver/BiCGStab/GKOBiCGStab.H
          LduMatrix/GKOACG/GKOACG.H)
 
 target_include_directories(

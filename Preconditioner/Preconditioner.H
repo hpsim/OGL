@@ -31,57 +31,8 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
-#include "../DevicePersistentBase/DevicePersistentBase.H"
-
-
 namespace Foam {
-struct PreconditionerInitFunctor {
-    const PersistentArray<label> &col_idxs_;
-    const PersistentArray<label> &row_idxs_;
-    const PersistentArray<scalar> &values_;
-    const label verbose_;
-
-    PreconditionerInitFunctor(const PersistentArray<label> &col_idxs,
-                              const PersistentArray<label> &row_idxs,
-                              const PersistentArray<scalar> &values,
-                              const label verbose)
-        : col_idxs_(col_idxs),
-          row_idxs_(row_idxs),
-          values_(values),
-          verbose_(verbose)
-    {}
-
-
-    void update(std::shared_ptr<mtx> &csr_matrix) const
-    {
-        auto values_view = val_array::view(values_.get_device_exec(),
-                                           values_.get_global_size(),
-                                           csr_matrix->get_values());
-
-        // copy values to device
-        values_view = *values_.get_array().get();
-    }
-
-    std::shared_ptr<mtx> init() const
-    {
-        const auto device_exec = values_.get_device_exec();
-        const label nCells = values_.get_global_size();
-
-        auto coo_mtx = gko::share(coo_mtx::create(
-            device_exec, gko::dim<2>(nCells, nCells),
-            val_array(device_exec, *values_.get_array().get()),
-            *col_idxs_.get_array().get(), *row_idxs_.get_array().get()));
-
-        auto gkomatrix =
-            gko::share(mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
-
-        SIMPLE_TIME(verbose_, convert_coo_to_csr,
-                    coo_mtx->convert_to(gkomatrix.get());)
-        return gkomatrix;
-    }
-};
-
-class IOPreconditioner {
+class Preconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
 
@@ -90,47 +41,22 @@ private:
 
     const label maxBlockSize_;
 
-    const word preconditioner_db_name_;
-
-    const bool preconditioner_stored_;
-
-    const bool update_preconditioner_;
-
-    mutable PersistentBase<, class InitFunctor> preconditioner_;
-    // mutable GKOLinOPIOPtr *io_precond_ptr_ = NULL;
-
 public:
-    IOPreconditioner(const objectRegistry &db, const dictionary &solverControls,
-                     const word fieldName)
+    Preconditioner(const dictionary &solverControls)
         : name_(solverControls.lookupOrDefault("preconditioner", word("none"))),
-          maxBlockSize_(
-              solverControls.lookupOrDefault("maxBlockSize", label(16))),
-          preconditioner_db_name_("preconditioner_" + fieldName),
-          preconditioner_stored_(
-              db.foundObject<regIOobject>(preconditioner_db_name_)),
-          update_preconditioner_(solverControls.lookupOrDefault<Switch>(
-              "update_preconditioner", true)){};
+          {};
 
-    void init_preconditioner(const objectRegistry &db,
-                             std::shared_ptr<mtx> gkomatrix,
-                             std::shared_ptr<gko::Executor> device_exec) const
+    std::shared_ptr<gko::LinOp> init_preconditioner(
+        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec) const
     {
-        // TODO get field specific preconditioner
-        if (preconditioner_stored_ && !update_preconditioner_) {
-            io_precond_ptr_ =
-                &db.lookupObjectRef<GKOLinOPIOPtr>(preconditioner_db_name_);
-            return;
-        }
-        const fileName path = preconditioner_db_name_;
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             auto pre_factory = bj::build()
                                    .with_skip_sorting(true)
                                    .with_max_block_size(maxBlockSize_)
                                    .on(device_exec);
-            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
-            io_precond_ptr_ =
-                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+            return gko::share(pre_factory->generate(gkomatrix));
         }
         if (name_ == "ILU") {
             auto factorizaton_factory =
@@ -148,11 +74,7 @@ public:
                     .on(device_exec);
 
             // Use incomplete factors to generate ILU preconditioner auto
-            auto pre_generated =
-                gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
-
-            io_precond_ptr_ =
-                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+            return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
         }
         if (name_ == "IC") {
             auto factorizaton_factory =
@@ -164,9 +86,7 @@ public:
             auto pre_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
 
-            auto pre_generated = gko::share(pre_factory->generate(ic));
-            io_precond_ptr_ =
-                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+            return gko::share(pre_factory->generate(ic));
         }
         if (name_ == "ISAI") {
             auto pre_factory =
@@ -175,9 +95,7 @@ public:
                     .with_skip_sorting(true)
                     .on(device_exec);
 
-            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
-            io_precond_ptr_ =
-                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+            return gko::share(pre_factory->generate(gkomatrix));
         }
         if (name_ == "Multigrid") {
             using ir = gko::solver::Ir<scalar>;
@@ -226,9 +144,7 @@ public:
                             device_exec))
                     .on(device_exec);
 
-            auto pre_generated = gko::share(pre_factory->generate(gkomatrix));
-            io_precond_ptr_ =
-                new GKOLinOPIOPtr(IOobject(path, db), pre_generated);
+            return gko::share(pre_factory->generate(gkomatrix));
         }
     };
 

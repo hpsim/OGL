@@ -32,6 +32,7 @@ SourceFiles
 #include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
+#include "../Preconditioner/Preconditioner.H"
 
 #include "../common/common.H"
 
@@ -43,23 +44,18 @@ namespace Foam {
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public SolverFactory,
                    public HostMatrixWrapper<MatrixType>  //,
-//                   public IOPreconditioner
-{
+                   public Preconditioner {
 private:
     using val_array = gko::Array<scalar>;
     using idx_array = gko::Array<label>;
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
 
-
     const objectRegistry &db_;
 
     const gkoGlobalIndex globalIndex_;
 
     const CsrMatrixWrapper csr_matrix_wrapper_;
-
-    // TODO rename to Preconditioner factory
-    // const IOPreconditioner gkoPreconditionerFactory_;
 
     const dictionary &solver_controls_;
 
@@ -80,6 +76,7 @@ public:
                                         interfaces,
                                         solverControls,
                                         fieldName},
+          Preconditioner(solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -104,6 +101,7 @@ public:
         : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
                                         solverControls, fieldName),
+          Preconditioner(solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -168,17 +166,18 @@ public:
         if (Pstream::parRun()) {
             auto dense_x = x.get_global_dense_vec();
             auto dense_b = b.get_global_dense_vec();
-            LOG_1(verbose_, "get_gkomatrix")
-            auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();
+            SIMPLE_TIME(
+                verbose_, "gather global matrix",
+                auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
             if (Pstream::master()) {
                 LOG_1(verbose_, "create solver factory")
-
+                SIMPLE_TIME(verbose_, "init precond",
+                            auto precond = this->init_preconditioner(
+                                gkomatrix, dense_x.get_device_exec()))
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
                     gkomatrix.get_persistent_object(), dense_x, dense_b,
-                    verbose_, csr_matrix_wrapper_.get_export(),
-                    // this->get_preconditioner()
-                    std::shared_ptr<gko::LinOp>{});
+                    verbose_, csr_matrix_wrapper_.get_export(), precond);
                 LOG_1(verbose_, "create solver")
                 auto solver = solver_gen->generate(
                     gko::share(gkomatrix.get_persistent_object()));
@@ -212,15 +211,15 @@ public:
         } else {
             LOG_1(verbose_, "get_gkomatrix")
             auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
-
             auto dense_x = x.get_dense_vec();
             auto dense_b = b.get_dense_vec();
+            SIMPLE_TIME(verbose_, "init precond",
+                        auto precond = this->init_preconditioner(
+                            gkomatrix, dense_x.get_device_exec()))
             auto solver_gen = this->create_solver(
                 this->get_exec_handler().get_device_exec(),
                 gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
-                csr_matrix_wrapper_.get_export(),
-                // this->get_preconditioner()
-                std::shared_ptr<gko::LinOp>{});
+                csr_matrix_wrapper_.get_export(), precond);
             auto solver = solver_gen->generate(
                 gko::share(gkomatrix.get_persistent_object()));
             SIMPLE_TIME(verbose_, solve,
