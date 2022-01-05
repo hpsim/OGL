@@ -14,6 +14,7 @@ jobs:
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
               path: "OpenFOAM-9",
