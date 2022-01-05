@@ -92,11 +92,6 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
         auto values = values_.get_array();
         auto cols = col_idxs_.get_array();
         auto rows = row_idxs_.get_array();
-        for (int i = 0; i < values->get_num_elems(); i++) {
-            std::cout << "(" << rows->get_const_data()[i] << ","
-                      << cols->get_const_data()[i] << ") "
-                      << values->get_const_data()[i] << std::endl;
-        }
 
         auto coo_mtx = gko::share(coo_mtx::create(
             device_exec, gko::dim<2>(nCells, nCells),

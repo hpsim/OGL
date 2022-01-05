@@ -117,8 +117,6 @@ public:
           row_idxs_{fieldName + "_rows",  db,       exec_,
                     global_matrix_index_, verbose_, false}
     {
-        std::cout << "!!!!! DEBUG nElems_ + interface "
-                  << nElems_ + nInterfaces_ << "\n";
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids =
                 get_other_proc_cell_ids(nInterfaces_, interfaces);
@@ -458,14 +456,8 @@ public:
 
                 // insert into lower_stack
                 // find insert position
-                // std::cout << " Proc " << Pstream::myProcNo() <<
-                // "col_upper "
-                //           << col_upper << "  row " << row << "
-                //           element_ctr"
-                //           << element_ctr << endl;
                 lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
                                                            row_upper);
-                // std::cout << "done" << endl;
                 sorting_idxs[upper_ctr] = element_ctr;
 
                 element_ctr++;
