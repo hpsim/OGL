@@ -54,6 +54,7 @@ jobs:
         echo "WM_OPTIONS=linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
         echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
+        echo "FOAM_EXT_LIBBIN=$FOAM_INST_DIR/ThirdParty/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
         echo "$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
@@ -88,8 +89,10 @@ jobs:
 
     - name: Clone OpenFOAM 
       # Clone OpenFOAM
-      run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      
+      run: |
+        git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        git clone https://github.com/OpenFOAM/ThirdParty-9.git /home/runner/OpenFOAM/ThirdParty-9
+
     - name: Build OpenFOAM
       # Clone OpenFOAM
       run: |
