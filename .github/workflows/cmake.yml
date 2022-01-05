@@ -88,7 +88,7 @@ jobs:
       run: git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
       
     - name: Build OpenFOAM
-      workdir: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
+      working-directory: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}
       # Clone OpenFOAM
       run: |
         ls
