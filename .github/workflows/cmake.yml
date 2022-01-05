@@ -39,7 +39,7 @@ jobs:
         echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
         echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
         echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
-        echo "WM_MPLIB=OPENMPI" >> $GITHUB_ENV
+        echo "WM_MPLIB=SYSTEMOPENMPI" >> $GITHUB_ENV
         echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
         echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $GITHUB_ENV
         echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}" >> $GITHUB_ENV
@@ -85,7 +85,11 @@ jobs:
         sudo apt install \
           git \
           build-essential \
+          autoconf \
+          autotools-dev \
           flex bison cmake zlib1g-dev \
+          libfl-dev \
+          mpi-default-bin mpi-default-dev \
           libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
           libscotch-dev libcgal-dev python python-dev
 
