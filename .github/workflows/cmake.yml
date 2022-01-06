@@ -54,7 +54,7 @@ jobs:
         echo "FOAM_APP=$FOAM_INST_DIR/${{matrix.OF.path}}/applications" >> $GITHUB_ENV
         echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $GITHUB_ENV
         echo "FOAM_UTILITIES=$FOAM_INST_DIR/${{matrix.OF.path}}/utilities" >> $GITHUB_ENV
-        echo "FOAM_SOLVERS=$FOAM_INST_DIR/${{matrix.OF.path}}/solvers" >> $GITHUB_ENV
+        echo "FOAM_SOLVERS=$FOAM_INST_DIR/${{matrix.OF.path}}/applications/solvers" >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "WM_OPTIONS=linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
