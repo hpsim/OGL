@@ -80,8 +80,7 @@ jobs:
       uses: actions/cache@v2
       with:
         key: ${{ matrix.OF.path }}
-        path: |
-          $HOME/OpenFOAM
+        path: /home/runner/OpenFOAM/
           
     - name: Install build depencies  
       # Clone OpenFOAM
