@@ -121,6 +121,7 @@ target_sources(
           DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
+          HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           Solver/IR/GKOIR.C
@@ -129,6 +130,7 @@ target_sources(
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
+         HostMatrix/HostMatrix.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H

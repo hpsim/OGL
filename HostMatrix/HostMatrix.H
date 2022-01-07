@@ -175,153 +175,17 @@ public:
         // }
     }
 
+
     label count_elements_on_interfaces(
-        const lduInterfaceFieldPtrsList &interfaces_) const
-    {
-        label ctr{0};
-        for (int i = 0; i < interfaces_.size(); i++) {
-            if (interfaces_.operator()(i) == nullptr) {
-                continue;
-            }
-            const auto iface{interfaces_.operator()(i)};
-            ctr += iface->interface().faceCells().size();
-        }
-        return ctr;
-    }
+        const lduInterfaceFieldPtrsList &interfaces_) const;
 
     // TODO merge with get_other_proc_cell_ids
     std::vector<scalar> get_other_proc_bou_coeffs(
         const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> interfaceBouCoeffs)
-    {
-        std::vector<scalar> ret{};
-        ret.reserve(nInterfaces);
-
-        label startOfRequests = Pstream::nRequests();
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-
-            const auto iface{interfaces.operator()(i)};
-            const auto &face_cells{interfaceBouCoeffs[i]};
-            const label interface_size = face_cells.size();
-
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-                const label neighbProcNo = pldui.neighbProcNo();
-
-                word msg = "send face cells interface " + std::to_string(i) +
-                           " from proc " + std::to_string(Pstream::myProcNo()) +
-                           " to neighbour proc " + std::to_string(neighbProcNo);
-
-                LOG_2(verbose_, msg)
-                pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
-            }
-        }
-        Pstream::waitRequests(startOfRequests);
-        LOG_2(verbose_, "send face cells done")
-
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-
-            const auto iface{interfaces.operator()(i)};
-            const auto &face_cells{iface->interface().faceCells()};
-            const label interface_size = face_cells.size();
-
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-                const label neighbProcNo = pldui.neighbProcNo();
-
-                word msg_2 = "receive face cells interface " +
-                             std::to_string(i) + " from proc " +
-                             std::to_string(neighbProcNo);
-                LOG_2(verbose_, msg_2)
-
-                auto otherSide_tmp = pldui.receive<scalar>(
-                    Pstream::commsTypes::nonBlocking, interface_size);
-                LOG_2(verbose_, "receive face cells done")
-
-                for (label cellI = 0; cellI < interface_size; cellI++) {
-                    ret.push_back(otherSide_tmp()[cellI]);
-                }
-            }
-        }
-        word msg = "done collecting neighbouring processor cell id";
-
-        LOG_2(verbose_, msg)
-        return ret;
-    }
+        const FieldField<Field, scalar> interfaceBouCoeffs);
 
     std::vector<label> get_other_proc_cell_ids(
-        const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces)
-    {
-        std::vector<label> ret{};
-        ret.reserve(nInterfaces);
-
-        label startOfRequests = Pstream::nRequests();
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-
-            const auto iface{interfaces.operator()(i)};
-            const auto &face_cells{iface->interface().faceCells()};
-            const label interface_size = face_cells.size();
-
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-                const label neighbProcNo = pldui.neighbProcNo();
-
-                word msg = "send face cells interface " + std::to_string(i) +
-                           " from proc " + std::to_string(Pstream::myProcNo()) +
-                           " to neighbour proc " + std::to_string(neighbProcNo);
-
-                LOG_2(verbose_, msg)
-                pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
-            }
-        }
-        Pstream::waitRequests(startOfRequests);
-        LOG_2(verbose_, "send face cells done")
-
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-
-            const auto iface{interfaces.operator()(i)};
-            const auto &face_cells{iface->interface().faceCells()};
-            const label interface_size = face_cells.size();
-
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-                const label neighbProcNo = pldui.neighbProcNo();
-
-                word msg_2 = "receive face cells interface " +
-                             std::to_string(i) + " from proc " +
-                             std::to_string(neighbProcNo);
-                LOG_2(verbose_, msg_2)
-
-                auto otherSide_tmp = pldui.receive<label>(
-                    Pstream::commsTypes::nonBlocking, interface_size);
-                LOG_2(verbose_, "receive face cells done")
-
-                for (label cellI = 0; cellI < interface_size; cellI++) {
-                    ret.push_back(otherSide_tmp()[cellI]);
-                }
-            }
-        }
-        word msg = "done collecting neighbouring processor cell id";
-
-        LOG_2(verbose_, msg)
-        return ret;
-    }
+        const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces);
 
     // TODO this is pretty much the same as get_other_proc_cell_ids
     // and could probably trimmed down a lot
@@ -330,194 +194,17 @@ public:
                                  int *rows, int *cols, label row,
                                  label &element_ctr,
                                  label *sorting_interface_idxs,
-                                 const bool upper) const
-    {
-        label interface_ctr = 0;
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-
-            const auto &iface{interfaces.operator()(i)};
-            const auto &face_cells{iface->interface().faceCells()};
-            const label interface_size = face_cells.size();
-
-            if (isA<processorLduInterface>(iface->interface())) {
-                const processorLduInterface &pldui =
-                    refCast<const processorLduInterface>(iface->interface());
-
-                // if rank of corresponding processor is greater
-                // then own processor idx are not on lower matrix row
-                const label neighbProcNo = pldui.neighbProcNo();
-                if (upper) {
-                    if (neighbProcNo > Pstream::myProcNo()) {
-                        interface_ctr += interface_size;
-                        continue;
-                    }
-
-                } else {
-                    if (neighbProcNo < Pstream::myProcNo()) {
-                        interface_ctr += interface_size;
-                        continue;
-                    }
-                }
-
-                // check if current cell is on the current patch
-                // NOTE cells can be several times on same patch
-                for (label cellI = 0; cellI < interface_size; cellI++) {
-                    if (face_cells[cellI] == row) {
-                        const label other_side_global_cellID =
-                            global_cell_index_.toGlobal(
-                                neighbProcNo,
-                                other_proc_cell_ids[interface_ctr + cellI]);
-
-                        rows[element_ctr] = global_cell_index_.toGlobal(row);
-                        cols[element_ctr] = other_side_global_cellID;
-
-                        sorting_interface_idxs[interface_ctr + cellI] =
-                            element_ctr;
-
-                        element_ctr++;
-                    }
-                }
-                interface_ctr += interface_size;
-            }
-        }
-    }
+                                 const bool upper) const;
 
     void init_host_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces,
-        const std::vector<label> other_proc_cell_ids) const
-    {
-        // Step 1 local ldu -> csr conversion
-        // including local processor offset
-        LOG_1(verbose_, "start init host sparsity pattern")
-
-        auto lower_local = idx_array::view(
-            exec_.get_ref_exec(), nNeighbours_,
-            const_cast<label *>(&this->matrix().lduAddr().lowerAddr()[0]));
-
-        auto upper_local = idx_array::view(
-            exec_.get_ref_exec(), nNeighbours_,
-            const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
-
-        const auto lower = lower_local.get_const_data();
-        const auto upper = upper_local.get_const_data();
-
-        auto rows = row_idxs_.get_data();  // row_idxs_local->get_data();
-        auto cols = col_idxs_.get_data();  // col_idxs_local->get_data();
-
-        label element_ctr = 0;
-        label upper_ctr = 0;
-        label lower_ctr = 0;
-
-        std::vector<std::vector<std::pair<label, label>>> lower_stack(
-            nNeighbours_);
-
-
-        const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
-        auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
-
-        for (label row = 0; row < nCells_; row++) {
-            // check for lower idxs
-            insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                    row, element_ctr, sorting_interface_idxs,
-                                    false);
-
-            // add lower elements
-            // for now just scan till current upper ctr
-            if (!lower_stack[row].empty()) {
-                for (const auto &element : lower_stack[row]) {
-                    // TODO
-                    rows[element_ctr] = global_cell_index_.toGlobal(row);
-                    cols[element_ctr] = element.second;
-                    // lower_ctr doesnt correspond to same element as
-                    // upper_ctr
-                    sorting_idxs[element.first + nNeighbours_] = element_ctr;
-
-                    lower_ctr++;
-                    element_ctr++;
-                }
-            }
-
-            // add diagonal elemnts
-            rows[element_ctr] = global_cell_index_.toGlobal(row);
-            cols[element_ctr] = global_cell_index_.toGlobal(row);
-            sorting_idxs[2 * nNeighbours_ + row] = element_ctr;
-
-            element_ctr++;
-
-            // add upper elemnts
-            while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
-                label row_upper = global_cell_index_.toGlobal(lower[upper_ctr]);
-                label col_upper = global_cell_index_.toGlobal(upper[upper_ctr]);
-                rows[element_ctr] = row_upper;
-                cols[element_ctr] = col_upper;
-
-                // insert into lower_stack
-                // find insert position
-                lower_stack[upper[upper_ctr]].emplace_back(upper_ctr,
-                                                           row_upper);
-                sorting_idxs[upper_ctr] = element_ctr;
-
-                element_ctr++;
-                upper_ctr++;
-            }
-
-            insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                    row, element_ctr, sorting_interface_idxs,
-                                    true);
-        }
-        LOG_1(verbose_, "done init host matrix")
-    }
+        const std::vector<label> other_proc_cell_ids) const;
 
     bool get_verbose() const { return verbose_; }
 
     void update_host_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const std::vector<scalar> &interfaceBouCoeffs) const
-    {
-        auto ref_exec = gko::ReferenceExecutor::create();
-        // TODO create in ctr
-        // as devicePersistent so that we can reuse the memory
-
-        auto values = values_.get_data();
-
-        const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
-        const auto sorting_interface_idxs =
-            ldu_csr_idx_interface_mapping_.get_const_data();
-
-        auto lower = this->matrix().lower();
-        auto upper = this->matrix().upper();
-        for (label i = 0; i < nNeighbours(); i++) {
-            values[sorting_idxs[i]] = upper[i];
-            values[sorting_idxs[i + nNeighbours_]] = lower[i];
-        }
-
-        auto diag = this->matrix().diag();
-        for (label i = 0; i < local_nCells(); ++i) {
-            values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
-        }
-
-        label interface_ctr{0};
-        for (int i = 0; i < interfaces.size(); i++) {
-            if (interfaces.operator()(i) == nullptr) {
-                continue;
-            }
-            const auto iface{interfaces.operator()(i)};
-            const label patch_size = iface->interface().faceCells().size();
-
-            if (!isA<processorLduInterface>(iface->interface())) {
-                continue;
-            }
-
-            for (label cellI = 0; cellI < patch_size; cellI++) {
-                values[sorting_interface_idxs[interface_ctr + cellI]] =
-                    -interfaceBouCoeffs[interface_ctr + cellI];
-            }
-            interface_ctr += patch_size;
-        }
-    }
+        const std::vector<scalar> &interfaceBouCoeffs) const;
 
     label local_nCells() const { return nCells_; }
 
