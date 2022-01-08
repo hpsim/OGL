@@ -1,11 +1,13 @@
 # OpenFOAM Ginkgo Layer (OGL)
-[![Build Status](https://travis-ci.com/hpsim/OGL.svg?branch=dev)](https://travis-ci.com/hpsim/OGL)
-![Version](https://img.shields.io/badge/version-OpenFOAM--6-blue)
-![Version](https://img.shields.io/badge/version-OpenFOAM--7-blue)
-![Version](https://img.shields.io/badge/version-OpenFOAM--8-blue)
-[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
-
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/)
+
+> [Requirements](https://github.com/hpsim/OGL#requirements)<br/>
+> [Compilation](https://github.com/hpsim/OGL#Compilation)<br/>
+> [Usage](https://github.com/hpsim/OGL#Usage)<br/>
+> [Known Limitations](https://github.com/hpsim/OGL#Known_Limitations)<br/>
+> [Citing](https://github.com/hpsim/OGL#Citing)<br/>
+> [Example](https://github.com/hpsim/OGL#Example)<br/>
+
 
 ## Requirements
 
