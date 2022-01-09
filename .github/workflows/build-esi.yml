@@ -106,7 +106,7 @@ jobs:
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
-      shell: "/home/runner/OpenFOAM/etc/openfoam"
+      shell: /home/runner/OpenFOAM/etc/openfoam {0}
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
         ./Allwmake -j
