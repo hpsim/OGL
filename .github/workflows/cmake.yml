@@ -99,14 +99,15 @@ jobs:
 
     - name: Clone OpenFOAM 
       run: |
-        git clone  --depth 1 ${{ matrix.OF.repo }}  /home/runner/OpenFOAM/${{ matrix.OF.path }}
-        git clone https://github.com/OpenFOAM/ThirdParty-9.git /home/runner/OpenFOAM/ThirdParty-9
+        [ -d /home/runner/OpenFOAM/${{matrix.OF.path}} ] && \
+          git clone  --depth 1 ${{ matrix.OF.repo }} \
+            /home/runner/OpenFOAM/${{ matrix.OF.path }} && \
+          git clone https://github.com/OpenFOAM/ThirdParty-9.git \
+            /home/runner/OpenFOAM/ThirdParty-9 && \
+          cd /home/runner/OpenFOAM/ThirdParty-9 && \
+          wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.bz2 && \
+          tar xvf openmpi-2.1.1.tar.bz2
 
-    - name: Download openmpi
-      run: |
-        cd /home/runner/OpenFOAM/ThirdParty-9
-        wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.bz2
-        tar xvf openmpi-2.1.1.tar.bz2
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
