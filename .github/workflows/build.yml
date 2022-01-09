@@ -108,7 +108,6 @@ jobs:
           cd /home/runner/OpenFOAM/ThirdParty-9 && \
           wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.bz2 && \
           tar xvf openmpi-2.1.1.tar.bz2
-          ls $MPI_HOME
         else
           echo "Skipping clone"
         fi
