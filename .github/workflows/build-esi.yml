@@ -127,7 +127,7 @@ jobs:
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
-      shell: bash
+      shell: "/home/runner/OpenFOAM/etc/openfoam"
       working-directory: ${{github.workspace}}
       run: |
         mkdir build 
@@ -135,6 +135,7 @@ jobs:
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build
+      shell: "/home/runner/OpenFOAM/etc/openfoam"
       working-directory: ${{github.workspace}}/build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
