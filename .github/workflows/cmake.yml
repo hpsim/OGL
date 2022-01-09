@@ -99,7 +99,7 @@ jobs:
 
     - name: Clone OpenFOAM 
       run: |
-        [ -d /home/runner/OpenFOAM/${{matrix.OF.path}} ] && \
+        [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ] && \
           git clone  --depth 1 ${{ matrix.OF.repo }} \
             /home/runner/OpenFOAM/${{ matrix.OF.path }} && \
           git clone https://github.com/OpenFOAM/ThirdParty-9.git \
