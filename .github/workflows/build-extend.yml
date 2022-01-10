@@ -1,4 +1,4 @@
-name: Build ESI OpenFOAM
+name: Build foam-extend
 
 on: [pull_request]
 
@@ -109,7 +109,7 @@ jobs:
     - name: Build OpenFOAM
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      run: /home/runner/OpenFOAM/openfoam/etc/openfoam ./Allwmake -j
+      run: /home/runner/OpenFOAM/foam-extend-4.1/etc/openfoam ./Allwmake -j
       
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
