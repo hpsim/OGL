@@ -18,7 +18,7 @@ jobs:
       matrix:
         OF: [
              {repo: "git://git.code.sf.net/p/foam-extend/foam-extend-4.1",
-             path: "foam-extend-4.1"
+             path: "foam-extend-4.1",
              version: "4.1",
              mpi: "SYSTEMOPENMPI"}]
     
