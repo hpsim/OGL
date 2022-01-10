@@ -17,10 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         OF: [
-             {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam",
-              version: "v2106",
-              mpi: "SYSTEMOPENMPI"}]
+             {repo: "git://git.code.sf.net/p/foam-extend/foam-extend-4.1",
+             path: "foam-extend-4.1"
+             version: "4.1",
+             mpi: "SYSTEMOPENMPI"}]
     
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
@@ -127,19 +127,18 @@ jobs:
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
+      shell: "/home/runner/OpenFOAM/openfoam/etc/openfoam"
       working-directory: ${{github.workspace}}
       run: |
         mkdir build 
         cd build
-        /home/runner/OpenFOAM/openfoam/etc/openfoam \
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build
+      shell: "/home/runner/OpenFOAM/etc/openfoam"
       working-directory: ${{github.workspace}}/build
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: |
-        /home/runner/OpenFOAM/openfoam/etc/openfoam \
-          cmake --build . --config $BUILD_TYPE
+      run: cmake --build . --config $BUILD_TYPE
 
     - name: Test
       working-directory: ${{github.workspace}}/build
