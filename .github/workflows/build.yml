@@ -19,11 +19,7 @@ jobs:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
               path: "OpenFOAM-9",
               version: "9",
-              mpi: "OPENMPI"},
-             {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam",
-              version: "v2106",
-              mpi: "SYSTEMOPENMPI"}]
+              mpi: "OPENMPI"}]
     
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
