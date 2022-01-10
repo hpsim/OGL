@@ -1,4 +1,4 @@
-name: Build
+name: Build FOAM Foundation
 
 on: [pull_request]
 
