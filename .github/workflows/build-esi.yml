@@ -1,4 +1,4 @@
-name: Build ESI OpenFOAM
+name: OpenFOAM (ESI)
 
 on: [pull_request]
 
