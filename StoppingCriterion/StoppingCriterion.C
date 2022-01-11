@@ -17,21 +17,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include <ginkgo/ginkgo.hpp>
-#include <map>
-#include <type_traits>
-#include "GKOACG.H"
+#include "StoppingCriterion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-namespace Foam {
-
-defineTypeNameAndDebug(GKOACG, 0);
-
-LduMatrix<vector, scalar,
-          scalar>::solver::addsymMatrixConstructorToTable<GKOACG>
-    addGKOACGSymMatrixConstructorToTable_;
-}  // namespace Foam
+namespace Foam {}  // namespace Foam
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

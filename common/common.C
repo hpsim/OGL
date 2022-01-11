@@ -7,13 +7,13 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
 
 
 Author: Gregor Olenik <go@hpsim.de>
@@ -36,13 +36,13 @@ namespace Foam {
 void export_x(const std::string fn, const vec *x)
 {
     std::ofstream stream_x{fn};
-    SIMPLE_LOG(true, "Writing " + fn)
+    LOG_1(1, "Writing " + fn)
     gko::write(stream_x, x);
 };
 
 void export_x(const std::string fn, const mtx *A)
 {
-    SIMPLE_LOG(true, "Writing " + fn)
+    LOG_1(1, "Writing " + fn)
     std::ofstream stream{fn};
     gko::write(stream, A, gko::layout_type::coordinate);
 };

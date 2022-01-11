@@ -20,17 +20,16 @@ License
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 #include <type_traits>
-#include "GKOACG.H"
+#include "GKOMultigrid.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam {
 
-defineTypeNameAndDebug(GKOACG, 0);
+defineTypeNameAndDebug(GKOMultigrid, 0);
 
-LduMatrix<vector, scalar,
-          scalar>::solver::addsymMatrixConstructorToTable<GKOACG>
-    addGKOACGSymMatrixConstructorToTable_;
+lduMatrix::solver::addsymMatrixConstructorToTable<GKOMultigrid>
+    addGKOMultigridSymMatrixConstructorToTable_;
 }  // namespace Foam
 
 

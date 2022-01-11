@@ -7,7 +7,7 @@ License
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    OGL is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
     FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
@@ -28,9 +28,7 @@ SourceFiles
 #ifndef GKOlduBase_H
 #define GKOlduBase_H
 
-#include "../IOHandler/IOExecutorHandler/IOExecutorHandler.H"
-#include "../IOHandler/IOSortingIdxHandler/IOSortingIdxHandler.H"
-#include "../common/StoppingCriterion.H"
+#include "../StoppingCriterion/StoppingCriterion.H"
 #include "../common/common.H"
 #include "../lduLduBase/lduLduBase.H"
 

@@ -1,22 +1,29 @@
 # OpenFOAM Ginkgo Layer (OGL)
-[![Build Status](https://travis-ci.com/hpsim/OGL.svg?branch=dev)](https://travis-ci.com/hpsim/OGL)
-![Version](https://img.shields.io/badge/version-OpenFOAM--6-blue)
-![Version](https://img.shields.io/badge/version-OpenFOAM--7-blue)
-![Version](https://img.shields.io/badge/version-OpenFOAM--8-blue)
-[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
+A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
-A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/)
+> [Requirements](https://github.com/hpsim/OGL#requirements)<br/>
+> [Compilation](https://github.com/hpsim/OGL#Compilation)<br/>
+> [Usage](https://github.com/hpsim/OGL#Usage)<br/>
+> [Known Limitations](https://github.com/hpsim/OGL#Known_Limitations)<br/>
+> [Citing](https://github.com/hpsim/OGL#Citing)<br/>
+> [Example](https://github.com/hpsim/OGL#Example)<br/>
+> [Performance](https://github.com/hpsim/OGL#Performance)<br/>
+
 
 ## Requirements
 
 OGL has the following requirements
 
 *   _cmake 3.9+_
-*   _OpenFOAM 6+_
+*   _OpenFOAM 6+_ or _v2106_
 *   _Ginkgo 1.4.0+_
-*   C++14 compliant compiler
+*   C++14 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
+
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-esi.yml/badge.svg)
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-extend.yml/badge.svg)
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build.yml/badge.svg)
 
 ## Compilation
 
@@ -28,7 +35,7 @@ By default *OGL* will fetch and build ginkgo, to specify which backend should be
 
     cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
 
-Then, make sure that the `system/controlDict` includes the `OGL.so` file:
+Then, make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
 
@@ -89,6 +96,12 @@ available through the following reference:
     primaryClass={cs.MS}
 }
 ```
+
 ## Example
 Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
+
+## Performance
+[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
+
+A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).

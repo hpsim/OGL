@@ -20,17 +20,19 @@ License
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 #include <type_traits>
-#include "GKOACG.H"
+#include "GKOBiCGStab.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam {
 
-defineTypeNameAndDebug(GKOACG, 0);
+defineTypeNameAndDebug(GKOBiCGStab, 0);
 
-LduMatrix<vector, scalar,
-          scalar>::solver::addsymMatrixConstructorToTable<GKOACG>
-    addGKOACGSymMatrixConstructorToTable_;
+lduMatrix::solver::addsymMatrixConstructorToTable<GKOBiCGStab>
+    addGKOBiCGStabSymMatrixConstructorToTable_;
+
+lduMatrix::solver::addasymMatrixConstructorToTable<GKOBiCGStab>
+    addGKOBiCGStabAsymMatrixConstructorToTable_;
 }  // namespace Foam
 
 

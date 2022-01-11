@@ -15,26 +15,17 @@ License
     You should have received a copy of the GNU General Public License
     along with OGL.  If not, see <http://www.gnu.org/licenses/>.
 
+Class
+    Foam::GKOCG
+
+Author: Gregor Olenik <go@hpsim.de>
+
+SourceFiles
+    GKOCG.C
+
 \*---------------------------------------------------------------------------*/
 
 #include <ginkgo/ginkgo.hpp>
-#include <map>
-#include <type_traits>
-#include "GKOACG.H"
+#include "Preconditioner.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-namespace Foam {
-
-defineTypeNameAndDebug(GKOACG, 0);
-
-LduMatrix<vector, scalar,
-          scalar>::solver::addsymMatrixConstructorToTable<GKOACG>
-    addGKOACGSymMatrixConstructorToTable_;
-}  // namespace Foam
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-
-// ************************************************************************* //
+namespace Foam {}  // namespace Foam
