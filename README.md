@@ -1,5 +1,5 @@
 # OpenFOAM Ginkgo Layer (OGL)
-A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provide GPGPU capabilities to [OpenFOAM](https://openfoam.org/)
+A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 > [Requirements](https://github.com/hpsim/OGL#requirements)<br/>
 > [Compilation](https://github.com/hpsim/OGL#Compilation)<br/>
@@ -7,6 +7,7 @@ A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solver to provi
 > [Known Limitations](https://github.com/hpsim/OGL#Known_Limitations)<br/>
 > [Citing](https://github.com/hpsim/OGL#Citing)<br/>
 > [Example](https://github.com/hpsim/OGL#Example)<br/>
+> [Performance](https://github.com/hpsim/OGL#Performance)<br/>
 
 
 ## Requirements
@@ -19,6 +20,10 @@ OGL has the following requirements
 *   C++14 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
+
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-esi.yml/badge.svg)
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-extend.yml/badge.svg)
+![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build.yml/badge.svg)
 
 ## Compilation
 
@@ -91,6 +96,12 @@ available through the following reference:
     primaryClass={cs.MS}
 }
 ```
+
 ## Example
 Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
+
+## Performance
+[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
+
+A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).
