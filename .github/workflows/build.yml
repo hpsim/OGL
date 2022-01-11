@@ -1,4 +1,4 @@
-name: Build FOAM Foundation
+name: OpenFOAM (OpenFOAM Foundation)
 
 on: [pull_request]
 
