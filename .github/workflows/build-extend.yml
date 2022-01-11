@@ -1,4 +1,4 @@
-name: Build foam-extend
+name: foam-extend
 
 on: [pull_request]
 
