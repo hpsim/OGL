@@ -45,8 +45,7 @@ label HostMatrixWrapper<MatrixType>::count_elements_on_interfaces(
     return ctr;
 }
 
-template <>
-label HostMatrixWrapper<lduMatrix>::count_elements_on_interfaces(
+template label HostMatrixWrapper<lduMatrix>::count_elements_on_interfaces(
     const lduInterfaceFieldPtrsList &interfaces_) const;
 
 // TODO merge with get_other_proc_cell_ids
@@ -117,8 +116,8 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::get_other_proc_bou_coeffs(
     return ret;
 }
 
-template <>
-std::vector<scalar> HostMatrixWrapper<lduMatrix>::get_other_proc_bou_coeffs(
+template std::vector<scalar>
+HostMatrixWrapper<lduMatrix>::get_other_proc_bou_coeffs(
     const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> interfaceBouCoeffs);
 
@@ -189,8 +188,8 @@ std::vector<label> HostMatrixWrapper<MatrixType>::get_other_proc_cell_ids(
     return ret;
 }
 
-template <>
-std::vector<label> HostMatrixWrapper<lduMatrix>::get_other_proc_cell_ids(
+template std::vector<label>
+HostMatrixWrapper<lduMatrix>::get_other_proc_cell_ids(
     const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces);
 
 // TODO this is pretty much the same as get_other_proc_cell_ids
@@ -254,8 +253,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
     }
 }
 
-template <>
-void HostMatrixWrapper<lduMatrix>::insert_interface_coeffs(
+template void HostMatrixWrapper<lduMatrix>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
     label row, label &element_ctr, label *sorting_interface_idxs,
@@ -345,8 +343,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
     LOG_1(verbose_, "done init host matrix")
 }
 
-template <>
-void HostMatrixWrapper<lduMatrix>::init_host_sparsity_pattern(
+template void HostMatrixWrapper<lduMatrix>::init_host_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> other_proc_cell_ids) const;
 
@@ -397,8 +394,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     }
 }
 
-template <>
-void HostMatrixWrapper<lduMatrix>::update_host_matrix_data(
+template void HostMatrixWrapper<lduMatrix>::update_host_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<scalar> &interfaceBouCoeffs) const;
 
