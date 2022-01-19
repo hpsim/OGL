@@ -126,6 +126,7 @@ target_sources(
           Solver/BiCGStab/GKOBiCGStab.C
           Solver/IR/GKOIR.C
           Solver/Multigrid/GKOMultigrid.C
+          Solver/GMRES/GKOGMRES.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
@@ -143,6 +144,7 @@ target_sources(
          Solver/IR/GKOIR.H
          Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
+         Solver/GMRES/GKOGMRES.H
          LduMatrix/GKOACG/GKOACG.H)
 
 target_include_directories(
