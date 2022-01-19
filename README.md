@@ -52,6 +52,7 @@ Currently, the following solver are supported
 
 * CG
 * BiCGStab
+* GMRES
 * IR (experimental)
 * Multigrid (experimental)
 
