@@ -1,14 +1,15 @@
-**[Requirements](https://github.com/hpsim/OGL#requirements)** |
-**[Compilation](https://github.com/hpsim/OGL#Compilation)** |
-**[Usage](https://github.com/hpsim/OGL#Usage)** |
-**[Known Limitations](https://github.com/hpsim/OGL#Known_Limitations) ** |
-**[Citing](https://github.com/hpsim/OGL#Citing)** |
-**[Example](https://github.com/hpsim/OGL#Example)** |
-**[Performance](https://github.com/hpsim/OGL#Performance)** |
+**[Requirements](#requirements)** |
+**[Compilation](#Compilation)** |
+**[Usage](#Usage)** |
+**[Known Limitations](#Known_Limitations)** |
+**[Citing](#Citing)** |
+**[Example](#Example)** |
+**[Performance](#Performance)** |
+
 ---
+
 # OpenFOAM Ginkgo Layer (OGL)
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
-
 
 
 ## Requirements
