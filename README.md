@@ -1,13 +1,14 @@
+**[Requirements](https://github.com/hpsim/OGL#requirements)** |
+**[Compilation](https://github.com/hpsim/OGL#Compilation)** |
+**[Usage](https://github.com/hpsim/OGL#Usage)** |
+**[Known Limitations](https://github.com/hpsim/OGL#Known_Limitations) ** |
+**[Citing](https://github.com/hpsim/OGL#Citing)** |
+**[Example](https://github.com/hpsim/OGL#Example)** |
+**[Performance](https://github.com/hpsim/OGL#Performance)** |
+---
 # OpenFOAM Ginkgo Layer (OGL)
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
-> [Requirements](https://github.com/hpsim/OGL#requirements)<br/>
-> [Compilation](https://github.com/hpsim/OGL#Compilation)<br/>
-> [Usage](https://github.com/hpsim/OGL#Usage)<br/>
-> [Known Limitations](https://github.com/hpsim/OGL#Known_Limitations)<br/>
-> [Citing](https://github.com/hpsim/OGL#Citing)<br/>
-> [Example](https://github.com/hpsim/OGL#Example)<br/>
-> [Performance](https://github.com/hpsim/OGL#Performance)<br/>
 
 
 ## Requirements
@@ -46,8 +47,22 @@ Some of OGL features might depend on features which are not already implemented 
 
 ## Usage
 
-OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
+OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use Ginkgo's `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` keyword to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
 
+Argument | Default | Description
+------------ | ------------- | -------------
+updateSysMatrix | true | whether to copy the system matrix to device on every solver call
+updateRHS | true | whether to copy the system matrix to device on every solver call
+updateInitGuess | false |whether to copy the initial guess to device on every solver call
+export | false | write the complete system to disk
+verbose | 0 | print out extra info
+device_id | false |whether to copy the initial guess to device on every solver call
+executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
+evalFrequency | 1 | evaluate residual norm every n-th iteration
+adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
+relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
+
+### Supported Solver
 Currently, the following solver are supported
 
 * CG
@@ -56,8 +71,9 @@ Currently, the following solver are supported
 * IR (experimental)
 * Multigrid (experimental)
 
-additionally, the following preconditioner are availible
+additionally, the following preconditioner are available
 
+### Supported Preconditioner
 * BJ, block Jacobi
 * ILU, incomplete LU (experimental)
 * IC, incomplete Cholesky (experimental)
@@ -68,15 +84,10 @@ The following optional solver arguments are supported
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-updateSysMatrix | true | whether to copy the system matrix to device on every solver call
-updateInitVector | false |whether to copy the initial guess to device on every solver call
-sort | true | sort the system matrix
-executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
-export | false | write the complete system to disk
-verbose | false | print out extra info
-evalFrequency | 1 | evaluate residual norm every n-th iteration
-adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
-relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
+maxBlockSize | 1 |  
+
+
+
 
 ## Known Limitations
 
