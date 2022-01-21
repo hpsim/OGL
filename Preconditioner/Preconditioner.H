@@ -128,23 +128,30 @@ public:
                 amgx_pgm::build().with_deterministic(true).on(device_exec);
 
             // Create CoarsestSolver factory
-            auto coarsest_gen =
-                (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
-                                                 word("IR")) == "IR")
-                    ? gko::share(
-                          ir::build()
-                              .with_solver(inner_solver_gen)
-                              .with_relaxation_factor(0.9)
-                              .with_criteria(gko::stop::Iteration::build()
-                                                 .with_max_iters(4u)
-                                                 .on(device_exec))
-                              .on(device_exec))
-                    : gko::share(
-                          cg::build()
-                              .with_criteria(gko::stop::Iteration::build()
-                                                 .with_max_iters(4u)
-                                                 .on(device_exec))
-                              .on(device_exec));
+            // auto coarsest_gen =
+            //     (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
+            //                                      word("IR")) == "IR")
+            //         ? gko::share(
+            //               ir::build()
+            //                   .with_solver(inner_solver_gen)
+            //                   .with_relaxation_factor(0.9)
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec))
+            //         : gko::share(
+            //               cg::build()
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec));
+
+            auto coarsest_gen = gko::share(
+                cg::build()
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(4u).on(
+                            device_exec))
+                    .on(device_exec));
 
             // Create multigrid factory
             label max_levels(solverControls_.lookupOrDefault(
