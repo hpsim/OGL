@@ -38,28 +38,37 @@ class Preconditioner {
     using ic = gko::preconditioner::Ic<>;
 
 private:
+    const dictionary &solverControls_;
+
     const word name_;
 
 public:
     Preconditioner(const dictionary &solverControls)
-        : name_(
+        : solverControls_(solverControls),
+          name_(
               solverControls.lookupOrDefault("preconditioner", word("none"))){};
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<mtx> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
+        bool skip_sorting = solverControls_.lookupOrDefault<Switch>(
+            "_PreconditionerSkipSorting", true);
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            auto pre_factory =
-                bj::build().with_skip_sorting(true).with_max_block_size(4u).on(
-                    device_exec);
+            label max_block_size(solverControls_.lookupOrDefault(
+                "PreconditionerJacobiMaxBlockSize", label(1)));
+
+            auto pre_factory = bj::build()
+                                   .with_skip_sorting(skip_sorting)
+                                   .with_max_block_size(max_block_size)
+                                   .on(device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
         if (name_ == "ILU") {
             auto factorizaton_factory =
                 gko::factorization::Ilu<scalar, label>::build()
-                    .with_skip_sorting(true)
+                    .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
             auto par_ilu =
@@ -77,7 +86,7 @@ public:
         if (name_ == "IC") {
             auto factorizaton_factory =
                 gko::factorization::Ic<scalar, label>::build()
-                    .with_skip_sorting(true)
+                    .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
             auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
@@ -90,13 +99,14 @@ public:
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
                                           scalar, label>::build()
-                    .with_skip_sorting(true)
+                    .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
             return gko::share(pre_factory->generate(gkomatrix));
         }
         if (name_ == "Multigrid") {
             using ir = gko::solver::Ir<scalar>;
+            using cg = gko::solver::Cg<scalar>;
             using mg = gko::solver::Multigrid;
             using bj = gko::preconditioner::Jacobi<scalar, label>;
             using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
@@ -118,30 +128,44 @@ public:
                 amgx_pgm::build().with_deterministic(true).on(device_exec);
 
             // Create CoarsestSolver factory
-            auto coarsest_gen = gko::share(
-                ir::build()
-                    .with_solver(inner_solver_gen)
-                    .with_relaxation_factor(0.9)
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(4u).on(
-                            device_exec))
-                    .on(device_exec));
+            auto coarsest_gen =
+                (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
+                                                 word("IR")) == "IR")
+                    ? gko::share(
+                          ir::build()
+                              .with_solver(inner_solver_gen)
+                              .with_relaxation_factor(0.9)
+                              .with_criteria(gko::stop::iteration::build()
+                                                 .with_max_iters(4u)
+                                                 .on(device_exec))
+                              .on(device_exec))
+                    : gko::share(
+                          cg::build()
+                              .with_criteria(gko::stop::iteration::build()
+                                                 .with_max_iters(4u)
+                                                 .on(device_exec))
+                              .on(device_exec));
 
             // Create multigrid factory
+            label max_levels(solverControls_.lookupOrDefault(
+                "PreconditionerMultigridMaxLevels", label(9)));
+            label min_coarse_rows(solverControls_.lookupOrDefault(
+                "PreconditionerMultigridMinCoarseRows", label(10)));
+            bool zeroGuess(solverControls_.lookupOrDefault<Switch>(
+                "PreconditionerMultigridZeroGuess", true));
             auto pre_factory =
                 mg::build()
-                    .with_max_levels(9u)
-                    .with_min_coarse_rows(10u)
+                    .with_max_levels(max_levels)
+                    .with_min_coarse_rows(min_coarse_rows)
                     .with_pre_smoother(smoother_gen)
                     .with_post_uses_pre(true)
                     .with_mg_level(gko::share(mg_level_gen))
                     .with_coarsest_solver(coarsest_gen)
-                    .with_zero_guess(true)
+                    .with_zero_guess(zeroGuess)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
                     .on(device_exec);
-
             return gko::share(pre_factory->generate(gkomatrix));
         }
 
