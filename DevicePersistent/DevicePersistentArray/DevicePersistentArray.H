@@ -186,6 +186,9 @@ public:
                         db.template lookupObjectRef<
                               DevicePersistentBase<gko::Array<T>>>(global_name)
                             .get_ptr();
+                    if (!update_) {
+                        return persistent_object_global_;
+                    }
                 } else {
                     LOG_1(this->get_verbose(),
                           "initialising global array " + global_name +

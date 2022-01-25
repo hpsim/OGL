@@ -164,8 +164,10 @@ public:
 
         // Solve system
         if (Pstream::parRun()) {
-            auto dense_x = x.get_global_dense_vec();
-            auto dense_b = b.get_global_dense_vec();
+            SIMPLE_TIME(verbose_, gather_initGuess,
+                        auto dense_x = x.get_global_dense_vec();)
+            SIMPLE_TIME(verbose_, gather_RHS,
+                        auto dense_b = b.get_global_dense_vec();)
             SIMPLE_TIME(
                 verbose_, gather_global_matrix,
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
