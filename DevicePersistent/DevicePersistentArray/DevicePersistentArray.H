@@ -174,45 +174,44 @@ public:
     {
         if (Pstream::parRun()) {
             const word global_name = this->get_name() + "_global";
-            if (Pstream::master()) {
-                auto &db = this->get_db();
-                bool stored{db.template foundObject<regIOobject>(global_name)};
+            auto &db = this->get_db();
+            bool stored{db.template foundObject<regIOobject>(global_name)};
 
-                if (stored) {
-                    LOG_1(
-                        this->get_verbose(),
-                        "global array stored, retrieving from object registry")
-                    persistent_object_global_ =
-                        db.template lookupObjectRef<
-                              DevicePersistentBase<gko::Array<T>>>(global_name)
-                            .get_ptr();
-                    if (!update_) {
-                        return persistent_object_global_;
-                    }
-                } else {
-                    LOG_1(this->get_verbose(),
-                          "initialising global array " + global_name +
-                              " of size " +
-                              std::to_string(global_index_.size()))
-                    // create a new unitialised array
-                    persistent_object_global_ = std::make_shared<gko::Array<T>>(
-                        exec_.get_ref_exec(), global_index_.size());
+            if (stored && !update_) {
+                LOG_1(this->get_verbose(),
+                      "global array stored, retrieving from object registry")
+                persistent_object_global_ =
+                    db.template lookupObjectRef<
+                          DevicePersistentBase<gko::Array<T>>>(global_name)
+                        .get_ptr();
 
-                    const fileName path = global_name;
-                    if (store_global_) {
-                        DevicePersistentBase<gko::Array<T>>(
-                            IOobject(path, db), persistent_object_global_);
-                    }
-                }
+                return persistent_object_global_;
             }
 
-            LOG_1(this->get_verbose(), "gather global array: " + global_name)
-            global_index_.gather<T>(this->get_persistent_object(),
-                                    persistent_object_global_);
-            LOG_1(this->get_verbose(), "gather global array done")
+            if (!stored || update_) {
+                LOG_1(this->get_verbose(),
+                      "initialising global array " + global_name + " of size " +
+                          std::to_string(global_index_.size()))
+                // create a new unitialised array
+                persistent_object_global_ = std::make_shared<gko::Array<T>>(
+                    exec_.get_ref_exec(), global_index_.size());
 
-            return persistent_object_global_;
+                const fileName path = global_name;
+
+                LOG_1(this->get_verbose(),
+                      "gather global array: " + global_name)
+                global_index_.gather<T>(this->get_persistent_object(),
+                                        persistent_object_global_);
+                LOG_1(this->get_verbose(), "gather global array done")
+
+                if (store_global_) {
+                    DevicePersistentBase<gko::Array<T>>(
+                        IOobject(path, db), persistent_object_global_);
+                }
+                return persistent_object_global_;
+            }
         }
+
         return this->get_persistent_object();
     };
 
