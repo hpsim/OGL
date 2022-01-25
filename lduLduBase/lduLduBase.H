@@ -159,7 +159,7 @@ public:
             this->get_global_cell_index(),
             &psi[0],
             verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", true),
+            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             true};
 
         // Solve system
