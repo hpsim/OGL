@@ -143,24 +143,26 @@ public:
 
 
         PersistentArray<scalar> b{
+            &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
-            &source[0],
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            true};
+            true,
+            false};
 
         PersistentArray<scalar> x{
+            &psi[0],
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
-            &psi[0],
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            true};
+            true,
+            false};
 
         // Solve system
         if (Pstream::parRun()) {

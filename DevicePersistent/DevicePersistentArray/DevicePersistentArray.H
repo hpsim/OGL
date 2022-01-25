@@ -141,30 +141,38 @@ public:
     PersistentArray(const word name, const objectRegistry &db,
                     const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update = false, const bool global = false)
+                    const bool update, const bool store_global)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db, ArrayInitFunctor<T>(exec, global_index, verbose),
               update, verbose),
           global_index_(global_index),
           exec_(exec),
           update_(update),
-          store_global_(false)
+          store_global_(store_global)
     {}
 
-    PersistentArray(const word name, const objectRegistry &db,
+    /* PersistentArray constructor
+     *
+     * @param memory ptr to memory on host from which the gko array is
+     *               initialized
+     * @param update whether to update the underlying array if found in registry
+     * @param init_on_device whether the array is to be initialized on the
+     * device or host
+     */
+    PersistentArray(const T *memory, const word name, const objectRegistry &db,
                     const ExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const T *memory,
-                    const label verbose, const bool update = false,
-                    const bool on_device = false)
+                    const gkoGlobalIndex &global_index, const label verbose,
+                    const bool update, const bool store_global,
+                    const bool init_on_device)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db,
               ArrayInitFunctor<T>(exec, global_index, memory, verbose,
-                                  on_device),
+                                  init_on_device),
               update, verbose),
           global_index_(global_index),
           exec_(exec),
           update_(update),
-          store_global_(false)
+          store_global_(store_global)
     {}
 
     // gather the underlying data and return a
@@ -188,13 +196,18 @@ public:
                 return persistent_object_global_;
             }
 
+            // if the global array is not stored or has to be updated from
+            // the local arrays gather has to be called (again)
             if (!stored || update_) {
-                LOG_1(this->get_verbose(),
-                      "initialising global array " + global_name + " of size " +
-                          std::to_string(global_index_.size()))
+                const label global_size =
+                    Pstream::master() ? global_index_.size() : 0;
+                LOG_1(this->get_verbose(), "initialising global array " +
+                                               global_name + " of size " +
+                                               std::to_string(global_size))
+
                 // create a new unitialised array
                 persistent_object_global_ = std::make_shared<gko::Array<T>>(
-                    exec_.get_ref_exec(), global_index_.size());
+                    exec_.get_ref_exec(), global_size);
 
                 const fileName path = global_name;
 
@@ -205,7 +218,7 @@ public:
                 LOG_1(this->get_verbose(), "gather global array done")
 
                 if (store_global_) {
-                    DevicePersistentBase<gko::Array<T>>(
+                    auto s = new DevicePersistentBase<gko::Array<T>>(
                         IOobject(path, db), persistent_object_global_);
                 }
                 return persistent_object_global_;
