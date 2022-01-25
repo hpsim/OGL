@@ -250,7 +250,7 @@ public:
                 Pstream::waitRequests(startOfRequests);
             }
         }
-    };
+    }
 
 
     //- Collect data in processor order on master (== procIDs[0]).
