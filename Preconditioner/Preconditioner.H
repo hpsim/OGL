@@ -53,7 +53,7 @@ public:
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting = solverControls_.lookupOrDefault<Switch>(
-            "_PreconditionerSkipSorting", true);
+            "_PreconditionerSkipSorting", false);
         if (name_ == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(solverControls_.lookupOrDefault(
@@ -128,31 +128,31 @@ public:
                 amgx_pgm::build().with_deterministic(true).on(device_exec);
 
             // Create CoarsestSolver factory
-            std::shared_ptr<LinOp> coarsest_gen;
-            coarsest_gen =
-                (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
-                                                 word("IR")) == "IR")
-                    ? gko::share(
-                          ir::build()
-                              .with_solver(inner_solver_gen)
-                              .with_relaxation_factor(0.9)
-                              .with_criteria(gko::stop::Iteration::build()
-                                                 .with_max_iters(4u)
-                                                 .on(device_exec))
-                              .on(device_exec))
-                    : gko::share(
-                          cg::build()
-                              .with_criteria(gko::stop::Iteration::build()
-                                                 .with_max_iters(4u)
-                                                 .on(device_exec))
-                              .on(device_exec));
+            // std::shared_ptr<gko::LinOp> coarsest_gen;
+            // coarsest_gen =
+            //     (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
+            //                                      word("IR")) == "IR")
+            //         ? gko::share(
+            //               ir::build()
+            //                   .with_solver(inner_solver_gen)
+            //                   .with_relaxation_factor(0.9)
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec))
+            //         : gko::share(
+            //               cg::build()
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec));
 
-            // auto coarsest_gen = gko::share(
-            //     cg::build()
-            //         .with_criteria(
-            //             gko::stop::Iteration::build().with_max_iters(4u).on(
-            //                 device_exec))
-            //         .on(device_exec));
+            auto coarsest_gen = gko::share(
+                cg::build()
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(4u).on(
+                            device_exec))
+                    .on(device_exec));
 
             // Create multigrid factory
             label max_levels(solverControls_.lookupOrDefault(
