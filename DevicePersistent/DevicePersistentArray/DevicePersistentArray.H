@@ -41,6 +41,8 @@ namespace Foam {
 
 template <class T>
 struct ArrayInitFunctor {
+    const word name_;
+
     const ExecutorHandler &exec_;
 
     const gkoGlobalIndex &global_index_;
@@ -53,20 +55,22 @@ struct ArrayInitFunctor {
     const T *other_;
 
 
-    ArrayInitFunctor(const ExecutorHandler &exec,
+    ArrayInitFunctor(const ExecutorHandler &exec, const word name,
                      const gkoGlobalIndex &global_index, const label verbose,
                      const bool on_device = false)
         : exec_(exec),
+          name_(name),
           global_index_(global_index),
           on_device_(on_device),
           verbose_(verbose),
           other_(NULL)
     {}
 
-    ArrayInitFunctor(const ExecutorHandler &exec,
+    ArrayInitFunctor(const ExecutorHandler &exec, const word name,
                      const gkoGlobalIndex &global_index, const T *other,
                      const label verbose, const bool on_device = false)
         : exec_(exec),
+          name_(name),
           global_index_(global_index),
           on_device_(on_device),
           verbose_(verbose),
@@ -78,7 +82,7 @@ struct ArrayInitFunctor {
     void update(std::shared_ptr<gko::Array<T>> persistent_array) const
     {
         if (other_ != NULL) {
-            word msg{"updating array of size " +
+            word msg{"updating array " + name_ + " of size " +
                      std::to_string(global_index_.localSize())};
             LOG_1(verbose_, msg)
 
@@ -93,7 +97,7 @@ struct ArrayInitFunctor {
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
-        word msg{"initialising array of size " +
+        word msg{"initialising array " + name_ + " of size " +
                  std::to_string(global_index_.localSize())};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
@@ -143,7 +147,7 @@ public:
                     const gkoGlobalIndex &global_index, const label verbose,
                     const bool update, const bool store_global)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, ArrayInitFunctor<T>(exec, global_index, verbose),
+              name, db, ArrayInitFunctor<T>(exec, name, global_index, verbose),
               update, verbose),
           global_index_(global_index),
           exec_(exec),
@@ -166,7 +170,7 @@ public:
                     const bool init_on_device)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db,
-              ArrayInitFunctor<T>(exec, global_index, memory, verbose,
+              ArrayInitFunctor<T>(exec, name, global_index, memory, verbose,
                                   init_on_device),
               update, verbose),
           global_index_(global_index),
