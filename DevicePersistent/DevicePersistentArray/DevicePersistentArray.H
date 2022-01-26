@@ -138,7 +138,7 @@ class PersistentArray
     // on the device:
     //  - global data is needed on the device for example for the
     //    col and row idxs
-    mutable std::shared_ptr<gko::Array<T>> persistent_object_global_{};
+    mutable std::shared_ptr<gko::matrix::Dense<T>> persistent_object_global_{};
 
 
 public:
@@ -184,52 +184,30 @@ public:
     // currently the shared_ptr is a nullptr on all but the main rank
     std::shared_ptr<gko::Array<T>> get_global_array() const
     {
-        if (Pstream::parRun()) {
-            const word global_name = this->get_name() + "_global";
-            auto &db = this->get_db();
-            bool stored{db.template foundObject<regIOobject>(global_name)};
-
-            if (stored && !update_) {
-                LOG_1(this->get_verbose(),
-                      "global array stored, retrieving from object registry")
-                persistent_object_global_ =
-                    db.template lookupObjectRef<
-                          DevicePersistentBase<gko::Array<T>>>(global_name)
-                        .get_ptr();
-
-                return persistent_object_global_;
-            }
-
-            // if the global array is not stored or has to be updated from
-            // the local arrays gather has to be called (again)
-            if (!stored || update_) {
-                const label global_size =
-                    Pstream::master() ? global_index_.size() : 0;
-                LOG_1(this->get_verbose(), "initialising global array " +
-                                               global_name + " of size " +
-                                               std::to_string(global_size))
-
-                // create a new unitialised array
-                persistent_object_global_ = std::make_shared<gko::Array<T>>(
-                    exec_.get_ref_exec(), global_size);
-
-                const fileName path = global_name;
-
-                LOG_1(this->get_verbose(),
-                      "gather global array: " + global_name)
-                global_index_.gather<T>(this->get_persistent_object(),
-                                        persistent_object_global_);
-                LOG_1(this->get_verbose(), "gather global array done")
-
-                if (store_global_) {
-                    auto s = new DevicePersistentBase<gko::Array<T>>(
-                        IOobject(path, db), persistent_object_global_);
-                }
-                return persistent_object_global_;
-            }
+        if (!Pstream::parRun()) {
+            return this->get_persistent_object();
         }
 
-        return this->get_persistent_object();
+        const word global_name = this->get_name() + "_global";
+
+        // if the global array is not stored or has to be updated from
+        // the local arrays gather has to be called (again)
+        const label global_size = Pstream::master() ? global_index_.size() : 0;
+        LOG_1(this->get_verbose(), "initialising global array " + global_name +
+                                       " of size " +
+                                       std::to_string(global_size))
+
+        // create a new unitialised array
+        auto persistent_object_global =
+            std::make_shared<gko::Array<T>>(exec_.get_ref_exec(), global_size);
+
+
+        LOG_1(this->get_verbose(), "gather global array: " + global_name)
+        global_index_.gather<T>(this->get_persistent_object(),
+                                persistent_object_global);
+        LOG_1(this->get_verbose(), "gather global array done")
+
+        return persistent_object_global;
     };
 
     label get_global_size() const { return global_index_.size(); }
@@ -245,17 +223,35 @@ public:
 
     std::shared_ptr<gko::matrix::Dense<T>> get_global_dense_vec() const
     {
-        auto host_global_array = get_global_array();
+        const word global_name = this->get_name() + "_global";
+        const fileName path = global_name;
+        auto &db = this->get_db();
+        bool stored{db.template foundObject<regIOobject>(global_name)};
+        if (stored && !update_) {
+            LOG_1(this->get_verbose(),
+                  "global dense vector" + global_name +
+                      " stored, retrieving from object registry")
 
-        LOG_1(this->get_verbose(), "create global vec")
-        if (Pstream::master()) {
-            return gko::share(
-                vec::create(exec_.get_device_exec(),
-                            gko::dim<2>(host_global_array->get_num_elems(), 1),
-                            *host_global_array.get(), 1));
-        } else {
-            return {};
+            persistent_object_global_ =
+                db.template lookupObjectRef<
+                      DevicePersistentBase<gko::matrix::Dense<T>>>(global_name)
+                    .get_ptr();
+
+            return persistent_object_global_;
         }
+
+        auto host_global_array = get_global_array();
+        auto global_dense_vec = gko::share(
+            vec::create(exec_.get_device_exec(),
+                        gko::dim<2>(host_global_array->get_num_elems(), 1),
+                        *host_global_array.get(), 1));
+
+        if (store_global_) {
+            auto s = new DevicePersistentBase<gko::matrix::Dense<T>>(
+                IOobject(path, db), global_dense_vec);
+        }
+
+        return global_dense_vec;
     }
 
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const

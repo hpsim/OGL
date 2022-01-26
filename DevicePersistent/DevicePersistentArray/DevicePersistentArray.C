@@ -10,4 +10,8 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<scalar>>,
                                "PersistentScalarArray");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<label>>,
                                "PersistentLabelArray");
+defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Dense<label>>,
+                               "PersistentLabelVec");
+defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Dense<scalar>>,
+                               "PersistentScalarVec");
 }  // namespace Foam
