@@ -85,6 +85,31 @@ void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
     }
 }
 
+std::ostream &operator<<(
+    std::ostream &os,
+    const std::shared_ptr<gko::matrix::Dense<scalar>> array_in)
+{
+    auto array = array_in->clone();
+    auto ref_exec = gko::ReferenceExecutor::create();
+    array->set_executor(ref_exec);
+    label size = array->get_size();
+    os << size << " elements [";
+    if (size > 40) {
+        for (label i = 0; i < 9; i++) {
+            os << array->at(i) << ", "
+        }
+        os << array->at(10) << " ... ";
+        for (label i = size - 9; i < size - 1; i++) {
+            os << array->at(i) << ", "
+        }
+        os << array->at(size - 1) << "]\n"
+    } else {
+        for (label i = 0; i < size; i++) {
+            os << array->at(i) << ", "
+        }
+    }
+}
+
 label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
 {
     const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";

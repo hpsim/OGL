@@ -80,6 +80,9 @@ using vec = gko::matrix::Dense<scalar>;
         }                                                                     \
     }
 
+std::ostream &operator<<(
+    std::ostream &os,
+    const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time);
