@@ -89,24 +89,24 @@ std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in)
 {
-    auto array = array_in->clone();
     auto ref_exec = gko::ReferenceExecutor::create();
-    array->set_executor(ref_exec);
-    label size = array->get_size();
+    auto array = array_in->clone(ref_exec);
+    label size = array->get_size()[0];
     os << size << " elements [";
     if (size > 40) {
         for (label i = 0; i < 9; i++) {
-            os << array->at(i) << ", "
+            os << array->at(i) << ", ";
         }
         os << array->at(10) << " ... ";
         for (label i = size - 9; i < size - 1; i++) {
-            os << array->at(i) << ", "
+            os << array->at(i) << ", ";
         }
-        os << array->at(size - 1) << "]\n"
+        os << array->at(size - 1) << "]\n";
     } else {
-        for (label i = 0; i < size; i++) {
-            os << array->at(i) << ", "
+        for (label i = 0; i < size - 1; i++) {
+            os << array->at(i) << ", ";
         }
+        os << array->at(size - 1) << "]\n";
     }
 }
 
