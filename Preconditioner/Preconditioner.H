@@ -28,6 +28,7 @@ SourceFiles
 #define OGL_IOPreconditioner_INCLUDED_H
 
 #include <ginkgo/ginkgo.hpp>
+#include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -38,17 +39,24 @@ class Preconditioner {
     using ic = gko::preconditioner::Ic<>;
 
 private:
+    const objectRegistry &db_;
+
+    const label cache_preconditioner_;
+
     const dictionary &solverControls_;
 
     const word name_;
 
 public:
-    Preconditioner(const dictionary &solverControls)
-        : solverControls_(solverControls),
+    Preconditioner(const objectRegistry &db, const dictionary &solverControls)
+        : db_(db),
+          cache_preconditioner_(
+              solverControls.lookupOrDefault("PreconditionerCaching", 0)),
+          solverControls_(solverControls),
           name_(
               solverControls.lookupOrDefault("preconditioner", word("none"))){};
 
-    std::shared_ptr<gko::LinOp> init_preconditioner(
+    std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         std::shared_ptr<mtx> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
@@ -176,8 +184,31 @@ public:
                     .on(device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
-
         return {};
+    }
+
+    std::shared_ptr<gko::LinOp> init_preconditioner(
+        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec) const
+    {
+        const word precond_store_name = "Cached_preconditinoner";
+        const fileName path = precond_store_name;
+        bool stored{db_.template foundObject<regIOobject>(precond_store_name)};
+        if (stored && cache_preconditioner_ > 0) {
+            Info << "read from registry" << endl;
+            return db_
+                .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
+                    precond_store_name)
+                .get_ptr();
+        }
+
+        auto generated_precond =
+            init_preconditioner_impl(gkomatrix, device_exec);
+
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
+                                                       generated_precond);
+
+        return generated_precond;
     };
 };
 }  // namespace Foam

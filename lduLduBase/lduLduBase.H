@@ -76,7 +76,7 @@ public:
                                         interfaces,
                                         solverControls,
                                         fieldName},
-          Preconditioner(solverControls),
+          Preconditioner(matrix.mesh().thisDb(), solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -101,7 +101,7 @@ public:
         : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
                                         solverControls, fieldName),
-          Preconditioner(solverControls),
+          Preconditioner(matrix.mesh().thisDb(), solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -150,7 +150,7 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            true,
+            !solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false};
 
         PersistentArray<scalar> x{
@@ -161,7 +161,7 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            true,
+            !solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false};
 
         // Solve system
@@ -175,10 +175,13 @@ public:
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
             if (Pstream::master()) {
                 LOG_1(verbose_, "create solver factory")
+
+
                 SIMPLE_TIME(verbose_, init_precond,
                             auto precond = this->init_preconditioner(
                                 gkomatrix.get_persistent_object(),
                                 this->get_exec_handler().get_device_exec());)
+
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
                     gkomatrix.get_persistent_object(), dense_x, dense_b,

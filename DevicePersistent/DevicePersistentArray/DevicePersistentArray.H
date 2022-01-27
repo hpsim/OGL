@@ -201,7 +201,6 @@ public:
         auto persistent_object_global =
             std::make_shared<gko::Array<T>>(exec_.get_ref_exec(), global_size);
 
-
         LOG_1(this->get_verbose(), "gather global array: " + global_name)
         global_index_.gather<T>(this->get_persistent_object(),
                                 persistent_object_global);
@@ -241,17 +240,17 @@ public:
         }
 
         auto host_global_array = get_global_array();
-        auto global_dense_vec = gko::share(
+        persistent_object_global_ = gko::share(
             vec::create(exec_.get_device_exec(),
                         gko::dim<2>(host_global_array->get_num_elems(), 1),
                         *host_global_array.get(), 1));
 
         if (store_global_) {
             auto s = new DevicePersistentBase<gko::matrix::Dense<T>>(
-                IOobject(path, db), global_dense_vec);
+                IOobject(path, db), persistent_object_global_);
         }
 
-        return global_dense_vec;
+        return persistent_object_global_;
     }
 
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
@@ -294,6 +293,7 @@ public:
                                                 global_address.size(),
                                                 device_x->get_values())
                           : gko::Array<T>(gko::ReferenceExecutor::create());
+
         if (Pstream::master()) {
             x_view.set_executor(exec_.get_ref_exec());
 
