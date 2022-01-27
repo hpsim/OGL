@@ -51,7 +51,7 @@ public:
     Preconditioner(const objectRegistry &db, const dictionary &solverControls)
         : db_(db),
           cache_preconditioner_(
-              solverControls.lookupOrDefault("PreconditionerCaching", 0)),
+              solverControls.lookupOrDefault("PreconditionerCaching", 1)),
           solverControls_(solverControls),
           name_(
               solverControls.lookupOrDefault("preconditioner", word("none"))){};
