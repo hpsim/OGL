@@ -65,6 +65,42 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
         auto cols = col_idxs_.get_global_array();
         auto rows = row_idxs_.get_global_array();
 
+        // check if sorted
+        if (false) {
+            bool is_sorted_rows = true;
+            bool is_sorted_cols = true;
+            auto rows_data = rows->get_const_data();
+            auto cols_data = cols->get_const_data();
+            for (size_t i = 1; i < cols->get_num_elems(); i++) {
+                if (rows_data[i] < rows_data[i - 1]) {
+                    is_sorted_rows = false;
+                    Info << "rows sorting error element " << i << " row[i] "
+                         << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+                         << endl;
+                }
+                // same row but subsequent column is smaller
+                if (cols_data[i] < cols_data[i - 1] &&
+                    rows_data[i] == rows_data[i - 1]) {
+                    is_sorted_cols = false;
+                    Info << "cols sorting error element " << i << " row[i] "
+                         << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+                         << " col[i] " << cols_data[i] << " col[i-1] "
+                         << cols_data[i - 1] << endl;
+                }
+            }
+
+            Info << "is_sorted rows " << is_sorted_rows << endl;
+            Info << "is_sorted cols " << is_sorted_cols << endl;
+
+            if (!is_sorted_cols || !is_sorted_rows) {
+                for (size_t i = 1; i < cols->get_num_elems(); i++) {
+                    Info << i << " (" << rows_data[i] << "," << cols_data[i]
+                         << ")\n";
+                }
+            }
+        }
+
+
         if (Pstream::master()) {
             // for (int i = 0; i < values->get_num_elems(); i++) {
             //     std::cout << "(" << rows->get_const_data()[i] << ","
