@@ -45,27 +45,40 @@ private:
 
     const dictionary &solverControls_;
 
-    const word name_;
 
 public:
     Preconditioner(const objectRegistry &db, const dictionary &solverControls)
         : db_(db),
           cache_preconditioner_(
               solverControls.lookupOrDefault("PreconditionerCaching", 1)),
-          solverControls_(solverControls),
-          name_(
-              solverControls.lookupOrDefault("preconditioner", word("none"))){};
+          solverControls_(solverControls)
+    {}
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         std::shared_ptr<mtx> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
-        bool skip_sorting = solverControls_.lookupOrDefault<Switch>(
-            "_PreconditionerSkipSorting", false);
-        if (name_ == "BJ") {
+        word name;
+
+        const entry &e =
+            solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
+
+        if (e.isDict()) {
+            e.dict().readEntry("preconditioner", name);
+        } else {
+            e.stream() >> name;
+        }
+
+        const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
+
+
+        bool skip_sorting =
+            controls.lookupOrDefault<Switch>("SkipSorting", false);
+
+        if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            label max_block_size(solverControls_.lookupOrDefault(
-                "PreconditionerJacobiMaxBlockSize", label(1)));
+            label max_block_size(
+                controls.lookupOrDefault("MaxBlockSize", label(1)));
 
             auto pre_factory = bj::build()
                                    .with_skip_sorting(skip_sorting)
@@ -73,7 +86,7 @@ public:
                                    .on(device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
-        if (name_ == "ILU") {
+        if (name == "ILU") {
             auto factorizaton_factory =
                 gko::factorization::Ilu<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
@@ -91,7 +104,7 @@ public:
             // Use incomplete factors to generate ILU preconditioner auto
             return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
         }
-        if (name_ == "IC") {
+        if (name == "IC") {
             auto factorizaton_factory =
                 gko::factorization::Ic<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
@@ -103,7 +116,7 @@ public:
 
             return gko::share(pre_factory->generate(ic));
         }
-        if (name_ == "ISAI") {
+        if (name == "ISAI") {
             auto pre_factory = gko::preconditioner::Isai<
                                    gko::preconditioner::isai_type::general,
                                    scalar, label>::build()
@@ -112,7 +125,7 @@ public:
 
             return gko::share(pre_factory->generate(gkomatrix));
         }
-        if (name_ == "Multigrid") {
+        if (name == "Multigrid") {
             using ir = gko::solver::Ir<scalar>;
             using cg = gko::solver::Cg<scalar>;
             using mg = gko::solver::Multigrid;
@@ -163,12 +176,10 @@ public:
                     .on(device_exec));
 
             // Create multigrid factory
-            label max_levels(solverControls_.lookupOrDefault(
-                "PreconditionerMultigridMaxLevels", label(9)));
-            label min_coarse_rows(solverControls_.lookupOrDefault(
-                "PreconditionerMultigridMinCoarseRows", label(10)));
-            bool zeroGuess(solverControls_.lookupOrDefault<Switch>(
-                "PreconditionerMultigridZeroGuess", true));
+            label max_levels(controls.lookupOrDefault("MaxLevels", label(9)));
+            label min_coarse_rows(
+                controls.lookupOrDefault("MinCoarseRows", label(10)));
+            bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess", true));
             auto pre_factory =
                 mg::build()
                     .with_max_levels(max_levels)
