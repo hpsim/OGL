@@ -141,7 +141,6 @@ public:
                 this->get_exec_handler().get_exec_name() + typeName,
             this->fieldName());
 
-
         PersistentArray<scalar> b{
             &source[0],
             this->fieldName() + "_rhs",
@@ -170,6 +169,18 @@ public:
                         auto dense_x = x.get_global_dense_vec();)
             SIMPLE_TIME(verbose_, gather_RHS,
                         auto dense_b = b.get_global_dense_vec();)
+
+            scalar scaling =
+                solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
+            if (scaling != 1) {
+                auto dense_scaling =
+                    gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
+                        {scaling}, this->get_exec_handler().get_ref_exec()));
+
+                SIMPLE_TIME(verbose_, scale_RHS,
+                            dense_b->scale(dense_scaling.get());)
+            }
+
             SIMPLE_TIME(
                 verbose_, gather_global_matrix,
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)

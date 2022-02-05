@@ -63,6 +63,8 @@ private:
 
     const label verbose_;
 
+    const scalar scaling_;
+
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
     mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
@@ -98,6 +100,7 @@ public:
           global_values_index_{nElems_ - nInterfaces_},
           global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{
               fieldName + "_ldu_csr_map",
               db,
@@ -167,6 +170,7 @@ public:
           global_matrix_index_{nElems_},
           global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{fieldName + "ldu_csr_map",
                                db,
                                exec_,

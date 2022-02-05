@@ -370,13 +370,13 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto lower = this->matrix().lower();
     auto upper = this->matrix().upper();
     for (label i = 0; i < nNeighbours(); i++) {
-        values[sorting_idxs[i]] = upper[i];
-        values[sorting_idxs[i + nNeighbours_]] = lower[i];
+        values[sorting_idxs[i]] = upper[i] * scaling_;
+        values[sorting_idxs[i + nNeighbours_]] = lower[i] * scaling_;
     }
 
     auto diag = this->matrix().diag();
     for (label i = 0; i < local_nCells(); ++i) {
-        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
+        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i] * scaling_;
     }
 
     label interface_ctr{0};
@@ -393,7 +393,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
             values[sorting_interface_idxs[interface_ctr + cellI]] =
-                -interfaceBouCoeffs[interface_ctr + cellI];
+                -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
         }
         interface_ctr += patch_size;
     }
