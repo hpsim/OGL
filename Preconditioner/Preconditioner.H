@@ -150,11 +150,11 @@ public:
             return gko::share(pre_factory->generate(ic));
         }
         if (name == "ISAI") {
-            auto pre_factory = gko::preconditioner::Isai<
-                                   gko::preconditioner::isai_type::general,
-                                   scalar, label>::build()
-                                   .with_skip_sorting(skip_sorting)
-                                   .on(device_exec);
+            auto pre_factory =
+                gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+                                          scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
 
             return gko::share(pre_factory->generate(gkomatrix));
         }
