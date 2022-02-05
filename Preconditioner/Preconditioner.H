@@ -37,6 +37,7 @@ class Preconditioner {
     using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
+    using ir = gko::solver::Ir<scalar>;
 
 private:
     const objectRegistry &db_;
@@ -73,7 +74,7 @@ public:
 
 
         bool skip_sorting =
-            controls.lookupOrDefault<Switch>("SkipSorting", false);
+            controls.lookupOrDefault<Switch>("SkipSorting", true);
 
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
@@ -102,6 +103,38 @@ public:
                     .on(device_exec);
 
             // Use incomplete factors to generate ILU preconditioner auto
+            return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
+        }
+        if (name == "IRILU") {
+            auto factorizaton_factory =
+                gko::factorization::Ilu<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
+
+            auto par_ilu =
+                gko::share(factorizaton_factory->generate(gkomatrix));
+
+            auto bj_factory =
+                bj::build().with_max_block_size(1).on(device_exec);
+
+            auto trisolve_factory =
+                ir::build()
+                    .with_solver(share(bj_factory))
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(5).on(
+                            device_exec))
+                    .on(device_exec);
+
+            // Generate an ILU preconditioner factory by setting lower and upper
+            // triangular solver - in this case the previously defined iterative
+            // refinement method.
+            auto ilu_pre_factory =
+                gko::preconditioner::Ilu<ir, ir>::build()
+                    .with_l_solver_factory(gko::clone(trisolve_factory))
+                    .with_u_solver_factory(gko::clone(trisolve_factory))
+                    .on(device_exec);
+
+            // Use incomplete factors to generate ILU preconditioner
             return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
         }
         if (name == "IC") {
