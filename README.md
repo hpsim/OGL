@@ -4,7 +4,7 @@
 **[Known Limitations](#Known_Limitations)** |
 **[Citing](#Citing)** |
 **[Example](#Example)** |
-**[Performance](#Performance)** |
+**[Performance](#Performance)** 
 
 ---
 
@@ -76,16 +76,20 @@ additionally, the following preconditioner are available
 
 ### Supported Preconditioner
 * BJ, block Jacobi
+* [ISAI](https://doi.org/10.1016/j.parco.2017.10.003), Incomplete Sparse Approximate Inverses,
 * ILU, incomplete LU (experimental)
 * IC, incomplete Cholesky (experimental)
-* ISAI (experimental)
 * Multigrid, algebraic multigrid (experimental)
 
-The following optional solver arguments are supported
+The following optional arguments are supported to modify the preconditioner.
 
-Argument | Default | Description
+Argument | Default | Preconditioner
 ------------ | ------------- | -------------
-maxBlockSize | 1 |  
+MaxBlockSize | 1 | block Jacobi 
+SkipSorting | True | all
+MaxLevels | 9 | Multigrid
+MinCoarseRows | 10 | Multigrid
+ZeroGuess | True | Multigrid
 
 
 
