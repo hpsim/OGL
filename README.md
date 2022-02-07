@@ -81,7 +81,7 @@ additionally, the following preconditioner are available
 * IC, incomplete Cholesky (experimental)
 * Multigrid, algebraic multigrid (experimental)
 
-The following optional arguments are supported to modify the preconditioner.
+The following optional arguments are supported to modify the preconditioner. *Note* some preconditioners like IC or (SPD) ISAI require positive values on the system matrix diagonal, thus in case of the pressure equation the complete system needs to be scaled by a factor of -1.0.
 
 Argument | Default | Preconditioner
 ------------ | ------------- | -------------
@@ -90,6 +90,7 @@ SkipSorting | True | all
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
+scaling | 1.0 | all
 
 
 
