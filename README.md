@@ -85,12 +85,13 @@ The following optional arguments are supported to modify the preconditioner. *No
 
 Argument | Default | Preconditioner
 ------------ | ------------- | -------------
-MaxBlockSize | 1 | block Jacobi 
 SkipSorting | True | all
+scaling | 1.0 | all
+MaxBlockSize | 1 | block Jacobi 
+SparsityPower | 1 | ISAI
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
-scaling | 1.0 | all
 
 
 

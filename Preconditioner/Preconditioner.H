@@ -150,10 +150,13 @@ public:
             return gko::share(pre_factory->generate(ic));
         }
         if (name == "ISAI") {
+            label sparsity_power(
+                controls.lookupOrDefault("SparsityPower", label(1)));
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
                                           scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
+                    .with_sparsity_power(sparsity_power)
                     .on(device_exec);
 
             return gko::share(pre_factory->generate(gkomatrix));
