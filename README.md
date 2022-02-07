@@ -8,7 +8,7 @@
 
 ---
 
-# OpenFOAM Ginkgo Layer (OGL)
+#OpenFOAM Ginkgo Layer(OGL)
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 
@@ -57,11 +57,12 @@ updateRHS | true | whether to copy the system matrix to device on every solver c
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
 verbose | 0 | print out extra info
-device_id | false |whether to copy the initial guess to device on every solver call
+device_id | 0 | on which device to offload
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 evalFrequency | 1 | evaluate residual norm every n-th iteration
 adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
+scaling | 1.0 | Scale the complete system by the scaling factor
 
 ### Supported Solver
 Currently, the following solver are supported
@@ -86,12 +87,13 @@ The following optional arguments are supported to modify the preconditioner. *No
 Argument | Default | Preconditioner
 ------------ | ------------- | -------------
 SkipSorting | True | all
-scaling | 1.0 | all
+Caching | 1 | all
 MaxBlockSize | 1 | block Jacobi 
 SparsityPower | 1 | ISAI
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
+
 
 
 
