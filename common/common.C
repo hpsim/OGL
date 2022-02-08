@@ -68,11 +68,40 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     export_x(fn_x, x);
 };
 
-
-void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
-                          label prev_solve_iters)
+// TODO unify with set/get prev iters
+void set_next_caching(word sys_matrix_name_, const objectRegistry &db,
+                      label caching)
 {
     const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        const_cast<objectRegistry &>(db)
+            .lookupObjectRef<IOdictionary>(solvPropsDict)
+            .set<label>("caching", caching);
+    } else {
+        auto gkoSolverProperties =
+            new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
+                                      IOobject::NO_READ, IOobject::NO_WRITE));
+        gkoSolverProperties->add("caching", caching, true);
+    }
+}
+
+label get_next_caching(word sys_matrix_name, const objectRegistry &db)
+{
+    const word solvPropsDict = sys_matrix_name + "gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        label precond_cache =
+            db.lookupObject<IOdictionary>(solvPropsDict)
+                .lookupOrDefault<label>("preconditioner_caching", 0);
+        return precond_cache;
+    }
+    return 0;
+}
+
+
+void set_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
+                          label prev_solve_iters)
+{
+    const word solvPropsDict = sys_matrix_name + "gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
         const_cast<objectRegistry &>(db)
             .lookupObjectRef<IOdictionary>(solvPropsDict)

@@ -76,7 +76,7 @@ public:
                                         interfaces,
                                         solverControls,
                                         fieldName},
-          Preconditioner(matrix.mesh().thisDb(), solverControls),
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -101,7 +101,7 @@ public:
         : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
                                         solverControls, fieldName),
-          Preconditioner(matrix.mesh().thisDb(), solverControls),
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),

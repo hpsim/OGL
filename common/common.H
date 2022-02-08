@@ -94,6 +94,11 @@ void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
 
 label get_solve_prev_iters(const word sys_matrix_name,
                            const objectRegistry &db);
+
+void set_next_caching(word sys_matrix_name, const objectRegistry &db,
+                      label caching);
+
+label get_next_caching(word sys_matrix_name, const objectRegistry &db);
 }  // namespace Foam
 
 #endif

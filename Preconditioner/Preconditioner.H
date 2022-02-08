@@ -40,6 +40,8 @@ class Preconditioner {
     using ir = gko::solver::Ir<scalar>;
 
 private:
+    const word sys_matrix_name_;
+
     const objectRegistry &db_;
 
     const label cache_preconditioner_;
@@ -48,31 +50,20 @@ private:
 
 
 public:
-    Preconditioner(const objectRegistry &db, const dictionary &solverControls)
-        : db_(db),
+    Preconditioner(const word sys_matrix_name, const objectRegistry &db,
+                   const dictionary &solverControls)
+        : sys_matrix_name_(sys_matrix_name),
+          db_(db),
           cache_preconditioner_(
               solverControls.lookupOrDefault("PreconditionerCaching", 1)),
           solverControls_(solverControls)
     {}
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
+        const word name, const dictionary &controls,
         std::shared_ptr<mtx> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
-        word name;
-
-        const entry &e =
-            solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
-
-        if (e.isDict()) {
-            e.dict().readEntry("preconditioner", name);
-        } else {
-            e.stream() >> name;
-        }
-
-        const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
-
-
         bool skip_sorting =
             controls.lookupOrDefault<Switch>("SkipSorting", true);
 
@@ -241,16 +232,37 @@ public:
         const word precond_store_name = "Cached_preconditinoner";
         const fileName path = precond_store_name;
         bool stored{db_.template foundObject<regIOobject>(precond_store_name)};
-        if (stored && cache_preconditioner_ > 0) {
+
+        word name;
+
+        const entry &e =
+            solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
+
+        if (e.isDict()) {
+            e.dict().readEntry("preconditioner", name);
+        } else {
+            e.stream() >> name;
+        }
+
+        const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
+
+        auto cache = get_next_caching(sys_matrix_name_, db_);
+
+        if (stored && cache > 0) {
             Info << "read from registry" << endl;
             return db_
                 .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                     precond_store_name)
                 .get_ptr();
+            set_next_caching(sys_matrix_name_, db_, cache--);
         }
 
+        const label caching_period =
+            controls.lookupOrDefault<label>("Caching", 0);
+        set_next_caching(sys_matrix_name_, db_, caching_period);
+
         auto generated_precond =
-            init_preconditioner_impl(gkomatrix, device_exec);
+            init_preconditioner_impl(name, controls, gkomatrix, device_exec);
 
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
                                                        generated_precond);
