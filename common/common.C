@@ -85,6 +85,18 @@ void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
     }
 }
 
+label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
+{
+    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        label pre_solve_iters =
+            db.lookupObject<IOdictionary>(solvPropsDict)
+                .lookupOrDefault<label>("prev_solve_iters", 0);
+        return pre_solve_iters;
+    }
+    return 0;
+}
+
 std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in)
@@ -108,17 +120,5 @@ std::ostream &operator<<(
         }
         os << array->at(size - 1) << "]\n";
     }
-}
-
-label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
-{
-    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
-    if (db.foundObject<regIOobject>(solvPropsDict)) {
-        label pre_solve_iters =
-            db.lookupObject<IOdictionary>(solvPropsDict)
-                .lookupOrDefault<label>("prev_solve_iters", 0);
-        return pre_solve_iters;
-    }
-    return 0;
 }
 }  // namespace Foam
