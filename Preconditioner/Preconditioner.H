@@ -282,11 +282,11 @@ public:
 
             cache = cache - 1;
 
+            set_next_caching(sys_matrix_name_, db_, cache--);
             return db_
                 .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                     precond_store_name)
                 .get_ptr();
-            set_next_caching(sys_matrix_name_, db_, cache);
         }
 
         const label caching_period =
