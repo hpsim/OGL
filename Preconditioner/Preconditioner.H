@@ -48,15 +48,17 @@ private:
 
     const dictionary &solverControls_;
 
+    const label verbose_;
 
 public:
     Preconditioner(const word sys_matrix_name, const objectRegistry &db,
-                   const dictionary &solverControls)
+                   const dictionary &solverControls, const label verbose)
         : sys_matrix_name_(sys_matrix_name),
           db_(db),
           cache_preconditioner_(
               solverControls.lookupOrDefault("PreconditionerCaching", 1)),
-          solverControls_(solverControls)
+          solverControls_(solverControls),
+          verbose_(verbose)
     {}
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
@@ -72,6 +74,10 @@ public:
             label max_block_size(
                 controls.lookupOrDefault("MaxBlockSize", label(1)));
 
+            word msg = "Generate preconditioner " + name + " MaxBlockSize " +
+                       std::to_string(max_block_size);
+            LOG_1(verbose_, msg)
+
             auto pre_factory = bj::build()
                                    .with_skip_sorting(skip_sorting)
                                    .with_max_block_size(max_block_size)
@@ -86,6 +92,10 @@ public:
 
             auto par_ilu =
                 gko::share(factorizaton_factory->generate(gkomatrix));
+
+            word msg = "Generate preconditioner " + name;
+            LOG_1(verbose_, msg)
+
 
             auto ilu_pre_factory =
                 gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
@@ -134,6 +144,10 @@ public:
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
+            word msg = "Generate preconditioner " + name;
+            LOG_1(verbose_, msg)
+
+
             auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
             auto pre_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
@@ -143,6 +157,11 @@ public:
         if (name == "ISAI") {
             label sparsity_power(
                 controls.lookupOrDefault("SparsityPower", label(1)));
+
+            word msg = "Generate preconditioner " + name + " SparsityPower " +
+                       std::to_string(sparsity_power);
+            LOG_1(verbose_, msg)
+
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
                                           scalar, label>::build()
@@ -207,6 +226,13 @@ public:
             label min_coarse_rows(
                 controls.lookupOrDefault("MinCoarseRows", label(10)));
             bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess", true));
+
+            word msg = "Generate preconditioner " + name + " MaxLevels " +
+                       std::to_string(max_levels) + " MinCoarseRows " +
+                       std::to_string(min_coarse_rows) + " ZeroGuess " +
+                       std::to_string(zeroGuess);
+            LOG_1(verbose_, msg)
+
             auto pre_factory =
                 mg::build()
                     .with_max_levels(max_levels)
@@ -249,7 +275,7 @@ public:
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
         if (stored && cache > 0) {
-            Info << "read from registry" << endl;
+            LOG_1(verbose_, "read preconditioner from registry")
             return db_
                 .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                     precond_store_name)
