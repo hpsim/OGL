@@ -68,62 +68,58 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     export_x(fn_x, x);
 };
 
-// TODO unify with set/get prev iters
-void set_next_caching(word sys_matrix_name_, const objectRegistry &db,
-                      label caching)
+void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
+                             const word key, label value)
 {
-    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    const word solvPropsDict = sys_matrix_name + "_gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
         const_cast<objectRegistry &>(db)
             .lookupObjectRef<IOdictionary>(solvPropsDict)
-            .set<label>("caching", caching);
+            .set<label>(key, value);
     } else {
         auto gkoSolverProperties =
             new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
                                       IOobject::NO_READ, IOobject::NO_WRITE));
-        gkoSolverProperties->add("caching", caching, true);
+        gkoSolverProperties->add(key, value, true);
     }
+}
+
+label get_gko_solver_property(word sys_matrix_name_, word key,
+                              const objectRegistry &db)
+{
+    const word solvPropsDict = sys_matrix_name_ + "_gkoSolverProperties";
+    if (db.foundObject<regIOobject>(solvPropsDict)) {
+        label pre_solve_iters = db.lookupObject<IOdictionary>(solvPropsDict)
+                                    .lookupOrDefault<label>(key, 0);
+        return pre_solve_iters;
+    }
+    return 0;
+}
+
+void set_next_caching(word sys_matrix_name, const objectRegistry &db,
+                      label caching)
+{
+    set_gko_solver_property(sys_matrix_name, db, "preconditionerCaching",
+                            caching);
 }
 
 label get_next_caching(word sys_matrix_name, const objectRegistry &db)
 {
-    const word solvPropsDict = sys_matrix_name + "gkoSolverProperties";
-    if (db.foundObject<regIOobject>(solvPropsDict)) {
-        label precond_cache =
-            db.lookupObject<IOdictionary>(solvPropsDict)
-                .lookupOrDefault<label>("preconditioner_caching", 0);
-        return precond_cache;
-    }
-    return 0;
+    return get_gko_solver_property(sys_matrix_name, "preconditionerCaching",
+                                   db);
 }
 
 
 void set_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters)
 {
-    const word solvPropsDict = sys_matrix_name + "gkoSolverProperties";
-    if (db.foundObject<regIOobject>(solvPropsDict)) {
-        const_cast<objectRegistry &>(db)
-            .lookupObjectRef<IOdictionary>(solvPropsDict)
-            .set<label>("prev_solve_iters", prev_solve_iters);
-    } else {
-        auto gkoSolverProperties =
-            new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
-                                      IOobject::NO_READ, IOobject::NO_WRITE));
-        gkoSolverProperties->add("prev_solve_iters", prev_solve_iters, true);
-    }
+    set_gko_solver_property(sys_matrix_name, db, "prevSolveIters",
+                            prev_solve_iters);
 }
 
-label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
+label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db)
 {
-    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
-    if (db.foundObject<regIOobject>(solvPropsDict)) {
-        label pre_solve_iters =
-            db.lookupObject<IOdictionary>(solvPropsDict)
-                .lookupOrDefault<label>("prev_solve_iters", 0);
-        return pre_solve_iters;
-    }
-    return 0;
+    return get_gko_solver_property(sys_matrix_name, "prevSolveIters", db);
 }
 
 std::ostream &operator<<(
