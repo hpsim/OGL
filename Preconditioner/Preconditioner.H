@@ -280,11 +280,13 @@ public:
 
             LOG_1(verbose_, msg)
 
+            cache = cache - 1;
+
             return db_
                 .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                     precond_store_name)
                 .get_ptr();
-            set_next_caching(sys_matrix_name_, db_, cache--);
+            set_next_caching(sys_matrix_name_, db_, cache);
         }
 
         const label caching_period =
