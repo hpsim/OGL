@@ -275,7 +275,11 @@ public:
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
         if (stored && cache > 0) {
-            LOG_1(verbose_, "read preconditioner from registry")
+            word msg = "Read preconditioner from registry for " +
+                       std::to_string(cache);
+
+            LOG_1(verbose_, msg)
+
             return db_
                 .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                     precond_store_name)
