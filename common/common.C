@@ -68,32 +68,82 @@ void export_system(const word fieldName, const mtx *A, const vec *x,
     export_x(fn_x, x);
 };
 
-
-void set_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db,
-                          label prev_solve_iters)
+void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
+                             const word key, label value)
 {
-    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    const word solvPropsDict = sys_matrix_name + "_gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
         const_cast<objectRegistry &>(db)
             .lookupObjectRef<IOdictionary>(solvPropsDict)
-            .set<label>("prev_solve_iters", prev_solve_iters);
+            .set<label>(key, value);
     } else {
         auto gkoSolverProperties =
             new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
                                       IOobject::NO_READ, IOobject::NO_WRITE));
-        gkoSolverProperties->add("prev_solve_iters", prev_solve_iters, true);
+        gkoSolverProperties->add(key, value, true);
     }
 }
 
-label get_solve_prev_iters(word sys_matrix_name_, const objectRegistry &db)
+label get_gko_solver_property(word sys_matrix_name_, word key,
+                              const objectRegistry &db)
 {
-    const word solvPropsDict = sys_matrix_name_ + "gkoSolverProperties";
+    const word solvPropsDict = sys_matrix_name_ + "_gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
-        label pre_solve_iters =
-            db.lookupObject<IOdictionary>(solvPropsDict)
-                .lookupOrDefault<label>("prev_solve_iters", 0);
+        label pre_solve_iters = db.lookupObject<IOdictionary>(solvPropsDict)
+                                    .lookupOrDefault<label>(key, 0);
         return pre_solve_iters;
     }
     return 0;
+}
+
+void set_next_caching(word sys_matrix_name, const objectRegistry &db,
+                      label caching)
+{
+    set_gko_solver_property(sys_matrix_name, db, "preconditionerCaching",
+                            caching);
+}
+
+label get_next_caching(word sys_matrix_name, const objectRegistry &db)
+{
+    return get_gko_solver_property(sys_matrix_name, "preconditionerCaching",
+                                   db);
+}
+
+
+void set_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
+                          label prev_solve_iters)
+{
+    set_gko_solver_property(sys_matrix_name, db, "prevSolveIters",
+                            prev_solve_iters);
+}
+
+label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db)
+{
+    return get_gko_solver_property(sys_matrix_name, "prevSolveIters", db);
+}
+
+std::ostream &operator<<(
+    std::ostream &os,
+    const std::shared_ptr<gko::matrix::Dense<scalar>> array_in)
+{
+    auto ref_exec = gko::ReferenceExecutor::create();
+    auto array = array_in->clone(ref_exec);
+    label size = array->get_size()[0];
+    os << size << " elements [";
+    if (size > 40) {
+        for (label i = 0; i < 9; i++) {
+            os << array->at(i) << ", ";
+        }
+        os << array->at(10) << " ... ";
+        for (label i = size - 9; i < size - 1; i++) {
+            os << array->at(i) << ", ";
+        }
+        os << array->at(size - 1) << "]\n";
+    } else {
+        for (label i = 0; i < size - 1; i++) {
+            os << array->at(i) << ", ";
+        }
+        os << array->at(size - 1) << "]\n";
+    }
 }
 }  // namespace Foam

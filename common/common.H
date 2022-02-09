@@ -80,6 +80,9 @@ using vec = gko::matrix::Dense<scalar>;
         }                                                                     \
     }
 
+std::ostream &operator<<(
+    std::ostream &os,
+    const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
 void export_system(const word fieldName, const mtx *A, const vec *x,
                    const vec *b, const word time);
@@ -91,6 +94,11 @@ void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
 
 label get_solve_prev_iters(const word sys_matrix_name,
                            const objectRegistry &db);
+
+void set_next_caching(word sys_matrix_name, const objectRegistry &db,
+                      label caching);
+
+label get_next_caching(word sys_matrix_name, const objectRegistry &db);
 }  // namespace Foam
 
 #endif

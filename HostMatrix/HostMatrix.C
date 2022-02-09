@@ -295,50 +295,55 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
     for (label row = 0; row < nCells_; row++) {
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs,
-                                false);
+                                row, element_ctr, sorting_interface_idxs, true);
 
         // add lower elements
         // for now just scan till current upper ctr
-        if (!lower_stack[row].empty()) {
-            for (const auto &element : lower_stack[row]) {
-                // TODO
-                rows[element_ctr] = global_cell_index_.toGlobal(row);
-                cols[element_ctr] = element.second;
-                // lower_ctr doesnt correspond to same element as
-                // upper_ctr
-                sorting_idxs[element.first + nNeighbours_] = element_ctr;
+        //
+        const label global_row = global_cell_index_.toGlobal(row);
+        for (const auto [first, second] : lower_stack[row]) {
+            // TODO
+            rows[element_ctr] = global_row;
+            cols[element_ctr] = second;
+            // lower_ctr doesnt correspond to same element as
+            // upper_ctr
+            sorting_idxs[first + nNeighbours_] = element_ctr;
 
-                lower_ctr++;
-                element_ctr++;
-            }
+            lower_ctr++;
+            element_ctr++;
         }
 
         // add diagonal elemnts
-        rows[element_ctr] = global_cell_index_.toGlobal(row);
-        cols[element_ctr] = global_cell_index_.toGlobal(row);
+        rows[element_ctr] = global_row;
+        cols[element_ctr] = global_row;
         sorting_idxs[2 * nNeighbours_ + row] = element_ctr;
 
         element_ctr++;
 
         // add upper elemnts
-        while (lower[upper_ctr] == row && upper_ctr < nNeighbours_) {
-            label row_upper = global_cell_index_.toGlobal(lower[upper_ctr]);
-            label col_upper = global_cell_index_.toGlobal(upper[upper_ctr]);
-            rows[element_ctr] = row_upper;
-            cols[element_ctr] = col_upper;
+        label lower_idx = lower[upper_ctr];
+        if (upper_ctr < nNeighbours_) {
+            while (lower_idx == row) {
+                label row_upper = global_cell_index_.toGlobal(lower_idx);
+                label upper_idx = upper[upper_ctr];
+                label col_upper = global_cell_index_.toGlobal(upper_idx);
+                rows[element_ctr] = row_upper;
+                cols[element_ctr] = col_upper;
 
-            // insert into lower_stack
-            // find insert position
-            lower_stack[upper[upper_ctr]].emplace_back(upper_ctr, row_upper);
-            sorting_idxs[upper_ctr] = element_ctr;
+                // insert into lower_stack
+                // find insert position
+                lower_stack[upper_idx].emplace_back(upper_ctr, row_upper);
+                sorting_idxs[upper_ctr] = element_ctr;
 
-            element_ctr++;
-            upper_ctr++;
+                element_ctr++;
+                upper_ctr++;
+                lower_idx = lower[upper_ctr];
+            }
         }
 
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs, true);
+                                row, element_ctr, sorting_interface_idxs,
+                                false);
     }
     LOG_1(verbose_, "done init host matrix")
 }
@@ -365,13 +370,13 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto lower = this->matrix().lower();
     auto upper = this->matrix().upper();
     for (label i = 0; i < nNeighbours(); i++) {
-        values[sorting_idxs[i]] = upper[i];
-        values[sorting_idxs[i + nNeighbours_]] = lower[i];
+        values[sorting_idxs[i]] = upper[i] * scaling_;
+        values[sorting_idxs[i + nNeighbours_]] = lower[i] * scaling_;
     }
 
     auto diag = this->matrix().diag();
     for (label i = 0; i < local_nCells(); ++i) {
-        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i];
+        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i] * scaling_;
     }
 
     label interface_ctr{0};
@@ -388,7 +393,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
             values[sorting_interface_idxs[interface_ctr + cellI]] =
-                -interfaceBouCoeffs[interface_ctr + cellI];
+                -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
         }
         interface_ctr += patch_size;
     }

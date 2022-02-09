@@ -63,6 +63,8 @@ private:
 
     const label verbose_;
 
+    const scalar scaling_;
+
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
     mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
@@ -98,9 +100,15 @@ public:
           global_values_index_{nElems_ - nInterfaces_},
           global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{
-              fieldName + "_ldu_csr_map", db,       exec_,
-              global_values_index_,       verbose_, false,
+              fieldName + "_ldu_csr_map",
+              db,
+              exec_,
+              global_values_index_,
+              verbose_,
+              false,
+              false,
           },
           ldu_csr_idx_interface_mapping_{
               fieldName + "_ldu_csr_interface_map",
@@ -109,13 +117,29 @@ public:
               global_interface_index_,
               verbose_,
               false,
+              false,
           },
-          values_{fieldName + "_values", db,       exec_,
-                  global_matrix_index_,  verbose_, true},
-          col_idxs_{fieldName + "_cols",  db,       exec_,
-                    global_matrix_index_, verbose_, false},
-          row_idxs_{fieldName + "_rows",  db,       exec_,
-                    global_matrix_index_, verbose_, false}
+          values_{fieldName + "_values",
+                  db,
+                  exec_,
+                  global_matrix_index_,
+                  verbose_,
+                  true,
+                  false},
+          col_idxs_{fieldName + "_cols",
+                    db,
+                    exec_,
+                    global_matrix_index_,
+                    verbose_,
+                    false,
+                    true},
+          row_idxs_{fieldName + "_rows",
+                    db,
+                    exec_,
+                    global_matrix_index_,
+                    verbose_,
+                    false,
+                    true}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids =
@@ -146,22 +170,32 @@ public:
           global_matrix_index_{nElems_},
           global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map", db,       exec_,
-                               global_matrix_index_,      verbose_, false},
-          ldu_csr_idx_interface_mapping_{
-              fieldName + "_ldu_csr_interface_map",
-              db,
-              exec_,
-              global_interface_index_,
-              verbose_,
-              false,
-          },
-          values_{fieldName + "values", db,       exec_,
-                  global_matrix_index_, verbose_, true},
-          col_idxs_{fieldName + "cols",   db,       exec_,
-                    global_matrix_index_, verbose_, false},
-          row_idxs_{fieldName + "rows",   db,       exec_,
-                    global_matrix_index_, verbose_, false}
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
+          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map",
+                               db,
+                               exec_,
+                               global_matrix_index_,
+                               verbose_,
+                               false,
+                               false},
+          ldu_csr_idx_interface_mapping_{fieldName + "_ldu_csr_interface_map",
+                                         db,
+                                         exec_,
+                                         global_interface_index_,
+                                         verbose_,
+                                         false,
+                                         false},
+          values_{fieldName + "values",
+                  db,
+                  exec_,
+                  global_matrix_index_,
+                  verbose_,
+                  true,
+                  false},
+          col_idxs_{fieldName + "cols", db,    exec_, global_matrix_index_,
+                    verbose_,           false, true},
+          row_idxs_{fieldName + "rows", db,    exec_, global_matrix_index_,
+                    verbose_,           false, true}
     {
         // TODO reimplement this
         // if (!col_idxs_.get_stored() || col_idxs_.get_update()) {

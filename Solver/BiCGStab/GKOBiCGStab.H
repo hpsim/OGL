@@ -47,8 +47,6 @@ private:
 
     const word sysMatrixName_;
 
-    const word preconditioner_;
-
     const StoppingCriterion stoppingCriterion_;
 
     mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
@@ -61,8 +59,6 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          preconditioner_(
-              solverControls.lookupOrDefault("preconditioner", word("none"))),
           stoppingCriterion_(solverControls){};
 
     std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>

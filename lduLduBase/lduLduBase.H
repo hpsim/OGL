@@ -76,7 +76,8 @@ public:
                                         interfaces,
                                         solverControls,
                                         fieldName},
-          Preconditioner(solverControls),
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
+                         this->get_verbose()),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -101,7 +102,8 @@ public:
         : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
                                         solverControls, fieldName),
-          Preconditioner(solverControls),
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
+                         this->get_verbose()),
           db_(matrix.mesh().thisDb()),
           csr_matrix_wrapper_{db_,  // 1
                               this->get_exec_handler(),
@@ -141,40 +143,58 @@ public:
                 this->get_exec_handler().get_exec_name() + typeName,
             this->fieldName());
 
-
         PersistentArray<scalar> b{
+            &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
-            &source[0],
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            true};
+            !solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
+            false};
 
         PersistentArray<scalar> x{
+            &psi[0],
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
-            &psi[0],
             verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", true),
-            true};
+            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            !solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            false};
 
         // Solve system
         if (Pstream::parRun()) {
-            auto dense_x = x.get_global_dense_vec();
-            auto dense_b = b.get_global_dense_vec();
+            SIMPLE_TIME(verbose_, gather_initGuess,
+                        auto dense_x = x.get_global_dense_vec();)
+            SIMPLE_TIME(verbose_, gather_RHS,
+                        auto dense_b = b.get_global_dense_vec();)
+
+            scalar scaling =
+                solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
+            if (scaling != 1) {
+                auto dense_scaling =
+                    gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
+                        {scaling}, this->get_exec_handler().get_ref_exec()));
+
+                SIMPLE_TIME(verbose_, scale_RHS,
+                            dense_b->scale(dense_scaling.get());)
+            }
+
             SIMPLE_TIME(
                 verbose_, gather_global_matrix,
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
             if (Pstream::master()) {
                 LOG_1(verbose_, "create solver factory")
+
+
                 SIMPLE_TIME(verbose_, init_precond,
                             auto precond = this->init_preconditioner(
                                 gkomatrix.get_persistent_object(),
                                 this->get_exec_handler().get_device_exec());)
+
                 auto solver_gen = this->create_solver(
                     this->get_exec_handler().get_device_exec(),
                     gkomatrix.get_persistent_object(), dense_x, dense_b,

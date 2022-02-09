@@ -1,13 +1,15 @@
-# OpenFOAM Ginkgo Layer (OGL)
-A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
+**[Requirements](#requirements)** |
+**[Compilation](#Compilation)** |
+**[Usage](#Usage)** |
+**[Known Limitations](#Known_Limitations)** |
+**[Citing](#Citing)** |
+**[Example](#Example)** |
+**[Performance](#Performance)** 
 
-> [Requirements](https://github.com/hpsim/OGL#requirements)<br/>
-> [Compilation](https://github.com/hpsim/OGL#Compilation)<br/>
-> [Usage](https://github.com/hpsim/OGL#Usage)<br/>
-> [Known Limitations](https://github.com/hpsim/OGL#Known_Limitations)<br/>
-> [Citing](https://github.com/hpsim/OGL#Citing)<br/>
-> [Example](https://github.com/hpsim/OGL#Example)<br/>
-> [Performance](https://github.com/hpsim/OGL#Performance)<br/>
+---
+
+#OpenFOAM Ginkgo Layer(OGL)
+A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 
 ## Requirements
@@ -46,36 +48,55 @@ Some of OGL features might depend on features which are not already implemented 
 
 ## Usage
 
-OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use a `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
-
-Currently, the following solver are supported
-
-* CG
-* BiCGStab
-* IR (experimental)
-* Multigrid (experimental)
-
-additionally, the following preconditioner are availible
-
-* BJ, block Jacobi
-* ILU, incomplete LU (experimental)
-* IC, incomplete Cholesky (experimental)
-* ISAI (experimental)
-* Multigrid, algebraic multigrid (experimental)
-
-The following optional solver arguments are supported
+OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to use Ginkgo's `CG` solver you can simply replace `PCG` by `GKOCG`. In order to run either with *CUDA*, *HIP*, or *OMP* support set the `executor` keyword to `cuda`, `hip`, or `omp` in the  `system/fvSolution` dictionary.
 
 Argument | Default | Description
 ------------ | ------------- | -------------
 updateSysMatrix | true | whether to copy the system matrix to device on every solver call
-updateInitVector | false |whether to copy the initial guess to device on every solver call
-sort | true | sort the system matrix
-executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
+updateRHS | true | whether to copy the system matrix to device on every solver call
+updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
-verbose | false | print out extra info
+verbose | 0 | print out extra info
+device_id | 0 | on which device to offload
+executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 evalFrequency | 1 | evaluate residual norm every n-th iteration
 adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
+scaling | 1.0 | Scale the complete system by the scaling factor
+
+### Supported Solver
+Currently, the following solver are supported
+
+* CG
+* BiCGStab
+* GMRES
+* IR (experimental)
+* Multigrid (experimental)
+
+additionally, the following preconditioner are available
+
+### Supported Preconditioner
+* BJ, block Jacobi
+* [ISAI](https://doi.org/10.1016/j.parco.2017.10.003), Incomplete Sparse Approximate Inverses,
+* ILU, incomplete LU (experimental)
+* IC, incomplete Cholesky (experimental)
+* Multigrid, algebraic multigrid (experimental)
+
+The following optional arguments are supported to modify the preconditioner. *Note* some preconditioners like IC or (SPD) ISAI require positive values on the system matrix diagonal, thus in case of the pressure equation the complete system needs to be scaled by a factor of -1.0.
+
+Argument | Default | Preconditioner
+------------ | ------------- | -------------
+SkipSorting | True | all
+Caching | 1 | all
+MaxBlockSize | 1 | block Jacobi 
+SparsityPower | 1 | ISAI
+MaxLevels | 9 | Multigrid
+MinCoarseRows | 10 | Multigrid
+ZeroGuess | True | Multigrid
+
+
+
+
 
 ## Known Limitations
 
