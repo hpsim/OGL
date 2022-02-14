@@ -124,7 +124,7 @@ public:
 
     word get_exec_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper()
+    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper() const
     {
         return this->comm_;
     }

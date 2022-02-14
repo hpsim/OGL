@@ -50,6 +50,7 @@ private:
     using idx_array = gko::Array<label>;
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
+    using part_type = gko::distributed::Partition<label>;
 
     const objectRegistry &db_;
 
@@ -186,6 +187,23 @@ public:
             SIMPLE_TIME(
                 verbose_, gather_global_matrix,
                 auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
+
+            // build partition: uniform number of rows per rank
+            auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
+            gko::Array<gko::int64> ranges_array{
+                this->get_exec_handler().get_ref_exec(),
+                static_cast<gko::size_type>(comm->size() + 1)};
+
+            const auto rows_per_rank = x.get_global_size() / comm->size();
+
+            for (int i = 0; i < comm->size(); i++) {
+                ranges_array.get_data()[i] = i * rows_per_rank;
+            }
+            ranges_array.get_data()[comm->size()] = psi.size();
+            auto partition = gko::share(part_type::build_from_contiguous(
+                this->get_exec_handler().get_ref_exec(), ranges_array));
+
+
             if (Pstream::master()) {
                 LOG_1(verbose_, "create solver factory")
 
