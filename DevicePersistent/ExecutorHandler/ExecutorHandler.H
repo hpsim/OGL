@@ -36,6 +36,8 @@ SourceFiles
 namespace Foam {
 
 struct ExecutorInitFunctor {
+    mutable std::shared_ptr<gko::mpi::communicator> comm_;
+
     const label device_id_;
 
     const word executor_name_;
@@ -44,9 +46,10 @@ struct ExecutorInitFunctor {
 
     const label verbose_;
 
-    ExecutorInitFunctor(const word executor_name, const label device_id,
-                        const word field_name, const label verbose)
-        : device_id_(device_id),
+    ExecutorInitFunctor(const word executor_name, const word field_name,
+                        const label verbose)
+        : comm_(std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)),
+          device_id_(comm_->node_local_rank()),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
@@ -88,6 +91,8 @@ struct ExecutorInitFunctor {
 class ExecutorHandler
     : public PersistentBase<gko::Executor, ExecutorInitFunctor> {
 private:
+    const std::shared_ptr<gko::mpi::communicator> comm_;
+
     const word device_executor_name_;
 
 public:
@@ -99,10 +104,10 @@ public:
               db,
               ExecutorInitFunctor(
                   solverControls.lookupOrDefault("executor", word("reference")),
-                  solverControls.lookupOrDefault("device_id", label(0)),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0))),
               true, 0),
+          comm_(),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
@@ -118,6 +123,11 @@ public:
     }
 
     word get_exec_name() const { return device_executor_name_; }
+
+    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper()
+    {
+        return this->comm_;
+    }
 };
 
 using PersistentExecutor = ExecutorHandler;

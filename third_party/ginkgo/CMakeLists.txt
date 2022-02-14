@@ -1,7 +1,8 @@
 # TODO pass flags from main CMAKE file
-ginkgo_load_git_package(ginkgo_external
+ginkgo_load_git_package(
+  ginkgo_external
   "https://github.com/ginkgo-project/ginkgo.git"
-  "develop"
+  "ogl_develop"
   "-DGINKGO_BUILD_CUDA=${GINKGO_BUILD_CUDA}"
   "-DGINKGO_BUILD_HIP=${GINKGO_BUILD_HIP}"
   "-DGINKGO_BUILD_OMP=${GINKGO_BUILD_OMP}"
@@ -12,5 +13,4 @@ ginkgo_load_git_package(ginkgo_external
   "-DCMAKE_BUILD_TYPE=Release"
   "-DGINKGO_BUILD_HWLOC=OFF"
   "-DCMAKE_INSTALL_PREFIX=$ENV{FOAM_USER_LIBBIN}/.."
-  "-DBUILD_SHARED_LIBS=ON"
-  )
+  "-DBUILD_SHARED_LIBS=ON")

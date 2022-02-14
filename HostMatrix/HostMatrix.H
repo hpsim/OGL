@@ -44,6 +44,8 @@ private:
     //
     const ExecutorHandler exec_;
 
+    const std::shared_ptr<gko::mpi::communicator> comm_;
+
     const label nCells_;
 
     const label nNeighbours_;
