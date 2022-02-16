@@ -191,7 +191,7 @@ public:
 
             SIMPLE_TIME(
                 verbose_, gather_global_matrix,
-                auto gkomatrix = csr_matrix_wrapper_.get_global_gkomatrix();)
+                auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
 
             // build partition: uniform number of rows per rank
             auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
