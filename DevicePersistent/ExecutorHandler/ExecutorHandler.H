@@ -84,14 +84,12 @@ struct ExecutorInitFunctor {
         // NOTE Return empty pointer to avoid compiler warnings
         return {};
     }
-
-    word get_device_executor_name() const { return executor_name_; }
 };
 
 class ExecutorHandler
     : public PersistentBase<gko::Executor, ExecutorInitFunctor> {
 private:
-    const std::shared_ptr<gko::mpi::communicator> comm_;
+    mutable std::shared_ptr<gko::mpi::communicator> comm_;
 
     const word device_executor_name_;
 
@@ -107,7 +105,7 @@ public:
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0))),
               true, 0),
-          comm_(),
+          comm_(std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
