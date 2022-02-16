@@ -172,9 +172,8 @@ public:
         // Solve system
         if (Pstream::parRun()) {
             SIMPLE_TIME(verbose_, gather_initGuess,
-                        auto dense_x = x.get_global_dense_vec();)
-            SIMPLE_TIME(verbose_, gather_RHS,
-                        auto dense_b = b.get_global_dense_vec();)
+                        auto dense_x = x.get_dense_vec();)
+            SIMPLE_TIME(verbose_, gather_RHS, auto dense_b = b.get_dense_vec();)
 
             auto ref_exec = this->get_exec_handler().get_ref_exec();
 
