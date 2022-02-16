@@ -213,13 +213,29 @@ public:
             dense_b->write(b_data);
             dense_x->write(x_data);
 
-
             auto A_host =
                 gko::share(dist_mtx::create(ref_exec, A_data.size, comm));
             auto b_host = dist_vec::create(ref_exec, comm);
-            auto x_host = dist_vec::create(ref_exec, comm);
+            auto x_host = gko::share(dist_vec::create(ref_exec, comm));
             b_host->read_distributed(b_data, partition);
             x_host->read_distributed(x_data, partition);
+
+            LOG_1(verbose_, "create solver")
+            auto solver_gen = this->create_solver(
+                this->get_exec_handler().get_device_exec(),
+                gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
+                csr_matrix_wrapper_.get_export(), {});
+            SIMPLE_TIME(verbose_, generate_solver,
+                        auto solver = solver_gen->generate(
+                            gko::share(gkomatrix.get_persistent_object()));)
+            LOG_1(verbose_, "solve solver done")
+            SIMPLE_TIME(verbose_, solve,
+                        solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
+            x_host->copy_from(dense_x.get());
+
+            SIMPLE_TIME(verbose_, retrieve_result_from_device,
+                        x.copy_back_host(&psi[0], x_host);)
+
 
             //     if (Pstream::master()) {
             //         LOG_1(verbose_, "create solver factory")

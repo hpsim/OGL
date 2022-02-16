@@ -266,6 +266,19 @@ public:
         return this->get_persistent_object()->get_const_data();
     };
 
+    void copy_back_host(
+        T *memory, const std::shared_ptr<gko::distributed::Vector<T>> host_x)
+    {
+        const label nCells = global_index_.localSize();
+        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+                                             const_cast<T *>(memory));
+
+        auto x_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+                                          host_x->get_local()->get_values());
+
+        host_view = x_view;
+    }
+
     void copy_back(T *memory,
                    const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
