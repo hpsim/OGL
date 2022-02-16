@@ -245,8 +245,8 @@ public:
                         auto solver = solver_gen->generate(A);)
             LOG_1(verbose_, "solve solver done")
             SIMPLE_TIME(verbose_, solve,
-                        solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-            x_host->copy_from(dense_x.get());
+                        solver->apply(gko::lend(b), gko::lend(x));)
+            x_host->copy_from(x.get());
 
             // SIMPLE_TIME(verbose_, retrieve_result_from_device,
             //             dense_x->copy_back_host(&psi[0], x_host);)
