@@ -100,7 +100,7 @@ public:
         return gkomatrix_;
     }
 
-    PersistentBase<mtx, CsrInitFunctor> &get_gkomatrix() const
+    PersistentBase<mtx, CsrInitFunctor> &get_local_gkomatrix() const
     {
         return gkomatrix_;
     }

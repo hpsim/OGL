@@ -209,6 +209,8 @@ public:
             b_data.size = {psi.size(), 1};
             x_data.size = {psi.size(), 1};
 
+            auto matrix = gkomatrix.get_persistent_object();
+            matrix->write(A_data);
             dense_b->write(b_data);
             dense_x->write(x_data);
 
@@ -216,6 +218,7 @@ public:
                 gko::share(dist_mtx::create(ref_exec, A_data.size, comm));
             auto b_host = dist_vec::create(ref_exec, comm);
             auto x_host = gko::share(dist_vec::create(ref_exec, comm));
+            A_host->read_distributed(A_data, partition);
             b_host->read_distributed(b_data, partition);
             x_host->read_distributed(x_data, partition);
 
@@ -287,7 +290,7 @@ public:
             //                                      &psi[0], dense_x);)
         } else {
             LOG_1(verbose_, "get_gkomatrix")
-            auto gkomatrix = csr_matrix_wrapper_.get_gkomatrix();
+            auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();
             auto dense_x = x.get_dense_vec();
             auto dense_b = b.get_dense_vec();
             SIMPLE_TIME(verbose_, init_precond,
