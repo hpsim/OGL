@@ -202,17 +202,23 @@ public:
                 ref_exec, rows_start, rows_end, comm));
 
 
-            gko::matrix_data<scalar, GlobalIndexType> A_data;
+            gko::matrix_data<scalar, label> A_data_32;
             gko::matrix_data<scalar, GlobalIndexType> b_data;
             gko::matrix_data<scalar, GlobalIndexType> x_data;
-            A_data.size = {psi.size(), psi.size()};
+            A_data_32.size = {psi.size(), psi.size()};
             b_data.size = {psi.size(), 1};
             x_data.size = {psi.size(), 1};
 
             auto matrix = gkomatrix.get_persistent_object();
-            matrix->write(A_data);
+            matrix->write(A_data_32);
             dense_b->write(b_data);
             dense_x->write(x_data);
+
+            gko::matrix_data<scalar, GlobalIndexType> A_data;
+            A_data.size = {psi.size(), psi.size()};
+            for (auto &elem : A_data_32.nonzeros) {
+                A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
+            }
 
             auto A_host =
                 gko::share(dist_mtx::create(ref_exec, A_data.size, comm));
