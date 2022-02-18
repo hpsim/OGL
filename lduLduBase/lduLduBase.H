@@ -195,21 +195,12 @@ public:
 
             // build partition: uniform number of rows per rank
             auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
-            // auto rows_start =
-            //     this->get_global_cell_index().offset(Pstream::myProcNo());
-            // auto rows_end = rows_start + psi.size();
-            // auto partition = gko::share(part_type::build_from_local_range(
-            //     ref_exec, rows_start, rows_end, comm));
+            auto rows_start =
+                this->get_global_cell_index().offset(Pstream::myProcNo());
+            auto rows_end = rows_start + psi.size();
+            auto partition = gko::share(part_type::build_from_local_range(
+                ref_exec, rows_start, rows_end, comm));
 
-            const auto rows_per_rank = 1000000 / comm->size();
-            gko::Array<gko::int64> ranges_array{
-                ref_exec, static_cast<gko::size_type>(comm->size() + 1)};
-            for (int i = 0; i < comm->size(); i++) {
-                ranges_array.get_data()[i] = i * rows_per_rank;
-            }
-            ranges_array.get_data()[comm->size()] = 1000000;
-            auto partition = gko::share(
-                part_type::build_from_contiguous(ref_exec, ranges_array));
 
             gko::matrix_data<scalar, label> A_data_32;
             gko::matrix_data<scalar, GlobalIndexType> b_data;
@@ -256,8 +247,10 @@ public:
             auto solver_gen = gko::share(
                 gko::solver::Cg<scalar>::build()
                     .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(100u).on(
-                            device_exec))
+                        gko::stop::Iteration::build()
+                            .with_max_iters(solver_controls_.lookupOrDefault(
+                                "maxIter", 1000))
+                            .on(device_exec))
                     .on(device_exec));
 
             SIMPLE_TIME(verbose_, generate_solver,
