@@ -224,7 +224,8 @@ public:
             dense_x->write(x_data);
 
             gko::matrix_data<scalar, GlobalIndexType> A_data;
-            A_data.size = {psi.size(), psi.size()};
+            const label global_size = this->get_global_cell_index().size();
+            A_data.size = {global_size, global_size};
             for (auto &elem : A_data_32.nonzeros) {
                 A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
             }
