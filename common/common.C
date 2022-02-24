@@ -33,29 +33,31 @@ SourceFiles
 
 namespace Foam {
 
-void export_x(const std::string fn, const vec *x)
+void export_x(const std::string fn, const gko::matrix::Dense<scalar> *x)
 {
     std::ofstream stream_x{fn};
     LOG_1(1, "Writing " + fn)
     gko::write(stream_x, x);
 };
 
-void export_x(const std::string fn, const mtx *A)
+void export_x(const std::string fn, const gko::matrix::Csr<scalar> *A)
 {
     LOG_1(1, "Writing " + fn)
     std::ofstream stream{fn};
     gko::write(stream, A, gko::layout_type::coordinate);
 };
 
-void export_vec(const word fieldName, const vec *x, const word time)
+void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
+                const word time)
 {
     system("mkdir -p export/" + time);
     std::string fn_mtx{"export/" + time + "/" + fieldName + ".mtx"};
     export_x(fn_mtx, x);
 };
 
-void export_system(const word fieldName, const mtx *A, const vec *x,
-                   const vec *b, const word time)
+void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
+                   const gko::matrix::Dense<scalar> *x,
+                   const gko::matrix::Dense<scalar> *b, const word time)
 {
     system("mkdir -p export/" + time);
     std::string fn_mtx{"export/" + time + "/" + fieldName + "_A.mtx"};

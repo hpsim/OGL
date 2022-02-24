@@ -117,6 +117,8 @@ struct ArrayInitFunctor {
 template <class T>
 class PersistentArray
     : public PersistentBase<gko::Array<T>, ArrayInitFunctor<T>> {
+    using vec = gko::matrix::Dense<scalar>;
+
     T *memory_;
 
     const gkoGlobalIndex &global_index_;
@@ -235,18 +237,17 @@ public:
                                              const_cast<T *>(memory_));
 
         auto dist_device_exec = dist_x->get_executor();
-        auto x_view =
-            gko::Array<T>::view(dist_device_exec, nCells, dist_x->get_values());
+        auto x_view = gko::Array<T>::view(dist_device_exec, nCells,
+                                          dist_x->get_local()->get_values());
 
         host_view = x_view;
     }
 
-    void copy_back(T *memory,
-                   const std::shared_ptr<gko::matrix::Dense<T>> device_x)
+    void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
         const label nCells = global_index_.localSize();
         auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
-                                             const_cast<T *>(memory));
+                                             const_cast<T *>(memory_));
 
         auto x_view = gko::Array<T>::view(exec_.get_device_exec(), nCells,
                                           device_x->get_values());

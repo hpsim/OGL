@@ -32,8 +32,6 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
-using mtx = gko::matrix::Csr<scalar>;
-using vec = gko::matrix::Dense<scalar>;
 
 
 #define __FILENAME__ \
@@ -84,10 +82,12 @@ std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
-void export_system(const word fieldName, const mtx *A, const vec *x,
-                   const vec *b, const word time);
+void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
+                   const gko::matrix::Dense<scalar> *x,
+                   const gko::matrix::Dense<scalar> *b, const word time);
 
-void export_vec(const word fieldName, const vec *x, const word time);
+void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
+                const word time);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters);
