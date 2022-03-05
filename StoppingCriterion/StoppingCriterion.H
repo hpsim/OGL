@@ -101,15 +101,18 @@ class StoppingCriterion {
         void compute_Axref(std::shared_ptr<const gko::Executor> device_exec,
                            std::shared_ptr<const dist_mtx> gkomatrix,
                            std::shared_ptr<dist_vec> x,
-                           std::shared_ptr<vec> res) const
+                           std::shared_ptr<dist_vec> res) const
         {
+	    std::cout << "compute_Axref" << endl;
             const label nCells{(label)x->get_size()[0]};
 
             val_array x_array{val_array::view(device_exec, nCells,
                                               x->get_local()->get_values())};
 
+	    // TODO FIXME
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {::gko::reduce_add(x_array)}, device_exec);
+                 1, {1}, device_exec);
+                // 1, {::gko::reduce_add(x_array)}, device_exec);
 
             auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {scalar(nCells)}, device_exec);
@@ -130,25 +133,44 @@ class StoppingCriterion {
             xAvg_host->copy_from(xAvg.get());
             xAvg_vec->fill(xAvg_host->get_values()[0]);
 
-            gkomatrix->apply(xAvg_vec.get(), res.get());
+	    std::cout << "compute_Axref apply" << endl;
+	    // TODO needs a distributed res
+            // gkomatrix->apply(xAvg_vec.get(), res.get());
+	    std::cout << "compute_Axref apply done"  << endl;
 #endif
+
+	    std::cout << "compute_Axref done" << endl;
         }
 
 
-        scalar compute_normfactor(
-            std::shared_ptr<const gko::Executor> device_exec, const vec *r,
+        scalar compute_normfactor_dist(
+            std::shared_ptr<const gko::Executor> device_exec,
+	    const dist_vec *r,
             std::shared_ptr<const dist_mtx> gkomatrix,
             std::shared_ptr<dist_vec> x,
             std::shared_ptr<const dist_vec> b) const
         {
+	    std::cout << "compute_normfactor dist" << endl;
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
             const label nCells{(label)x->get_size()[0]};
 
             // TODO store colA vector
+
+	    auto comm = gko::mpi::communicator(MPI_COMM_WORLD);
+
+	    gko::dim<2> local_size = x->get_local()->get_size();
+
+	    gko::dim<2> global_size = x->get_local()->get_size();
+	    // gko::dim<2> global_size = x->get_size(); 
+
             auto Axref =
-                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
+                gko::share(dist_vec::create(device_exec, 
+					comm,
+					global_size,
+					local_size
+					));
 
             compute_Axref(device_exec, gkomatrix, x, Axref);
 
@@ -183,6 +205,7 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+	    std::cout << "check_impl dist" << endl;
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -196,7 +219,8 @@ class StoppingCriterion {
                 return false;
             }
 
-            auto *dense_r = gko::as<vec>(updater.residual_);
+	    // TODO
+            auto *dense_r = gko::as<dist_vec>(updater.residual_);
             auto norm1 = vec::create(exec, gko::dim<2>{1, 1});
             dense_r->compute_norm1(norm1.get());
             auto norm1_host =
@@ -211,7 +235,7 @@ class StoppingCriterion {
                 //
                 if (eval_norm_factor_) {
                     norm_factor_ =
-                        compute_normfactor(exec, dense_r, parameters_.gkomatrix,
+                        compute_normfactor_dist(exec, dense_r, parameters_.gkomatrix,
                                            parameters_.x, parameters_.b);
                 }
 
@@ -259,7 +283,7 @@ class StoppingCriterion {
             std::shared_ptr<const gko::Executor> exec)
             : EnablePolymorphicObject<OpenFOAMDistStoppingCriterion, Criterion>(
                   std::move(exec))
-        {}
+        {std::cout << " OpenFOAMDistStoppingCriterion "<< endl;}
 
         explicit OpenFOAMDistStoppingCriterion(
             const Factory *factory, const gko::stop::CriterionArgs &args)
@@ -378,6 +402,7 @@ class StoppingCriterion {
             std::shared_ptr<const mtx> gkomatrix, std::shared_ptr<vec> x,
             std::shared_ptr<const vec> b) const
         {
+	    std::cout << "compute normfactor" << endl;
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
@@ -420,6 +445,7 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+	    std::cout << "check_impl serial" << endl;
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -610,6 +636,7 @@ public:
                                   std::shared_ptr<dist_vec> b, label verbose,
                                   bool export_res, label prev_solve_iters) const
     {
+	std::cout << "build dist_stopping_criterion " <<endl;
         label minIter = minIter_;
         label frequency = frequency_;
         if (!export_res) {
