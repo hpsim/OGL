@@ -98,59 +98,45 @@ class StoppingCriterion {
         GKO_ENABLE_BUILD_METHOD(Factory);
 
     protected:
-        void compute_Axref(std::shared_ptr<const gko::Executor> device_exec,
-                           std::shared_ptr<const dist_mtx> gkomatrix,
-                           std::shared_ptr<dist_vec> x,
-                           std::shared_ptr<dist_vec> res) const
+        /* Compute the SPMV of A with x_ref
+         *
+         *
+         *  */
+        void compute_Axref_dist(
+            size_t global_size, size_t local_size,
+            std::shared_ptr<const gko::Executor> device_exec,
+            std::shared_ptr<const dist_mtx> gkomatrix,
+            std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> res) const
         {
-	    std::cout << "compute_Axref" << endl;
-            const label nCells{(label)x->get_size()[0]};
-
-            val_array x_array{val_array::view(device_exec, nCells,
-                                              x->get_local()->get_values())};
-
-	    // TODO FIXME
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
-                 1, {1}, device_exec);
-                // 1, {::gko::reduce_add(x_array)}, device_exec);
+                1, {0}, device_exec);
 
-            auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {scalar(nCells)}, device_exec);
-
-            xAvg->inv_scale(nCells_linOp.get());
+            x->compute_average_unsafe(xAvg.get());
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
             gkomatrix->compute_column_vector_sum(res.get());
             res->scale(xAvg.get());
 #else
             // if column vector sum is not availible use dot product
-            auto xAvg_vec =
-                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
+            auto xAvg_vec = gko::share(dist_vec::create(
+                device_exec, x->get_communicator(), global_size, local_size));
+            xAvg_vec->fill(1.0);
+            xAvg_vec->scale(xAvg.get());
 
-            auto xAvg_host =
-                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
-
-            xAvg_host->copy_from(xAvg.get());
-            xAvg_vec->fill(xAvg_host->get_values()[0]);
-
-	    std::cout << "compute_Axref apply" << endl;
-	    // TODO needs a distributed res
-            // gkomatrix->apply(xAvg_vec.get(), res.get());
-	    std::cout << "compute_Axref apply done"  << endl;
+            // TODO needs a distributed res
+            gkomatrix->apply(xAvg_vec.get(), res.get());
+            // std::cout << "compute_Axref apply done" << endl;
 #endif
-
-	    std::cout << "compute_Axref done" << endl;
         }
 
 
         scalar compute_normfactor_dist(
-            std::shared_ptr<const gko::Executor> device_exec,
-	    const dist_vec *r,
+            std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
             std::shared_ptr<const dist_mtx> gkomatrix,
             std::shared_ptr<dist_vec> x,
             std::shared_ptr<const dist_vec> b) const
         {
-	    std::cout << "compute_normfactor dist" << endl;
+            // std::cout << "compute_normfactor dist" << endl;
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
@@ -158,22 +144,21 @@ class StoppingCriterion {
 
             // TODO store colA vector
 
-	    auto comm = gko::mpi::communicator(MPI_COMM_WORLD);
+            auto comm = x->get_communicator();
 
-	    gko::dim<2> local_size = x->get_local()->get_size();
+            gko::dim<2> local_size = x->get_local()->get_size();
 
-	    gko::dim<2> global_size = x->get_local()->get_size();
-	    // gko::dim<2> global_size = x->get_size(); 
+            // TODO FIXME
+            gko::dim<2> global_size = x->get_local()->get_size();
+            // gko::dim<2> global_size = x->get_size();
 
-            auto Axref =
-                gko::share(dist_vec::create(device_exec, 
-					comm,
-					global_size,
-					local_size
-					));
+            auto Axref = gko::share(
+                dist_vec::create(device_exec, comm, global_size, local_size));
 
-            compute_Axref(device_exec, gkomatrix, x, Axref);
+            compute_Axref_dist(global_size[0], local_size[0], device_exec,
+                               gkomatrix, x, Axref);
 
+            // TODO use dist vect
             auto b_norm =
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
             b->compute_norm1(b_norm.get());
@@ -205,7 +190,6 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-	    std::cout << "check_impl dist" << endl;
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -219,7 +203,7 @@ class StoppingCriterion {
                 return false;
             }
 
-	    // TODO
+            // TODO move to free template function
             auto *dense_r = gko::as<dist_vec>(updater.residual_);
             auto norm1 = vec::create(exec, gko::dim<2>{1, 1});
             dense_r->compute_norm1(norm1.get());
@@ -227,6 +211,7 @@ class StoppingCriterion {
                 vec::create(exec->get_master(), gko::dim<2>{1, 1});
             norm1_host->copy_from(norm1.get());
             scalar residual_norm = norm1_host->at(0);
+            // TODO end
 
             bool result = false;
 
@@ -234,9 +219,9 @@ class StoppingCriterion {
             if (*(parameters_.iter) == 0) {
                 //
                 if (eval_norm_factor_) {
-                    norm_factor_ =
-                        compute_normfactor_dist(exec, dense_r, parameters_.gkomatrix,
-                                           parameters_.x, parameters_.b);
+                    norm_factor_ = compute_normfactor_dist(
+                        exec, dense_r, parameters_.gkomatrix, parameters_.x,
+                        parameters_.b);
                 }
 
                 *(parameters_.init_residual_norm) =
@@ -283,7 +268,9 @@ class StoppingCriterion {
             std::shared_ptr<const gko::Executor> exec)
             : EnablePolymorphicObject<OpenFOAMDistStoppingCriterion, Criterion>(
                   std::move(exec))
-        {std::cout << " OpenFOAMDistStoppingCriterion "<< endl;}
+        {
+            std::cout << " OpenFOAMDistStoppingCriterion " << endl;
+        }
 
         explicit OpenFOAMDistStoppingCriterion(
             const Factory *factory, const gko::stop::CriterionArgs &args)
@@ -365,32 +352,19 @@ class StoppingCriterion {
                            std::shared_ptr<vec> x,
                            std::shared_ptr<vec> res) const
         {
-            const label nCells{(label)x->get_size()[0]};
+            // auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
+            //     1, {0}, device_exec);
 
-            val_array x_array{
-                val_array::view(device_exec, nCells, x->get_values())};
-
-            auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {::gko::reduce_add(x_array)}, device_exec);
-
-            auto nCells_linOp = gko::initialize<gko::matrix::Dense<scalar>>(
-                1, {scalar(nCells)}, device_exec);
-
-            xAvg->inv_scale(nCells_linOp.get());
+            auto xAvg = x->compute_average_unsafe();
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
             gkomatrix->compute_column_vector_sum(res.get());
             res->scale(xAvg.get());
 #else
             // if column vector sum is not availible use dot product
-            auto xAvg_vec =
-                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
-
-            auto xAvg_host =
-                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
-
-            xAvg_host->copy_from(xAvg.get());
-            xAvg_vec->fill(xAvg_host->get_values()[0]);
+            auto xAvg_vec = gko::share(vec::create(device_exec, x->get_size()));
+            xAvg_vec->fill(1.0);
+            xAvg_vec->scale(xAvg.get());
 
             gkomatrix->apply(xAvg_vec.get(), res.get());
 #endif
@@ -402,13 +376,14 @@ class StoppingCriterion {
             std::shared_ptr<const mtx> gkomatrix, std::shared_ptr<vec> x,
             std::shared_ptr<const vec> b) const
         {
-	    std::cout << "compute normfactor" << endl;
+            std::cout << "compute normfactor" << endl;
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
             const label nCells{(label)x->get_size()[0]};
 
             // TODO store colA vector
+            // TODO move out of function?
             auto Axref =
                 gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
 
@@ -445,7 +420,7 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
-	    std::cout << "check_impl serial" << endl;
+            std::cout << "check_impl serial" << endl;
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -636,7 +611,7 @@ public:
                                   std::shared_ptr<dist_vec> b, label verbose,
                                   bool export_res, label prev_solve_iters) const
     {
-	std::cout << "build dist_stopping_criterion " <<endl;
+        std::cout << "build dist_stopping_criterion " << endl;
         label minIter = minIter_;
         label frequency = frequency_;
         if (!export_res) {
