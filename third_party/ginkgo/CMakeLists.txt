@@ -2,7 +2,7 @@
 ginkgo_load_git_package(
   ginkgo_external
   "https://github.com/ginkgo-project/ginkgo.git"
-  "feat_dist_vect_from_local"
+  "ogl_develop"
   "-DGINKGO_BUILD_CUDA=${GINKGO_BUILD_CUDA}"
   "-DGINKGO_BUILD_HIP=${GINKGO_BUILD_HIP}"
   "-DGINKGO_BUILD_OMP=${GINKGO_BUILD_OMP}"
