@@ -108,10 +108,13 @@ class StoppingCriterion {
             std::shared_ptr<const dist_mtx> gkomatrix,
             std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> res) const
         {
+            std::cout << "compute_Axref dist" << std::endl;
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {0}, device_exec);
 
+            std::cout << "compute_average unsafe" << std::endl;
             x->compute_average_unsafe(xAvg.get());
+            std::cout << "compute_average unsafe done" << std::endl;
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
             gkomatrix->compute_column_vector_sum(res.get());
@@ -124,7 +127,9 @@ class StoppingCriterion {
             xAvg_vec->scale(xAvg.get());
 
             // TODO needs a distributed res
+            std::cout << "compute_Axref dist apply" << std::endl;
             gkomatrix->apply(xAvg_vec.get(), res.get());
+            std::cout << "compute_Axref dist apply done" << std::endl;
             // std::cout << "compute_Axref apply done" << endl;
 #endif
         }
@@ -136,7 +141,7 @@ class StoppingCriterion {
             std::shared_ptr<dist_vec> x,
             std::shared_ptr<const dist_vec> b) const
         {
-            // std::cout << "compute_normfactor dist" << endl;
+            std::cout << "compute_normfactor dist" << std::endl;
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
@@ -147,10 +152,7 @@ class StoppingCriterion {
             auto comm = x->get_communicator();
 
             gko::dim<2> local_size = x->get_local()->get_size();
-
-            // TODO FIXME
-            gko::dim<2> global_size = x->get_local()->get_size();
-            // gko::dim<2> global_size = x->get_size();
+            gko::dim<2> global_size = x->get_size();
 
             auto Axref = gko::share(
                 dist_vec::create(device_exec, comm, global_size, local_size));
@@ -159,9 +161,9 @@ class StoppingCriterion {
                                gkomatrix, x, Axref);
 
             // TODO use dist vect
-            auto b_norm =
-                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
-            b->compute_norm1(b_norm.get());
+            // auto b_norm =
+            //     vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+            // b->compute_norm1(b_norm.get());
 
             auto unity = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {1.0}, device_exec);
@@ -182,6 +184,7 @@ class StoppingCriterion {
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
             res_host->copy_from(res.get());
 
+            std::cout << "compute_normfactor dist done" << std::endl;
             return res_host->get_values()[0];
         }
 
@@ -190,6 +193,7 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+            std::cout << " check impl distributed " << std::endl;
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -352,9 +356,6 @@ class StoppingCriterion {
                            std::shared_ptr<vec> x,
                            std::shared_ptr<vec> res) const
         {
-            // auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
-            //     1, {0}, device_exec);
-
             auto xAvg = x->compute_average_unsafe();
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
@@ -389,9 +390,9 @@ class StoppingCriterion {
 
             compute_Axref(device_exec, gkomatrix, x, Axref);
 
-            auto b_norm =
-                vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
-            b->compute_norm1(b_norm.get());
+            // auto b_norm =
+            //     vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
+            // b->compute_norm1(b_norm.get());
 
             auto unity = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {1.0}, device_exec);
