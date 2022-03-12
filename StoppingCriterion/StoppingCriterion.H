@@ -171,7 +171,7 @@ class StoppingCriterion {
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
             res_host->copy_from(res.get());
 
-            return res_host->get_values()[0];
+            return res_host->get_values()[0] + SMALL;
         }
 
         bool check_impl(gko::uint8 stoppingId, bool setFinalized,
@@ -391,7 +391,7 @@ class StoppingCriterion {
                 vec::create(device_exec->get_master(), gko::dim<2>{1, 1});
             res_host->copy_from(res.get());
 
-            return res_host->get_values()[0];
+            return res_host->get_values()[0] + SMALL;
         }
 
         bool check_impl(gko::uint8 stoppingId, bool setFinalized,
