@@ -32,7 +32,7 @@ lduMatrix::solver::addsymMatrixConstructorToTable<GKOGMRES>
     addGKOGMRESSymMatrixConstructorToTable_;
 
 lduMatrix::solver::addasymMatrixConstructorToTable<GKOGMRES>
-    addGKOGMRESSymMatrixConstructorToTable_;
+    addGKOGMRESAsymMatrixConstructorToTable_;
 }  // namespace Foam
 
 

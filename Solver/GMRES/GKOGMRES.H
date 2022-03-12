@@ -36,8 +36,13 @@ namespace Foam {
 
 class GKOGMRESFactory {
 private:
+    using mtx = gko::matrix::Csr<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
     using gmres = gko::solver::Gmres<scalar>;
     using val_array = gko::Array<scalar>;
+
+    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label>;
 
     const dictionary &solverControls_;
 
@@ -57,6 +62,23 @@ public:
           db_(db),
           sysMatrixName_(sysMatrixName),
           stoppingCriterion_(solverControls){};
+
+    std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
+    create_dist_solver(std::shared_ptr<gko::Executor> exec,
+                       std::shared_ptr<dist_mtx> gkomatrix,
+                       std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> b,
+                       const label verbose, const bool export_res,
+                       std::shared_ptr<gko::LinOp> precond) const
+    {
+        stoppingCriterionVec_.push_back(
+            stoppingCriterion_.build_dist_stopping_criterion(
+                exec, gkomatrix, x, b, verbose, export_res,
+                get_prev_number_of_iterations()));
+
+        if (precond != NULL) return create_precond(exec, precond);
+        return create_default(exec);
+    };
+
 
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
     create_solver(std::shared_ptr<gko::Executor> exec,
