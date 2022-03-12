@@ -38,6 +38,12 @@ namespace Foam {
 class GKOIRFactory {
 private:
     using ir = gko::solver::Ir<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
+    using cg = gko::solver::Cg<scalar>;
+    using val_array = gko::Array<scalar>;
+
+    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label>;
 
     const dictionary &solverControls_;
 
@@ -67,23 +73,7 @@ public:
           outerStoppingCriterion_(solverControls),
           innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)){};
 
-    std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec,
-                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const label verbose,
-                  const bool export_res,
-                  std::shared_ptr<gko::LinOp> precond) const
-    {
-        outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, export_res, 0));
-
-        // if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
-        //     "scalarJacobi") {
-        //     return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
-        // }
-        return create_default(exec, gkomatrix, x, b, verbose);
-    };
+    CREATE_SOLVER_METHODS(ir)
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
