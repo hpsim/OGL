@@ -48,7 +48,9 @@ struct ExecutorInitFunctor {
 
     ExecutorInitFunctor(const word executor_name, const word field_name,
                         const label verbose)
-        : comm_(std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)),
+        : comm_((Pstream::parRun())  // TODO make this DRY
+                    ? std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)
+                    : NULL),
           device_id_(comm_->node_local_rank()),
           executor_name_(executor_name),
           field_name_(field_name),
