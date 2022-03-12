@@ -105,7 +105,9 @@ public:
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0))),
               true, 0),
-          comm_(std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)),
+          comm_((Pstream::parRun())
+                    ? std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)
+                    : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
