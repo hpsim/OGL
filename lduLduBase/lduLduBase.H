@@ -162,23 +162,22 @@ public:
                     auto precond = this->init_preconditioner(
                         gkomatrix.get_persistent_object(),
                         this->get_exec_handler().get_device_exec());)
-        /* auto solver_gen = this->create_solver( */
-        /*     this->get_exec_handler().get_device_exec(), */
-        /*     gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_, */
-        /*     csr_matrix_wrapper_.get_export(), precond); */
-        /* SIMPLE_TIME(verbose_, generate_solver, */
-        /*             auto solver = solver_gen->generate( */
-        /*                 gko::share(gkomatrix.get_persistent_object()));) */
-        /* SIMPLE_TIME(verbose_, solve, */
-        /*             solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-         */
-        /* SIMPLE_TIME(verbose_, retrieve_result_from_device, */
-        /*             x.copy_back(dense_x);) */
-        /* solverPerf.initialResidual() = this->get_init_res_norm(); */
-        /* solverPerf.finalResidual() = this->get_res_norm(); */
-        /* solverPerf.nIterations() = this->get_number_of_iterations(); */
-        /* this->store_number_of_iterations(); */
-        /* return solverPerf; */
+        auto solver_gen = this->create_solver(
+            this->get_exec_handler().get_device_exec(),
+            gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
+            csr_matrix_wrapper_.get_export(), precond);
+        SIMPLE_TIME(verbose_, generate_solver,
+                    auto solver = solver_gen->generate(
+                        gko::share(gkomatrix.get_persistent_object()));)
+        SIMPLE_TIME(verbose_, solve,
+                    solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
+        SIMPLE_TIME(verbose_, retrieve_result_from_device,
+                    x.copy_back(dense_x);)
+        solverPerf.initialResidual() = this->get_init_res_norm();
+        solverPerf.finalResidual() = this->get_res_norm();
+        solverPerf.nIterations() = this->get_number_of_iterations();
+        this->store_number_of_iterations();
+        return solverPerf;
     }
 
     solverPerformance solve_multi_gpu_impl(scalarField &psi,
