@@ -51,7 +51,7 @@ struct ExecutorInitFunctor {
         : comm_((Pstream::parRun())  // TODO make this DRY
                     ? std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)
                     : NULL),
-          device_id_(comm_->node_local_rank()),
+          device_id_((Pstream::parRun()) ? comm_->node_local_rank() : 0),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
