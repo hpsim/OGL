@@ -361,6 +361,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // TODO create in ctr
     // as devicePersistent so that we can reuse the memory
 
+    auto start_copy = std::chrono::steady_clock::now();
     auto values = values_.get_data();
 
     const label *sorting_interface_idxs =
@@ -399,6 +400,12 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         }
         interface_ctr += patch_size;
     }
+    auto end_copy = std::chrono::steady_clock::now();
+    std::cout << "[OGL LOG] copying  : "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_copy - start_copy)
+                     .count()
+              << " mu s\n";
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
