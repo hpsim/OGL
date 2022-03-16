@@ -363,20 +363,22 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     auto values = values_.get_data();
 
-    const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
     const label *sorting_interface_idxs =
         &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
 
     auto lower = this->matrix().lower();
     auto upper = this->matrix().upper();
     for (label i = 0; i < nNeighbours(); i++) {
-        values[sorting_idxs[i]] = upper[i] * scaling_;
-        values[sorting_idxs[i + nNeighbours_]] = lower[i] * scaling_;
+        values[i] = upper[i] * scaling_;
+    }
+
+    for (label i = 0; i < nNeighbours(); i++) {
+        values[i + nNeighbours_] = lower[i] * scaling_;
     }
 
     auto diag = this->matrix().diag();
     for (label i = 0; i < local_nCells(); ++i) {
-        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i] * scaling_;
+        values[i + 2 * nNeighbours_] = diag[i] * scaling_;
     }
 
     label interface_ctr{0};
@@ -392,11 +394,28 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         }
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
-            values[sorting_interface_idxs[interface_ctr + cellI]] =
+            values[nElems_ - nInterfaces_ + interface_ctr + cellI] =
                 -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
         }
         interface_ctr += patch_size;
     }
+
+    const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
+    auto device_exec = exec_.get_device_exec();
+    // TODO make P device persistent
+    auto P = gko::matrix::Permutation<label>::create(ref_exec, nElems_,
+                                                     *sorting_idxs.get());
+    auto d = vec::create(ref_exec, gko::dim<2>(nElems_, 1),
+                         *values_.get_array().get(), 1);
+    auto s = vec::create(ref_exec, gko::dim<2>(nElems_, 1));
+    auto start_perm = std::chrono::steady_clock::now();
+    P->apply(d.get(), s.get());
+    auto end_perm = std::chrono::steady_clock::now();
+    std::cout << "[OGL LOG] permuting  : "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_perm - start_perm)
+                     .count()
+              << " mu s\n";
 }
 
 template void HostMatrixWrapper<lduMatrix>::update_host_matrix_data(
