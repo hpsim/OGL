@@ -198,8 +198,7 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
-    label row, label &element_ctr, label *sorting_interface_idxs,
-    const bool upper) const
+    label row, label &element_ctr, label *sorting_idxs, const bool upper) const
 {
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
@@ -243,7 +242,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     rows[element_ctr] = global_cell_index_.toGlobal(row);
                     cols[element_ctr] = other_side_global_cellID;
 
-                    sorting_interface_idxs[interface_ctr + cellI] = element_ctr;
+                    sorting_idxs[interface_ctr + cellI] = element_ctr;
 
                     element_ctr++;
                 }
@@ -290,7 +289,8 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
 
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
-    auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
+    label *sorting_interface_idxs =
+        &ldu_csr_idx_mapping_.get_data()[nElems_ - nInterfaces_];
 
     for (label row = 0; row < nCells_; row++) {
         // check for lower idxs
@@ -364,8 +364,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto values = values_.get_data();
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
-    const auto sorting_interface_idxs =
-        ldu_csr_idx_interface_mapping_.get_const_data();
+    const label *sorting_interface_idxs =
+        &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
 
     auto lower = this->matrix().lower();
     auto upper = this->matrix().upper();
