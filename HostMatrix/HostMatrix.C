@@ -361,36 +361,29 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // TODO create in ctr
     // as devicePersistent so that we can reuse the memory
 
-    auto start_copy = std::chrono::steady_clock::now();
     auto values = values_.get_data();
 
-    const label *sorting_interface_idxs =
-        &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
+    // const label *sorting_interface_idxs =
+    //     &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
 
-    label interface_ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
-            continue;
-        }
-        const auto iface{interfaces.operator()(i)};
-        const label patch_size = iface->interface().faceCells().size();
+    // label interface_ctr{0};
+    // for (int i = 0; i < interfaces.size(); i++) {
+    //     if (interfaces.operator()(i) == nullptr) {
+    //         continue;
+    //     }
+    //     const auto iface{interfaces.operator()(i)};
+    //     const label patch_size = iface->interface().faceCells().size();
 
-        if (!isA<processorLduInterface>(iface->interface())) {
-            continue;
-        }
+    //     if (!isA<processorLduInterface>(iface->interface())) {
+    //         continue;
+    //     }
 
-        for (label cellI = 0; cellI < patch_size; cellI++) {
-            values[nElems_ - nInterfaces_ + interface_ctr + cellI] =
-                -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
-        }
-        interface_ctr += patch_size;
-    }
-    auto end_copy = std::chrono::steady_clock::now();
-    std::cout << "[OGL LOG] copying  : "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_copy - start_copy)
-                     .count()
-              << " mu s\n";
+    //     for (label cellI = 0; cellI < patch_size; cellI++) {
+    //         values[nElems_ - nInterfaces_ + interface_ctr + cellI] =
+    //             -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
+    //     }
+    //     interface_ctr += patch_size;
+    // }
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
@@ -411,6 +404,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
 
     // copy upper
+    auto start_copy = std::chrono::steady_clock::now();
     auto upper = this->matrix().upper();
     auto u_host_view =
         gko::Array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
@@ -432,6 +426,12 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto d_device_view = gko::Array<scalar>::view(
         device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
     d_device_view = d_host_view;
+    auto end_copy = std::chrono::steady_clock::now();
+    std::cout << "[OGL LOG] copying  : "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_copy - start_copy)
+                     .count()
+              << " mu s\n";
 
     // // copy lower
     // auto u_host_view = gko::Array<T>::view(exec_.get_ref_exec(),
