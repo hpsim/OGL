@@ -397,8 +397,16 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     // TODO make P device persistent
     // permutation matrix
+    auto start_perm_mat = std::chrono::steady_clock::now();
     auto P = gko::matrix::Permutation<label>::create(device_exec, nElems_,
                                                      *sorting_idxs.get());
+    auto end_perm_mat = std::chrono::steady_clock::now();
+    std::cout << "[OGL LOG] creating permutation matrix  : "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_perm_mat - start_perm_mat)
+                     .count()
+              << " mu s\n";
+
     // unsorted entries on device
     auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
 
