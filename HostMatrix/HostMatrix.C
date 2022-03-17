@@ -426,6 +426,15 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto d_device_view = gko::Array<scalar>::view(
         device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
     d_device_view = d_host_view;
+
+    // copy interfaces
+    auto i_host_view = gko::Array<scalar>::view(ref_exec, nCells_, &diag[0]);
+    auto i_device_view =
+        gko::Array<scalar>::view(device_exec, nInterfaces_,
+                                 &d->get_values()[2 * nNeighbours_ + nCells_]);
+    i_device_view = i_host_view;
+
+
     auto end_copy = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] copying  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
@@ -433,26 +442,11 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
                      .count()
               << " mu s\n";
 
-    // // copy lower
-    // auto u_host_view = gko::Array<T>::view(exec_.get_ref_exec(),
-    // nNeighbours_,
-    //                                        const_cast<T *>(memory_));
-    // auto u_device_view = gko::Array<T>::view(exec_.get_ref_exec(),
-    // nNeighbours_,
-    //                                          const_cast<T *>(memory_));
-    // u_device_view = u_host_view;
-
-    // // copy diag
-    // auto d_host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
-    //                                        const_cast<T *>(memory_));
-    // auto d_device_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
-    //                                          const_cast<T *>(memory_));
-    // d_device_view = d_host_view;
-
 
     auto s = vec::create(device_exec, gko::dim<2>(nElems_, 1));
     auto start_perm = std::chrono::steady_clock::now();
-    P->apply(d.get(), s.get());
+    // TODO overhead here?
+    P->apply(d.get(), values_.get_dense_vec().get());
     auto end_perm = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] permuting  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
