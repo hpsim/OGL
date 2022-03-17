@@ -428,7 +428,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     d_device_view = d_host_view;
 
     // copy interfaces
-    auto i_host_view = gko::Array<scalar>::view(ref_exec, nCells_, &diag[0]);
+    auto i_host_view =
+        gko::Array<scalar>::view(ref_exec, nInterfaces_, &diag[0]);
     auto i_device_view =
         gko::Array<scalar>::view(device_exec, nInterfaces_,
                                  &d->get_values()[2 * nNeighbours_ + nCells_]);

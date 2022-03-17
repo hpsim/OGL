@@ -60,10 +60,6 @@ private:
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
-    const gkoGlobalIndex global_values_index_;
-
-    const gkoGlobalIndex global_interface_index_;
-
     const label verbose_;
 
     const scalar scaling_;
@@ -100,10 +96,6 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          // TODO needed?
-          global_values_index_{nElems_ - nInterfaces_},
-          // TODO needed?
-          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{
@@ -115,15 +107,6 @@ public:
               false,
               false,
           },
-          // ldu_csr_idx_interface_mapping_{
-          //     fieldName + "_ldu_csr_interface_map",
-          //     db,
-          //     exec_,
-          //     global_interface_index_,
-          //     verbose_,
-          //     false,
-          //     false,
-          // },
           values_{fieldName + "_values",
                   db,
                   exec_,
@@ -173,7 +156,6 @@ public:
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{fieldName + "ldu_csr_map",
@@ -183,14 +165,6 @@ public:
                                verbose_,
                                false,
                                false},
-          // ldu_csr_idx_interface_mapping_{fieldName +
-          // "_ldu_csr_interface_map",
-          //                                db,
-          //                                exec_,
-          //                                global_interface_index_,
-          //                                verbose_,
-          //                                false,
-          //                                false},
           values_{fieldName + "values",
                   db,
                   exec_,
