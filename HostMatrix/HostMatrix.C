@@ -409,12 +409,13 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
+
     // TODO make P device persistent
-    auto P = gko::matrix::Permutation<label>::create(ref_exec, nElems_,
+    auto P = gko::matrix::Permutation<label>::create(device_exec, nElems_,
                                                      *sorting_idxs.get());
-    auto d = vec::create(ref_exec, gko::dim<2>(nElems_, 1),
+    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1),
                          *values_.get_array().get(), 1);
-    auto s = vec::create(ref_exec, gko::dim<2>(nElems_, 1));
+    auto s = vec::create(device_exec, gko::dim<2>(nElems_, 1));
     auto start_perm = std::chrono::steady_clock::now();
     P->apply(d.get(), s.get());
     auto end_perm = std::chrono::steady_clock::now();
