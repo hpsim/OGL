@@ -367,21 +367,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const label *sorting_interface_idxs =
         &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
 
-    auto lower = this->matrix().lower();
-    auto upper = this->matrix().upper();
-    for (label i = 0; i < nNeighbours(); i++) {
-        values[i] = upper[i] * scaling_;
-    }
-
-    for (label i = 0; i < nNeighbours(); i++) {
-        values[i + nNeighbours_] = lower[i] * scaling_;
-    }
-
-    auto diag = this->matrix().diag();
-    for (label i = 0; i < local_nCells(); ++i) {
-        values[i + 2 * nNeighbours_] = diag[i] * scaling_;
-    }
-
     label interface_ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
@@ -411,10 +396,52 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto device_exec = exec_.get_device_exec();
 
     // TODO make P device persistent
+    // permutation matrix
     auto P = gko::matrix::Permutation<label>::create(device_exec, nElems_,
                                                      *sorting_idxs.get());
-    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1),
-                         *values_.get_array().get(), 1);
+    // unsorted entries on device
+    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
+
+    // copy upper
+    auto upper = this->matrix().upper();
+    auto u_host_view =
+        gko::Array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
+    auto u_device_view =
+        gko::Array<scalar>::view(device_exec, nNeighbours_, d->get_values());
+    u_device_view = u_host_view;
+
+    // copy lower
+    auto lower = this->matrix().lower();
+    auto l_host_view =
+        gko::Array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
+    auto l_device_view = gko::Array<scalar>::view(
+        device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
+    l_device_view = l_host_view;
+
+    // copy diag
+    auto diag = this->matrix().diag();
+    auto d_host_view = gko::Array<scalar>::view(ref_exec, nCells_, &diag[0]);
+    auto d_device_view = gko::Array<scalar>::view(
+        device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
+    d_device_view = d_host_view;
+
+    // // copy lower
+    // auto u_host_view = gko::Array<T>::view(exec_.get_ref_exec(),
+    // nNeighbours_,
+    //                                        const_cast<T *>(memory_));
+    // auto u_device_view = gko::Array<T>::view(exec_.get_ref_exec(),
+    // nNeighbours_,
+    //                                          const_cast<T *>(memory_));
+    // u_device_view = u_host_view;
+
+    // // copy diag
+    // auto d_host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+    //                                        const_cast<T *>(memory_));
+    // auto d_device_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+    //                                          const_cast<T *>(memory_));
+    // d_device_view = d_host_view;
+
+
     auto s = vec::create(device_exec, gko::dim<2>(nElems_, 1));
     auto start_perm = std::chrono::steady_clock::now();
     P->apply(d.get(), s.get());
