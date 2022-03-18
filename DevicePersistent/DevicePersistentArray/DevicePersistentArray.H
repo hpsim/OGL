@@ -216,9 +216,14 @@ public:
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
     {
         auto host_array = get_array();
-        return gko::share(vec::create(
-            exec_.get_device_exec(),
-            gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
+        auto result = gko::share(
+            vec::create(exec_.get_device_exec(),
+                        gko::dim<2>(host_array->get_num_elems(), 1)));
+
+        auto result_memory = result->get_values();
+        result_memory = get_data();
+
+        return result;
     }
 
     const T *get_const_data() const

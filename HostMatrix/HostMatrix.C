@@ -446,7 +446,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     auto s = vec::create(device_exec, gko::dim<2>(nElems_, 1));
     auto start_perm = std::chrono::steady_clock::now();
-    // TODO overhead here?
     P->apply(d.get(), values_.get_dense_vec().get());
     auto end_perm = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] permuting  : "
