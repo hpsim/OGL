@@ -361,30 +361,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // TODO create in ctr
     // as devicePersistent so that we can reuse the memory
 
-    auto values = values_.get_data();
-
-    // const label *sorting_interface_idxs =
-    //     &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
-
-    // label interface_ctr{0};
-    // for (int i = 0; i < interfaces.size(); i++) {
-    //     if (interfaces.operator()(i) == nullptr) {
-    //         continue;
-    //     }
-    //     const auto iface{interfaces.operator()(i)};
-    //     const label patch_size = iface->interface().faceCells().size();
-
-    //     if (!isA<processorLduInterface>(iface->interface())) {
-    //         continue;
-    //     }
-
-    //     for (label cellI = 0; cellI < patch_size; cellI++) {
-    //         values[nElems_ - nInterfaces_ + interface_ctr + cellI] =
-    //             -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
-    //     }
-    //     interface_ctr += patch_size;
-    // }
-
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
 
@@ -428,8 +404,33 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     d_device_view = d_host_view;
 
     // copy interfaces
+    // const label *sorting_interface_idxs =
+    //     &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
+
+    auto tmp_contiguous_iface = gko::Array<scalar>(ref_exec, nInterfaces_);
+    auto contiguous_iface = tmp_contiguous_iface.get_data();
+
+    label interface_ctr{0};
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
+            continue;
+        }
+        const auto iface{interfaces.operator()(i)};
+        const label patch_size = iface->interface().faceCells().size();
+
+        if (!isA<processorLduInterface>(iface->interface())) {
+            continue;
+        }
+
+        for (label cellI = 0; cellI < patch_size; cellI++) {
+            contiguous_iface[interface_ctr + cellI] =
+                -interfaceBouCoeffs[interface_ctr + cellI];
+        }
+        interface_ctr += patch_size;
+    }
+
     auto i_host_view =
-        gko::Array<scalar>::view(ref_exec, nInterfaces_, &diag[0]);
+        gko::Array<scalar>::view(ref_exec, nInterfaces_, contiguous_iface);
     auto i_device_view =
         gko::Array<scalar>::view(device_exec, nInterfaces_,
                                  &d->get_values()[2 * nNeighbours_ + nCells_]);
