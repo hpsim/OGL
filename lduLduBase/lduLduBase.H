@@ -295,7 +295,6 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            !solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false};
 
         PersistentArray<scalar> x{
@@ -306,7 +305,6 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            !solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false};
 
         // Solve system

@@ -242,7 +242,8 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     rows[element_ctr] = global_cell_index_.toGlobal(row);
                     cols[element_ctr] = other_side_global_cellID;
 
-                    sorting_idxs[interface_ctr + cellI] = element_ctr;
+                    sorting_idxs[element_ctr] =
+                        2 * nNeighbours_ + nCells_ + interface_ctr + cellI;
 
                     element_ctr++;
                 }
@@ -289,13 +290,12 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
 
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
-    label *sorting_interface_idxs =
-        &ldu_csr_idx_mapping_.get_data()[nElems_ - nInterfaces_];
 
+    label interface_elem_ctr{0};
     for (label row = 0; row < nCells_; row++) {
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs, true);
+                                row, element_ctr, sorting_idxs, true);
 
         // add lower elements
         // for now just scan till current upper ctr
@@ -307,7 +307,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
             cols[element_ctr] = second;
             // lower_ctr doesnt correspond to same element as
             // upper_ctr
-            sorting_idxs[first + nNeighbours_] = element_ctr;
+            sorting_idxs[element_ctr] = first + nNeighbours_;
 
             lower_ctr++;
             element_ctr++;
@@ -316,7 +316,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         // add diagonal elemnts
         rows[element_ctr] = global_row;
         cols[element_ctr] = global_row;
-        sorting_idxs[2 * nNeighbours_ + row] = element_ctr;
+        sorting_idxs[element_ctr] = 2 * nNeighbours_ + row;
 
         element_ctr++;
 
@@ -333,7 +333,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
                 // insert into lower_stack
                 // find insert position
                 lower_stack[upper_idx].emplace_back(upper_ctr, row_upper);
-                sorting_idxs[upper_ctr] = element_ctr;
+                sorting_idxs[element_ctr] = upper_ctr;
 
                 element_ctr++;
                 upper_ctr++;
@@ -342,8 +342,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         }
 
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs,
-                                false);
+                                row, element_ctr, sorting_idxs, false);
     }
     LOG_1(verbose_, "done init host matrix")
 }
@@ -367,8 +366,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // TODO make P device persistent
     // permutation matrix
     auto start_perm_mat = std::chrono::steady_clock::now();
-    auto P = gko::matrix::Permutation<label>::create(device_exec, nElems_,
-                                                     *sorting_idxs.get());
+    auto P = gko::matrix::Permutation<label>::create(
+        device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get());
     auto end_perm_mat = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] creating permutation matrix  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
@@ -377,7 +376,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
               << " mu s\n";
 
     // unsorted entries on device
-    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
+    auto d = gko::share(vec::create(device_exec, gko::dim<2>(nElems_, 1)));
 
     // copy upper
     auto start_copy = std::chrono::steady_clock::now();
@@ -404,9 +403,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     d_device_view = d_host_view;
 
     // copy interfaces
-    // const label *sorting_interface_idxs =
-    //     &ldu_csr_idx_mapping_.get_const_data()[nElems_ - nInterfaces_];
-
     auto tmp_contiguous_iface = gko::Array<scalar>(ref_exec, nInterfaces_);
     auto contiguous_iface = tmp_contiguous_iface.get_data();
 
@@ -429,12 +425,10 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         interface_ctr += patch_size;
     }
 
-    auto i_host_view =
-        gko::Array<scalar>::view(ref_exec, nInterfaces_, contiguous_iface);
     auto i_device_view =
         gko::Array<scalar>::view(device_exec, nInterfaces_,
                                  &d->get_values()[2 * nNeighbours_ + nCells_]);
-    i_device_view = i_host_view;
+    i_device_view = tmp_contiguous_iface;
 
 
     auto end_copy = std::chrono::steady_clock::now();
@@ -444,10 +438,27 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
                      .count()
               << " mu s\n";
 
+    auto pd = P->get_permutation();
+    if (Pstream::myProcNo() == 0) {
+        for (int i = 0; i < nElems_; i++) {
+            std::cout << "(" << i << ": " << pd[i] << ")";
+        }
+        std::cout << std::endl;
+    }
 
-    auto s = vec::create(device_exec, gko::dim<2>(nElems_, 1));
     auto start_perm = std::chrono::steady_clock::now();
-    P->apply(d.get(), values_.get_dense_vec().get());
+
+    auto dense_vec = gko::share(vec::create(
+        device_exec, gko::dim<2>{nElems_, 1},
+        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1));
+
+    P->apply(d.get(), dense_vec.get());
+    auto dense_vec_after = gko::share(vec::create(
+        device_exec, gko::dim<2>{nElems_, 1},
+        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1));
+
+    dense_vec_after->copy_from(dense_vec.get());
+
     auto end_perm = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] permuting  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(

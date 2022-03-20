@@ -131,7 +131,7 @@ std::ostream &operator<<(std::ostream &os,
     auto array = in->clone(ref_exec);
     label size = array->get_size()[0];
     os << size << " elements [";
-    if (size > 40) {
+    if (size > 100) {
         for (label i = 0; i < 9; i++) {
             os << array->at(i) << ", ";
         }
@@ -142,9 +142,9 @@ std::ostream &operator<<(std::ostream &os,
         os << array->at(size - 1) << "]\n";
     } else {
         for (label i = 0; i < size - 1; i++) {
-            os << array->at(i) << ", ";
+            os << "(" << i << ", " << array->at(i) << ") ";
         }
-        os << array->at(size - 1) << "]\n";
+        os << "(" << size - 1 << ", " << array->at(size - 1) << ")]\n";
     }
     return os;
 }
