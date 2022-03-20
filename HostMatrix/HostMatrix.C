@@ -438,14 +438,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
                      .count()
               << " mu s\n";
 
-    auto pd = P->get_permutation();
-    if (Pstream::myProcNo() == 0) {
-        for (int i = 0; i < nElems_; i++) {
-            std::cout << "(" << i << ": " << pd[i] << ")";
-        }
-        std::cout << std::endl;
-    }
-
     auto start_perm = std::chrono::steady_clock::now();
 
     auto dense_vec = gko::share(vec::create(
