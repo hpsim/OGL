@@ -53,6 +53,8 @@ private:
 
     const label nInterfaces_;
 
+    const label nElems_wo_Interfaces_;
+
     const label nElems_;
 
     const gkoGlobalIndex global_cell_index_;
@@ -93,6 +95,7 @@ public:
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nInterfaces_(count_elements_on_interfaces(interfaces)),
+          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
           nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
@@ -153,6 +156,7 @@ public:
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nInterfaces_(0),
+          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},

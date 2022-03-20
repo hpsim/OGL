@@ -243,7 +243,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     cols[element_ctr] = other_side_global_cellID;
 
                     sorting_idxs[element_ctr] =
-                        2 * nNeighbours_ + nCells_ + interface_ctr + cellI;
+                        nElems_wo_Interfaces_ + interface_ctr + cellI;
 
                     element_ctr++;
                 }
@@ -292,6 +292,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
 
     label interface_elem_ctr{0};
+    label after_neighbours = 2 * nNeighbours_;
     for (label row = 0; row < nCells_; row++) {
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
@@ -316,7 +317,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         // add diagonal elemnts
         rows[element_ctr] = global_row;
         cols[element_ctr] = global_row;
-        sorting_idxs[element_ctr] = 2 * nNeighbours_ + row;
+        sorting_idxs[element_ctr] = after_neighbours + row;
 
         element_ctr++;
 
