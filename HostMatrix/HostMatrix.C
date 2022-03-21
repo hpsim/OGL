@@ -443,7 +443,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     auto start_perm = std::chrono::steady_clock::now();
 
-    auto dense_vec = vec::create(
+    std::unique_ptr<gko::LinOp> dense_vec{};
+    dense_vec = vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
         gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
 
