@@ -443,9 +443,9 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     auto start_perm = std::chrono::steady_clock::now();
 
-    auto dense_vec = gko::share(vec::create(
+    auto dense_vec = vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
-        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1));
+        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
 
     P->apply(d.get(), dense_vec.get());
     auto dense_vec_after = gko::share(vec::create(
@@ -459,7 +459,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
               << " mu s\n";
 
     auto start_cp_back = std::chrono::steady_clock::now();
-    dense_vec_after->copy_from(dense_vec.get());
+    dense_vec_after->copy_from(std::move(dense_vec.get()));
     auto end_cp_back = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] copy back  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
