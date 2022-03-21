@@ -459,7 +459,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
               << " mu s\n";
 
     auto start_cp_back = std::chrono::steady_clock::now();
-    dense_vec_after->copy_from(std::move(dense_vec.get()));
+    dense_vec_after->copy_from(std::move(dense_vec));
     auto end_cp_back = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] copy back  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
