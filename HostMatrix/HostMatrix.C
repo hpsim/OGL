@@ -420,6 +420,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto i_device_view =
         gko::Array<scalar>::view(device_exec, nInterfaces_,
                                  &d->get_values()[2 * nNeighbours_ + nCells_]);
+    i_device_view = tmp_contiguous_iface;
 
 
     auto dense_vec = vec::create(device_exec, gko::dim<2>{nElems_, 1});
