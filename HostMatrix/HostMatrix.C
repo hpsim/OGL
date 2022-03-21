@@ -359,30 +359,20 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<scalar> &interfaceBouCoeffs) const
 {
-    auto ref_exec = gko::ReferenceExecutor::create();
-    // TODO create in ctr
-    // as devicePersistent so that we can reuse the memory
+    auto ref_exec = exec_.get_ref_exec();
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
 
     // TODO make P device persistent
     // permutation matrix
-    auto start_perm_mat = std::chrono::steady_clock::now();
     auto P = gko::matrix::Permutation<label>::create(
         device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get());
-    auto end_perm_mat = std::chrono::steady_clock::now();
-    std::cout << "[OGL LOG] creating permutation matrix  : "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_perm_mat - start_perm_mat)
-                     .count()
-              << " mu s\n";
 
     // unsorted entries on device
-    auto d = gko::share(vec::create(device_exec, gko::dim<2>(nElems_, 1)));
+    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
 
     // copy upper
-    auto start_copy = std::chrono::steady_clock::now();
     auto upper = this->matrix().upper();
     auto u_host_view =
         gko::Array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
@@ -431,41 +421,20 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto i_device_view =
         gko::Array<scalar>::view(device_exec, nInterfaces_,
                                  &d->get_values()[2 * nNeighbours_ + nCells_]);
-    i_device_view = tmp_contiguous_iface;
 
 
-    auto end_copy = std::chrono::steady_clock::now();
-    std::cout << "[OGL LOG] copying  : "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_copy - start_copy)
-                     .count()
-              << " mu s\n";
+    auto dense_vec = vec::create(device_exec, gko::dim<2>{nElems_, 1});
 
-    auto start_perm = std::chrono::steady_clock::now();
-
-    auto dense_vec = vec::create(
-        device_exec, gko::dim<2>{nElems_, 1},
-        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
-
+    // NOTE apply changes the underlying pointer of dense_vec
+    // thus copy_from is used to move the ptr to the underlying
+    // device persistent array
     P->apply(d.get(), dense_vec.get());
-    auto end_perm = std::chrono::steady_clock::now();
-    std::cout << "[OGL LOG] permuting  : "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_perm - start_perm)
-                     .count()
-              << " mu s\n";
 
-    auto start_cp_back = std::chrono::steady_clock::now();
     auto dense_vec_after = gko::share(vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
         gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1));
+
     dense_vec_after->copy_from(dense_vec.get());
-    auto end_cp_back = std::chrono::steady_clock::now();
-    std::cout << "[OGL LOG] copy back  : "
-              << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_cp_back - start_cp_back)
-                     .count()
-              << " mu s\n";
 }
 
 template void HostMatrixWrapper<lduMatrix>::update_host_matrix_data(
