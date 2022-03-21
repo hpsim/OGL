@@ -230,7 +230,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     continue;
                 }
             }
-
+            const label interface_idx{nElems_wo_Interfaces_ + interface_ctr};
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
             for (label cellI = 0; cellI < interface_size; cellI++) {
@@ -243,8 +243,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     rows[element_ctr] = global_row;
                     cols[element_ctr] = other_side_global_cellID;
 
-                    sorting_idxs[element_ctr] =
-                        nElems_wo_Interfaces_ + interface_ctr + cellI;
+                    sorting_idxs[element_ctr] = interface_idx + cellI;
 
                     element_ctr++;
                 }
