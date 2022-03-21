@@ -230,7 +230,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     continue;
                 }
             }
-            const label interface_idx{nElems_wo_Interfaces_ + interface_ctr};
+            const label interface_idx = nElems_wo_Interfaces_ + interface_ctr;
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
             for (label cellI = 0; cellI < interface_size; cellI++) {
@@ -429,9 +429,9 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // device persistent array
     P->apply(d.get(), dense_vec.get());
 
-    auto dense_vec_after = gko::share(vec::create(
+    auto dense_vec_after = vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
-        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1));
+        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
 
     dense_vec_after->copy_from(dense_vec.get());
 }
