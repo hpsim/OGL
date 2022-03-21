@@ -257,8 +257,8 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
 template void HostMatrixWrapper<lduMatrix>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
-    label row, label &element_ctr, label *sorting_interface_idxs,
-    const bool upper) const;
+    label row, label global_row, label &element_ctr,
+    label *sorting_interface_idxs, const bool upper) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
