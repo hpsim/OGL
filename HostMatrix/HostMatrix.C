@@ -198,7 +198,8 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
-    label row, label &element_ctr, label *sorting_idxs, const bool upper) const
+    label row, label global_row, label &element_ctr, label *sorting_idxs,
+    const bool upper) const
 {
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
@@ -239,7 +240,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                             neighbProcNo,
                             other_proc_cell_ids[interface_ctr + cellI]);
 
-                    rows[element_ctr] = global_cell_index_.toGlobal(row);
+                    rows[element_ctr] = global_row;
                     cols[element_ctr] = other_side_global_cellID;
 
                     sorting_idxs[element_ctr] =
@@ -294,14 +295,14 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
     label interface_elem_ctr{0};
     label after_neighbours = 2 * nNeighbours_;
     for (label row = 0; row < nCells_; row++) {
+        const label global_row = global_cell_index_.toGlobal(row);
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_idxs, true);
+                                row, global_row, element_ctr, sorting_idxs,
+                                true);
 
         // add lower elements
         // for now just scan till current upper ctr
-        //
-        const label global_row = global_cell_index_.toGlobal(row);
         for (const auto [first, second] : lower_stack[row]) {
             // TODO
             rows[element_ctr] = global_row;
@@ -343,7 +344,8 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         }
 
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_idxs, false);
+                                row, global_row, element_ctr, sorting_idxs,
+                                false);
     }
     LOG_1(verbose_, "done init host matrix")
 }
@@ -461,7 +463,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto end_cp_back = std::chrono::steady_clock::now();
     std::cout << "[OGL LOG] copy back  : "
               << std::chrono::duration_cast<std::chrono::microseconds>(
-                     end_cp_back - start_cp_back)
+                     end_cp_back - start_perm)
                      .count()
               << " mu s\n";
 }
