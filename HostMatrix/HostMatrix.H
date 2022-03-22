@@ -121,7 +121,7 @@ public:
                   exec_,
                   global_matrix_index_,
                   verbose_,
-                  false,
+                  true,
                   true},
           col_idxs_{fieldName + "_cols",
                     db,

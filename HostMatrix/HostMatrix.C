@@ -366,9 +366,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // TODO move to separate function
     std::shared_ptr<gko::LinOp> P{};
 
-
     if (!permutation_stored_) {
-        std::cout << "  nsnatointoianerstoinetsroenatoiesn " << std::endl;
         auto &db = values_.get_db();
 
         P = gko::share(gko::matrix::Permutation<label>::create(
