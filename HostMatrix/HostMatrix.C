@@ -363,16 +363,13 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
 
-    // TODO move to separate function
-    std::shared_ptr<gko::LinOp> P{};
-
     if (!permutation_stored_) {
         auto &db = values_.get_db();
 
-        P = gko::share(gko::matrix::Permutation<label>::create(
+        P_ = gko::share(gko::matrix::Permutation<label>::create(
             device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get()));
         const fileName path = permutation_matrix_name_;
-        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P);
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
     }
     // END TODO
 
@@ -436,7 +433,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // NOTE apply changes the underlying pointer of dense_vec
     // thus copy_from is used to move the ptr to the underlying
     // device persistent array
-    P->apply(d.get(), dense_vec.get());
+    P_->apply(d.get(), dense_vec.get());
 
     auto dense_vec_after = vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
