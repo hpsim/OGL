@@ -363,10 +363,20 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
 
-    // TODO make P device persistent
-    // permutation matrix
-    auto P = gko::matrix::Permutation<label>::create(
-        device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get());
+    // TODO move to separate function
+    std::shared_ptr<gko::LinOp> P{};
+
+
+    if (!permutation_stored_) {
+        std::cout << "  nsnatointoianerstoinetsroenatoiesn " << std::endl;
+        auto &db = values_.get_db();
+
+        P = gko::share(gko::matrix::Permutation<label>::create(
+            device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get()));
+        const fileName path = permutation_matrix_name_;
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P);
+    }
+    // END TODO
 
     // unsorted entries on device
     auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));

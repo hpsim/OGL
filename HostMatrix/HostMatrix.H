@@ -81,6 +81,12 @@ private:
 
     mutable PersistentArray<label> row_idxs_;
 
+    const word permutation_matrix_name_;
+
+    const bool permutation_stored_;
+
+    mutable std::shared_ptr<gko::LinOp> P_;
+
 
 public:
     // segregated wrapper constructor
@@ -115,7 +121,7 @@ public:
                   exec_,
                   global_matrix_index_,
                   verbose_,
-                  true,
+                  false,
                   true},
           col_idxs_{fieldName + "_cols",
                     db,
@@ -130,7 +136,15 @@ public:
                     global_matrix_index_,
                     verbose_,
                     false,
-                    true}
+                    true},
+          permutation_matrix_name_{"PermutationMatrix"},
+          permutation_stored_{
+              db.template foundObject<regIOobject>(permutation_matrix_name_)},
+          P_{(permutation_stored_) ? db.template lookupObjectRef<
+                                           DevicePersistentBase<gko::LinOp>>(
+                                           permutation_matrix_name_)
+                                         .get_ptr()
+                                   : nullptr}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids =
@@ -179,7 +193,15 @@ public:
           col_idxs_{fieldName + "cols", db,    exec_, global_matrix_index_,
                     verbose_,           false, true},
           row_idxs_{fieldName + "rows", db,    exec_, global_matrix_index_,
-                    verbose_,           false, true}
+                    verbose_,           false, true},
+          permutation_matrix_name_{"PermutationMatrix"},
+          permutation_stored_{
+              db.template foundObject<regIOobject>(permutation_matrix_name_)},
+          P_{(permutation_stored_) ? db.template lookupObjectRef<
+                                           DevicePersistentBase<gko::LinOp>>(
+                                           permutation_matrix_name_)
+                                         .get_ptr()
+                                   : nullptr}
     {
         // TODO reimplement this
         // if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
