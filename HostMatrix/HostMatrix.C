@@ -386,11 +386,19 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     // copy lower
     auto lower = this->matrix().lower();
-    auto l_host_view =
-        gko::Array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
     auto l_device_view = gko::Array<scalar>::view(
         device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
-    l_device_view = l_host_view;
+    if (lower == upper) {
+        // symmetric case reuse data already on the device
+        std::cout << " IS SYMMETRIC" << std::endl;
+        l_device_view->copy_from(u_device_view);
+
+    } else {
+        // non-symmetric case copy data to the device
+        auto l_host_view =
+            gko::Array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
+        l_device_view = l_host_view;
+    }
 
     // copy diag
     auto diag = this->matrix().diag();
