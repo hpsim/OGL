@@ -391,7 +391,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     if (lower == upper) {
         // symmetric case reuse data already on the device
         std::cout << " IS SYMMETRIC" << std::endl;
-        l_device_view->copy_from(u_device_view);
+        l_device_view = u_device_view;
 
     } else {
         // non-symmetric case copy data to the device
