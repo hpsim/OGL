@@ -244,8 +244,7 @@ public:
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
-                        gkomatrix.get_persistent_object(),
-                        this->get_exec_handler().get_device_exec());)
+                        dist_A, this->get_exec_handler().get_device_exec());)
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
