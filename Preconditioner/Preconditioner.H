@@ -248,26 +248,6 @@ public:
                     .on(device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
-        if (name == "Schwarz") {
-            using cg = gko::solver::Cg<scalar>;
-            using ras = gko::preconditioner::Schwarz<scalar, label>;
-            label max_block_size(
-                controls.lookupOrDefault("MaxBlockSize", label(1)));
-
-            auto inner_solver =
-                gko::share(bj::build()
-                               .with_skip_sorting(skip_sorting)
-                               .with_max_block_size(max_block_size)
-                               .on(device_exec));
-
-            return gko::share(
-                ras::build()
-                    // .with_coarse_relaxation_factors(rel_fac)
-                    // .with_generated_coarse_solvers(coarse_solver)
-                    .with_inner_solver(inner_solver)
-                    .on(device_exec)
-                    ->generate(gkomatrix));
-        }
         return {};
     }
 
