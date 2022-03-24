@@ -63,7 +63,7 @@ public:
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
@@ -279,7 +279,7 @@ public:
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
