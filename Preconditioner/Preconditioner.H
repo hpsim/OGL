@@ -248,6 +248,33 @@ public:
                     .on(device_exec);
             return gko::share(pre_factory->generate(gkomatrix));
         }
+        if (name == "RAS") {
+            using cg = gko::solver::Cg<scalar>;
+            using ras = gko::preconditioner::Schwarz<scalar, label>;
+
+            label inner_iter =
+                controls.lookupOrDefault("InnerIters", label(10));
+            scalar inner_reduction_factor =
+                controls.lookupOrDefault("InnerReductionFactor", 1e-10);
+            auto inner_solver = gko::share(
+                cg::build()
+                    .with_preconditioner(bj::build().on(device_exec))
+                    .with_criteria(
+                        gko::stop::Iteration::build()
+                            .with_max_iters(inner_iter)
+                            .on(device_exec),
+                        gko::stop::ResidualNorm<scalar>::build()
+                            .with_reduction_factor(inner_reduction_factor)
+                            .on(device_exec))
+                    .on(device_exec));
+            return gko::share(
+                ras::build()
+                    // .with_coarse_relaxation_factors(rel_fac)
+                    // .with_generated_coarse_solvers(coarse_solver)
+                    .with_inner_solver(inner_solver)
+                    .on(device_exec)
+                    ->generate(gkomatrix));
+        }
         return {};
     }
 
