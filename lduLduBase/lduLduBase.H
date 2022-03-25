@@ -185,7 +185,6 @@ public:
                                            const PersistentArray<scalar> &b,
                                            solverPerformance &solverPerf) const
     {
-        using ras = gko::preconditioner::Schwarz<scalar, label>;
         SIMPLE_TIME(verbose_, gather_initGuess,
                     auto dense_x = x.get_dense_vec();)
         SIMPLE_TIME(verbose_, gather_RHS, auto dense_b = b.get_dense_vec();)
@@ -245,7 +244,7 @@ public:
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
-                        matrix, this->get_exec_handler().get_device_exec());)
+                        dist_A, this->get_exec_handler().get_device_exec());)
 
 
         LOG_1(verbose_, "create solver")
