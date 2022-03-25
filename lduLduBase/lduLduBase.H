@@ -245,23 +245,13 @@ public:
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
-                        dist_A, this->get_exec_handler().get_device_exec());)
-
-        std::shared_ptr<gko::LinOp> dist_precond = {};
-        if (precond) {
-            dist_precond = gko::share(
-                ras::build()
-                    .with_generated_inner_solvers(
-                        std::vector<std::shared_ptr<const gko::LinOp>>{precond})
-                    .on(device_exec)
-                    ->generate(dist_A));
-        }
+                        matrix, this->get_exec_handler().get_device_exec());)
 
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A, dist_x, dist_b,
-            verbose_, csr_matrix_wrapper_.get_export(), dist_precond);
+            verbose_, csr_matrix_wrapper_.get_export(), precond);
 
         /* auto solver_gen = gko::share( */
         /*     gko::solver::Cg<scalar>::build() */
