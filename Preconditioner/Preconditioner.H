@@ -291,21 +291,24 @@ public:
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
-        if (stored && cache > 0) {
-            word msg = "Read preconditioner from registry for " +
-                       std::to_string(cache);
+        if (stored) {
+            if (cache > 0) {
+                word msg = "Read preconditioner from registry for " +
+                           std::to_string(cache);
 
-            LOG_1(verbose_, msg)
+                LOG_1(verbose_, msg)
 
-            cache = cache - 1;
+                cache = cache - 1;
 
-            set_next_caching(sys_matrix_name_, db_, cache--);
-            return db_
-                .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                    precond_store_name)
-                .get_ptr();
+                set_next_caching(sys_matrix_name_, db_, cache--);
+                return db_
+                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name)
+                    .get_ptr();
+            } else {
+                db_.checkOut(precond_store_name);
+            }
         }
-
         const label caching_period =
             controls.lookupOrDefault<label>("Caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
