@@ -198,7 +198,7 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
-    label row, label &element_ctr, label *sorting_interface_idxs,
+    label row, label global_row, label &element_ctr, label *sorting_idxs,
     const bool upper) const
 {
     label interface_ctr = 0;
@@ -230,7 +230,7 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                     continue;
                 }
             }
-
+            const label interface_idx = nElems_wo_Interfaces_ + interface_ctr;
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
             for (label cellI = 0; cellI < interface_size; cellI++) {
@@ -240,10 +240,10 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
                             neighbProcNo,
                             other_proc_cell_ids[interface_ctr + cellI]);
 
-                    rows[element_ctr] = global_cell_index_.toGlobal(row);
+                    rows[element_ctr] = global_row;
                     cols[element_ctr] = other_side_global_cellID;
 
-                    sorting_interface_idxs[interface_ctr + cellI] = element_ctr;
+                    sorting_idxs[element_ctr] = interface_idx + cellI;
 
                     element_ctr++;
                 }
@@ -256,8 +256,8 @@ void HostMatrixWrapper<MatrixType>::insert_interface_coeffs(
 template void HostMatrixWrapper<lduMatrix>::insert_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<label> &other_proc_cell_ids, int *rows, int *cols,
-    label row, label &element_ctr, label *sorting_interface_idxs,
-    const bool upper) const;
+    label row, label global_row, label &element_ctr,
+    label *sorting_interface_idxs, const bool upper) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
@@ -290,24 +290,25 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
 
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
-    auto sorting_interface_idxs = ldu_csr_idx_interface_mapping_.get_data();
 
+    label interface_elem_ctr{0};
+    label after_neighbours = 2 * nNeighbours_;
     for (label row = 0; row < nCells_; row++) {
+        const label global_row = global_cell_index_.toGlobal(row);
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs, true);
+                                row, global_row, element_ctr, sorting_idxs,
+                                true);
 
         // add lower elements
         // for now just scan till current upper ctr
-        //
-        const label global_row = global_cell_index_.toGlobal(row);
         for (const auto [first, second] : lower_stack[row]) {
             // TODO
             rows[element_ctr] = global_row;
             cols[element_ctr] = second;
             // lower_ctr doesnt correspond to same element as
             // upper_ctr
-            sorting_idxs[first + nNeighbours_] = element_ctr;
+            sorting_idxs[element_ctr] = first + nNeighbours_;
 
             lower_ctr++;
             element_ctr++;
@@ -316,7 +317,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         // add diagonal elemnts
         rows[element_ctr] = global_row;
         cols[element_ctr] = global_row;
-        sorting_idxs[2 * nNeighbours_ + row] = element_ctr;
+        sorting_idxs[element_ctr] = after_neighbours + row;
 
         element_ctr++;
 
@@ -333,7 +334,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
                 // insert into lower_stack
                 // find insert position
                 lower_stack[upper_idx].emplace_back(upper_ctr, row_upper);
-                sorting_idxs[upper_ctr] = element_ctr;
+                sorting_idxs[element_ctr] = upper_ctr;
 
                 element_ctr++;
                 upper_ctr++;
@@ -342,7 +343,7 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         }
 
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, element_ctr, sorting_interface_idxs,
+                                row, global_row, element_ctr, sorting_idxs,
                                 false);
     }
     LOG_1(verbose_, "done init host matrix")
@@ -357,27 +358,57 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
     const std::vector<scalar> &interfaceBouCoeffs) const
 {
-    auto ref_exec = gko::ReferenceExecutor::create();
-    // TODO create in ctr
-    // as devicePersistent so that we can reuse the memory
+    auto ref_exec = exec_.get_ref_exec();
 
-    auto values = values_.get_data();
+    const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
+    auto device_exec = exec_.get_device_exec();
 
-    const auto sorting_idxs = ldu_csr_idx_mapping_.get_const_data();
-    const auto sorting_interface_idxs =
-        ldu_csr_idx_interface_mapping_.get_const_data();
+    if (!permutation_stored_) {
+        auto &db = values_.get_db();
 
-    auto lower = this->matrix().lower();
+        P_ = gko::share(gko::matrix::Permutation<label>::create(
+            device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get()));
+        const fileName path = permutation_matrix_name_;
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
+    }
+    // END TODO
+
+    // unsorted entries on device
+    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
+
+    // copy upper
     auto upper = this->matrix().upper();
-    for (label i = 0; i < nNeighbours(); i++) {
-        values[sorting_idxs[i]] = upper[i] * scaling_;
-        values[sorting_idxs[i + nNeighbours_]] = lower[i] * scaling_;
+    auto u_host_view =
+        gko::Array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
+    auto u_device_view =
+        gko::Array<scalar>::view(device_exec, nNeighbours_, d->get_values());
+    u_device_view = u_host_view;
+
+    // copy lower
+    auto lower = this->matrix().lower();
+    auto l_device_view = gko::Array<scalar>::view(
+        device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
+    if (lower == upper) {
+        // symmetric case reuse data already on the device
+        l_device_view = u_device_view;
+
+    } else {
+        // non-symmetric case copy data to the device
+        auto l_host_view =
+            gko::Array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
+        l_device_view = l_host_view;
     }
 
+    // copy diag
     auto diag = this->matrix().diag();
-    for (label i = 0; i < local_nCells(); ++i) {
-        values[sorting_idxs[i + 2 * nNeighbours_]] = diag[i] * scaling_;
-    }
+    auto d_host_view = gko::Array<scalar>::view(ref_exec, nCells_, &diag[0]);
+    auto d_device_view = gko::Array<scalar>::view(
+        device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
+    d_device_view = d_host_view;
+
+    // copy interfaces
+    auto tmp_contiguous_iface = gko::Array<scalar>(ref_exec, nInterfaces_);
+    auto contiguous_iface = tmp_contiguous_iface.get_data();
 
     label interface_ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
@@ -392,11 +423,29 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         }
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
-            values[sorting_interface_idxs[interface_ctr + cellI]] =
-                -interfaceBouCoeffs[interface_ctr + cellI] * scaling_;
+            contiguous_iface[interface_ctr + cellI] =
+                -interfaceBouCoeffs[interface_ctr + cellI];
         }
         interface_ctr += patch_size;
     }
+
+    auto i_device_view = gko::Array<scalar>::view(
+        device_exec, nInterfaces_, &d->get_values()[nElems_wo_Interfaces_]);
+    i_device_view = tmp_contiguous_iface;
+
+
+    auto dense_vec = vec::create(device_exec, gko::dim<2>{nElems_, 1});
+
+    // NOTE apply changes the underlying pointer of dense_vec
+    // thus copy_from is used to move the ptr to the underlying
+    // device persistent array
+    P_->apply(d.get(), dense_vec.get());
+
+    auto dense_vec_after = vec::create(
+        device_exec, gko::dim<2>{nElems_, 1},
+        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
+
+    dense_vec_after->copy_from(dense_vec.get());
 }
 
 template void HostMatrixWrapper<lduMatrix>::update_host_matrix_data(

@@ -129,13 +129,6 @@ class PersistentArray
     // updated even if was found in the object registry
     const bool update_;
 
-
-    // TODO store_global_on_device
-    // to store global on the device the data has to be inialized
-    // first locally, then gathered, and finally moved to the device
-    const bool store_global_;
-
-
     // The same as dpb but for the global data
     // NOTE if on the host:
     //  - This should exist with the full length only on the master
@@ -153,20 +146,20 @@ public:
      * @param exec executor handler
      * @param verbose whether to print infos out
      * @param update whether to update the underlying array if found in registry
-     * @param store_global whether to update the underlying array if found in
+     * @param init_on_device whether to update the underlying array if found in
      * registry
      */
     PersistentArray(const word name, const objectRegistry &db,
                     const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool store_global)
+                    const bool update, const bool on_device)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, ArrayInitFunctor<T>(exec, name, global_index, verbose),
+              name, db,
+              ArrayInitFunctor<T>(exec, name, global_index, verbose, on_device),
               update, verbose),
           global_index_(global_index),
           exec_(exec),
-          update_(update),
-          store_global_(store_global)
+          update_(update)
     {}
 
     /* PersistentArray constructor using existing memory
@@ -178,16 +171,13 @@ public:
      * @param exec executor handler
      * @param verbose whether to print infos out
      * @param update whether to update the underlying array if found in registry
-     * @param store_global whether to update the underlying array if found in
-     * registry
      * @param init_on_device whether the array is to be initialized on the
      * device or host
      */
     PersistentArray(T *memory, const word name, const objectRegistry &db,
                     const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool store_global,
-                    const bool init_on_device)
+                    const bool update, const bool init_on_device)
         : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
               name, db,
               ArrayInitFunctor<T>(exec, name, global_index, memory, verbose,
@@ -196,8 +186,7 @@ public:
           memory_(memory),
           global_index_(global_index),
           exec_(exec),
-          update_(update),
-          store_global_(store_global)
+          update_(update)
     {}
 
     label get_global_size() const { return global_index_.size(); }
@@ -205,6 +194,17 @@ public:
     bool get_update() const { return update_; }
 
     T *get_data() const { return this->get_persistent_object()->get_data(); }
+
+    void set_data(T *data)
+    {
+        this->get_persistent_object()->get_data() = data;
+    };
+
+    const T *get_const_data() const
+    {
+        return this->get_persistent_object()->get_const_data();
+    };
+
 
     std::shared_ptr<gko::Array<T>> get_array() const
     {
@@ -215,16 +215,14 @@ public:
      * */
     std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
     {
-        auto host_array = get_array();
-        return gko::share(vec::create(
-            exec_.get_device_exec(),
-            gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
+        auto array = get_array();
+        auto result = gko::share(vec::create(
+            exec_.get_device_exec(), gko::dim<2>(array->get_num_elems(), 1),
+            gko::Array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
+                                get_data()),
+            1));
+        return result;
     }
-
-    const T *get_const_data() const
-    {
-        return this->get_persistent_object()->get_const_data();
-    };
 
     /* Copies from a distributed::Vector<T> back into raw host memory
      *

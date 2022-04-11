@@ -154,6 +154,7 @@ public:
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
                     {scaling}, ref_exec));
 
+            // TODO FIXME fails cudaErrorIllegalAddress
             SIMPLE_TIME(verbose_, scale_RHS,
                         dense_b->scale(dense_scaling.get());)
         }
@@ -242,10 +243,15 @@ public:
         auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
         dist_A->copy_from(A_host.get());
 
+        SIMPLE_TIME(verbose_, init_precond,
+                    auto precond = this->init_preconditioner(
+                        dist_A, this->get_exec_handler().get_device_exec());)
+
+
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A, dist_x, dist_b,
-            verbose_, csr_matrix_wrapper_.get_export(), {});
+            verbose_, csr_matrix_wrapper_.get_export(), precond);
 
         /* auto solver_gen = gko::share( */
         /*     gko::solver::Cg<scalar>::build() */
@@ -295,7 +301,6 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            !solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false};
 
         PersistentArray<scalar> x{
@@ -306,7 +311,6 @@ public:
             this->get_global_cell_index(),
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            !solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false};
 
         // Solve system
@@ -319,11 +323,6 @@ public:
             //     if (Pstream::master()) {
             //         LOG_1(verbose_, "create solver factory")
 
-
-            //         SIMPLE_TIME(verbose_, init_precond,
-            //                     auto precond = this->init_preconditioner(
-            //                         gkomatrix.get_persistent_object(),
-            //                         this->get_exec_handler().get_device_exec());)
 
             //         auto solver_gen = this->create_solver(
             //             this->get_exec_handler().get_device_exec(),

@@ -34,6 +34,7 @@ void CsrInitFunctor::update(
     std::shared_ptr<gko::matrix::Csr<scalar>> &csr_matrix) const
 {
     if (Pstream::parRun()) {
+        // TODO fix for multigpu
         if (Pstream::master()) {
             word msg{"update global csr matrix "};
             LOG_1(verbose_, msg)

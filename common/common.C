@@ -124,15 +124,14 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db)
     return get_gko_solver_property(sys_matrix_name, "prevSolveIters", db);
 }
 
-std::ostream &operator<<(
-    std::ostream &os,
-    const std::shared_ptr<gko::matrix::Dense<scalar>> array_in)
+std::ostream &operator<<(std::ostream &os,
+                         const std::shared_ptr<gko::matrix::Dense<scalar>> in)
 {
     auto ref_exec = gko::ReferenceExecutor::create();
-    auto array = array_in->clone(ref_exec);
+    auto array = in->clone(ref_exec);
     label size = array->get_size()[0];
     os << size << " elements [";
-    if (size > 40) {
+    if (size > 100) {
         for (label i = 0; i < 9; i++) {
             os << array->at(i) << ", ";
         }
@@ -143,9 +142,10 @@ std::ostream &operator<<(
         os << array->at(size - 1) << "]\n";
     } else {
         for (label i = 0; i < size - 1; i++) {
-            os << array->at(i) << ", ";
+            os << "(" << i << ", " << array->at(i) << ") ";
         }
-        os << array->at(size - 1) << "]\n";
+        os << "(" << size - 1 << ", " << array->at(size - 1) << ")]\n";
     }
+    return os;
 }
 }  // namespace Foam

@@ -40,6 +40,7 @@ namespace Foam {
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
+    using vec = gko::matrix::Dense<scalar>;
     // dimensions of the local host matrix
     //
     const ExecutorHandler exec_;
@@ -52,6 +53,8 @@ private:
 
     const label nInterfaces_;
 
+    const label nElems_wo_Interfaces_;
+
     const label nElems_;
 
     const gkoGlobalIndex global_cell_index_;
@@ -59,17 +62,13 @@ private:
     // global index of the full matrix sparsity pattern
     const gkoGlobalIndex global_matrix_index_;
 
-    const gkoGlobalIndex global_values_index_;
-
-    const gkoGlobalIndex global_interface_index_;
-
     const label verbose_;
 
     const scalar scaling_;
 
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
-    mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
+    // mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
 
     mutable PersistentArray<scalar> values_;
 
@@ -81,6 +80,12 @@ private:
     mutable PersistentArray<label> col_idxs_;
 
     mutable PersistentArray<label> row_idxs_;
+
+    const word permutation_matrix_name_;
+
+    const bool permutation_stored_;
+
+    mutable std::shared_ptr<gko::LinOp> P_;
 
 
 public:
@@ -96,27 +101,17 @@ public:
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nInterfaces_(count_elements_on_interfaces(interfaces)),
+          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
           nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          global_values_index_{nElems_ - nInterfaces_},
-          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{
               fieldName + "_ldu_csr_map",
               db,
               exec_,
-              global_values_index_,
-              verbose_,
-              false,
-              false,
-          },
-          ldu_csr_idx_interface_mapping_{
-              fieldName + "_ldu_csr_interface_map",
-              db,
-              exec_,
-              global_interface_index_,
+              global_matrix_index_,
               verbose_,
               false,
               false,
@@ -127,7 +122,7 @@ public:
                   global_matrix_index_,
                   verbose_,
                   true,
-                  false},
+                  true},
           col_idxs_{fieldName + "_cols",
                     db,
                     exec_,
@@ -141,7 +136,15 @@ public:
                     global_matrix_index_,
                     verbose_,
                     false,
-                    true}
+                    true},
+          permutation_matrix_name_{"PermutationMatrix"},
+          permutation_stored_{
+              db.template foundObject<regIOobject>(permutation_matrix_name_)},
+          P_{(permutation_stored_) ? db.template lookupObjectRef<
+                                           DevicePersistentBase<gko::LinOp>>(
+                                           permutation_matrix_name_)
+                                         .get_ptr()
+                                   : nullptr}
     {
         if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
             auto other_proc_cell_ids =
@@ -167,10 +170,10 @@ public:
           nCells_(matrix.diag().size()),
           nNeighbours_(matrix.lduAddr().upperAddr().size()),
           nInterfaces_(0),
+          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
           nElems_(nCells_ + 2 * nNeighbours_),
           global_cell_index_{nCells_},
           global_matrix_index_{nElems_},
-          global_interface_index_{nInterfaces_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           ldu_csr_idx_mapping_{fieldName + "ldu_csr_map",
@@ -180,13 +183,6 @@ public:
                                verbose_,
                                false,
                                false},
-          ldu_csr_idx_interface_mapping_{fieldName + "_ldu_csr_interface_map",
-                                         db,
-                                         exec_,
-                                         global_interface_index_,
-                                         verbose_,
-                                         false,
-                                         false},
           values_{fieldName + "values",
                   db,
                   exec_,
@@ -197,7 +193,15 @@ public:
           col_idxs_{fieldName + "cols", db,    exec_, global_matrix_index_,
                     verbose_,           false, true},
           row_idxs_{fieldName + "rows", db,    exec_, global_matrix_index_,
-                    verbose_,           false, true}
+                    verbose_,           false, true},
+          permutation_matrix_name_{"PermutationMatrix"},
+          permutation_stored_{
+              db.template foundObject<regIOobject>(permutation_matrix_name_)},
+          P_{(permutation_stored_) ? db.template lookupObjectRef<
+                                           DevicePersistentBase<gko::LinOp>>(
+                                           permutation_matrix_name_)
+                                         .get_ptr()
+                                   : nullptr}
     {
         // TODO reimplement this
         // if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
@@ -228,7 +232,7 @@ public:
     void insert_interface_coeffs(const lduInterfaceFieldPtrsList &interfaces,
                                  const std::vector<label> &other_proc_cell_ids,
                                  int *rows, int *cols, label row,
-                                 label &element_ctr,
+                                 label global_row, label &element_ctr,
                                  label *sorting_interface_idxs,
                                  const bool upper) const;
 

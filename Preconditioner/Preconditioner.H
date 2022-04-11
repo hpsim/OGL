@@ -61,9 +61,25 @@ public:
           verbose_(verbose)
     {}
 
+    template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_schwarz(
+        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<PrecondFactory> precond) const
+    {
+        using ras = gko::preconditioner::Schwarz<scalar, label>;
+        if (Pstream::parRun()) {
+            return gko::share(ras::build()
+                                  .with_inner_solver(precond)
+                                  .on(device_exec)
+                                  ->generate(gkomatrix));
+        }
+        return gko::share(precond->generate(gkomatrix));
+    }
+
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
@@ -78,11 +94,12 @@ public:
                        std::to_string(max_block_size);
             LOG_1(verbose_, msg)
 
-            auto pre_factory = bj::build()
-                                   .with_skip_sorting(skip_sorting)
-                                   .with_max_block_size(max_block_size)
-                                   .on(device_exec);
-            return gko::share(pre_factory->generate(gkomatrix));
+            auto pre_factory =
+                gko::share(bj::build()
+                               .with_skip_sorting(skip_sorting)
+                               .with_max_block_size(max_block_size)
+                               .on(device_exec));
+            return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
         if (name == "ILU") {
             auto factorizaton_factory =
@@ -150,9 +167,9 @@ public:
 
             auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
             auto pre_factory =
-                gko::preconditioner::Ic<>::build().on(device_exec);
+                gko::share(gko::preconditioner::Ic<>::build().on(device_exec));
 
-            return gko::share(pre_factory->generate(ic));
+            return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
         if (name == "ISAI") {
             label sparsity_power(
@@ -162,14 +179,14 @@ public:
                        std::to_string(sparsity_power);
             LOG_1(verbose_, msg)
 
-            auto pre_factory =
+            auto pre_factory = gko::share(
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
                                           scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
                     .with_sparsity_power(sparsity_power)
-                    .on(device_exec);
+                    .on(device_exec));
 
-            return gko::share(pre_factory->generate(gkomatrix));
+            return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
         if (name == "Multigrid") {
             using ir = gko::solver::Ir<scalar>;
@@ -233,7 +250,7 @@ public:
                        std::to_string(zeroGuess);
             LOG_1(verbose_, msg)
 
-            auto pre_factory =
+            auto pre_factory = gko::share(
                 mg::build()
                     .with_max_levels(max_levels)
                     .with_min_coarse_rows(min_coarse_rows)
@@ -245,14 +262,14 @@ public:
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
-                    .on(device_exec);
-            return gko::share(pre_factory->generate(gkomatrix));
+                    .on(device_exec));
+            return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
         return {};
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
@@ -274,21 +291,24 @@ public:
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
-        if (stored && cache > 0) {
-            word msg = "Read preconditioner from registry for " +
-                       std::to_string(cache);
+        if (stored) {
+            if (cache > 0) {
+                word msg = "Read preconditioner from registry for " +
+                           std::to_string(cache);
 
-            LOG_1(verbose_, msg)
+                LOG_1(verbose_, msg)
 
-            cache = cache - 1;
+                cache = cache - 1;
 
-            set_next_caching(sys_matrix_name_, db_, cache--);
-            return db_
-                .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                    precond_store_name)
-                .get_ptr();
+                set_next_caching(sys_matrix_name_, db_, cache--);
+                return db_
+                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name)
+                    .get_ptr();
+            } else {
+                db_.checkOut(precond_store_name);
+            }
         }
-
         const label caching_period =
             controls.lookupOrDefault<label>("Caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
