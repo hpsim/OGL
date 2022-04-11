@@ -154,6 +154,7 @@ public:
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
                     {scaling}, ref_exec));
 
+            // TODO FIXME fails cudaErrorIllegalAddress
             SIMPLE_TIME(verbose_, scale_RHS,
                         dense_b->scale(dense_scaling.get());)
         }

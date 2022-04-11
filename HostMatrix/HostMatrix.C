@@ -390,7 +390,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
     if (lower == upper) {
         // symmetric case reuse data already on the device
-        std::cout << " IS SYMMETRIC" << std::endl;
         l_device_view = u_device_view;
 
     } else {
@@ -430,9 +429,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         interface_ctr += patch_size;
     }
 
-    auto i_device_view =
-        gko::Array<scalar>::view(device_exec, nInterfaces_,
-                                 &d->get_values()[2 * nNeighbours_ + nCells_]);
+    auto i_device_view = gko::Array<scalar>::view(
+        device_exec, nInterfaces_, &d->get_values()[nElems_wo_Interfaces_]);
     i_device_view = tmp_contiguous_iface;
 
 
