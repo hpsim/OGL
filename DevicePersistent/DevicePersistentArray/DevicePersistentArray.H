@@ -146,6 +146,7 @@ public:
      * @param exec executor handler
      * @param verbose whether to print infos out
      * @param update whether to update the underlying array if found in registry
+     * TODO fix documentation
      * @param init_on_device whether to update the underlying array if found in
      * registry
      */
