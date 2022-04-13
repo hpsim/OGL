@@ -276,7 +276,10 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         exec_.get_ref_exec(), nNeighbours_,
         const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
 
+    // row of upper, col of lower
     const auto lower = lower_local.get_const_data();
+
+    // col of upper, row of lower
     const auto upper = upper_local.get_const_data();
 
     auto rows = row_idxs_.get_data();  // row_idxs_local->get_data();
@@ -284,12 +287,11 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
 
     label element_ctr = 0;
     label upper_ctr = 0;
-    label lower_ctr = 0;
 
     std::vector<std::vector<std::pair<label, label>>> lower_stack(nNeighbours_);
 
 
-    const auto sorting_idxs = ldu_csr_idx_mapping_.get_data();
+    const auto permute = ldu_csr_idx_mapping_.get_data();
 
     label interface_elem_ctr{0};
     label after_neighbours = 2 * nNeighbours_;
@@ -297,54 +299,48 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
         const label global_row = global_cell_index_.toGlobal(row);
         // check for lower idxs
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, global_row, element_ctr, sorting_idxs,
-                                true);
+                                row, global_row, element_ctr, permute, true);
 
         // add lower elements
         // for now just scan till current upper ctr
-        for (const auto [first, second] : lower_stack[row]) {
-            // TODO
+        for (const auto [stored_upper_ctr, global_col] : lower_stack[row]) {
             rows[element_ctr] = global_row;
-            cols[element_ctr] = second;
-            // lower_ctr doesnt correspond to same element as
-            // upper_ctr
-            sorting_idxs[element_ctr] = first + nNeighbours_;
-
-            lower_ctr++;
+            cols[element_ctr] = global_col;
+            permute[element_ctr] = stored_upper_ctr + nNeighbours_;
             element_ctr++;
         }
 
-        // add diagonal elemnts
+        // add diagonal elements
         rows[element_ctr] = global_row;
         cols[element_ctr] = global_row;
-        sorting_idxs[element_ctr] = after_neighbours + row;
-
+        permute[element_ctr] = after_neighbours + row;
         element_ctr++;
 
-        // add upper elemnts
-        label lower_idx = lower[upper_ctr];
-        if (upper_ctr < nNeighbours_) {
-            while (lower_idx == row) {
-                label row_upper = global_cell_index_.toGlobal(lower_idx);
-                label upper_idx = upper[upper_ctr];
-                label col_upper = global_cell_index_.toGlobal(upper_idx);
-                rows[element_ctr] = row_upper;
-                cols[element_ctr] = col_upper;
+        // add upper elements
+        // these are the transpose of the lower elements which are stored in row
+        // major order.
+        label row_upper = lower[upper_ctr];
+        while (upper_ctr < nNeighbours_ && row_upper == row) {
+            const label global_row_upper =
+                global_cell_index_.toGlobal(row_upper);
+            const label col_upper = upper[upper_ctr];
+            const label global_col_upper =
+                global_cell_index_.toGlobal(col_upper);
 
-                // insert into lower_stack
-                // find insert position
-                lower_stack[upper_idx].emplace_back(upper_ctr, row_upper);
-                sorting_idxs[element_ctr] = upper_ctr;
+            rows[element_ctr] = global_row_upper;
+            cols[element_ctr] = global_col_upper;
 
-                element_ctr++;
-                upper_ctr++;
-                lower_idx = lower[upper_ctr];
-            }
+            // insert into lower_stack
+            lower_stack[col_upper].emplace_back(upper_ctr, global_row_upper);
+            permute[element_ctr] = upper_ctr;
+
+            element_ctr++;
+            upper_ctr++;
+            row_upper = lower[upper_ctr];
         }
 
         insert_interface_coeffs(interfaces, other_proc_cell_ids, rows, cols,
-                                row, global_row, element_ctr, sorting_idxs,
-                                false);
+                                row, global_row, element_ctr, permute, false);
     }
     LOG_1(verbose_, "done init host matrix")
 }
