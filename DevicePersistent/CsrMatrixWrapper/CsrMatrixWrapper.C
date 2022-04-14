@@ -33,23 +33,11 @@ namespace Foam {
 void CsrInitFunctor::update(
     std::shared_ptr<gko::matrix::Csr<scalar>> &csr_matrix) const
 {
-    if (Pstream::parRun()) {
-        // TODO fix for multigpu
-        if (Pstream::master()) {
-            word msg{"update global csr matrix "};
-            LOG_1(verbose_, msg)
-            auto values_view = val_array::view(
-                values_.get_exec_handler().get_device_exec(),
-                values_.get_global_size(), csr_matrix->get_values());
-            values_view = *values_.get_array().get();
-        }
-    } else {
-        auto values_view = val_array::view(
-            values_.get_exec_handler().get_device_exec(),
-            values_.get_global_size(), csr_matrix->get_values());
-        // copy values to device
-        values_view = *values_.get_array().get();
-    }
+    auto values_view =
+        val_array::view(values_.get_exec_handler().get_device_exec(),
+                        values_.get_global_size(), csr_matrix->get_values());
+    // copy values to device
+    values_view = *values_.get_array().get();
 }
 
 std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
@@ -98,8 +86,8 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
 
             if (!is_sorted_cols || !is_sorted_rows) {
                 for (size_t i = 1; i < cols->get_num_elems(); i++) {
-                    Info << i << " (" << rows_data[i] << "," << cols_data[i]
-                         << ")\n";
+                    Info << i << "sparsity (" << rows_data[i] << ","
+                         << cols_data[i] << ")\n";
                 }
             }
         }
@@ -114,27 +102,6 @@ std::shared_ptr<gko::matrix::Csr<scalar>> CsrInitFunctor::init() const
         SIMPLE_TIME(verbose_, convert_coo_to_csr,
                     coo_mtx->convert_to(gkomatrix.get());)
         return gkomatrix;
-
-        // TODO FIXME
-        if (Pstream::master()) {
-            // for (int i = 0; i < values->get_num_elems(); i++) {
-            //     std::cout << "(" << rows->get_const_data()[i] << ","
-            //               << cols->get_const_data()[i] << ") "
-            //               << values->get_const_data()[i] << std::endl;
-            // }
-            auto coo_mtx = gko::share(
-                coo_mtx::create(device_exec, gko::dim<2>(nCells, nCells),
-                                val_array(device_exec, *values.get()),
-                                *cols.get(), *rows.get()));
-
-            auto gkomatrix = gko::share(
-                mtx::create(device_exec, gko::dim<2>(nCells, nCells)));
-            SIMPLE_TIME(verbose_, convert_coo_to_csr,
-                        coo_mtx->convert_to(gkomatrix.get());)
-            return gkomatrix;
-        } else {
-            return {};
-        }
     } else {
         const auto device_exec = values_.get_exec_handler().get_device_exec();
         const label nCells = global_index_.size();
