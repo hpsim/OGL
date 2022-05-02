@@ -291,6 +291,7 @@ public:
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
+
         if (stored) {
             if (cache > 0) {
                 word msg = "Read preconditioner from registry for " +
@@ -306,12 +307,25 @@ public:
                         precond_store_name)
                     .get_ptr();
             } else {
-                db_.checkOut(precond_store_name);
+                auto prev_precond = db_
+                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name);
+		const label caching_period =
+		    controls.lookupOrDefault<label>("Caching", 0);
+		set_next_caching(sys_matrix_name_, db_, caching_period);
+
+		auto generated_precond =
+		    init_preconditioner_impl(name, controls, gkomatrix, device_exec);
+
+		auto precond_ptr = prev_precond.get_ptr();
+	        precond_ptr = generated_precond;
+		return precond_ptr;
             }
         }
         const label caching_period =
             controls.lookupOrDefault<label>("Caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
+        cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
             init_preconditioner_impl(name, controls, gkomatrix, device_exec);
