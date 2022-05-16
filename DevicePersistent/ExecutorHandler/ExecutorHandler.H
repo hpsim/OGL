@@ -65,16 +65,19 @@ struct ExecutorInitFunctor {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         if (executor_name_ == "cuda") {
-            return gko::share(
-                gko::CudaExecutor::create(device_id_, host_exec, true));
+            return gko::share(gko::CudaExecutor::create(
+                device_id_ % gko::CudaExecutor::get_num_devices(), host_exec,
+                true));
         }
         if (executor_name_ == "dpcpp") {
-            return gko::share(
-                gko::DpcppExecutor::create(device_id_, host_exec));
+            return gko::share(gko::DpcppExecutor::create(
+                device_id_ % gko::DpcppExecutor::get_num_devices("gpu"),
+                host_exec));
         }
         if (executor_name_ == "hip") {
-            return gko::share(
-                gko::HipExecutor::create(device_id_, host_exec, true));
+            return gko::share(gko::HipExecutor::create(
+                device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
+                true));
         }
         if (executor_name_ == "omp") {
             return gko::share(gko::OmpExecutor::create());
