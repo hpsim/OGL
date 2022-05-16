@@ -17,10 +17,11 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
-option(GINKGO_BUILD_CUDA "Build ginkgo with cuda backend" FALSE)
-option(GINKGO_BUILD_HIP "Build ginkgo with hip backend" FALSE)
-option(GINKGO_BUILD_OMP "Build ginkgo with omp backend" FALSE)
-option(GINKGO_BUILD_REFERENCE "Build ginkgo with reference backend" TRUE)
+option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
+option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
+option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
+option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
