@@ -367,7 +367,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         const fileName path = permutation_matrix_name_;
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
     }
-    // END TODO
 
     // unsorted entries on device
     auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
