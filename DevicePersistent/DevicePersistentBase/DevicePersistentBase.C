@@ -10,6 +10,9 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Csr<scalar>>,
                                "PersistentCSRMatrix");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<scalar>>,
                                "PersistentScalarArray");
+defineTemplateTypeNameWithName(
+    DevicePersistentBase<gko::distributed::Vector<scalar>>,
+    "PersistentScalarVector");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<label>>,
                                "PersistentLabelArray");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Dense<label>>,
