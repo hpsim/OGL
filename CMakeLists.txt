@@ -115,6 +115,7 @@ target_sources(
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
+          DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
@@ -134,6 +135,7 @@ target_sources(
          HostMatrix/HostMatrix.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
+         DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H

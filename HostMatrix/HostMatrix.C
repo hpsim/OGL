@@ -359,9 +359,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
     auto device_exec = exec_.get_device_exec();
 
+    auto &db = values_.get_db();
     if (!permutation_stored_) {
-        auto &db = values_.get_db();
-
         P_ = gko::share(gko::matrix::Permutation<label>::create(
             device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get()));
         const fileName path = permutation_matrix_name_;
@@ -370,6 +369,16 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     // unsorted entries on device
     auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
+    const bool csr_stored{db.template foundObject<regIOobject>("pcsr")};
+    // std::shared_ptr<vec> d{};
+    // if (csr_stored) {
+    //     auto values_view = val_array::view(
+    //         values_.get_exec_handler().get_device_exec(),
+    //         values_.get_global_size(), csr_matrix->get_values());
+    // } else {
+    //     d = gko::share(vec::create(device_exec, gko::dim<2>(nElems_, 1)));
+    // }
+
 
     // copy upper
     auto upper = this->matrix().upper();
