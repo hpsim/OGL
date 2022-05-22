@@ -104,14 +104,15 @@ struct VectorInitFunctor {
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        const auto local_size = partition_->get_part_size(comm->rank());
         word msg{"initialising vector " + name_ + " of size " +
-                 std::to_string(partition_->get_size())};
+                 std::to_string(local_size)};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
-        auto host_view =
-            gko::Array<T>::view(exec_.get_ref_exec(), partition_->get_size(),
-                                const_cast<T *>(other_));
+        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), local_size,
+                                             const_cast<T *>(other_));
 
         return gko::share(dist_vec::from_local<label, gko::int64>(
             exec, *exec_.get_gko_mpi_comm_wrapper().get(), host_view,
