@@ -1,0 +1,215 @@
+/*---------------------------------------------------------------------------*\
+License
+    This file is part of OGL.
+
+    OGL is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OGL is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::DevicePersistentVector
+
+Author: Gregor Olenik <go@hpsim.de>
+
+SourceFiles
+    DevicePersistentVector.H
+
+\*---------------------------------------------------------------------------*/
+#ifndef OGL_DevicePersistentVector_INCLUDED_H
+#define OGL_DevicePersistentVector_INCLUDED_H
+
+#include <functional>
+
+#include <ginkgo/ginkgo.hpp>
+#include "../DevicePersistentBase/DevicePersistentBase.H"
+#include "../ExecutorHandler/ExecutorHandler.H"
+
+#include "../common/common.H"
+
+namespace Foam {
+
+
+template <class T>
+struct VectorInitFunctor {
+    using dist_vec = gko::distributed::Vector<scalar>;
+
+    const word name_;
+
+    const ExecutorHandler &exec_;
+
+    const std::shared_ptr<gko::distributed::Partition<label>> partition_;
+
+    const label verbose_;
+
+    const bool on_device_;
+
+    // Memory from which array will be initialised
+    const T *other_;
+
+
+    VectorInitFunctor(
+        const ExecutorHandler &exec, const word name,
+        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const label verbose, const bool on_device = false)
+        : exec_(exec),
+          name_(name),
+          partition_(partition),
+          on_device_(on_device),
+          verbose_(verbose),
+          other_(NULL)
+    {}
+
+    VectorInitFunctor(
+        const ExecutorHandler &exec, const word name,
+        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const T *other, const label verbose, const bool on_device = false)
+        : exec_(exec),
+          name_(name),
+          partition_(partition),
+          on_device_(on_device),
+          verbose_(verbose),
+          other_(other)
+    {}
+
+
+    // update persistent array from host memory
+    void update(
+        std::shared_ptr<gko::distributed::Vector<T>> persistent_array) const
+    {
+        word msg{"updating array " + name_ + " of size " +
+                 std::to_string(partition_.localSize())};
+        LOG_1(verbose_, msg)
+
+        auto host_exec = exec_.get_ref_exec();
+        auto device_exec = exec_.get_device_exec();
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        const auto local_size = partition_->get_part_size(comm->rank());
+        auto exec =
+            (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
+
+        host_exec->copy_from(
+            exec.get(), local_size,
+            get_vector()->get_const_local()->get_const_values(), memory_);
+    }
+
+    std::shared_ptr<gko::distributed::Vector<T>> init() const
+    {
+        auto exec =
+            (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
+        word msg{"initialising vector " + name_ + " of size " +
+                 std::to_string(partition_->get_size())};
+        msg += (on_device_) ? " on device" : " on host";
+        LOG_1(verbose_, msg)
+
+        auto host_view =
+            gko::Array<T>::view(exec_.get_ref_exec(), partition_->get_size(),
+                                const_cast<T *>(other_));
+
+        return gko::share(dist_vec::from_local<label, gko::int64>(
+            exec, *exec_.get_gko_mpi_comm_wrapper().get(), host_view,
+            partition_.get()));
+    }
+};
+
+template <class T>
+class PersistentVector
+    : public PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>> {
+    using vec = gko::matrix::Dense<scalar>;
+
+    T *memory_;
+
+    const std::shared_ptr<gko::distributed::Partition<label>> partition_;
+
+    const ExecutorHandler &exec_;
+
+    // indicating if the underlying array needs to
+    // updated even if was found in the object registry
+    const bool update_;
+
+    // The same as dpb but for the global data
+    // NOTE if on the host:
+    //  - This should exist with the full length only on the master
+    // on the device:
+    //  - global data is needed on the device for example for the
+    //    col and row idxs
+    mutable std::shared_ptr<gko::matrix::Dense<T>> persistent_object_global_{};
+
+
+public:
+    /* PersistentVector constructor using existing memory
+     *
+     * @param memory ptr to memory on host from which the gko array is
+     *               initialized
+     * @param name name of the underlying field or data
+     * @param objectRegistry reference to registry for storage
+     * @param exec executor handler
+     * @param verbose whether to print infos out
+     * @param update whether to update the underlying array if found in registry
+     * @param init_on_device whether the array is to be initialized on the
+     * device or host
+     */
+    PersistentVector(
+        T *memory, const word name, const objectRegistry &db,
+        const ExecutorHandler &exec,
+        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const label verbose, const bool update, const bool init_on_device)
+        : PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>>(
+              name, db,
+              VectorInitFunctor<T>(exec, name, partition, memory, verbose,
+                                   init_on_device),
+              update, verbose),
+          memory_(memory),
+          partition_(partition),
+          exec_(exec),
+          update_(update)
+    {}
+
+    // label get_global_size() const { return partition_.size(); }
+
+    bool get_update() const { return update_; }
+
+    T *get_data() const { return this->get_persistent_object()->get_data(); }
+
+    void set_data(T *data)
+    {
+        this->get_persistent_object()->get_data() = data;
+    };
+
+    const T *get_const_data() const
+    {
+        return this->get_persistent_object()->get_const_data();
+    };
+
+
+    std::shared_ptr<gko::distributed::Vector<T>> get_vector() const
+    {
+        return this->get_persistent_object();
+    }
+
+    void copy_back()
+    {
+        auto host_exec = exec_.get_ref_exec();
+        auto device_exec = exec_.get_device_exec();
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        const auto local_size = partition_->get_part_size(comm->rank());
+
+        host_exec->copy_from(
+            device_exec.get(), local_size,
+            get_vector()->get_const_local()->get_const_values(), memory_);
+    }
+
+    const ExecutorHandler &get_exec_handler() const { return exec_; }
+};
+
+}  // namespace Foam
+
+#endif
