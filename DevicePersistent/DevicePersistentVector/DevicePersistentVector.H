@@ -202,16 +202,22 @@ public:
         auto comm = exec_.get_gko_mpi_comm_wrapper();
         const auto local_size = partition_->get_part_size(comm->rank());
 
-        auto device_view = gko::Array<T>::view(
-            device_exec, local_size, get_vector()->get_local()->get_values());
+        auto host_buffer =
+            gko::matrix::Dense<T>::create(exec_.get_ref_exec(), local_size);
+
+        // host_view = device_view;
+        host_exec->copy_from(
+            device_exec.get(), local_size,
+            get_vector()->get_const_local()->get_const_values(),
+            host_buffer->get_values());
+
+        auto host_buffer_view = gko::Array<T>::view(
+            exec_.get_ref_exec(), local_size, host_buffer->get_values());
 
         auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(memory_));
 
-        host_view = device_view;
-        // host_exec->copy_from(
-        //     device_exec.get(), local_size,
-        //     get_vector()->get_const_local()->get_const_values(), host_);
+        host_view = host_buffer_view;
     }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
