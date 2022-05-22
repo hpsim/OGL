@@ -83,22 +83,21 @@ struct VectorInitFunctor {
 
     // update persistent array from host memory
     void update(
-        std::shared_ptr<gko::distributed::Vector<T>> persistent_array) const
+        std::shared_ptr<gko::distributed::Vector<T>> persistent_vector) const
     {
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        const auto local_size = partition_->get_part_size(comm->rank());
         word msg{"updating array " + name_ + " of size " +
-                 std::to_string(partition_.localSize())};
+                 std::to_string(local_size)};
         LOG_1(verbose_, msg)
 
         auto host_exec = exec_.get_ref_exec();
         auto device_exec = exec_.get_device_exec();
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
-        const auto local_size = partition_->get_part_size(comm->rank());
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
 
-        host_exec->copy_from(
-            exec.get(), local_size,
-            get_vector()->get_const_local()->get_const_values(), memory_);
+        host_exec->copy_from(exec.get(), local_size, other_,
+                             persistent_vector->get_local()->get_values());
     }
 
     std::shared_ptr<gko::distributed::Vector<T>> init() const
