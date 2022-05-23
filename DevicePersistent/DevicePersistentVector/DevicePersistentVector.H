@@ -205,11 +205,12 @@ public:
         auto host_buffer =
             gko::matrix::Dense<T>::create(exec_.get_ref_exec(), local_size);
 
+        host_buffer->copy_from(get_vector()->get_const_local());
         // host_view = device_view;
-        host_exec->copy_from(
-            device_exec.get(), local_size,
-            get_vector()->get_const_local()->get_const_values(),
-            host_buffer->get_values());
+        // host_exec->copy_from(
+        //     device_exec.get(), local_size,
+        //     get_vector()->get_const_local()->get_const_values(),
+        //     host_buffer->get_values());
 
         auto host_buffer_view = gko::Array<T>::view(
             exec_.get_ref_exec(), local_size, host_buffer->get_values());
