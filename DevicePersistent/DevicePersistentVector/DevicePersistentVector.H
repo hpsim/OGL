@@ -125,7 +125,7 @@ class PersistentVector
     : public PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>> {
     using vec = gko::matrix::Dense<scalar>;
 
-    T *memory_;
+    const T *memory_;
 
     const std::shared_ptr<gko::distributed::Partition<label>> partition_;
 
@@ -158,7 +158,7 @@ public:
      * device or host
      */
     PersistentVector(
-        T *memory, const word name, const objectRegistry &db,
+        const T *memory, const word name, const objectRegistry &db,
         const ExecutorHandler &exec,
         const std::shared_ptr<gko::distributed::Partition<label>> partition,
         const label verbose, const bool update, const bool init_on_device)
