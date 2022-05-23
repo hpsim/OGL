@@ -218,12 +218,12 @@ public:
 
         PersistentVector<scalar> dist_b{
             &source[0],
-            this->fieldName() + "_solution",
+            this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
             partition,
             verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false};
 
         PersistentVector<scalar> dist_x{
