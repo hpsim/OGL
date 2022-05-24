@@ -125,8 +125,7 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          # Solver/IR/GKOIR.C
-          Solver/Multigrid/GKOMultigrid.C
+          # Solver/IR/GKOIR.C Solver/Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
@@ -144,7 +143,7 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-         Solver/Multigrid/GKOMultigrid.H
+         # Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
          LduMatrix/GKOACG/GKOACG.H)
