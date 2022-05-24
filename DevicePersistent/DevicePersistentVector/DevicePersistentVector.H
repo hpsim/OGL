@@ -40,6 +40,7 @@ namespace Foam {
 
 template <class T>
 struct VectorInitFunctor {
+    using vec = gko::matrix::Dense<scalar>;
     using dist_vec = gko::distributed::Vector<scalar>;
 
     const word name_;
@@ -97,7 +98,7 @@ struct VectorInitFunctor {
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
 
         host_exec->copy_from(exec.get(), local_size, other_,
-                             persistent_vector->get_local()->get_values());
+                             persistent_vector->get_local_values());
     }
 
     std::shared_ptr<gko::distributed::Vector<T>> init() const
@@ -114,9 +115,9 @@ struct VectorInitFunctor {
         auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
-        return gko::share(dist_vec::from_local<label, gko::int64>(
-            exec, *exec_.get_gko_mpi_comm_wrapper().get(), host_view,
-            partition_.get()));
+        return gko::share(dist_vec::create(
+            exec, *exec_.get_gko_mpi_comm_wrapper().get(),
+            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
     }
 };
 
@@ -205,7 +206,7 @@ public:
         auto host_buffer =
             gko::matrix::Dense<T>::create(exec_.get_ref_exec(), local_size);
 
-        host_buffer->copy_from(get_vector()->get_const_local());
+        host_buffer->copy_from(get_vector()->get_local_vector());
         // host_view = device_view;
         // host_exec->copy_from(
         //     device_exec.get(), local_size,
