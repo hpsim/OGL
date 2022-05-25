@@ -203,8 +203,8 @@ public:
         auto comm = exec_.get_gko_mpi_comm_wrapper();
         const auto local_size = partition_->get_part_size(comm->rank());
 
-        auto host_buffer =
-            gko::matrix::Dense<T>::create(exec_.get_ref_exec(), local_size);
+        auto host_buffer = gko::matrix::Dense<T>::create(
+            exec_.get_ref_exec(), gko::dim<2>{local_size, 1});
 
         host_buffer->copy_from(get_vector()->get_local_vector());
         // host_view = device_view;
