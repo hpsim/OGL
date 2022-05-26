@@ -30,6 +30,7 @@ SourceFiles
 #include "fvCFD.H"
 
 #include "../DevicePersistentArray/DevicePersistentArray.H"
+#include "../DevicePersistentVector/DevicePersistentVector.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
 #include "../IOGlobalIndex/gkoGlobalIndex.H"
 

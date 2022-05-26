@@ -136,10 +136,29 @@ public:
 
 
     solverPerformance solve_serial_impl(scalarField &psi,
-                                        PersistentArray<scalar> &x,
-                                        const PersistentArray<scalar> &b,
+                                        const scalarField &source,
                                         solverPerformance &solverPerf) const
     {
+        PersistentArray<scalar> b{
+            const_cast<scalar *>(&source[0]),
+            this->fieldName() + "_rhs",
+            db_,
+            this->get_exec_handler(),
+            this->get_global_cell_index(),
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
+            false};
+
+        PersistentArray<scalar> x{
+            &psi[0],
+            this->fieldName() + "_solution",
+            db_,
+            this->get_exec_handler(),
+            this->get_global_cell_index(),
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            false};
+
         auto ref_exec = this->get_exec_handler().get_ref_exec();
         LOG_1(verbose_, "get_gkomatrix")
         auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();
@@ -182,15 +201,40 @@ public:
     }
 
     solverPerformance solve_multi_gpu_impl(scalarField &psi,
-                                           PersistentArray<scalar> &x,
-                                           const PersistentArray<scalar> &b,
+                                           const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        SIMPLE_TIME(verbose_, gather_initGuess,
-                    auto dense_x = x.get_dense_vec();)
-        SIMPLE_TIME(verbose_, gather_RHS, auto dense_b = b.get_dense_vec();)
+        // build partition: uniform number of rows per rank
+        auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
+        auto rows_start =
+            this->get_global_cell_index().offset(Pstream::myProcNo());
+        auto rows_end = rows_start + psi.size();
 
         auto ref_exec = this->get_exec_handler().get_ref_exec();
+        auto partition = gko::share(
+            gko::distributed::build_partition_from_local_range<label,
+                                                               gko::int64>(
+                ref_exec, rows_start, rows_end, *comm.get()));
+
+        PersistentVector<scalar> dist_b{
+            &source[0],
+            this->fieldName() + "_rhs",
+            db_,
+            this->get_exec_handler(),
+            partition,
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
+            false};
+
+        PersistentVector<scalar> dist_x{
+            &psi[0],
+            this->fieldName() + "_solution",
+            db_,
+            this->get_exec_handler(),
+            partition,
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            false};
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
@@ -200,21 +244,11 @@ public:
                     {scaling}, ref_exec));
 
             SIMPLE_TIME(verbose_, scale_RHS,
-                        dense_b->scale(dense_scaling.get());)
+                        dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
         SIMPLE_TIME(verbose_, gather_global_matrix,
                     auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
-
-        // build partition: uniform number of rows per rank
-        auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
-        auto rows_start =
-            this->get_global_cell_index().offset(Pstream::myProcNo());
-        auto rows_end = rows_start + psi.size();
-        auto partition = gko::share(
-            gko::distributed::build_partition_from_local_range<label,
-                                                               gko::int64>(
-                ref_exec, rows_start, rows_end, *comm.get()));
 
 
         gko::matrix_data<scalar, label> A_data_32;
@@ -231,10 +265,6 @@ public:
         }
 
         auto device_exec = this->get_exec_handler().get_device_exec();
-        auto dist_b = gko::share(dist_vec::from_local<label, gko::int64>(
-            device_exec, *comm.get(), *b.get_array().get(), partition.get()));
-        auto dist_x = gko::share(dist_vec::from_local<label, gko::int64>(
-            device_exec, *comm.get(), *x.get_array().get(), partition.get()));
 
         auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
         A_host->read_distributed(A_data, partition.get());
@@ -250,8 +280,9 @@ public:
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A, dist_x, dist_b,
-            verbose_, csr_matrix_wrapper_.get_export(), precond);
+            this->get_exec_handler().get_device_exec(), dist_A,
+            dist_x.get_vector(), dist_b.get_vector(), verbose_,
+            csr_matrix_wrapper_.get_export(), precond);
 
         /* auto solver_gen = gko::share( */
         /*     gko::solver::Cg<scalar>::build() */
@@ -267,10 +298,11 @@ public:
                     auto solver = solver_gen->generate(dist_A);)
         LOG_1(verbose_, "solve solver done")
         SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dist_b), gko::lend(dist_x));)
+                    solver->apply(gko::lend(dist_b.get_vector()),
+                                  gko::lend(dist_x.get_vector()));)
 
 
-        x.copy_back(dist_x);
+        SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -284,72 +316,17 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
-        std::shared_ptr<gko::Executor> device_exec =
-            this->get_exec_handler().get_device_exec();
-
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
             lduMatrix::preconditioner::getName(this->controlDict_) +
                 this->get_exec_handler().get_exec_name() + typeName,
             this->fieldName());
 
-        PersistentArray<scalar> b{
-            const_cast<scalar *>(&source[0]),
-            this->fieldName() + "_rhs",
-            db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            false};
-
-        PersistentArray<scalar> x{
-            &psi[0],
-            this->fieldName() + "_solution",
-            db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            false};
-
         // Solve system
         if (Pstream::parRun()) {
-            return solve_multi_gpu_impl(psi, x, b, solverPerf);
-            // SIMPLE_TIME(verbose_, retrieve_result_from_device,
-            //             dense_x->copy_back_host(&psi[0], x_host);)
-
-
-            //     if (Pstream::master()) {
-            //         LOG_1(verbose_, "create solver factory")
-
-
-            //         auto solver_gen = this->create_solver(
-            //             this->get_exec_handler().get_device_exec(),
-            //             gkomatrix.get_persistent_object(), dense_x,
-            //             dense_b, verbose_,
-            //             csr_matrix_wrapper_.get_export(), precond);
-            //         LOG_1(verbose_, "create solver")
-            //         SIMPLE_TIME(verbose_, generate_solver,
-            //                     auto solver = solver_gen->generate(
-            //                         gko::share(gkomatrix.get_persistent_object()));)
-            //         LOG_1(verbose_, "solve solver done")
-            //         SIMPLE_TIME(
-            //             verbose_, solve,
-            //             solver->apply(gko::lend(dense_b),
-            //             gko::lend(dense_x));)
-            //         LOG_1(verbose_, "copy back")
-            //         solverPerf.initialResidual() =
-            //         this->get_init_res_norm(); solverPerf.finalResidual()
-            //         = this->get_res_norm(); solverPerf.nIterations() =
-            //         this->get_number_of_iterations();
-            //         this->store_number_of_iterations();
-            //     }
-            //     SIMPLE_TIME(verbose_, retrieve_result_from_device,
-            //                 x.copy_back_parallel(this->get_global_cell_index(),
-            //                                      &psi[0], dense_x);)
+            return solve_multi_gpu_impl(psi, source, solverPerf);
         } else {
-            return solve_serial_impl(psi, x, b, solverPerf);
+            return solve_serial_impl(psi, source, solverPerf);
         }
 
         return solverPerf;

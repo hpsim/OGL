@@ -67,7 +67,7 @@ struct ExecutorInitFunctor {
         if (executor_name_ == "cuda") {
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec,
-                true));
+                false, gko::allocation_mode::device));
         }
         if (executor_name_ == "dpcpp") {
             return gko::share(gko::DpcppExecutor::create(

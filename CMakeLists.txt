@@ -116,6 +116,7 @@ target_sources(
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
+          DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
@@ -125,8 +126,7 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          # Solver/IR/GKOIR.C
-          Solver/Multigrid/GKOMultigrid.C
+          # Solver/IR/GKOIR.C Solver/Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
@@ -135,6 +135,7 @@ target_sources(
          HostMatrix/HostMatrix.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
+         DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
@@ -143,7 +144,7 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-         Solver/Multigrid/GKOMultigrid.H
+         # Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
          LduMatrix/GKOACG/GKOACG.H)
