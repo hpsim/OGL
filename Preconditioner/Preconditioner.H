@@ -101,65 +101,56 @@ public:
                                .on(device_exec));
             return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
-        // if (name == "ILU") {
-        //     auto factorizaton_factory =
-        //         gko::factorization::Ilu<scalar, label>::build()
-        //             .with_skip_sorting(skip_sorting)
-        //             .on(device_exec);
+        if (name == "ILU") {
+            auto factorizaton_factory =
+                gko::factorization::Ilu<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
 
-        //     auto par_ilu =
-        //         gko::share(factorizaton_factory->generate(gkomatrix));
+            word msg = "Generate preconditioner " + name;
+            LOG_1(verbose_, msg)
 
-        //     word msg = "Generate preconditioner " + name;
-        //     LOG_1(verbose_, msg)
+            auto ilu_pre_factory =
+                gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
+                                         gko::solver::UpperTrs<scalar, label>,
+                                         false>::build()
+                    .on(device_exec);
+
+            // Use incomplete factors to generate ILU preconditioner auto
+            return gko::share(ilu_pre_factory->generate(
+                gko::share(factorizaton_factory->generate(gkomatrix))));
+        }
+        if (name == "IRILU") {
+            auto factorizaton_factory =
+                gko::factorization::Ilu<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
 
 
-        //     auto ilu_pre_factory =
-        //         gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar,
-        //         label>,
-        //                                  gko::solver::UpperTrs<scalar,
-        //                                  label>, false>::build()
-        //             .on(device_exec);
+            auto trisolve_factory =
+                ir::build()
+                    .with_solver(share(
+                        bj::build().with_max_block_size(1).on(device_exec)))
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(5).on(
+                            device_exec))
+                    .on(device_exec);
 
-        //     // Use incomplete factors to generate ILU preconditioner auto
-        //     return
-        //     gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
-        // }
-        // if (name == "IRILU") {
-        //     auto factorizaton_factory =
-        //         gko::factorization::Ilu<scalar, label>::build()
-        //             .with_skip_sorting(skip_sorting)
-        //             .on(device_exec);
+            // Generate an ILU preconditioner factory by setting lower and
+            // upper
+            // triangular solver - in this case the previously defined
+            // iterative
+            // refinement method.
+            auto ilu_pre_factory =
+                gko::preconditioner::Ilu<ir, ir>::build()
+                    .with_l_solver_factory(gko::clone(trisolve_factory))
+                    .with_u_solver_factory(gko::clone(trisolve_factory))
+                    .on(device_exec);
 
-        //     auto par_ilu =
-        //         gko::share(factorizaton_factory->generate(gkomatrix));
-
-        //     auto bj_factory =
-        //         bj::build().with_max_block_size(1).on(device_exec);
-
-        //     auto trisolve_factory =
-        //         ir::build()
-        //             .with_solver(share(bj_factory))
-        //             .with_criteria(
-        //                 gko::stop::Iteration::build().with_max_iters(5).on(
-        //                     device_exec))
-        //             .on(device_exec);
-
-        //     // Generate an ILU preconditioner factory by setting lower and
-        //     upper
-        //     // triangular solver - in this case the previously defined
-        //     iterative
-        //     // refinement method.
-        //     auto ilu_pre_factory =
-        //         gko::preconditioner::Ilu<ir, ir>::build()
-        //             .with_l_solver_factory(gko::clone(trisolve_factory))
-        //             .with_u_solver_factory(gko::clone(trisolve_factory))
-        //             .on(device_exec);
-
-        //     // Use incomplete factors to generate ILU preconditioner
-        //     return
-        //     gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
-        // }
+            // Use incomplete factors to generate ILU preconditioner
+            return gko::share(ilu_pre_factory->generate(gko::share(
+                gko::share(factorizaton_factory->generate(gkomatrix)))));
+        }
         if (name == "IC") {
             auto factorizaton_factory =
                 gko::factorization::Ic<scalar, label>::build()
@@ -193,85 +184,86 @@ public:
 
             return wrap_schwarz(gkomatrix, device_exec, pre_factory);
         }
-        // if (name == "Multigrid") {
-        //     using ir = gko::solver::Ir<scalar>;
-        //     using cg = gko::solver::Cg<scalar>;
-        //     using mg = gko::solver::Multigrid;
-        //     using bj = gko::preconditioner::Jacobi<scalar, label>;
-        //     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+        if (name == "Multigrid") {
+            using ir = gko::solver::Ir<scalar>;
+            using cg = gko::solver::Cg<scalar>;
+            using mg = gko::solver::Multigrid;
+            using bj = gko::preconditioner::Jacobi<scalar, label>;
+            using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
 
-        //     auto inner_solver_gen =
-        //         gko::share(bj::build().with_max_block_size(1u).on(device_exec));
+            auto inner_solver_gen =
+                gko::share(bj::build().with_max_block_size(1u).on(device_exec));
 
-        //     auto smoother_gen = gko::share(
-        //         ir::build()
-        //             .with_solver(inner_solver_gen)
-        //             .with_relaxation_factor(0.9)
-        //             .with_criteria(
-        //                 gko::stop::Iteration::build().with_max_iters(2u).on(
-        //                     device_exec))
-        //             .on(device_exec));
+            auto smoother_gen = gko::share(
+                ir::build()
+                    .with_solver(inner_solver_gen)
+                    .with_relaxation_factor(0.9)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(2u).on(
+                            device_exec))
+                    .on(device_exec));
 
-        //     // Create MultigridLevel factory
-        //     auto mg_level_gen =
-        //         amgx_pgm::build().with_deterministic(true).on(device_exec);
+            // Create MultigridLevel factory
+            auto mg_level_gen =
+                amgx_pgm::build().with_deterministic(true).on(device_exec);
 
-        //     // Create CoarsestSolver factory
-        //     // std::shared_ptr<gko::LinOp> coarsest_gen;
-        //     // coarsest_gen =
-        //     //
-        //     (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
-        //     //                                      word("IR")) == "IR")
-        //     //         ? gko::share(
-        //     //               ir::build()
-        //     //                   .with_solver(inner_solver_gen)
-        //     //                   .with_relaxation_factor(0.9)
-        //     //                   .with_criteria(gko::stop::Iteration::build()
-        //     //                                      .with_max_iters(4u)
-        //     //                                      .on(device_exec))
-        //     //                   .on(device_exec))
-        //     //         : gko::share(
-        //     //               cg::build()
-        //     //                   .with_criteria(gko::stop::Iteration::build()
-        //     //                                      .with_max_iters(4u)
-        //     //                                      .on(device_exec))
-        //     //                   .on(device_exec));
+            // Create CoarsestSolver factory
+            // std::shared_ptr<gko::LinOp> coarsest_gen;
+            // coarsest_gen =
+            //
+            // (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
+            //                                      word("IR")) == "IR")
+            //         ? gko::share(
+            //               ir::build()
+            //                   .with_solver(inner_solver_gen)
+            //                   .with_relaxation_factor(0.9)
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec))
+            //         : gko::share(
+            //               cg::build()
+            //                   .with_criteria(gko::stop::Iteration::build()
+            //                                      .with_max_iters(4u)
+            //                                      .on(device_exec))
+            //                   .on(device_exec));
 
-        //     auto coarsest_gen = gko::share(
-        //         cg::build()
-        //             .with_criteria(
-        //                 gko::stop::Iteration::build().with_max_iters(4u).on(
-        //                     device_exec))
-        //             .on(device_exec));
+            auto coarsest_gen = gko::share(
+                cg::build()
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(4u).on(
+                            device_exec))
+                    .on(device_exec));
 
-        //     // Create multigrid factory
-        //     label max_levels(controls.lookupOrDefault("MaxLevels",
-        //     label(9))); label min_coarse_rows(
-        //         controls.lookupOrDefault("MinCoarseRows", label(10)));
-        //     bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess",
-        //     true));
+            // Create multigrid factory
+            label max_levels(controls.lookupOrDefault("MaxLevels", label(9)));
+            label min_coarse_rows(
+                controls.lookupOrDefault("MinCoarseRows", label(10)));
+            bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess", true));
 
-        //     word msg = "Generate preconditioner " + name + " MaxLevels " +
-        //                std::to_string(max_levels) + " MinCoarseRows " +
-        //                std::to_string(min_coarse_rows) + " ZeroGuess " +
-        //                std::to_string(zeroGuess);
-        //     LOG_1(verbose_, msg)
+            word msg = "Generate preconditioner " + name + " MaxLevels " +
+                       std::to_string(max_levels) + " MinCoarseRows " +
+                       std::to_string(min_coarse_rows) + " ZeroGuess " +
+                       std::to_string(zeroGuess);
+            LOG_1(verbose_, msg)
 
-        //     auto pre_factory = gko::share(
-        //         mg::build()
-        //             .with_max_levels(max_levels)
-        //             .with_min_coarse_rows(min_coarse_rows)
-        //             .with_pre_smoother(smoother_gen)
-        //             .with_post_uses_pre(true)
-        //             .with_mg_level(gko::share(mg_level_gen))
-        //             .with_coarsest_solver(coarsest_gen)
-        //             .with_zero_guess(zeroGuess)
-        //             .with_criteria(
-        //                 gko::stop::Iteration::build().with_max_iters(1u).on(
-        //                     device_exec))
-        //             .on(device_exec));
-        //     return wrap_schwarz(gkomatrix, device_exec, pre_factory);
-        // }
+            auto pre_factory = gko::share(
+                mg::build()
+                    .with_max_levels(max_levels)
+                    .with_min_coarse_rows(min_coarse_rows)
+                    .with_pre_smoother(smoother_gen)
+                    .with_post_uses_pre(true)
+                    .with_mg_level(gko::share(
+                        amgx_pgm::build().with_deterministic(true).on(
+                            device_exec)))
+                    .with_coarsest_solver(coarsest_gen)
+                    .with_zero_guess(zeroGuess)
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(1u).on(
+                            device_exec))
+                    .on(device_exec));
+            return wrap_schwarz(gkomatrix, device_exec, pre_factory);
+        }
         return {};
     }
 
