@@ -31,7 +31,6 @@ SourceFiles
 #include "../../HostMatrix/HostMatrix.H"
 #include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
 #include "../Preconditioner/Preconditioner.H"
 
 #include "../common/common.H"
@@ -56,8 +55,6 @@ private:
     using vec = gko::matrix::Dense<scalar>;
 
     const objectRegistry &db_;
-
-    const gkoGlobalIndex globalIndex_;
 
     const CsrMatrixWrapper csr_matrix_wrapper_;
 
@@ -96,7 +93,9 @@ public:
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {
-        init_base();
+        if (!db_.foundObject<regIOobject>(fieldName + "csr")) {
+            print_info();
+        }
     }
 
 
@@ -121,11 +120,23 @@ public:
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
-    {
-        init_base();
-    }
+    {}
 
-    void init_base() {}
+    void print_info() const
+    {
+        auto version_info = gko::version_info::get();
+
+        word msg =
+            std::string("Initialising OGL\n") +
+            std::string("\t Ginkgoversion") +
+            std::to_string(version_info.core_version.major) + std::string(".") +
+            std::to_string(version_info.core_version.minor) + std::string(".") +
+            std::to_string(version_info.core_version.patch) + std::string("(") +
+            std::string(version_info.core_version.tag) +
+            std::string(")\n\tMPI is GPU aware: ") +
+            std::to_string(gko::mpi::is_gpu_aware());
+        LOG_1(verbose_, msg)
+    };
 
 
     // the solve_impl_ version called from the LduMatrix, ie for

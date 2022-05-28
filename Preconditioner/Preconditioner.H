@@ -131,10 +131,8 @@ public:
                     .on(device_exec);
 
             // Generate an ILU preconditioner factory by setting lower and
-            // upper
-            // triangular solver - in this case the previously defined
-            // iterative
-            // refinement method.
+            // upper triangular solver - in this case the previously defined
+            // iterative refinement method.
             auto ilu_pre_factory =
                 gko::preconditioner::Ilu<ir, ir>::build()
                     .with_l_solver_factory(gko::clone(trisolve_factory))
