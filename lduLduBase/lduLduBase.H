@@ -218,10 +218,12 @@ public:
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
-        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        auto time_per_iter =
+            delta_t_solve * 1000.0 / this->get_number_of_iterations();
         auto time_per_iter_and_dof = time_per_iter / psi.size();
-        word msg = "Time per iteration " + std::to_string(time_per_iter) +
-                   std::string(" Time per iteration and DOF ");
+        word msg = "Time per iteration  " + std::to_string(time_per_iter) +
+                   std::string("[ns] Time per iteration and DOF ") +
+                   std::to_string(time_per_iter_and_dof) + std::string("[ns]");
         LOG_0(verbose_, msg)
 
         this->store_number_of_iterations();
@@ -336,12 +338,13 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
-        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        auto time_per_iter =
+            delta_t_solve * 1000.0 / this->get_number_of_iterations();
         auto time_per_iter_and_dof = time_per_iter / partition->get_size();
         word msg = "Time per iteration " + std::to_string(time_per_iter) +
-                   std::string(" Time per iteration and DOF ") +
-                   std::to_string(time_per_iter_and_dof);
-        LOG_1(verbose_, msg)
+                   std::string("[ns] Time per iteration and DOF ") +
+                   std::to_string(time_per_iter_and_dof) + std::string("[ns]");
+        LOG_0(verbose_, msg)
 
         return solverPerf;
     }
