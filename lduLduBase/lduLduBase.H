@@ -146,7 +146,7 @@ public:
             std::string(version_info.core_version.tag) +
             std::string(")\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware());
-        LOG_1(verbose_, msg)
+        LOG_0(verbose_, msg)
     };
 
 
@@ -222,7 +222,7 @@ public:
         auto time_per_iter_and_dof = time_per_iter / psi.size();
         word msg = "Time per iteration " + std::to_string(time_per_iter) +
                    std::string(" Time per iteration and DOF ");
-        LOG_1(verbose_, msg)
+        LOG_0(verbose_, msg)
 
         this->store_number_of_iterations();
         return solverPerf;
