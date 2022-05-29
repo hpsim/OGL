@@ -37,16 +37,23 @@ namespace Foam {
 #define __FILENAME__ \
     (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define SIMPLE_LOG(VERBOSE, PRIO, MSG, MASTER_ONLY)                        \
-    if (VERBOSE > PRIO) {                                                  \
-        if (Pstream::parRun() && MASTER_ONLY != 1) {                       \
-            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "][" \
-                      << __FILENAME__ << ":" << __LINE__ << "] " << MSG    \
-                      << std::endl;                                        \
-        } else {                                                           \
-            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
-                      << std::endl;                                        \
-        }                                                                  \
+#define SIMPLE_LOG(VERBOSE, PRIO, MSG, MASTER_ONLY)                         \
+    if (VERBOSE > PRIO) {                                                   \
+        if (Pstream::parRun()) {                                            \
+            if (MASTER_ONLY == 1) {                                         \
+                if (Pstream::myProcNo() == 0) {                             \
+                    std::cout << "[OGL LOG][" << __FILENAME__ << ":"        \
+                              << __LINE__ << "] " << MSG << std::endl;      \
+                }                                                           \
+            } else {                                                        \
+                std::cout << "[OGL LOG]" << Pstream::myProcNo() << "]["     \
+                          << __FILENAME__ << ":" << __LINE__ << "] " << MSG \
+                          << std::endl;                                     \
+            }                                                               \
+        } else {                                                            \
+            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG        \
+                      << std::endl;                                         \
+        }                                                                   \
     }
 
 #define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 0)

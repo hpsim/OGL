@@ -338,12 +338,12 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
-        auto time_per_iter =
-            delta_t_solve * 1000.0 / this->get_number_of_iterations();
-        auto time_per_iter_and_dof = time_per_iter / partition->get_size();
+        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        auto time_per_iter_and_dof =
+            time_per_iter * 1000.0 / partition->get_size();
         word msg = "Time per iteration " + std::to_string(time_per_iter) +
-                   std::string("[ns] Time per iteration and DOF ") +
-                   std::to_string(time_per_iter_and_dof) + std::string("[ns]");
+                   std::string(" [mu s] Time per iteration and DOF ") +
+                   std::to_string(time_per_iter_and_dof) + std::string(" [ns]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;
