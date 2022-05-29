@@ -93,7 +93,7 @@ public:
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {
-        if (!db_.foundObject<regIOobject>(fieldName + "csr")) {
+        if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
             print_info();
         }
     }
