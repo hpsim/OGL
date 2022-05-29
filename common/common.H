@@ -47,25 +47,14 @@ namespace Foam {
             std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
                       << std::endl;                                        \
         }                                                                  \
-    }                                                                      \
-                                                                           \
-    if (VERBOSE > PRIO) {                                                  \
-        if (Pstream::parRun()) {                                           \
-            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "][" \
-                      << __FILENAME__ << ":" << __LINE__ << "] " << MSG    \
-                      << std::endl;                                        \
-        } else {                                                           \
-            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
-                      << std::endl;                                        \
-        }                                                                  \
     }
 
 #define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 0)
 #define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 0)
 #define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 0)
-#define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 0)
-#define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 0)
-#define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 0)
+#define MLOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 1)
+#define MLOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 1)
+#define MLOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 1)
 
 #define SIMPLE_TIME(VERBOSE, NAME, F)                                        \
     auto start_##NAME = std::chrono::steady_clock::now();                    \
