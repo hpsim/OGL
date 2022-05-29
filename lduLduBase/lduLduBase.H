@@ -38,6 +38,13 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+
+const char *git_version(void);
+
+const char *git_revision(void);
+
+const char *git_branch(void);
+
 namespace Foam {
 
 template <class MatrixType, class SolverFactory>
@@ -127,8 +134,11 @@ public:
         auto version_info = gko::version_info::get();
 
         word msg =
-            std::string("Initialising OGL\n") +
-            std::string("\t Ginkgoversion") +
+            std::string("Initialising OGL Version ") +
+            std::string(git_version()) + std::string(" ") +
+            std::string(git_revision()) + std::string(" ") +
+            std::string(git_branch()) + std::string(" ") +
+            std::string("\n\t Ginkgoversion") +
             std::to_string(version_info.core_version.major) + std::string(".") +
             std::to_string(version_info.core_version.minor) + std::string(".") +
             std::to_string(version_info.core_version.patch) + std::string("(") +

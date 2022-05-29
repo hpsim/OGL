@@ -110,9 +110,19 @@ else()
   add_compile_definitions(linux64)
 endif()
 
+# Add a custom command that produces version.cpp, plus a dummy output that's not
+# actually produced, in order to force version.cmake to always be re-run before
+# the build
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
+         ${CMAKE_CURRENT_BINARY_DIR}/_version.C
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake)
+
 target_sources(
   OGL
   PRIVATE common/common.C
+          ${CMAKE_CURRENT_BINARY_DIR}/version.C
+          lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
