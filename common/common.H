@@ -53,29 +53,23 @@ namespace Foam {
 #define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG)
 #define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG)
 
-#define SIMPLE_TIME(VERBOSE, NAME, F)                                         \
-    auto start_##NAME = std::chrono::steady_clock::now();                     \
-    F auto end_##NAME = std::chrono::steady_clock::now();                     \
-    if (VERBOSE > 0) {                                                        \
-        if (Pstream::parRun()) {                                              \
-            if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                    \
-                std::cout                                                     \
-                    << "[OGL LOG][Proc: " << Pstream::myProcNo()              \
-                    << "]" #NAME " : "                                        \
-                                                                              \
-                    << std::chrono::duration_cast<std::chrono::microseconds>( \
-                           end_##NAME - start_##NAME)                         \
-                           .count()                                           \
-                    << " mu s\n";                                             \
-            }                                                                 \
-        } else {                                                              \
-            std::cout                                                         \
-                << "[OGL LOG] " #NAME " : "                                   \
-                << std::chrono::duration_cast<std::chrono::microseconds>(     \
-                       end_##NAME - start_##NAME)                             \
-                       .count()                                               \
-                << " mu s\n";                                                 \
-        }                                                                     \
+#define SIMPLE_TIME(VERBOSE, NAME, F)                                        \
+    auto start_##NAME = std::chrono::steady_clock::now();                    \
+    F auto end_##NAME = std::chrono::steady_clock::now();                    \
+    auto delta_t_##NAME =                                                    \
+        std::chrono::duration_cast<std::chrono::microseconds>(end_##NAME -   \
+                                                              start_##NAME)  \
+            .count();                                                        \
+    if (VERBOSE > 0) {                                                       \
+        if (Pstream::parRun()) {                                             \
+            if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                   \
+                std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo()       \
+                          << "]" #NAME " : " << delta_t_##NAME << " mu s\n"; \
+            }                                                                \
+        } else {                                                             \
+            std::cout << "[OGL LOG] " #NAME " : " << delta_t_##NAME          \
+                      << " mu s\n";                                          \
+        }                                                                    \
     }
 
 std::ostream &operator<<(

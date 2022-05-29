@@ -132,7 +132,8 @@ public:
     void print_info() const
     {
         auto version_info = gko::version_info::get();
-
+        // auto exec_info =
+        // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
             std::string("Initialising OGL Version ") +
             std::string(git_version()) + std::string(" ") +
@@ -217,6 +218,12 @@ public:
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
+        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        auto time_per_iter_and_dof = time_per_iter / psi.size();
+        word msg = "Time per iteration " + std::to_string(time_per_iter) +
+                   std::string(" Time per iteration and DOF ");
+        LOG_1(verbose_, msg)
+
         this->store_number_of_iterations();
         return solverPerf;
     }
@@ -329,6 +336,12 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
+        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        auto time_per_iter_and_dof = time_per_iter / partition->get_size();
+        word msg = "Time per iteration " + std::to_string(time_per_iter) +
+                   std::string(" Time per iteration and DOF ") +
+                   std::to_string(time_per_iter_and_dof);
+        LOG_1(verbose_, msg)
 
         return solverPerf;
     }
