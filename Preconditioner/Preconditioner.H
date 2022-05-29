@@ -92,7 +92,7 @@ public:
 
             word msg = "Generate preconditioner " + name + " MaxBlockSize " +
                        std::to_string(max_block_size);
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto pre_factory = bj::build()
                                    .with_skip_sorting(skip_sorting)
@@ -107,7 +107,7 @@ public:
                     .on(device_exec);
 
             word msg = "Generate preconditioner " + name;
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto ilu_pre_factory =
                 gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
@@ -156,7 +156,7 @@ public:
                     .on(device_exec);
 
             word msg = "Generate preconditioner " + name;
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
             auto pre_factory =
@@ -170,7 +170,7 @@ public:
 
             word msg = "Generate preconditioner " + name + " SparsityPower " +
                        std::to_string(sparsity_power);
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
@@ -242,7 +242,7 @@ public:
                        std::to_string(max_levels) + " MinCoarseRows " +
                        std::to_string(min_coarse_rows) + " ZeroGuess " +
                        std::to_string(zeroGuess);
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto pre_factory =
                 mg::build()
