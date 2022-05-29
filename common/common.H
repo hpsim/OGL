@@ -94,10 +94,10 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
                 const word time);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
-                          label prev_solve_iters);
+                          label prev_solve_iters, const bool is_final);
 
-label get_solve_prev_iters(const word sys_matrix_name,
-                           const objectRegistry &db);
+label get_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
+                           const bool is_final);
 
 void set_next_caching(word sys_matrix_name, const objectRegistry &db,
                       label caching);

@@ -644,6 +644,7 @@ public:
 
         return normalised_res_norms_;
     }
+    label get_is_final() const { return relTol_ == 0.0; }
 
     label get_num_iters() const { return iter_; }
 };

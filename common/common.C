@@ -113,15 +113,19 @@ label get_next_caching(word sys_matrix_name, const objectRegistry &db)
 
 
 void set_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
-                          label prev_solve_iters)
+                          label prev_solve_iters, const bool is_final)
 {
-    set_gko_solver_property(sys_matrix_name, db, "prevSolveIters",
-                            prev_solve_iters);
+    const word iters_name =
+        (is_final) ? "prevSolveIters_final" : "prevSolveIters";
+    set_gko_solver_property(sys_matrix_name, db, iters_name, prev_solve_iters);
 }
 
-label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db)
+label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
+                           const bool is_final)
 {
-    return get_gko_solver_property(sys_matrix_name, "prevSolveIters", db);
+    const word iters_name =
+        (is_final) ? "prevSolveIters_final" : "prevSolveIters";
+    return get_gko_solver_property(sys_matrix_name, iters_name, db);
 }
 
 std::ostream &operator<<(std::ostream &os,
