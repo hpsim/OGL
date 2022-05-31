@@ -106,10 +106,11 @@ public:
                                             ->get_inner_solvers()[0])
                                     ->get_blocks()
                                     .get_num_elems() -
-                                1),
-                        gko::as<bj>(
-                            gko::as<ras>(prev_precond)->get_inner_solvers()[0])
-                            ->get_blocks())
+                                1,
+                            gko::as<bj>(gko::as<ras>(prev_precond)
+                                            ->get_inner_solvers()[0])
+                                ->get_blocks())
+                            .get())
                     .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
