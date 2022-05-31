@@ -91,7 +91,7 @@ public:
             label max_block_size(
                 controls.lookupOrDefault("MaxBlockSize", label(1)));
 
-            word msg = "Generate preconditioner " + name + " MaxBlockSize " +
+            word msg = "Update preconditioner " + name + " MaxBlockSize " +
                        std::to_string(max_block_size);
             MLOG_0(verbose_, msg)
 
@@ -100,6 +100,13 @@ public:
                     .with_skip_sorting(skip_sorting)
                     .with_max_block_size(max_block_size)
                     .with_block_pointers(
+                        gko::Array<Scalar>::create(
+                            device_exec,
+                            gko::as<bj>(gko::as<ras>(prev_precond)
+                                            ->get_inner_solvers()[0])
+                                    ->get_blocks()
+                                    .get_num_elems() -
+                                1),
                         gko::as<bj>(
                             gko::as<ras>(prev_precond)->get_inner_solvers()[0])
                             ->get_blocks())
