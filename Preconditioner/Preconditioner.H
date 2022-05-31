@@ -34,6 +34,7 @@ SourceFiles
 
 namespace Foam {
 class Preconditioner {
+    using ras = gko::preconditioner::Schwarz<scalar, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
@@ -67,7 +68,6 @@ public:
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
-        using ras = gko::preconditioner::Schwarz<scalar, label>;
         if (Pstream::parRun()) {
             return gko::share(ras::build()
                                   .with_inner_solver(std::move(precond))
@@ -99,7 +99,10 @@ public:
                 bj::build()
                     .with_skip_sorting(skip_sorting)
                     .with_max_block_size(max_block_size)
-                    // .with_block_pointers(prev_precond->get_blocks())
+                    .with_block_pointers(
+                        gko::as<bj>(
+                            gko::as<ras>(prev_precond)->get_inner_solvers()[0])
+                            ->get_blocks())
                     .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
