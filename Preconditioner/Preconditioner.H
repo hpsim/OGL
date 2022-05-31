@@ -95,24 +95,32 @@ public:
                        std::to_string(max_block_size);
             MLOG_0(verbose_, msg)
 
+//    auto prev_block_ptr = gko::array<label>::view(
+//		    device_exec,
+//                    gko::as<bj>(gko::as<ras>(prev_precond)
+//                                    ->get_inner_solvers()[0])
+//                        ->get_parameters().block_pointers.get_num_elems(),
+//                    gko::as<bj>(gko::as<ras>(prev_precond)
+//                                    ->get_inner_solvers()[0])
+//                        ->get_parameters().block_pointers.get_data()
+//		    ); 
+
             auto pre_factory =
                 bj::build()
                     .with_skip_sorting(skip_sorting)
                     .with_max_block_size(max_block_size)
-                    .with_block_pointers(
-                        gko::Array<Scalar>::create(
-                            device_exec,
-                            gko::as<bj>(gko::as<ras>(prev_precond)
-                                            ->get_inner_solvers()[0])
-                                    ->get_blocks()
-                                    .get_num_elems() -
-                                1,
-                            gko::as<bj>(gko::as<ras>(prev_precond)
-                                            ->get_inner_solvers()[0])
-                                ->get_blocks())
-                            .get())
                     .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+
+    pre_factory->get_parameters().block_pointers =
+                   gko::as<bj>(gko::as<ras>(prev_precond)
+                                   ->get_inner_solvers()[0])
+                       ->get_parameters().block_pointers;
+
+	    std::cout << "prefactory" << std::endl;
+            auto sw =wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+	    std::cout << "prefactory done" << std::endl;
+	    return sw;
+
         }
         return prev_precond;
     }
@@ -358,6 +366,7 @@ public:
                         name, controls, prev_precond.get_ptr(), gkomatrix,
                         device_exec);
                     precond_ptr = updated_precond;
+		    std::cout << "done prefactory" << std::endl;
                     return precond_ptr;
                 } else {
                     auto generated_precond = init_preconditioner_impl(
