@@ -77,6 +77,35 @@ public:
         return gko::share(precond->generate(gkomatrix));
     }
 
+    std::shared_ptr<gko::LinOp> update_preconditioner(
+        const word name, const dictionary &controls,
+        std::shared_ptr<gko::LinOp> prev_precond,
+        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec) const
+    {
+        bool skip_sorting =
+            controls.lookupOrDefault<Switch>("SkipSorting", true);
+
+        if (name == "BJ") {
+            // TODO for non constant system matrix reuse block pointers
+            label max_block_size(
+                controls.lookupOrDefault("MaxBlockSize", label(1)));
+
+            word msg = "Generate preconditioner " + name + " MaxBlockSize " +
+                       std::to_string(max_block_size);
+            MLOG_0(verbose_, msg)
+
+            auto pre_factory =
+                bj::build()
+                    .with_skip_sorting(skip_sorting)
+                    .with_max_block_size(max_block_size)
+                    // .with_block_pointers(prev_precond->get_blocks())
+                    .on(device_exec);
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+        }
+        return prev_precond;
+    }
+
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
         std::shared_ptr<gko::LinOp> gkomatrix,
@@ -308,13 +337,24 @@ public:
                 const label caching_period =
                     controls.lookupOrDefault<label>("Caching", 0);
                 set_next_caching(sys_matrix_name_, db_, caching_period);
-
-                auto generated_precond = init_preconditioner_impl(
-                    name, controls, gkomatrix, device_exec);
-
                 auto precond_ptr = prev_precond.get_ptr();
-                precond_ptr = generated_precond;
-                return precond_ptr;
+
+                const bool update =
+                    controls.lookupOrDefault<Switch>("Update", false);
+
+                if (update) {
+                    auto updated_precond = update_preconditioner(
+                        name, controls, prev_precond.get_ptr(), gkomatrix,
+                        device_exec);
+                    precond_ptr = updated_precond;
+                    return precond_ptr;
+                } else {
+                    auto generated_precond = init_preconditioner_impl(
+                        name, controls, gkomatrix, device_exec);
+
+                    precond_ptr = generated_precond;
+                    return precond_ptr;
+                }
             }
         }
         const label caching_period =
