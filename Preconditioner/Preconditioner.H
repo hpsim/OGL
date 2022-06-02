@@ -165,7 +165,7 @@ public:
             LOG_1(verbose_, msg)
 
 
-            auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
+            //auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
             auto pre_factory =
                 gko::share(gko::preconditioner::Ic<>::build().on(device_exec));
 
