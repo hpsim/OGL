@@ -99,12 +99,14 @@ public:
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,
-                             stoppingCriterion_.get_num_iters());
+                             stoppingCriterion_.get_num_iters(),
+                             stoppingCriterion_.get_is_final());
     }
 
     label get_prev_number_of_iterations() const
     {
-        return get_solve_prev_iters(sysMatrixName_, db_);
+        return get_solve_prev_iters(sysMatrixName_, db_,
+                                    stoppingCriterion_.get_is_final());
     }
 
     label get_number_of_iterations() const

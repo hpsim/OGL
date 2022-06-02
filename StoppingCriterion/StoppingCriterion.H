@@ -143,7 +143,7 @@ class StoppingCriterion {
             // TODO store colA vector
             auto comm = x->get_communicator();
 
-            gko::dim<2> local_size = x->get_local()->get_size();
+            gko::dim<2> local_size = x->get_local_vector()->get_size();
             gko::dim<2> global_size = x->get_size();
 
             auto Axref = gko::share(
@@ -644,6 +644,7 @@ public:
 
         return normalised_res_norms_;
     }
+    label get_is_final() const { return relTol_ == 0.0; }
 
     label get_num_iters() const { return iter_; }
 };
