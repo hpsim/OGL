@@ -110,10 +110,8 @@ public:
               ExecutorInitFunctor(
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
-                  solverControls
-                      .lookupOrDefault("verbose", label(0))
-                          solverControls.lookupOrDefault("force_host_buffer",
-                                                         false)),
+                  solverControls.lookupOrDefault("verbose", label(0)),
+                  solverControls.lookupOrDefault("force_host_buffer", false)),
               true, 0),
           comm_((Pstream::parRun())
                     ? std::make_shared<gko::mpi::communicator>(
