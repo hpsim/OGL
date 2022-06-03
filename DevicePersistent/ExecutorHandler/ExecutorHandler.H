@@ -47,9 +47,11 @@ struct ExecutorInitFunctor {
     const label verbose_;
 
     ExecutorInitFunctor(const word executor_name, const word field_name,
-                        const label verbose)
+                        const label verbose,
+                        const bool force_host_buffer = false)
         : comm_((Pstream::parRun())  // TODO make this DRY
-                    ? std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)
+                    ? std::make_shared<gko::mpi::communicator>(
+                          MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
           device_id_((Pstream::parRun()) ? comm_->node_local_rank() : 0),
           executor_name_(executor_name),
@@ -108,11 +110,13 @@ public:
               ExecutorInitFunctor(
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
-                  solverControls.lookupOrDefault("verbose", label(0))),
+                  solverControls.lookupOrDefault("verbose", label(0))
+                  solverControls.lookupOrDefault("force_host_buffer", false)
+),
               true, 0),
-          comm_((Pstream::parRun())
-                    ? std::make_shared<gko::mpi::communicator>(MPI_COMM_WORLD)
-                    : NULL),
+          comm_((Pstream::parRun()) ? std::make_shared<gko::mpi::communicator>(
+                                          MPI_COMM_WORLD, solverControls.lookupOrDefault("force_host_buffer", false)
+                                    : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
@@ -127,7 +131,8 @@ public:
         return get_device_exec()->get_master();
     }
 
-    word get_exec_name() const { return device_executor_name_; }
+    word get_exec_name() const {
+        return device_executor_name_; }
 
     std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper() const
     {
