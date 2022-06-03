@@ -52,8 +52,6 @@ class lduLduBase : public SolverFactory,
                    public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
     using dist_vec = gko::distributed::Vector<scalar>;
     using dist_mtx = gko::distributed::Matrix<scalar, label>;
     using GlobalIndexType = gko::int64;
@@ -284,24 +282,28 @@ public:
         gko::matrix_data<scalar, label> A_data_32;
         A_data_32.size = {psi.size(), psi.size()};
 
-        auto matrix = gkomatrix.get_persistent_object();
-        matrix->write(A_data_32);
+        SIMPLE_TIME(
+            verbose_, generate_distributed_matrix,
+            auto matrix = gkomatrix.get_persistent_object();
+            matrix->write(A_data_32);
 
-        gko::matrix_data<scalar, GlobalIndexType> A_data;
-        const label global_size = this->get_global_cell_index().size();
-        A_data.size = {global_size, global_size};
-        for (auto &elem : A_data_32.nonzeros) {
-            A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
-        }
+            gko::matrix_data<scalar, GlobalIndexType> A_data;
+            const label global_size = this->get_global_cell_index().size();
+            A_data.size = {global_size, global_size};
+            for (auto &elem
+                 : A_data_32.nonzeros) {
+                A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
+            }
 
-        auto device_exec = this->get_exec_handler().get_device_exec();
+            auto device_exec = this->get_exec_handler().get_device_exec();
 
-        auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
-        A_host->read_distributed(A_data, partition.get());
+            auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
+            A_host->read_distributed(A_data, partition.get());
 
-        /* // copy to device */
-        auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
-        dist_A->copy_from(A_host.get());
+            /* // copy to device */
+            auto dist_A =
+                gko::share(dist_mtx::create(device_exec, *comm.get()));
+            dist_A->copy_from(A_host.get());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
