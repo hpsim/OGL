@@ -110,13 +110,16 @@ public:
               ExecutorInitFunctor(
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
-                  solverControls.lookupOrDefault("verbose", label(0))
-                  solverControls.lookupOrDefault("force_host_buffer", false)
-),
+                  solverControls
+                      .lookupOrDefault("verbose", label(0))
+                          solverControls.lookupOrDefault("force_host_buffer",
+                                                         false)),
               true, 0),
-          comm_((Pstream::parRun()) ? std::make_shared<gko::mpi::communicator>(
-                                          MPI_COMM_WORLD, solverControls.lookupOrDefault("force_host_buffer", false)
-                                    : NULL),
+          comm_((Pstream::parRun())
+                    ? std::make_shared<gko::mpi::communicator>(
+                          MPI_COMM_WORLD, solverControls.lookupOrDefault(
+                                              "force_host_buffer", false))
+                    : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
@@ -131,8 +134,7 @@ public:
         return get_device_exec()->get_master();
     }
 
-    word get_exec_name() const {
-        return device_executor_name_; }
+    word get_exec_name() const { return device_executor_name_; }
 
     std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper() const
     {
