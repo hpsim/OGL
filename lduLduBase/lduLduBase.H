@@ -58,6 +58,8 @@ private:
     using part_type = gko::distributed::Partition<label>;
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
+    using idx_array = gko::Array<label>;
+    using val_array = gko::Array<scalar>;
 
     const objectRegistry &db_;
 
@@ -240,9 +242,13 @@ public:
     {
         auto device_exec = this->get_exec_handler().get_device_exec();
         auto matrix = gkomatrix.get_persistent_object();
+        auto num_elems = matrix->get_num_stored_elements();
+
         gko::device_matrix_data<scalar, label> A_data{
-            device_exec, gko::dim<2>{size, size}, matrix->get_row_ptrs(),
-            matrix->get_col_idxs(), matrix->get_values()};
+            device_exec, gko::dim<2>{size, size},
+            idx_array::view(device_exec, num_elems, matrix->get_row_ptrs()),
+            idx_array::view(device_exec, num_elems, matrix->get_col_idxs()),
+            val_array::view(device_exec, num_elems, matrix->get_values())};
 
         auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
         A_host->read_distributed(A_data, partition.get());
