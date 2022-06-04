@@ -238,28 +238,14 @@ public:
                             std::shared_ptr<const part_type> partition,
                             label size) const
     {
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
-        gko::matrix_data<scalar, label> A_data_32;
-        A_data_32.size = {size, size};
-
-        auto matrix = gkomatrix.get_persistent_object();
-        matrix->write(A_data_32);
-
-        gko::matrix_data<scalar, GlobalIndexType> A_data;
-        const label global_size = this->get_global_cell_index().size();
-        A_data.size = {global_size, global_size};
-        for (auto &elem : A_data_32.nonzeros) {
-            A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
-        }
-
         auto device_exec = this->get_exec_handler().get_device_exec();
+        auto matrix = gkomatrix.get_persistent_object();
+        gko::device_matrix_data<scalar, label> A_data{
+            device_exec, gko::dim<2>{size, size}, matrix->get_row_ptrs(),
+            matrix->get_col_idxs(), matrix->get_values()};
 
-        auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
-        A_host->read_distributed(A_data, partition.get());
-
-        /* // copy to device */
         auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
-        dist_A->copy_from(A_host.get());
+        A_host->read_distributed(A_data, partition.get());
         return dist_A;
     }
 
