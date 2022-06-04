@@ -229,8 +229,11 @@ public:
     }
 
     template <class MatrixType>
-    std::shared_ptr<gko::LinOp> init_distributed_matrix(MatrixType &gkomatrix,
-                                                        label size)
+    std::shared_ptr<gko::LinOp> init_distributed_matrix(
+        const MatrixType &gkomatrix,
+        std::shared_ptr<const gko::mpi::communicator> comm,
+        std::shared_ptr<const gko::distributed::Partion<>> const partition,
+        label size) const
     {
         gko::matrix_data<scalar, label> A_data_32;
         A_data_32.size = {size, size};
