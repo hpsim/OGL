@@ -96,6 +96,8 @@ struct ExecutorInitFunctor {
 class ExecutorHandler
     : public PersistentBase<gko::Executor, ExecutorInitFunctor> {
 private:
+    const bool gko_force_host_buffer_;
+
     mutable std::shared_ptr<gko::mpi::communicator> comm_;
 
     const word device_executor_name_;
@@ -113,14 +115,21 @@ public:
                   solverControls.lookupOrDefault("verbose", label(0)),
                   solverControls.lookupOrDefault("force_host_buffer", false)),
               true, 0),
+          gko_force_host_buffer_(
+              solverControls.lookupOrDefault("force_host_buffer", false)),
           comm_((Pstream::parRun())
                     ? std::make_shared<gko::mpi::communicator>(
-                          MPI_COMM_WORLD, solverControls.lookupOrDefault(
-                                              "force_host_buffer", false))
+                          MPI_COMM_WORLD, gko_force_host_buffer_)
                     : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
+
+    const bool get_gko_force_host_buffer() const
+    {
+        return this->gko_force_host_buffer_;
+    }
+
 
     const std::shared_ptr<gko::Executor> get_device_exec() const
     {
