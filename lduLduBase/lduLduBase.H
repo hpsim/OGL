@@ -143,8 +143,8 @@ public:
             std::to_string(version_info.core_version.patch) + std::string("(") +
             std::string(version_info.core_version.tag) +
             std::string(")\n\tMPI is GPU aware: ") +
-            std::to_string(gko::mpi::is_gpu_aware())
-                std::string(")\n\tMPI is GPU aware: ") +
+            std::to_string(gko::mpi::is_gpu_aware()) +
+            std::string(")\n\tForces host buffer based communication: ") +
             std::to_string(
                 this->get_exec_handler().get_gko_force_host_buffer());
         MLOG_0(verbose_, msg)
