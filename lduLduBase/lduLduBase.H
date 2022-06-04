@@ -228,6 +228,35 @@ public:
         return solverPerf;
     }
 
+    template <class MatrixType>
+    std::shared_ptr<gko::LinOp> init_distributed_matrix(MatrixType &gkomatrix,
+                                                        label size)
+    {
+        gko::matrix_data<scalar, label> A_data_32;
+        A_data_32.size = {size, size};
+
+        auto matrix = gkomatrix.get_persistent_object();
+        matrix->write(A_data_32);
+
+        gko::matrix_data<scalar, GlobalIndexType> A_data;
+        const label global_size = this->get_global_cell_index().size();
+        A_data.size = {global_size, global_size};
+        for (auto &elem : A_data_32.nonzeros) {
+            A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
+        }
+
+        auto device_exec = this->get_exec_handler().get_device_exec();
+
+        auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
+        A_host->read_distributed(A_data, partition.get());
+
+        /* // copy to device */
+        auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
+        dist_A->copy_from(A_host.get());
+        return dist_A;
+    }
+
+
     solverPerformance solve_multi_gpu_impl(scalarField &psi,
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
@@ -278,32 +307,9 @@ public:
         SIMPLE_TIME(verbose_, gather_global_matrix,
                     auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
 
-
-        gko::matrix_data<scalar, label> A_data_32;
-        A_data_32.size = {psi.size(), psi.size()};
-
         SIMPLE_TIME(
             verbose_, generate_distributed_matrix,
-            auto matrix = gkomatrix.get_persistent_object();
-            matrix->write(A_data_32);
-
-            gko::matrix_data<scalar, GlobalIndexType> A_data;
-            const label global_size = this->get_global_cell_index().size();
-            A_data.size = {global_size, global_size};
-            for (auto &elem
-                 : A_data_32.nonzeros) {
-                A_data.nonzeros.emplace_back(elem.row, elem.column, elem.value);
-            }
-
-            auto device_exec = this->get_exec_handler().get_device_exec();
-
-            auto A_host = gko::share(dist_mtx::create(ref_exec, *comm.get()));
-            A_host->read_distributed(A_data, partition.get());
-
-            /* // copy to device */
-            auto dist_A =
-                gko::share(dist_mtx::create(device_exec, *comm.get()));
-            dist_A->copy_from(A_host.get());)
+            auto dist_A = init_distributed_matrix(gkomatrix, psi.size());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
