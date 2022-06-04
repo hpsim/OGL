@@ -235,6 +235,7 @@ public:
         std::shared_ptr<const gko::distributed::Partion<>> const partition,
         label size) const
     {
+        auto ref_exec = this->get_exec_handler().get_ref_exec();
         gko::matrix_data<scalar, label> A_data_32;
         A_data_32.size = {size, size};
 
