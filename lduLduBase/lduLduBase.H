@@ -228,12 +228,12 @@ public:
         return solverPerf;
     }
 
-    template <class MatrixType>
-    std::shared_ptr<gko::LinOp> init_distributed_matrix(
-        const MatrixType &gkomatrix,
-        std::shared_ptr<const gko::mpi::communicator> comm,
-        std::shared_ptr<const gko::distributed::Partion<>> const partition,
-        label size) const
+    template <class LocMatrixType>
+    std::shared_ptr<gko::distributed::Matrix<scalar, label>>
+    init_distributed_matrix(const LocMatrixType &gkomatrix,
+                            std::shared_ptr<const gko::mpi::communicator> comm,
+                            std::shared_ptr<const part_type> partition,
+                            label size) const
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
         gko::matrix_data<scalar, label> A_data_32;
