@@ -310,9 +310,9 @@ public:
         SIMPLE_TIME(verbose_, gather_global_matrix,
                     auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
 
-        SIMPLE_TIME(
-            verbose_, generate_distributed_matrix,
-            auto dist_A = init_distributed_matrix(gkomatrix, psi.size());)
+        SIMPLE_TIME(verbose_, generate_distributed_matrix,
+                    auto dist_A = init_distributed_matrix(
+                        gkomatrix, comm, partition, psi.size());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
