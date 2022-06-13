@@ -70,7 +70,9 @@ public:
         using ras = gko::preconditioner::Schwarz<scalar, label>;
         if (Pstream::parRun()) {
             return gko::share(ras::build()
-                                  .with_inner_solver(std::move(precond))
+                                  .with_generated_inner_solvers(std::vector<std::shared_ptr<const gko::LinOp>>{gko::share(
+	    precond->generate(gko::as<gko::distributed::Matrix<scalar,label,label>>(gkomatrix)->get_const_local_diag()))
+							  })
                                   .on(device_exec)
                                   ->generate(gkomatrix));
         }
@@ -127,7 +129,7 @@ public:
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
-	    auto factorization = gko::share(factorization_factory->generate(gko::as<gko::distributed::Matrix<>>(gkomatrix)->get_const_local_diag()));
+	    auto factorization = gko::share(factorization_factory->generate(gko::as<gko::distributed::Matrix<scalar,label,label>>(gkomatrix)->get_const_local_diag()));
 
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build()
