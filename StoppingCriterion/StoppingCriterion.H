@@ -43,7 +43,7 @@ class StoppingCriterion {
     using idx_array = gko::Array<label>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
     class OpenFOAMDistStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMDistStoppingCriterion,
