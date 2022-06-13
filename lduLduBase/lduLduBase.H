@@ -53,10 +53,11 @@ class lduLduBase : public SolverFactory,
                    public Preconditioner {
 private:
     using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
     using GlobalIndexType = gko::int64;
-    using part_type = gko::distributed::Partition<label>;
+    using part_type = gko::distributed::Partition<label,label>;
     using mtx = gko::matrix::Csr<scalar>;
+    using coo_mtx = gko::matrix::Coo<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::Array<label>;
     using val_array = gko::Array<scalar>;
@@ -234,24 +235,35 @@ public:
     }
 
     template <class LocMatrixType>
-    std::shared_ptr<gko::distributed::Matrix<scalar, label>>
+    std::shared_ptr<gko::distributed::Matrix<scalar, label, label>>
     init_distributed_matrix(const LocMatrixType &gkomatrix,
                             std::shared_ptr<const gko::mpi::communicator> comm,
                             std::shared_ptr<const part_type> partition,
-                            label size) const
+			    const label local_size
+                            ) const
     {
         auto device_exec = this->get_exec_handler().get_device_exec();
-        auto matrix = gkomatrix.get_persistent_object();
-        auto num_elems = matrix->get_num_stored_elements();
+        auto csr_matrix = gkomatrix.get_persistent_object();
+        auto num_elems = csr_matrix->get_num_stored_elements();
+
+	label size = partition->get_size();
+        auto coo = gko::share(coo_mtx::create(
+		   device_exec, gko::dim<2>(local_size, local_size)));
+
+
+
+	auto csr_matrix_clone = gko::make_temporary_clone(device_exec, csr_matrix.get());
+        csr_matrix_clone->convert_to(coo.get());
 
         gko::device_matrix_data<scalar, label> A_data{
             device_exec, gko::dim<2>{size, size},
-            idx_array::view(device_exec, num_elems, matrix->get_row_ptrs()),
-            idx_array::view(device_exec, num_elems, matrix->get_col_idxs()),
-            val_array::view(device_exec, num_elems, matrix->get_values())};
+        idx_array::view(device_exec, num_elems, coo->get_row_idxs()),
+        idx_array::view(device_exec, num_elems, coo->get_col_idxs()),
+        val_array::view(device_exec, num_elems, coo->get_values())
+	};
 
         auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
-        A_host->read_distributed(A_data, partition.get());
+        dist_A->read_distributed(A_data, partition.get());
         return dist_A;
     }
 
@@ -269,8 +281,13 @@ public:
         auto ref_exec = this->get_exec_handler().get_ref_exec();
         auto partition = gko::share(
             gko::distributed::build_partition_from_local_range<label,
-                                                               gko::int64>(
+                                                               label>(
                 ref_exec, rows_start, rows_end, *comm.get()));
+        auto device_partition = gko::share(
+            gko::distributed::build_partition_from_local_range<label,
+                                                               label>(
+		this->get_exec_handler().get_device_exec(),
+	       	rows_start, rows_end, *comm.get()));
 
         PersistentVector<scalar> dist_b{
             &source[0],
@@ -308,7 +325,7 @@ public:
 
         SIMPLE_TIME(verbose_, generate_distributed_matrix,
                     auto dist_A = init_distributed_matrix(
-                        gkomatrix, comm, partition, psi.size());)
+                        gkomatrix, comm, device_partition, psi.size());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(

@@ -47,7 +47,7 @@ struct VectorInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const std::shared_ptr<gko::distributed::Partition<label>> partition_;
+    const std::shared_ptr<gko::distributed::Partition<label,label>> partition_;
 
     const label verbose_;
 
@@ -59,7 +59,7 @@ struct VectorInitFunctor {
 
     VectorInitFunctor(
         const ExecutorHandler &exec, const word name,
-        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
         const label verbose, const bool on_device = false)
         : exec_(exec),
           name_(name),
@@ -71,7 +71,7 @@ struct VectorInitFunctor {
 
     VectorInitFunctor(
         const ExecutorHandler &exec, const word name,
-        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
         const T *other, const label verbose, const bool on_device = false)
         : exec_(exec),
           name_(name),
@@ -128,7 +128,7 @@ class PersistentVector
 
     const T *memory_;
 
-    const std::shared_ptr<gko::distributed::Partition<label>> partition_;
+    const std::shared_ptr<gko::distributed::Partition<label, label>> partition_;
 
     const ExecutorHandler &exec_;
 
@@ -161,7 +161,7 @@ public:
     PersistentVector(
         const T *memory, const word name, const objectRegistry &db,
         const ExecutorHandler &exec,
-        const std::shared_ptr<gko::distributed::Partition<label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
         const label verbose, const bool update, const bool init_on_device)
         : PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>>(
               name, db,
