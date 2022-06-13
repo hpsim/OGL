@@ -43,7 +43,7 @@ private:
     using val_array = gko::Array<scalar>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 

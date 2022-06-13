@@ -46,7 +46,7 @@ private:
     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 
