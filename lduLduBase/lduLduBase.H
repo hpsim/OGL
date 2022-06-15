@@ -158,7 +158,8 @@ public:
     // coupled matrices
     // TODO implement coupled solver wrapper
     template <class Type>
-    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const {};
+    SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
+    {}
 
 
     solverPerformance solve_serial_impl(scalarField &psi,

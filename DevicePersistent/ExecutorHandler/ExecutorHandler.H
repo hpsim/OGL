@@ -125,7 +125,7 @@ public:
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
 
-    const bool get_gko_force_host_buffer() const
+    bool get_gko_force_host_buffer() const
     {
         return this->gko_force_host_buffer_;
     }
