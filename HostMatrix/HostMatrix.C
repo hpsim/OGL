@@ -65,7 +65,6 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::get_other_proc_bou_coeffs(
 
         const auto iface{interfaces.operator()(i)};
         const auto &face_cells{interfaceBouCoeffs[i]};
-        const label interface_size = face_cells.size();
 
         if (isA<processorLduInterface>(iface->interface())) {
             const processorLduInterface &pldui =
@@ -293,7 +292,6 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
 
     const auto permute = ldu_csr_idx_mapping_.get_data();
 
-    label interface_elem_ctr{0};
     label after_neighbours = 2 * nNeighbours_;
     for (label row = 0; row < nCells_; row++) {
         const label global_row = global_cell_index_.toGlobal(row);
@@ -371,16 +369,6 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // unsorted entries on device
     auto d = vec::create(device_exec,
                          gko::dim<2>((gko::dim<2>::dimension_type)nElems_, 1));
-    const bool csr_stored{db.template foundObject<regIOobject>("pcsr")};
-    // std::shared_ptr<vec> d{};
-    // if (csr_stored) {
-    //     auto values_view = val_array::view(
-    //         values_.get_exec_handler().get_device_exec(),
-    //         values_.get_global_size(), csr_matrix->get_values());
-    // } else {
-    //     d = gko::share(vec::create(device_exec, gko::dim<2>(nElems_, 1)));
-    // }
-
 
     // copy upper
     auto upper = this->matrix().upper();
