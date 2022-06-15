@@ -362,13 +362,15 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto &db = values_.get_db();
     if (!permutation_stored_) {
         P_ = gko::share(gko::matrix::Permutation<label>::create(
-            device_exec, gko::dim<2>{nElems_}, *sorting_idxs.get()));
+            device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_},
+            *sorting_idxs.get()));
         const fileName path = permutation_matrix_name_;
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
     }
 
     // unsorted entries on device
-    auto d = vec::create(device_exec, gko::dim<2>(nElems_, 1));
+    auto d = vec::create(device_exec,
+                         gko::dim<2>((gko::dim<2>::dimension_type)nElems_, 1));
     const bool csr_stored{db.template foundObject<regIOobject>("pcsr")};
     // std::shared_ptr<vec> d{};
     // if (csr_stored) {
@@ -438,7 +440,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     i_device_view = tmp_contiguous_iface;
 
 
-    auto dense_vec = vec::create(device_exec, gko::dim<2>{nElems_, 1});
+    auto dense_vec = vec::create(
+        device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1});
 
     // NOTE apply changes the underlying pointer of dense_vec
     // thus copy_from is used to move the ptr to the underlying
@@ -446,7 +449,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     P_->apply(d.get(), dense_vec.get());
 
     auto dense_vec_after = vec::create(
-        device_exec, gko::dim<2>{nElems_, 1},
+        device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1},
         gko::array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
 
     dense_vec_after->copy_from(dense_vec.get());
