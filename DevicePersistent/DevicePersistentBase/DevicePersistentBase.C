@@ -8,12 +8,12 @@ namespace Foam {
 // declared
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Csr<scalar>>,
                                "PersistentCSRMatrix");
-defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<scalar>>,
+defineTemplateTypeNameWithName(DevicePersistentBase<gko::array<scalar>>,
                                "PersistentScalarArray");
 defineTemplateTypeNameWithName(
     DevicePersistentBase<gko::distributed::Vector<scalar>>,
     "PersistentScalarVector");
-defineTemplateTypeNameWithName(DevicePersistentBase<gko::Array<label>>,
+defineTemplateTypeNameWithName(DevicePersistentBase<gko::array<label>>,
                                "PersistentLabelArray");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Dense<label>>,
                                "PersistentLabelVec");

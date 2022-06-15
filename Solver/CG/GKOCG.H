@@ -39,7 +39,6 @@ private:
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
-    using val_array = gko::Array<scalar>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
     using dist_mtx = gko::distributed::Matrix<scalar, label, label>;

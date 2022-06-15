@@ -42,8 +42,8 @@ SourceFiles
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
-using val_array = gko::Array<scalar>;
-using idx_array = gko::Array<label>;
+using val_array = gko::array<scalar>;
+using idx_array = gko::array<label>;
 
 
 /*---------------------------------------------------------------------------*\
@@ -192,14 +192,14 @@ public:
     template <class Container, class Value>
     static void gather(
         const labelUList &offsets, const label comm, const Container &procIDs,
-        std::shared_ptr<const gko::Array<Value>> localDataIn,
-        std::shared_ptr<gko::Array<Value>> globalDataOut,
+        std::shared_ptr<const gko::array<Value>> localDataIn,
+        std::shared_ptr<gko::array<Value>> globalDataOut,
         const int tag = UPstream::msgType(),
         const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
     {
         if (Pstream::master()) {
             // Assign my local data
-            gko::Array<Value>::view(
+            gko::array<Value>::view(
                 gko::ReferenceExecutor::create(), localDataIn->get_num_elems(),
                 globalDataOut->get_data()) = *localDataIn.get();
             if (commsType == Pstream::commsTypes::scheduled ||
@@ -217,7 +217,7 @@ public:
                 // Set up reads
                 for (label i = 1; i < procIDs.size(); ++i) {
                     label nSubElems = offsets[i + 1] - offsets[i];
-                    auto sub_view = gko::Array<Value>::view(
+                    auto sub_view = gko::array<Value>::view(
                         gko::ReferenceExecutor::create(), nSubElems,
                         &globalDataOut->get_data()[offsets[i]]);
                     IPstream::read(
@@ -257,8 +257,8 @@ public:
     //  Needs offsets only on master.
     template <class Container, class Value>
     void gather(const label comm, const Container &procIDs,
-                std::shared_ptr<const gko::Array<Value>> localDataIn,
-                std::shared_ptr<gko::Array<Value>> globalDataOut,
+                std::shared_ptr<const gko::array<Value>> localDataIn,
+                std::shared_ptr<gko::array<Value>> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
@@ -271,8 +271,8 @@ public:
     //- Collect data in processor order on master.
     //  Does communication with default communicator and message tag.
     template <class Value>
-    void gather(std::shared_ptr<const gko::Array<Value>> localDataIn,
-                std::shared_ptr<gko::Array<Value>> globalDataOut,
+    void gather(std::shared_ptr<const gko::array<Value>> localDataIn,
+                std::shared_ptr<gko::array<Value>> globalDataOut,
                 const int tag = UPstream::msgType(),
                 const Pstream::commsTypes commsType =
                     Pstream::commsTypes::nonBlocking) const
@@ -286,14 +286,14 @@ public:
     template <class Container, class Value>
     static void scatter(
         const labelUList &offsets, const label comm, const Container &procIDs,
-        const gko::Array<Value> &globalDataIn, gko::Array<Value> &localDataOut,
+        const gko::array<Value> &globalDataIn, gko::array<Value> &localDataOut,
         const int tag = UPstream::msgType(),
         const Pstream::commsTypes commsType = Pstream::commsTypes::nonBlocking)
     {
         if (Pstream::master()) {
             // copy its own data to local array.
             localDataOut = gko::detail::array_const_cast(
-                gko::Array<Value>::const_view(gko::ReferenceExecutor::create(),
+                gko::array<Value>::const_view(gko::ReferenceExecutor::create(),
                                               localDataOut.get_num_elems(),
                                               globalDataIn.get_const_data()));
             if (commsType == Pstream::commsTypes::scheduled ||
@@ -345,8 +345,8 @@ public:
     //- Distribute data in processor order. Requires fld to be sized!
     template <class Container, class Value>
     void scatter(const label comm, const Container &procIDs,
-                 const gko::Array<Value> &globalDataIn,
-                 gko::Array<Value> &localDataOut,
+                 const gko::array<Value> &globalDataIn,
+                 gko::array<Value> &localDataOut,
                  const int tag = UPstream::msgType(),
                  const Pstream::commsTypes commsType =
                      Pstream::commsTypes::nonBlocking) const
@@ -359,8 +359,8 @@ public:
     //- Distribute data in processor order. Requires fld to be sized!
     //  Does communication with default communicator and message tag.
     template <class Value>
-    void scatter(const gko::Array<Value> &globalDataIn,
-                 gko::Array<Value> &localDataOut,
+    void scatter(const gko::array<Value> &globalDataIn,
+                 gko::array<Value> &localDataOut,
                  const int tag = UPstream::msgType(),
                  const Pstream::commsTypes commsType =
                      Pstream::commsTypes::nonBlocking) const

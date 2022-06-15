@@ -47,7 +47,7 @@ struct VectorInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const std::shared_ptr<gko::distributed::Partition<label,label>> partition_;
+    const std::shared_ptr<gko::distributed::Partition<label, label>> partition_;
 
     const label verbose_;
 
@@ -59,7 +59,8 @@ struct VectorInitFunctor {
 
     VectorInitFunctor(
         const ExecutorHandler &exec, const word name,
-        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>>
+            partition,
         const label verbose, const bool on_device = false)
         : exec_(exec),
           name_(name),
@@ -71,7 +72,8 @@ struct VectorInitFunctor {
 
     VectorInitFunctor(
         const ExecutorHandler &exec, const word name,
-        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>>
+            partition,
         const T *other, const label verbose, const bool on_device = false)
         : exec_(exec),
           name_(name),
@@ -112,7 +114,7 @@ struct VectorInitFunctor {
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), local_size,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
         return gko::share(dist_vec::create(
@@ -161,7 +163,8 @@ public:
     PersistentVector(
         const T *memory, const word name, const objectRegistry &db,
         const ExecutorHandler &exec,
-        const std::shared_ptr<gko::distributed::Partition<label, label>> partition,
+        const std::shared_ptr<gko::distributed::Partition<label, label>>
+            partition,
         const label verbose, const bool update, const bool init_on_device)
         : PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>>(
               name, db,
@@ -213,10 +216,10 @@ public:
         //     get_vector()->get_const_local()->get_const_values(),
         //     host_buffer->get_values());
 
-        auto host_buffer_view = gko::Array<T>::view(
+        auto host_buffer_view = gko::array<T>::view(
             exec_.get_ref_exec(), local_size, host_buffer->get_values());
 
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), local_size,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(memory_));
 
         host_view = host_buffer_view;

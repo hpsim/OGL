@@ -383,14 +383,14 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     // copy upper
     auto upper = this->matrix().upper();
     auto u_host_view =
-        gko::Array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
+        gko::array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
     auto u_device_view =
-        gko::Array<scalar>::view(device_exec, nNeighbours_, d->get_values());
+        gko::array<scalar>::view(device_exec, nNeighbours_, d->get_values());
     u_device_view = u_host_view;
 
     // copy lower
     auto lower = this->matrix().lower();
-    auto l_device_view = gko::Array<scalar>::view(
+    auto l_device_view = gko::array<scalar>::view(
         device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
     if (lower == upper) {
         // symmetric case reuse data already on the device
@@ -399,19 +399,19 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     } else {
         // non-symmetric case copy data to the device
         auto l_host_view =
-            gko::Array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
+            gko::array<scalar>::view(ref_exec, nNeighbours_, &lower[0]);
         l_device_view = l_host_view;
     }
 
     // copy diag
     auto diag = this->matrix().diag();
-    auto d_host_view = gko::Array<scalar>::view(ref_exec, nCells_, &diag[0]);
-    auto d_device_view = gko::Array<scalar>::view(
+    auto d_host_view = gko::array<scalar>::view(ref_exec, nCells_, &diag[0]);
+    auto d_device_view = gko::array<scalar>::view(
         device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
     d_device_view = d_host_view;
 
     // copy interfaces
-    auto tmp_contiguous_iface = gko::Array<scalar>(ref_exec, nInterfaces_);
+    auto tmp_contiguous_iface = gko::array<scalar>(ref_exec, nInterfaces_);
     auto contiguous_iface = tmp_contiguous_iface.get_data();
 
     label interface_ctr{0};
@@ -433,7 +433,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
         interface_ctr += patch_size;
     }
 
-    auto i_device_view = gko::Array<scalar>::view(
+    auto i_device_view = gko::array<scalar>::view(
         device_exec, nInterfaces_, &d->get_values()[nElems_wo_Interfaces_]);
     i_device_view = tmp_contiguous_iface;
 
@@ -447,7 +447,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
 
     auto dense_vec_after = vec::create(
         device_exec, gko::dim<2>{nElems_, 1},
-        gko::Array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
+        gko::array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
 
     dense_vec_after->copy_from(dense_vec.get());
 }

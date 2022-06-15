@@ -39,8 +39,8 @@ namespace Foam {
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
     using mtx = gko::matrix::Csr<scalar>;
-    using val_array = gko::Array<scalar>;
-    using idx_array = gko::Array<label>;
+    using val_array = gko::array<scalar>;
+    using idx_array = gko::array<label>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
     using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
@@ -175,7 +175,7 @@ class StoppingCriterion {
         }
 
         bool check_impl(gko::uint8 stoppingId, bool setFinalized,
-                        gko::Array<gko::stopping_status> *stop_status,
+                        gko::array<gko::stopping_status> *stop_status,
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
@@ -395,7 +395,7 @@ class StoppingCriterion {
         }
 
         bool check_impl(gko::uint8 stoppingId, bool setFinalized,
-                        gko::Array<gko::stopping_status> *stop_status,
+                        gko::array<gko::stopping_status> *stop_status,
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {

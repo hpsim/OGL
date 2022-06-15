@@ -79,21 +79,21 @@ struct ArrayInitFunctor {
 
 
     // update persistent array from host memory
-    void update(std::shared_ptr<gko::Array<T>> persistent_array) const
+    void update(std::shared_ptr<gko::array<T>> persistent_array) const
     {
         if (other_ != NULL) {
             word msg{"updating array " + name_ + " of size " +
                      std::to_string(global_index_.localSize())};
             LOG_1(verbose_, msg)
 
-            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(),
                                                  global_index_.localSize(),
                                                  const_cast<T *>(other_));
             persistent_array->operator=(host_view);
         }
     }
 
-    std::shared_ptr<gko::Array<T>> init() const
+    std::shared_ptr<gko::array<T>> init() const
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
@@ -103,12 +103,12 @@ struct ArrayInitFunctor {
         LOG_1(verbose_, msg)
 
         if (other_ != NULL) {
-            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(),
                                                  global_index_.localSize(),
                                                  const_cast<T *>(other_));
-            return std::make_shared<gko::Array<T>>(exec, host_view);
+            return std::make_shared<gko::array<T>>(exec, host_view);
         } else {
-            return std::make_shared<gko::Array<T>>(exec,
+            return std::make_shared<gko::array<T>>(exec,
                                                    global_index_.localSize());
         }
     }
@@ -116,7 +116,7 @@ struct ArrayInitFunctor {
 
 template <class T>
 class PersistentArray
-    : public PersistentBase<gko::Array<T>, ArrayInitFunctor<T>> {
+    : public PersistentBase<gko::array<T>, ArrayInitFunctor<T>> {
     using vec = gko::matrix::Dense<scalar>;
 
     T *memory_;
@@ -154,7 +154,7 @@ public:
                     const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
                     const bool update, const bool on_device)
-        : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
+        : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
               ArrayInitFunctor<T>(exec, name, global_index, verbose, on_device),
               update, verbose),
@@ -179,7 +179,7 @@ public:
                     const ExecutorHandler &exec,
                     const gkoGlobalIndex &global_index, const label verbose,
                     const bool update, const bool init_on_device)
-        : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
+        : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
               ArrayInitFunctor<T>(exec, name, global_index, memory, verbose,
                                   init_on_device),
@@ -207,7 +207,7 @@ public:
     };
 
 
-    std::shared_ptr<gko::Array<T>> get_array() const
+    std::shared_ptr<gko::array<T>> get_array() const
     {
         return this->get_persistent_object();
     }
@@ -219,7 +219,7 @@ public:
         auto array = get_array();
         auto result = gko::share(vec::create(
             exec_.get_device_exec(), gko::dim<2>(array->get_num_elems(), 1),
-            gko::Array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
+            gko::array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
                                 get_data()),
             1));
         return result;
@@ -232,11 +232,11 @@ public:
     void copy_back(const std::shared_ptr<gko::distributed::Vector<T>> dist_x)
     {
         const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory_));
 
         auto dist_device_exec = dist_x->get_executor();
-        auto x_view = gko::Array<T>::view(dist_device_exec, nCells,
+        auto x_view = gko::array<T>::view(dist_device_exec, nCells,
                                           dist_x->get_local()->get_values());
 
         host_view = x_view;
@@ -245,10 +245,10 @@ public:
     void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
         const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory_));
 
-        auto x_view = gko::Array<T>::view(exec_.get_device_exec(), nCells,
+        auto x_view = gko::array<T>::view(exec_.get_device_exec(), nCells,
                                           device_x->get_values());
 
         host_view = x_view;
@@ -260,14 +260,14 @@ public:
     {
         //	    std::cout << "!!!!!!!!!! copy back parallel" << std::endl;
         const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
                                              const_cast<T *>(memory));
 
         auto x_view = (Pstream::master())
-                          ? gko::Array<T>::view(exec_.get_device_exec(),
+                          ? gko::array<T>::view(exec_.get_device_exec(),
                                                 global_address.size(),
                                                 device_x->get_values())
-                          : gko::Array<T>(gko::ReferenceExecutor::create());
+                          : gko::array<T>(gko::ReferenceExecutor::create());
 
         if (Pstream::master()) {
             x_view.set_executor(exec_.get_ref_exec());

@@ -59,8 +59,8 @@ private:
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using vec = gko::matrix::Dense<scalar>;
-    using idx_array = gko::Array<label>;
-    using val_array = gko::Array<scalar>;
+    using idx_array = gko::array<label>;
+    using val_array = gko::array<scalar>;
 
     const objectRegistry &db_;
 
