@@ -371,10 +371,11 @@ public:
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition->get_size();
         word msg =
-            "Time per iteration  " + std::to_string(time_per_iter) +
-            std::string(" [mu s] Time per iteration and DOF ") +
+            "Statistics: \n\tTime per iteration  " +
+            std::to_string(time_per_iter) +
+            std::string(" [mu s]\n\t Time per iteration and DOF ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string(" retrieve results bandwith ") +
+            std::string("\n\tretrieve results bandwith ") +
             std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
