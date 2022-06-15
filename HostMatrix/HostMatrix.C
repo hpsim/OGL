@@ -136,7 +136,6 @@ std::vector<label> HostMatrixWrapper<MatrixType>::get_other_proc_cell_ids(
 
         const auto iface{interfaces.operator()(i)};
         const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
 
         if (isA<processorLduInterface>(iface->interface())) {
             const processorLduInterface &pldui =
