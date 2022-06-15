@@ -360,8 +360,8 @@ public:
 
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
-        auto bandwith_copy_back = sizeof(scalar) * psi.size() /
-                                  delta_t_retrieve_result_from_device / 1000.0;
+        auto bandwith_copy_back =
+            sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
