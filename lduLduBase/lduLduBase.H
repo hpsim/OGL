@@ -360,6 +360,8 @@ public:
 
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
+        auto bandwith_copy_back = sizeof(scalar) * psi.size() /
+                                  delta_t_retrieve_result_from_device / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -368,9 +370,12 @@ public:
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition->get_size();
-        word msg = "Time per iteration " + std::to_string(time_per_iter) +
-                   std::string(" [mu s] Time per iteration and DOF ") +
-                   std::to_string(time_per_iter_and_dof) + std::string(" [ns]");
+        word msg =
+            "Time per iteration  " + std::to_string(time_per_iter) +
+            std::string(" [mu s] Time per iteration and DOF ") +
+            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
+            std::string(" retrieve results bandwith ") +
+            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;
