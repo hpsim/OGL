@@ -220,8 +220,8 @@ public:
                     solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
         SIMPLE_TIME(verbose_, retrieve_result_from_device,
                     x.copy_back(dense_x);)
-        auto bandwith_copy_back =
-            sizeof(scalar) * psi.size() / delta_t_retrieve_result_from_device;
+        auto bandwith_copy_back = sizeof(scalar) * psi.size() /
+                                  delta_t_retrieve_result_from_device / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -229,12 +229,12 @@ public:
         auto time_per_iter =
             delta_t_solve * 1.0 / this->get_number_of_iterations();
         auto time_per_iter_and_dof = time_per_iter * 1000.0 / psi.size();
-        word msg = "Time per iteration  " + std::to_string(time_per_iter) +
-                   std::string(" [mu s] Time per iteration and DOF ") +
-                   std::to_string(time_per_iter_and_dof) +
-                   std::string(" [ns]") +
-                   std::string(" retrieve results bandwith ") +
-                   std::to_string(bandwith_copy_back);
+        word msg =
+            "Time per iteration  " + std::to_string(time_per_iter) +
+            std::string(" [mu s] Time per iteration and DOF ") +
+            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
+            std::string(" retrieve results bandwith ") +
+            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         this->store_number_of_iterations();
