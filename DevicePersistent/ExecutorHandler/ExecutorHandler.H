@@ -60,7 +60,7 @@ struct ExecutorInitFunctor {
     {}
 
 
-    void update(std::shared_ptr<gko::Executor> e) const {}
+    void update(std::shared_ptr<gko::Executor>) const {}
 
     std::shared_ptr<gko::Executor> init() const
     {

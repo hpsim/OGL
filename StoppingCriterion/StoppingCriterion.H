@@ -138,7 +138,6 @@ class StoppingCriterion {
             // SIMPLE_TIME(verbose_, compute_col_sum_A, [=]() {
             // computes        || Ax - x* ||        + || b - x* ||
             // or rewritten as || r - ( b - x* ) || + || (b - x*) ||
-            const label nCells{(label)x->get_size()[0]};
 
             // TODO store colA vector
             auto comm = x->get_communicator();
@@ -259,8 +258,8 @@ class StoppingCriterion {
                   std::move(exec))
         {}
 
-        explicit OpenFOAMDistStoppingCriterion(
-            const Factory *factory, const gko::stop::CriterionArgs &args)
+        explicit OpenFOAMDistStoppingCriterion(const Factory *factory,
+                                               const gko::stop::CriterionArgs &)
 
             : EnablePolymorphicObject<OpenFOAMDistStoppingCriterion, Criterion>(
                   factory->get_executor()),
@@ -367,8 +366,9 @@ class StoppingCriterion {
 
             // TODO store colA vector
             // TODO move out of function?
-            auto Axref =
-                gko::share(vec::create(device_exec, gko::dim<2>{nCells, 1}));
+            auto Axref = gko::share(vec::create(
+                device_exec,
+                gko::dim<2>{(gko::dim<2>::dimension_type)nCells, 1}));
 
             compute_Axref(device_exec, gkomatrix, x, Axref);
 
@@ -534,7 +534,8 @@ public:
           adapt_minIter_(
               controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           normalised_res_norms_(gko::share(vec::create(
-              gko::ReferenceExecutor::create(), gko::dim<2>{maxIter_, 1}))),
+              gko::ReferenceExecutor::create(),
+              gko::dim<2>{(gko::dim<2>::dimension_type)maxIter_, 1}))),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0),
           iter_(0)
