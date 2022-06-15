@@ -38,6 +38,10 @@ class Preconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
+    using cg = gko::solver::Cg<scalar>;
+    using mg = gko::solver::Multigrid;
+    using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+    using ras = gko::preconditioner::Schwarz<scalar, label, label>;
 
 private:
     const word sys_matrix_name_;
@@ -67,7 +71,6 @@ public:
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
-        using ras = gko::preconditioner::Schwarz<scalar, label>;
         if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
@@ -90,7 +93,6 @@ public:
         std::unique_ptr<PrecondFactory> precond,
         std::shared_ptr<Factorization> factorization) const
     {
-        using ras = gko::preconditioner::Schwarz<scalar, label>;
         if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
@@ -261,12 +263,6 @@ public:
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "Multigrid") {
-            using ir = gko::solver::Ir<scalar>;
-            using cg = gko::solver::Cg<scalar>;
-            using mg = gko::solver::Multigrid;
-            using bj = gko::preconditioner::Jacobi<scalar, label>;
-            using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
-
             auto inner_solver_gen =
                 gko::share(bj::build().with_max_block_size(1u).on(device_exec));
 
