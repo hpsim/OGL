@@ -51,7 +51,7 @@ struct ExecutorInitFunctor {
                         const bool force_host_buffer = false)
         : comm_((Pstream::parRun())  // TODO make this DRY
                     ? std::make_shared<gko::mpi::communicator>(
-                          MPI_COMM_WORLD, force_host_buffer)
+                          MPI_COMM_WORLD, {}, force_host_buffer)
                     : NULL),
           device_id_((Pstream::parRun()) ? comm_->node_local_rank() : 0),
           executor_name_(executor_name),
@@ -119,7 +119,8 @@ public:
               solverControls.lookupOrDefault("force_host_buffer", false)),
           comm_((Pstream::parRun())
                     ? std::make_shared<gko::mpi::communicator>(
-                          MPI_COMM_WORLD, gko_force_host_buffer_)
+                          this->get_persistent_object(), MPI_COMM_WORLD,
+                          gko_force_host_buffer_)
                     : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
