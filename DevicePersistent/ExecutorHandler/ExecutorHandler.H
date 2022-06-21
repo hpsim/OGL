@@ -119,7 +119,7 @@ public:
               solverControls.lookupOrDefault("force_host_buffer", false)),
           comm_((Pstream::parRun())
                     ? std::make_shared<gko::mpi::communicator>(
-                          this->get_persistent_object(), MPI_COMM_WORLD,
+                          MPI_COMM_WORLD, this->get_persistent_object(),
                           gko_force_host_buffer_)
                     : NULL),
           device_executor_name_(

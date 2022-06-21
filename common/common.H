@@ -74,11 +74,12 @@ namespace Foam {
         if (Pstream::parRun()) {                                             \
             if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                   \
                 std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo()       \
-                          << "]" #NAME " : " << delta_t_##NAME << " mu s\n"; \
+                          << "]" #NAME " : " << delta_t_##NAME / 1000.0      \
+                          << " [ms]\n";                                      \
             }                                                                \
         } else {                                                             \
-            std::cout << "[OGL LOG] " #NAME " : " << delta_t_##NAME          \
-                      << " mu s\n";                                          \
+            std::cout << "[OGL LOG] " #NAME " : " << delta_t_##NAME / 1000.0 \
+                      << " [ms]\n";                                          \
         }                                                                    \
     }
 
