@@ -136,11 +136,11 @@ public:
         // auto exec_info =
         // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
-            std::string("Initialising OGL Version ") +
+            std::string("Initialising OGL\n\tVersion: ") +
             std::string(git_version()) + std::string(" ") +
-            std::string(git_revision()) + std::string(" ") +
+            std::string(git_revision()) + std::string("\n\tbranch: ") +
             std::string(git_branch()) + std::string(" ") +
-            std::string("\n\t Ginkgoversion") +
+            std::string("\n\tGinkgo version: ") +
             std::to_string(version_info.core_version.major) + std::string(".") +
             std::to_string(version_info.core_version.minor) + std::string(".") +
             std::to_string(version_info.core_version.patch) + std::string("(") +
