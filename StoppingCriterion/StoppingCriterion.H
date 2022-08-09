@@ -571,7 +571,7 @@ public:
                    std::to_string(minIter) + " frequency " +
                    std::to_string(frequency);
 
-        LOG_1(verbose, msg)
+        MLOG_1(verbose, msg)
 
         return OpenFOAMStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)
