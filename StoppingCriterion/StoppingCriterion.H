@@ -536,7 +536,7 @@ public:
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
           res_norm_eval_(
               controlDict.lookupOrDefault("resNormEval", scalar(0.1))),
-          norm_eval_limit(
+          norm_eval_limit_(
               controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
           relaxationFactor_(
