@@ -69,6 +69,8 @@ class StoppingCriterion {
 
             label GKO_FACTORY_PARAMETER(frequency, 1);
 
+            label GKO_FACTORY_PARAMETER(frequency, 1);
+
             std::add_pointer<label>::type GKO_FACTORY_PARAMETER_SCALAR(iter,
                                                                        NULL);
 
@@ -507,6 +509,10 @@ class StoppingCriterion {
 
     const scalar relTol_;
 
+    const scalar res_norm_eval_;
+
+    const label norm_eval_limit_;
+
     const label frequency_;
 
     const scalar relaxationFactor_;
@@ -528,6 +534,10 @@ public:
           minIter_(controlDict.lookupOrDefault("minIter", label(0))),
           tolerance_(controlDict.lookupOrDefault("tolerance", scalar(1e-6))),
           relTol_(controlDict.lookupOrDefault("relTol", scalar(1e-6))),
+          res_norm_eval_(
+              controlDict.lookupOrDefault("resNormEval", scalar(0.1))),
+          norm_eval_limit(
+              controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
           relaxationFactor_(
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
@@ -595,7 +605,8 @@ public:
         if (!export_res) {
             if (prev_solve_iters > 0 && adapt_minIter_) {
                 minIter = prev_solve_iters * relaxationFactor_;
-                frequency = max(1, minIter / 20);
+                frequency =
+                    min(norm_eval_limit_, max(1, minIter * res_norm_eval_));
             }
         }
 
@@ -603,7 +614,7 @@ public:
                    std::to_string(minIter) + " frequency " +
                    std::to_string(frequency);
 
-        LOG_1(verbose, msg)
+        LOG_0(verbose, msg)
 
         return OpenFOAMDistStoppingCriterion::build()
             .with_openfoam_absolute_tolerance(tolerance_)

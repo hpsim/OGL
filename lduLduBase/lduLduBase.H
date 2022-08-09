@@ -138,7 +138,7 @@ public:
         word msg =
             std::string("Initialising OGL\n\tVersion: ") +
             std::string(git_version()) + std::string(" ") +
-            std::string(git_revision()) + std::string("\n\tbranch: ") +
+            std::string(git_revision()) + std::string("\n\tBranch: ") +
             std::string(git_branch()) + std::string(" ") +
             std::string("\n\tGinkgo version: ") +
             std::to_string(version_info.core_version.major) + std::string(".") +
@@ -147,7 +147,7 @@ public:
             std::string(version_info.core_version.tag) +
             std::string(")\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware()) +
-            std::string(")\n\tForces host buffer based communication: ") +
+            std::string("\n\tForces host buffer based communication: ") +
             std::to_string(
                 this->get_exec_handler().get_gko_force_host_buffer());
         MLOG_0(verbose_, msg)
@@ -283,7 +283,11 @@ public:
             this->get_global_cell_index().offset(Pstream::myProcNo());
         auto rows_end = rows_start + psi.size();
 
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
+        label gpus_per_rank =
+            solver_controls_.lookupOrDefault<label>("GPUsPerRank", 1);
+        if
+
+            auto ref_exec = this->get_exec_handler().get_ref_exec();
         auto partition = gko::share(
             gko::distributed::build_partition_from_local_range<label, label>(
                 ref_exec, rows_start, rows_end, *comm.get()));
