@@ -69,8 +69,6 @@ class StoppingCriterion {
 
             label GKO_FACTORY_PARAMETER(frequency, 1);
 
-            label GKO_FACTORY_PARAMETER(frequency, 1);
-
             std::add_pointer<label>::type GKO_FACTORY_PARAMETER_SCALAR(iter,
                                                                        NULL);
 
