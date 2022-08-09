@@ -381,7 +381,7 @@ public:
         this->store_number_of_iterations();
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition->get_size();
+            time_per_iter * 1000.0 / target_partition->get_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
