@@ -155,6 +155,7 @@ public:
      * @param name name of the underlying field or data
      * @param objectRegistry reference to registry for storage
      * @param exec executor handler
+     * @param partition Only needed to compute local and global size
      * @param verbose whether to print infos out
      * @param update whether to update the underlying array if found in registry
      * @param init_on_device whether the array is to be initialized on the
@@ -197,6 +198,32 @@ public:
     std::shared_ptr<gko::distributed::Vector<T>> get_vector() const
     {
         return this->get_persistent_object();
+    }
+
+    void copy_back()
+    {
+        auto host_exec = exec_.get_ref_exec();
+        auto device_exec = exec_.get_device_exec();
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        const auto local_size = partition_->get_part_size(comm->rank());
+
+        auto host_buffer = gko::matrix::Dense<T>::create(
+            exec_.get_ref_exec(), gko::dim<2>{local_size, 1});
+
+        host_buffer->copy_from(get_vector()->get_local_vector());
+        // host_view = device_view;
+        // host_exec->copy_from(
+        //     device_exec.get(), local_size,
+        //     get_vector()->get_const_local()->get_const_values(),
+        //     host_buffer->get_values());
+
+        auto host_buffer_view = gko::array<T>::view(
+            exec_.get_ref_exec(), local_size, host_buffer->get_values());
+
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
+                                             const_cast<T *>(memory_));
+
+        host_view = host_buffer_view;
     }
 
     void copy_back()

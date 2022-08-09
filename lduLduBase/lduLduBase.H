@@ -283,38 +283,46 @@ public:
             this->get_global_cell_index().offset(Pstream::myProcNo());
         auto rows_end = rows_start + psi.size();
 
-        label gpus_per_rank =
-            solver_controls_.lookupOrDefault<label>("GPUsPerRank", 1);
-        if
+        label ranks_per_gpu =
+            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1);
 
-            auto ref_exec = this->get_exec_handler().get_ref_exec();
-        auto partition = gko::share(
-            gko::distributed::build_partition_from_local_range<label, label>(
-                ref_exec, rows_start, rows_end, *comm.get()));
+        auto ref_exec = this->get_exec_handler().get_ref_exec();
         auto device_partition = gko::share(
             gko::distributed::build_partition_from_local_range<label, label>(
                 this->get_exec_handler().get_device_exec(), rows_start,
                 rows_end, *comm.get()));
+
+        std::shared_ptr<gko::distributed::Partition<label, label>>
+            target_partition{};
+        if (ranks_per_gpu != 1) {
+            // create new target partition
+            target_partition = device_partition;
+        } else {
+            target_partition = device_partition;
+        }
+
 
         PersistentVector<scalar> dist_b{
             &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
-            partition,
+            target_partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            false};
+            false  // whether data for init is on device
+        };
 
         PersistentVector<scalar> dist_x{
             &psi[0],
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
-            partition,
+            target_partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            false};
+            false  // whether data for init is on device/
+        };
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
@@ -332,7 +340,7 @@ public:
 
         SIMPLE_TIME(verbose_, generate_distributed_matrix,
                     auto dist_A = init_distributed_matrix(
-                        gkomatrix, comm, device_partition, psi.size());)
+                        gkomatrix, comm, target_partition, psi.size());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
