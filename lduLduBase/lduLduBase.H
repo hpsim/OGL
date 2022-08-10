@@ -283,8 +283,6 @@ public:
             this->get_global_cell_index().offset(Pstream::myProcNo());
         auto rows_end = rows_start + psi.size();
 
-        label ranks_per_gpu =
-            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1);
 
         auto ref_exec = this->get_exec_handler().get_ref_exec();
         auto device_partition = gko::share(
@@ -292,22 +290,13 @@ public:
                 this->get_exec_handler().get_device_exec(), rows_start,
                 rows_end, *comm.get()));
 
-        std::shared_ptr<gko::distributed::Partition<label, label>>
-            target_partition{};
-        if (ranks_per_gpu != 1) {
-            // create new target partition
-            target_partition = device_partition;
-        } else {
-            target_partition = device_partition;
-        }
-
 
         PersistentVector<scalar> dist_b{
             &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
-            target_partition,
+            device_partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -318,7 +307,7 @@ public:
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
-            target_partition,
+            device_partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device/
@@ -340,36 +329,61 @@ public:
 
         SIMPLE_TIME(verbose_, generate_distributed_matrix,
                     auto dist_A = init_distributed_matrix(
-                        gkomatrix, comm, target_partition, psi.size());)
+                        gkomatrix, comm, device_partition, psi.size());)
 
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
                         dist_A, this->get_exec_handler().get_device_exec());)
 
+        // check if repartitioning is requested
+        label ranks_per_gpu =
+            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1);
+        std::shared_ptr<gko::distributed::Partition<label, label>>
+            target_partition{};
+
+        auto dist_x_v = dist_x.get_vector();
+        auto dist_b_v = dist_b.get_vector();
+
+        auto to_x_vec = gko::share(Vector::create(this->ref, to_comm));
+        auto to_b_vec = gko::share(Vector::create(this->ref, to_comm));
+        auto to_mat = gko::share(Mtx::create(this->ref, to_comm));
+
+        if (ranks_per_gpu != 1) {
+            // create new target partition
+            target_partition = gko::share(
+                gko::distributed::build_partition_from_local_range<label,
+                                                                   label>(
+                    this->get_exec_handler().get_device_exec(), rows_start,
+                    rows_end, *comm.get(), ranks_per_gpu));
+            auto repartitioner = gko::distributed::repartitioner<label>::create(
+                comm, device_partition, target_partition);
+            auto to_comm = repartitioner->get_to_communicator();
+
+            // gather data
+            repartitioner->gather(dist_A.get(), to_mat.get());
+            repartitioner->gather(dist_b_v.get(), to_b_vec.get());
+            repartitioner->gather(dist_x_v.get(), to_x_vec.get());
+
+            dist_x_v = to_x_vec;
+            dist_b_v = to_b_vec;
+            dist_A = to_mat;
+        } else {
+            target_partition = device_partition;
+        }
+
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A,
-            dist_x.get_vector(), dist_b.get_vector(), verbose_,
-            csr_matrix_wrapper_.get_export(), precond);
-
-        /* auto solver_gen = gko::share( */
-        /*     gko::solver::Cg<scalar>::build() */
-        /*         .with_criteria( */
-        /*             gko::stop::Iteration::build() */
-        /*                 .with_max_iters( */
-        /*                     solver_controls_.lookupOrDefault("maxIter",
-         * 1000)) */
-        /*                 .on(device_exec)) */
-        /*         .on(device_exec)); */
+            this->get_exec_handler().get_device_exec(), dist_A, dist_x_v,
+            dist_b_v, verbose_, csr_matrix_wrapper_.get_export(), precond);
 
         SIMPLE_TIME(verbose_, generate_solver,
                     auto solver = solver_gen->generate(dist_A);)
         LOG_1(verbose_, "solve solver done")
         SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dist_b.get_vector()),
-                                  gko::lend(dist_x.get_vector()));)
+                    solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
+        // check if scattering is nedded
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
         auto bandwith_copy_back =
