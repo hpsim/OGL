@@ -356,10 +356,10 @@ public:
                 comm, device_partition, target_partition);
             auto to_comm = repartitioner->get_to_communicator();
 
-            auto to_x_vec = gko::share(dist_vec::create(this->ref, to_comm));
-            auto to_b_vec = gko::share(dist_vec::create(this->ref, to_comm));
+            auto to_x_vec = gko::share(dist_vec::create(ref_exec, to_comm));
+            auto to_b_vec = gko::share(dist_vec::create(ref_exec, to_comm));
             auto to_mat = gko::share(
-                dist_mtx<scalar, label, label>::create(this->ref, to_comm));
+                dist_mtx<scalar, label, label>::create(ref_exec, to_comm));
             // gather data
             repartitioner->gather(dist_A.get(), to_mat.get());
             repartitioner->gather(dist_b_v.get(), to_b_vec.get());
