@@ -344,9 +344,6 @@ public:
         auto dist_x_v = dist_x.get_vector();
         auto dist_b_v = dist_b.get_vector();
 
-        auto to_x_vec = gko::share(Vector::create(this->ref, to_comm));
-        auto to_b_vec = gko::share(Vector::create(this->ref, to_comm));
-        auto to_mat = gko::share(Mtx::create(this->ref, to_comm));
 
         if (ranks_per_gpu != 1) {
             // create new target partition
@@ -359,6 +356,9 @@ public:
                 comm, device_partition, target_partition);
             auto to_comm = repartitioner->get_to_communicator();
 
+            auto to_x_vec = gko::share(Vector::create(this->ref, to_comm));
+            auto to_b_vec = gko::share(Vector::create(this->ref, to_comm));
+            auto to_mat = gko::share(Mtx::create(this->ref, to_comm));
             // gather data
             repartitioner->gather(dist_A.get(), to_mat.get());
             repartitioner->gather(dist_b_v.get(), to_b_vec.get());
