@@ -79,7 +79,7 @@ public:
                             gko::share(precond->generate(
                                 gko::as<gko::distributed::Matrix<
                                     scalar, label, label>>(gkomatrix)
-                                    ->get_const_local_diag()))})
+                                    ->get_local_matrix()))})
                     .on(device_exec)
                     ->generate(gkomatrix));
         }
@@ -140,7 +140,7 @@ public:
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::distributed::Matrix<scalar, label, label>>(
                     gkomatrix)
-                    ->get_const_local_diag()));
+                    ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
@@ -160,7 +160,7 @@ public:
 
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::distributed::Matrix<>>(gkomatrix)
-                    ->get_const_local_diag()));
+                    ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
@@ -195,7 +195,7 @@ public:
 
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::distributed::Matrix<>>(gkomatrix)
-                    ->get_const_local_diag()));
+                    ->get_local_matrix()));
 
             // Use incomplete factors to generate ILU preconditioner
             return wrap_schwarz(gkomatrix, device_exec,
@@ -212,7 +212,7 @@ public:
 
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::distributed::Matrix<>>(gkomatrix)
-                    ->get_const_local_diag()));
+                    ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
@@ -236,7 +236,7 @@ public:
 
             auto ic_factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::distributed::Matrix<>>(gkomatrix)
-                    ->get_const_local_diag()));
+                    ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);

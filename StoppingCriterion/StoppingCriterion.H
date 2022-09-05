@@ -119,7 +119,7 @@ class StoppingCriterion {
 #else
             // if column vector sum is not availible use dot product
             auto xAvg_vec = gko::share(dist_vec::create(
-                device_exec, x->get_communicator(), gko::dim<2>{global_size, 1},
+                x->get_communicator(), gko::dim<2>{global_size, 1},
                 gko::dim<2>{local_size, 1}));
             xAvg_vec->fill(1.0);
             xAvg_vec->scale(xAvg.get());
@@ -145,8 +145,8 @@ class StoppingCriterion {
             gko::dim<2> local_size = x->get_local_vector()->get_size();
             gko::dim<2> global_size = x->get_size();
 
-            auto Axref = gko::share(
-                dist_vec::create(device_exec, comm, global_size, local_size));
+            auto Axref =
+                gko::share(dist_vec::create(comm, global_size, local_size));
 
             compute_Axref_dist(global_size[0], local_size[0], device_exec,
                                gkomatrix, x, Axref);
@@ -538,7 +538,7 @@ public:
               controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
           relaxationFactor_(
-              controlDict.lookupOrDefault("relaxationFactor", scalar(0.8))),
+              controlDict.lookupOrDefault("relaxationFactor", scalar(0.6))),
           adapt_minIter_(
               controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           normalised_res_norms_(gko::share(vec::create(
