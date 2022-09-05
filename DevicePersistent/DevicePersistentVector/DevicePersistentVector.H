@@ -118,7 +118,7 @@ struct VectorInitFunctor {
                                              const_cast<T *>(other_));
 
         return gko::share(dist_vec::create(
-            exec, *exec_.get_gko_mpi_comm_wrapper().get(),
+            *exec_.get_gko_mpi_comm_wrapper().get(),
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
     }
 };

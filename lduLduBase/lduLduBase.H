@@ -267,7 +267,7 @@ public:
             idx_array::view(device_exec, num_elems, coo->get_col_idxs()),
             val_array::view(device_exec, num_elems, coo->get_values())};
 
-        auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
+        auto dist_A = gko::share(dist_mtx::create(*comm.get()));
         dist_A->read_distributed(A_data, partition.get());
         return dist_A;
     }
@@ -351,14 +351,14 @@ public:
                 gko::distributed::build_partition_from_local_range<label,
                                                                    label>(
                     this->get_exec_handler().get_device_exec(), rows_start,
-                    rows_end, *comm.get(), ranks_per_gpu));
-            auto repartitioner = gko::distributed::repartitioner<label>::create(
-                comm, device_partition, target_partition);
+                    rows_end, *comm.get()/*, ranks_per_gpu*/));
+            auto repartitioner = gko::distributed::repartitioner<label,label>::create(
+                *comm.get(), device_partition, target_partition);
             auto to_comm = repartitioner->get_to_communicator();
 
-            auto to_x_vec = gko::share(dist_vec::create(ref_exec, to_comm));
-            auto to_b_vec = gko::share(dist_vec::create(ref_exec, to_comm));
-            auto to_mat = gko::share(dist_mtx::create(ref_exec, to_comm));
+            auto to_x_vec = gko::share(dist_vec::create(to_comm));
+            auto to_b_vec = gko::share(dist_vec::create(to_comm));
+            auto to_mat = gko::share(dist_mtx::create(to_comm));
             // gather data
             repartitioner->gather(dist_A.get(), to_mat.get());
             repartitioner->gather(dist_b_v.get(), to_b_vec.get());
