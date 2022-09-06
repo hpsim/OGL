@@ -356,7 +356,7 @@ public:
             auto next_rank = ranks_per_gpu * (local_rank + 1);
             auto target_rows_end =
                 (local_rank % ranks_per_gpu == 0)
-                    ? device_partition.get_range_starting_indices()[next_rank]
+                    ? device_partition->get_range_starting_indices()[next_rank]
                     : rows_start;
 
 
