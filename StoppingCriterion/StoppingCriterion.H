@@ -97,7 +97,7 @@ class StoppingCriterion {
 
         GKO_ENABLE_BUILD_METHOD(Factory);
 
-    protected:
+    //protected:
         /* Compute the SPMV of A with x_ref
          *
          *
@@ -332,7 +332,7 @@ class StoppingCriterion {
 
         GKO_ENABLE_BUILD_METHOD(Factory);
 
-    protected:
+//    protected:
         void compute_Axref(std::shared_ptr<const gko::Executor> device_exec,
                            std::shared_ptr<const mtx> gkomatrix,
                            std::shared_ptr<vec> x,
@@ -471,13 +471,13 @@ class StoppingCriterion {
         }
 
 
-        explicit OpenFOAMStoppingCriterion(
+        /*explicit*/ OpenFOAMStoppingCriterion(
             std::shared_ptr<const gko::Executor> exec)
             : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
                   std::move(exec))
         {}
 
-        explicit OpenFOAMStoppingCriterion(const Factory *factory,
+        /*explicit*/ OpenFOAMStoppingCriterion(const Factory *factory,
                                            const gko::stop::CriterionArgs &args)
 
             : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
