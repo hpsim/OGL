@@ -383,6 +383,10 @@ public:
             dist_x_v = to_x_vec;
             dist_b_v = to_b_vec;
             dist_A = to_mat;
+
+            if (rows_start == target_rows_end) {
+                return solverPerf;
+            }
         } else {
             target_partition = device_partition;
         }
