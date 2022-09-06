@@ -161,6 +161,15 @@ public:
     SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
     {}
 
+    template <class T>
+    void repartition(
+        std::shared_ptr<gko::distributed::repartitioner<label, label>>
+            repartitioner,
+        const T in, T out) const
+    {
+        repartitioner->gather(in.get(), out.get());
+    };
+
 
     solverPerformance solve_serial_impl(scalarField &psi,
                                         const scalarField &source,
@@ -366,9 +375,9 @@ public:
                     this->get_exec_handler().get_device_exec(), rows_start,
                     target_rows_end, *comm.get()));
 
-            auto repartitioner =
+            auto repartitioner = gko::share(
                 gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(), device_partition, target_partition);
+                    *comm.get(), device_partition, target_partition));
             auto to_comm = repartitioner->get_to_communicator();
 
             auto to_x_vec = gko::share(dist_vec::create(to_comm));
@@ -376,9 +385,14 @@ public:
             auto to_mat = gko::share(dist_mtx::create(to_comm));
 
             // gather data
-            repartitioner->gather(dist_A.get(), to_mat.get());
-            repartitioner->gather(dist_b_v.get(), to_b_vec.get());
-            repartitioner->gather(dist_x_v.get(), to_x_vec.get());
+            SIMPLE_TIME(verbose_, repartition_matrix,
+                        this->repartition(repartitioner, dist_A, to_mat);)
+
+            SIMPLE_TIME(verbose_, repartition_rhs,
+                        this->repartition(repartitioner, dist_b_v, to_b_vec);)
+
+            SIMPLE_TIME(verbose_, repartition_x,
+                        this->repartition(repartitioner, dist_x_v, to_x_vec);)
 
             dist_x_v = to_x_vec;
             dist_b_v = to_b_vec;
