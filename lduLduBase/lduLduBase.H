@@ -347,18 +347,32 @@ public:
 
         if (ranks_per_gpu != 1) {
             // create new target partition
+            // if ranks_per_gpu == n, ranks which are not multiple of n have
+            // rows_start = rows_end
+            // ranks that are multiple of n have rows_end ==
+            // rows_start(n*(rank+1))
+
+            auto local_rank = comm->node_local_rank();
+            auto next_rank = ranks_per_gpu * (local_rank + 1);
+            auto target_rows_end =
+                (local_rank % ranks_per_gpu==0) ? device_partition.get_range_starting_indices()[next_rank] : rows_start;
+
+
             target_partition = gko::share(
                 gko::distributed::build_partition_from_local_range<label,
                                                                    label>(
                     this->get_exec_handler().get_device_exec(), rows_start,
-                    rows_end, *comm.get(), ranks_per_gpu));
-            auto repartitioner = gko::distributed::repartitioner<label>::create(
-                comm, device_partition, target_partition);
+                    target_rows_end, *comm.get()));
+
+            auto repartitioner =
+                gko::distributed::repartitioner<label, label>::create(
+                    comm, device_partition, target_partition);
             auto to_comm = repartitioner->get_to_communicator();
 
             auto to_x_vec = gko::share(dist_vec::create(ref_exec, to_comm));
             auto to_b_vec = gko::share(dist_vec::create(ref_exec, to_comm));
             auto to_mat = gko::share(dist_mtx::create(ref_exec, to_comm));
+
             // gather data
             repartitioner->gather(dist_A.get(), to_mat.get());
             repartitioner->gather(dist_b_v.get(), to_b_vec.get());
