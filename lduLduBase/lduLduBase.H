@@ -164,6 +164,8 @@ public:
             std::ofstream os("/tmp/mpi_debug.pid");
             os << getpid() << std::endl;
             os.close();
+            bool attached = false;
+            while (!attached) sleep(1);
         }
 
     };
