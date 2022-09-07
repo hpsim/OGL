@@ -38,6 +38,9 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+#include <fstream>
+#include <unistd.h>
+#include <iostream>
 
 const char *git_version(void);
 
@@ -70,6 +73,8 @@ private:
 
     const label verbose_;
 
+    const bool debug_;
+
 public:
     // constructor for segregated solver
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
@@ -99,7 +104,8 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          debug_(solverControls.lookupOrDefault<Switch>("debug", false))
     {
         if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
             print_info();
@@ -127,7 +133,8 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          debug_(solverControls.lookupOrDefault<Switch>("debug", false))
     {}
 
     void print_info() const
@@ -151,6 +158,14 @@ public:
             std::to_string(
                 this->get_exec_handler().get_gko_force_host_buffer());
         MLOG_0(verbose_, msg)
+
+        // if in debug mode write pid
+        if (debug_) {
+            std::ofstream os("/tmp/mpi_debug.pid");
+            os << getpid() << std::endl;
+            os.close();
+        }
+
     };
 
 
