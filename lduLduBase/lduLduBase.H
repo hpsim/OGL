@@ -38,8 +38,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
-#include <fstream>
 #include <unistd.h>
+#include <fstream>
 #include <iostream>
 
 const char *git_version(void);
@@ -50,8 +50,66 @@ const char *git_branch(void);
 
 namespace Foam {
 
+class OGL_Info {
+private:
+    const objectRegistry &db_;
+
+    const label verbose_;
+
+    const bool debug_;
+
+    const bool force_host_buffer_;
+
+public:
+    OGL_Info(const word &fieldName, const dictionary &solverControls,
+             const objectRegistry &db)
+        : db_(db),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
+          force_host_buffer_(
+              solverControls.lookupOrDefault("force_host_buffer", false))
+    {
+        if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
+            print_info();
+        }
+    }
+
+    void print_info() const
+    {
+        auto version_info = gko::version_info::get();
+        // auto exec_info =
+        // this->get_exec_handler().get_device_exec()->get_exec_info();
+        word msg =
+            std::string("Initialising OGL\n\tVersion: ") +
+            std::string(git_version()) + std::string(" ") +
+            std::string(git_revision()) + std::string("\n\tBranch: ") +
+            std::string(git_branch()) + std::string(" ") +
+            std::string("\n\tGinkgo version: ") +
+            std::to_string(version_info.core_version.major) + std::string(".") +
+            std::to_string(version_info.core_version.minor) + std::string(".") +
+            std::to_string(version_info.core_version.patch) + std::string("(") +
+            std::string(version_info.core_version.tag) +
+            std::string(")\n\tMPI is GPU aware: ") +
+            std::to_string(gko::mpi::is_gpu_aware()) +
+            std::string("\n\tForces host buffer based communication: ") +
+            std::to_string(force_host_buffer_);
+        MLOG_0(verbose_, msg)
+
+        // if in debug mode write pid
+        if (debug_) {
+            word msg = "writing pid to /tmp/mpi_debug.pid";
+            MLOG_0(verbose_, msg)
+            std::ofstream os("/tmp/mpi_debug.pid");
+            os << getpid() << std::endl;
+            os.close();
+            sleep(20);
+        }
+    }
+};
+
 template <class MatrixType, class SolverFactory>
-class lduLduBase : public SolverFactory,
+class lduLduBase : public OGL_Info,
+                   public SolverFactory,
                    public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
@@ -73,8 +131,6 @@ private:
 
     const label verbose_;
 
-    const bool debug_;
-
 public:
     // constructor for segregated solver
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
@@ -82,7 +138,8 @@ public:
                const FieldField<Field, scalar> &interfaceIntCoeffs,
                const lduInterfaceFieldPtrsList &interfaces,
                const dictionary &solverControls)
-        : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
+        : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>{matrix.mesh().thisDb(),
                                         matrix,
                                         interfaceBouCoeffs,
@@ -104,19 +161,15 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          debug_(solverControls.lookupOrDefault<Switch>("debug", false))
-    {
-        if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
-            print_info();
-        }
-    }
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+    {}
 
 
     //- Construct from matrix components and solver controls
     lduLduBase(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
-        : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
+        : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
                                         solverControls, fieldName),
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
@@ -133,42 +186,8 @@ public:
                               this->get_verbose()},
           // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          debug_(solverControls.lookupOrDefault<Switch>("debug", false))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
-
-    void print_info() const
-    {
-        auto version_info = gko::version_info::get();
-        // auto exec_info =
-        // this->get_exec_handler().get_device_exec()->get_exec_info();
-        word msg =
-            std::string("Initialising OGL\n\tVersion: ") +
-            std::string(git_version()) + std::string(" ") +
-            std::string(git_revision()) + std::string("\n\tBranch: ") +
-            std::string(git_branch()) + std::string(" ") +
-            std::string("\n\tGinkgo version: ") +
-            std::to_string(version_info.core_version.major) + std::string(".") +
-            std::to_string(version_info.core_version.minor) + std::string(".") +
-            std::to_string(version_info.core_version.patch) + std::string("(") +
-            std::string(version_info.core_version.tag) +
-            std::string(")\n\tMPI is GPU aware: ") +
-            std::to_string(gko::mpi::is_gpu_aware()) +
-            std::string("\n\tForces host buffer based communication: ") +
-            std::to_string(
-                this->get_exec_handler().get_gko_force_host_buffer());
-        MLOG_0(verbose_, msg)
-
-        // if in debug mode write pid
-        if (debug_) {
-            std::ofstream os("/tmp/mpi_debug.pid");
-            os << getpid() << std::endl;
-            os.close();
-            bool attached = false;
-            while (!attached) sleep(1);
-        }
-
-    };
 
 
     // the solve_impl_ version called from the LduMatrix, ie for
@@ -195,7 +214,7 @@ public:
         PersistentArray<scalar> b{
             const_cast<scalar *>(&source[0]),
             this->fieldName() + "_rhs",
-            db_,
+            this->db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
             verbose_,
@@ -205,7 +224,7 @@ public:
         PersistentArray<scalar> x{
             &psi[0],
             this->fieldName() + "_solution",
-            db_,
+            this->db_,
             this->get_exec_handler(),
             this->get_global_cell_index(),
             verbose_,
