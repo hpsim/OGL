@@ -97,9 +97,12 @@ public:
 
         // if in debug mode write pid
         if (debug_) {
-            word msg = "writing pid to /tmp/mpi_debug.pid";
-            MLOG_0(verbose_, msg)
-            std::ofstream os("/tmp/mpi_debug.pid");
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            word fn = "/tmp/mpi_debug_" + std::to_string(rank) + ".pid";
+            word msg = "writing pid to" + fn;
+            LOG_0(verbose_, msg)
+            std::ofstream os(fn);
             os << getpid() << std::endl;
             os.close();
             sleep(20);
@@ -397,18 +400,25 @@ public:
             // ranks that are multiple of n have rows_end ==
             // rows_start(n*(rank+1))
 
-            auto local_rank = comm->node_local_rank();
-            auto next_rank = ranks_per_gpu * (local_rank + 1);
-            auto target_rows_end =
-                (local_rank % ranks_per_gpu == 0)
-                    ? device_partition->get_range_starting_indices()[next_rank]
-                    : rows_start;
 
+            auto local_rank = comm->node_local_rank();
+            auto local_owning_rank = local_rank / ranks_per_gpu;
+            auto next_owning_rank = ranks_per_gpu + local_owning_rank;
+
+            // The new partition ranges up to next owning rank elements
+            auto target_rows_end = device_partition->get_range_bounds()[next_owning_rank];
+
+            // if we are not on a owning rank start rows are set to be the end row
+            // else the rows start are unchanged
+            auto target_rows_start=
+                (local_rank % ranks_per_gpu != 0)
+                    ? target_rows_end
+                    : rows_start;
 
             target_partition = gko::share(
                 gko::distributed::build_partition_from_local_range<label,
                                                                    label>(
-                    this->get_exec_handler().get_device_exec(), rows_start,
+                    this->get_exec_handler().get_device_exec(), target_rows_start,
                     target_rows_end, *comm.get()));
 
             auto repartitioner = gko::share(
