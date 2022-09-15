@@ -402,24 +402,26 @@ public:
 
 
             auto local_rank = comm->node_local_rank();
-            auto local_owning_rank = local_rank / ranks_per_gpu;
-            auto next_owning_rank = ranks_per_gpu + local_owning_rank;
+            auto local_owning_rank =
+                ranks_per_gpu * (local_rank / ranks_per_gpu);
+            auto next_owning_rank =
+                min(ranks_per_gpu + local_owning_rank, comm->get_num_ranks());
 
             // The new partition ranges up to next owning rank elements
-            auto target_rows_end = device_partition->get_range_bounds()[next_owning_rank];
+            auto target_rows_end =
+                device_partition->get_range_bounds()[next_owning_rank];
 
-            // if we are not on a owning rank start rows are set to be the end row
-            // else the rows start are unchanged
-            auto target_rows_start=
-                (local_rank % ranks_per_gpu != 0)
-                    ? target_rows_end
-                    : rows_start;
+            // if we are not on a owning rank start rows are set to be the end
+            // row else the rows start are unchanged
+            auto target_rows_start = (local_rank % ranks_per_gpu != 0)
+                                         ? target_rows_end
+                                         : rows_start;
 
             target_partition = gko::share(
                 gko::distributed::build_partition_from_local_range<label,
                                                                    label>(
-                    this->get_exec_handler().get_device_exec(), target_rows_start,
-                    target_rows_end, *comm.get()));
+                    this->get_exec_handler().get_device_exec(),
+                    target_rows_start, target_rows_end, *comm.get()));
 
             auto repartitioner = gko::share(
                 gko::distributed::repartitioner<label, label>::create(
