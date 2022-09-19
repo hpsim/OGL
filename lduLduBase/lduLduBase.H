@@ -209,6 +209,14 @@ public:
         repartitioner->gather(in.get(), out.get());
     };
 
+    template <class T>
+    void repartition_scatter(
+        std::shared_ptr<gko::distributed::repartitioner<label, label>>
+            repartitioner,
+        const T in, T out) const
+    {
+        repartitioner->scatter(out.get(), in.get());
+    };
 
     solverPerformance solve_serial_impl(scalarField &psi,
                                         const scalarField &source,
@@ -391,7 +399,9 @@ public:
 
         auto dist_x_v = dist_x.get_vector();
         auto dist_b_v = dist_b.get_vector();
+        std::shared_ptr<dist_vec> to_x_vec;
 
+        std::shared_ptr<gko::distributed::repartitioner<label, label>> repartitioner;
 
         if (ranks_per_gpu != 1) {
             // create new target partition
@@ -404,8 +414,7 @@ public:
             auto local_rank = comm->node_local_rank();
             auto local_owning_rank =
                 ranks_per_gpu * (local_rank / ranks_per_gpu);
-            auto next_owning_rank =
-                min(ranks_per_gpu + local_owning_rank, comm->get_num_ranks());
+            auto next_owning_rank = ranks_per_gpu + local_owning_rank;
 
             // The new partition ranges up to next owning rank elements
             auto target_rows_end =
@@ -423,12 +432,12 @@ public:
                     this->get_exec_handler().get_device_exec(),
                     target_rows_start, target_rows_end, *comm.get()));
 
-            auto repartitioner = gko::share(
+             repartitioner = gko::share(
                 gko::distributed::repartitioner<label, label>::create(
                     *comm.get(), device_partition, target_partition));
             auto to_comm = repartitioner->get_to_communicator();
 
-            auto to_x_vec = gko::share(dist_vec::create(to_comm));
+            to_x_vec = gko::share(dist_vec::create(to_comm));
             auto to_b_vec = gko::share(dist_vec::create(to_comm));
             auto to_mat = gko::share(dist_mtx::create(to_comm));
 
@@ -446,7 +455,7 @@ public:
             dist_b_v = to_b_vec;
             dist_A = to_mat;
 
-            if (rows_start == target_rows_end) {
+            if (target_rows_start == target_rows_end) {
                 return solverPerf;
             }
         } else {
@@ -465,7 +474,13 @@ public:
         SIMPLE_TIME(verbose_, solve,
                     solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
+        // TODO this most likely involves copying via host, thus copying back to
+        // the device is uneeded
         // check if scattering is nedded
+        SIMPLE_TIME(
+            verbose_, repartition_scatter_x,
+            this->repartition_scatter(repartitioner, dist_x_v, to_x_vec);)
+
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
         auto bandwith_copy_back =
