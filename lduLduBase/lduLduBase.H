@@ -201,7 +201,7 @@ public:
     {}
 
     template <class T>
-    void repartition(
+    void repartition_gather(
         std::shared_ptr<gko::distributed::repartitioner<label, label>>
             repartitioner,
         const T in, T out) const
@@ -384,12 +384,13 @@ public:
                     auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
 
         SIMPLE_TIME(verbose_, generate_distributed_matrix,
-                    auto dist_A = init_distributed_matrix(
+                    auto dist_A_org = init_distributed_matrix(
                         gkomatrix, comm, device_partition, psi.size());)
 
-        SIMPLE_TIME(verbose_, init_precond,
-                    auto precond = this->init_preconditioner(
-                        dist_A, this->get_exec_handler().get_device_exec());)
+        SIMPLE_TIME(
+            verbose_, init_precond,
+            auto precond = this->init_preconditioner(
+                dist_A_org, this->get_exec_handler().get_device_exec());)
 
         // check if repartitioning is requested
         label ranks_per_gpu =
@@ -397,11 +398,15 @@ public:
         std::shared_ptr<gko::distributed::Partition<label, label>>
             target_partition{};
 
-        auto dist_x_v = dist_x.get_vector();
-        auto dist_b_v = dist_b.get_vector();
+        auto dist_x_v_org = dist_x.get_vector();
+        auto dist_b_v_org = dist_b.get_vector();
+        std::shared_ptr<dist_vec> dist_x_v{};
+        std::shared_ptr<dist_vec> dist_b_v{};
+        std::shared_ptr<dist_mtx> dist_A{};
         std::shared_ptr<dist_vec> to_x_vec;
 
-        std::shared_ptr<gko::distributed::repartitioner<label, label>> repartitioner;
+        std::shared_ptr<gko::distributed::repartitioner<label, label>>
+            repartitioner;
 
         if (ranks_per_gpu != 1) {
             // create new target partition
@@ -432,7 +437,7 @@ public:
                     this->get_exec_handler().get_device_exec(),
                     target_rows_start, target_rows_end, *comm.get()));
 
-             repartitioner = gko::share(
+            repartitioner = gko::share(
                 gko::distributed::repartitioner<label, label>::create(
                     *comm.get(), device_partition, target_partition));
             auto to_comm = repartitioner->get_to_communicator();
@@ -442,24 +447,26 @@ public:
             auto to_mat = gko::share(dist_mtx::create(to_comm));
 
             // gather data
-            SIMPLE_TIME(verbose_, repartition_matrix,
-                        this->repartition(repartitioner, dist_A, to_mat);)
+            SIMPLE_TIME(
+                verbose_, repartition_matrix,
+                this->repartition_gather(repartitioner, dist_A_org, to_mat);)
 
             SIMPLE_TIME(verbose_, repartition_rhs,
-                        this->repartition(repartitioner, dist_b_v, to_b_vec);)
+                        this->repartition_gather(repartitioner, dist_b_v_org,
+                                                 to_b_vec);)
 
             SIMPLE_TIME(verbose_, repartition_x,
-                        this->repartition(repartitioner, dist_x_v, to_x_vec);)
+                        this->repartition_gather(repartitioner, dist_x_v_org,
+                                                 to_x_vec);)
 
             dist_x_v = to_x_vec;
             dist_b_v = to_b_vec;
             dist_A = to_mat;
-
-            if (target_rows_start == target_rows_end) {
-                return solverPerf;
-            }
         } else {
             target_partition = device_partition;
+            dist_x_v = dist_x.get_vector();
+            dist_b_v = dist_b.get_vector();
+            dist_A = dist_A_org;
         }
 
 
