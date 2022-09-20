@@ -484,9 +484,11 @@ public:
         // TODO this most likely involves copying via host, thus copying back to
         // the device is uneeded
         // check if scattering is nedded
-        SIMPLE_TIME(
-            verbose_, repartition_scatter_x,
-            this->repartition_scatter(repartitioner, dist_x_v, to_x_vec);)
+        if (ranks_per_gpu != 1) {
+            SIMPLE_TIME(
+                verbose_, repartition_scatter_x,
+                this->repartition_scatter(repartitioner, dist_x_v, to_x_vec);)
+        }
 
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
