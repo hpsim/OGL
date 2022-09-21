@@ -37,10 +37,13 @@ SourceFiles
 namespace Foam {
 
 
-struct CsrInitFunctor {
-    const gkoGlobalIndex &global_index_;
+template <typename mtx>
+struct MatrixInitFunctor {
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
-    using mtx = gko::matrix::Csr<scalar>;
+    const ExecutorHandler &exec_;
+
+    const PersistentPartition &partition_;
 
     const PersistentArray<label> &col_idxs_;
 
@@ -50,60 +53,136 @@ struct CsrInitFunctor {
 
     const label verbose_;
 
-    CsrInitFunctor(const gkoGlobalIndex &global_index,
-                   const PersistentArray<label> &col_idxs,
-                   const PersistentArray<label> &row_idxs,
-                   const PersistentArray<scalar> &values, const label verbose)
-        : global_index_(global_index),
+    MatrixInitFunctor(const ExecutorHandler &exec,
+                      const PersistentPartition &partition,
+                      const PersistentArray<label> &col_idxs,
+                      const PersistentArray<label> &row_idxs,
+                      const PersistentArray<scalar> &values,
+                      const label verbose)
+        : exec_(exec),
+          partition_(partition),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),
           verbose_(verbose)
     {}
 
-    void update(std::shared_ptr<mtx> &csr_matrix) const;
+    void update(std::shared_ptr<dist_mtx> &csr_matrix) const {}
 
-    std::shared_ptr<mtx> init() const;
+    std::shared_ptr<mtx> init() const
+    {
+        using coo_mtx = gko::matrix::Coo<scalar>;
+
+        label nCells = partition_.get_local_host_size();
+        word msg{"init global csr matrix of size " + std::to_string(nCells)};
+        LOG_1(verbose_, msg)
+
+        auto values = values_.get_array();
+        auto cols = col_idxs_.get_array();
+        auto rows = row_idxs_.get_array();
+
+        // check if sorted
+        if (false) {
+            bool is_sorted_rows = true;
+            bool is_sorted_cols = true;
+            auto rows_data = rows->get_const_data();
+            auto cols_data = cols->get_const_data();
+            for (size_t i = 1; i < cols->get_num_elems(); i++) {
+                if (rows_data[i] < rows_data[i - 1]) {
+                    is_sorted_rows = false;
+                    Info << "rows sorting error element " << i << " row[i] "
+                         << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+                         << endl;
+                }
+                // same row but subsequent column is smaller
+                if (cols_data[i] < cols_data[i - 1] &&
+                    rows_data[i] == rows_data[i - 1]) {
+                    is_sorted_cols = false;
+                    Info << "cols sorting error element " << i << " row[i] "
+                         << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+                         << " col[i] " << cols_data[i] << " col[i-1] "
+                         << cols_data[i - 1] << endl;
+                }
+            }
+
+            Info << "is_sorted rows " << is_sorted_rows << endl;
+            Info << "is_sorted cols " << is_sorted_cols << endl;
+
+            if (!is_sorted_cols || !is_sorted_rows) {
+                for (size_t i = 1; i < cols->get_num_elems(); i++) {
+                    Info << i << "sparsity (" << rows_data[i] << ","
+                         << cols_data[i] << ")\n";
+                }
+            }
+        }
+        auto exec = exec_.get_ref_exec();
+
+        auto local_mtx = gko::share(
+            coo_mtx::create(exec, gko::dim<2>(nCells, nCells), *values.get(),
+                            *cols.get(), *rows.get()));
+
+
+        auto local_size = partition_.get_local_host_size();
+
+        gko::matrix_data<scalar, label> A_data;
+        local_mtx->write(A_data);
+
+        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto dist_A = gko::share(dist_mtx::create(*comm.get()));
+        dist_A->read_distributed(A_data, partition_.get_host_partition().get());
+
+        if (partition_.get_ranks_per_gpu() == 1) {
+            return dist_A;
+        }
+
+        // TODO test if this needs to be persistent
+        auto repartitioner =
+            gko::share(gko::distributed::repartitioner<label, label>::create(
+                *comm.get(), partition_.get_host_partition(),
+                partition_.get_device_partition()));
+        auto to_mat =
+            gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
+
+        repartitioner->gather(dist_A.get(), to_mat.get());
+
+        return to_mat;
+    }
 };
 
 
-class CsrMatrixWrapper {
+template <typename mtx>
+class MatrixWrapper {
 private:
-    using mtx = gko::matrix::Csr<scalar>;
-
     const label verbose_;
 
     const bool export_;
 
-    mutable PersistentBase<mtx, CsrInitFunctor> gkomatrix_;
+    mutable PersistentBase<mtx, MatrixInitFunctor<mtx>> gkomatrix_;
 
     mutable label prev_solve_iters_ = 0;
 
 
 public:
-    CsrMatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,
-                     const PersistentArray<label> &col_idxs,
-                     const PersistentArray<label> &row_idxs,
-                     const PersistentArray<scalar> &values,
-                     const dictionary &controlDict, const word sys_matrix_name,
-                     const gkoGlobalIndex &globalIndex, const label verbose)
+    MatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,
+                  const PersistentArray<label> &col_idxs,
+                  const PersistentArray<label> &row_idxs,
+                  const PersistentArray<scalar> &values,
+                  const PersistentPartition &partition,
+                  const dictionary &controlDict, const word sys_matrix_name,
+                  const label verbose)
         : verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
-              sys_matrix_name + "csr", db,
-              CsrInitFunctor(globalIndex, col_idxs, row_idxs, values, verbose_),
+              sys_matrix_name + "_matrix", db,
+              MatrixInitFunctor<mtx>(exec, partition, col_idxs, row_idxs,
+                                     values, verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
 
-    PersistentBase<mtx, CsrInitFunctor> &get_global_gkomatrix() const
+    std::shared_ptr<gko::LinOp> get() const
     {
-        return gkomatrix_;
-    }
-
-    PersistentBase<mtx, CsrInitFunctor> &get_local_gkomatrix() const
-    {
-        return gkomatrix_;
+        return gkomatrix_.get_persistent_object();
     }
 
 

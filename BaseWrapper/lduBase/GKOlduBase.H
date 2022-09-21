@@ -48,7 +48,7 @@ namespace Foam {
     std::unique_ptr<Solver::Factory, std::default_delete<Solver::Factory>>   \
     create_dist_solver(                                                      \
         std::shared_ptr<gko::Executor> exec,                                 \
-        std::shared_ptr<dist_mtx> gkomatrix, std::shared_ptr<dist_vec> x,    \
+        std::shared_ptr<gko::LinOp> gkomatrix, std::shared_ptr<dist_vec> x,    \
         std::shared_ptr<dist_vec> b, const label verbose,                    \
         const bool export_res, std::shared_ptr<gko::LinOp> precond) const    \
     {                                                                        \

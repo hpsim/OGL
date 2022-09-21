@@ -43,7 +43,6 @@ class StoppingCriterion {
     using idx_array = gko::array<label>;
 
     using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
     class OpenFOAMDistStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMDistStoppingCriterion,
@@ -85,7 +84,7 @@ class StoppingCriterion {
 
             bool GKO_FACTORY_PARAMETER(export_res, false);
 
-            std::shared_ptr<dist_mtx> GKO_FACTORY_PARAMETER(gkomatrix, {});
+            std::shared_ptr<gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix, {});
 
             std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(x, {});
 
@@ -105,7 +104,7 @@ class StoppingCriterion {
         void compute_Axref_dist(
             size_t global_size, size_t local_size,
             std::shared_ptr<const gko::Executor> device_exec,
-            std::shared_ptr<const dist_mtx> gkomatrix,
+            std::shared_ptr<const gko::LinOp> gkomatrix,
             std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> res) const
         {
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
@@ -131,7 +130,7 @@ class StoppingCriterion {
 
         scalar compute_normfactor_dist(
             std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
-            std::shared_ptr<const dist_mtx> gkomatrix,
+            std::shared_ptr<const gko::LinOp> gkomatrix,
             std::shared_ptr<dist_vec> x,
             std::shared_ptr<const dist_vec> b) const
         {
@@ -593,7 +592,7 @@ public:
 
     std::shared_ptr<const gko::stop::CriterionFactory>
     build_dist_stopping_criterion(std::shared_ptr<gko::Executor> device_exec,
-                                  std::shared_ptr<dist_mtx> gkomatrix,
+                                  std::shared_ptr<gko::LinOp> gkomatrix,
                                   std::shared_ptr<dist_vec> x,
                                   std::shared_ptr<dist_vec> b, label verbose,
                                   bool export_res, label prev_solve_iters) const

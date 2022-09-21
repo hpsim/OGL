@@ -122,13 +122,12 @@ private:
     using part_type = gko::distributed::Partition<label, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
+    using csr_mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
     using val_array = gko::array<scalar>;
 
     const objectRegistry &db_;
-
-    const CsrMatrixWrapper csr_matrix_wrapper_;
 
     const dictionary &solver_controls_;
 
@@ -153,16 +152,6 @@ public:
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
-          csr_matrix_wrapper_{db_,  // 1
-                              this->get_exec_handler(),
-                              this->get_col_idxs(),
-                              this->get_row_idxs(),
-                              this->get_values(),
-                              solverControls,
-                              fieldName,
-                              this->get_global_cell_index(),
-                              this->get_verbose()},
-          // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
@@ -178,16 +167,6 @@ public:
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
-          csr_matrix_wrapper_{db_,  // 1
-                              this->get_exec_handler(),
-                              this->get_col_idxs(),
-                              this->get_row_idxs(),
-                              this->get_values(),
-                              solverControls,
-                              fieldName,
-                              this->get_global_cell_index(),
-                              this->get_verbose()},
-          // gkoPreconditionerFactory_{db_, solverControls, fieldName},
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
@@ -199,134 +178,6 @@ public:
     template <class Type>
     SolverPerformance<Type> solve_impl_(Field<Type> &psi) const
     {}
-
-    template <class T>
-    void repartition_gather(
-        std::shared_ptr<gko::distributed::repartitioner<label, label>>
-            repartitioner,
-        const T in, T out) const
-    {
-        repartitioner->gather(in.get(), out.get());
-    };
-
-    template <class T>
-    void repartition_scatter(
-        std::shared_ptr<gko::distributed::repartitioner<label, label>>
-            repartitioner,
-        const T in, T out) const
-    {
-        repartitioner->scatter(out.get(), in.get());
-    };
-
-    solverPerformance solve_serial_impl(scalarField &psi,
-                                        const scalarField &source,
-                                        solverPerformance &solverPerf) const
-    {
-        PersistentArray<scalar> b{
-            const_cast<scalar *>(&source[0]),
-            this->fieldName() + "_rhs",
-            this->db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            false};
-
-        PersistentArray<scalar> x{
-            &psi[0],
-            this->fieldName() + "_solution",
-            this->db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            false};
-
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
-        LOG_1(verbose_, "get_gkomatrix")
-        auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();
-        auto dense_x = x.get_dense_vec();
-        auto dense_b = b.get_dense_vec();
-
-        scalar scaling =
-            solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
-
-        if (scaling != 1) {
-            auto dense_scaling =
-                gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
-                    {scaling}, ref_exec));
-
-            // TODO FIXME fails cudaErrorIllegalAddress
-            SIMPLE_TIME(verbose_, scale_RHS,
-                        dense_b->scale(dense_scaling.get());)
-        }
-
-        SIMPLE_TIME(verbose_, init_precond,
-                    auto precond = this->init_preconditioner(
-                        gkomatrix.get_persistent_object(),
-                        this->get_exec_handler().get_device_exec());)
-        auto solver_gen = this->create_solver(
-            this->get_exec_handler().get_device_exec(),
-            gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
-            csr_matrix_wrapper_.get_export(), precond);
-        SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(
-                        gko::share(gkomatrix.get_persistent_object()));)
-        SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-        SIMPLE_TIME(verbose_, retrieve_result_from_device,
-                    x.copy_back(dense_x);)
-        auto bandwith_copy_back = sizeof(scalar) * psi.size() /
-                                  delta_t_retrieve_result_from_device / 1000.0;
-
-        solverPerf.initialResidual() = this->get_init_res_norm();
-        solverPerf.finalResidual() = this->get_res_norm();
-        solverPerf.nIterations() = this->get_number_of_iterations();
-        auto time_per_iter =
-            delta_t_solve * 1.0 / this->get_number_of_iterations();
-        auto time_per_iter_and_dof = time_per_iter * 1000.0 / psi.size();
-        word msg =
-            "Time per iteration  " + std::to_string(time_per_iter) +
-            std::string(" [mu s] Time per iteration and DOF ") +
-            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string(" retrieve results bandwith ") +
-            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
-        MLOG_0(verbose_, msg)
-
-        this->store_number_of_iterations();
-        return solverPerf;
-    }
-
-    template <class LocMatrixType>
-    std::shared_ptr<gko::distributed::Matrix<scalar, label, label>>
-    init_distributed_matrix(const LocMatrixType &gkomatrix,
-                            std::shared_ptr<const gko::mpi::communicator> comm,
-                            std::shared_ptr<const part_type> partition,
-                            const label local_size) const
-    {
-        auto device_exec = this->get_exec_handler().get_device_exec();
-        auto csr_matrix = gkomatrix.get_persistent_object();
-        auto num_elems = csr_matrix->get_num_stored_elements();
-
-        label size = partition->get_size();
-        auto coo = gko::share(
-            coo_mtx::create(device_exec, gko::dim<2>(local_size, local_size)));
-
-
-        auto csr_matrix_clone =
-            gko::make_temporary_clone(device_exec, csr_matrix.get());
-        csr_matrix_clone->convert_to(coo.get());
-
-        gko::device_matrix_data<scalar, label> A_data{
-            device_exec, gko::dim<2>{size, size},
-            idx_array::view(device_exec, num_elems, coo->get_row_idxs()),
-            idx_array::view(device_exec, num_elems, coo->get_col_idxs()),
-            val_array::view(device_exec, num_elems, coo->get_values())};
-
-        auto dist_A = gko::share(dist_mtx::create(*comm.get()));
-        dist_A->read_distributed(A_data, partition.get());
-        return dist_A;
-    }
 
 
     solverPerformance solve_multi_gpu_impl(scalarField &psi,
@@ -341,18 +192,33 @@ public:
 
 
         auto ref_exec = this->get_exec_handler().get_ref_exec();
-        auto device_partition = gko::share(
-            gko::distributed::build_partition_from_local_range<label, label>(
-                this->get_exec_handler().get_device_exec(), rows_start,
-                rows_end, *comm.get()));
 
+        PersistentPartition partition{
+            db_,
+            this->get_exec_handler(),
+            verbose_,
+            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1),
+            this->get_global_cell_index().offset(
+                Pstream::myProcNo()),  // offset
+            psi.size()                 // number of elements
+        };
+
+        MatrixWrapper<dist_mtx> dist_A{db_,
+                                       this->get_exec_handler(),  // get exec
+                                       this->get_col_idxs(),
+                                       this->get_row_idxs(),
+                                       this->get_values(),
+                                       partition,
+                                       solver_controls_,
+                                       this->fieldName(),
+                                       this->get_verbose()};
 
         PersistentVector<scalar> dist_b{
             &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
-            device_partition,
+            partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -363,11 +229,14 @@ public:
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
-            device_partition,
+            partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device/
         };
+        auto dist_x_v = dist_x.get_vector();
+        auto dist_b_v = dist_b.get_vector();
+        auto dist_A_v = dist_A.get();
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
@@ -380,120 +249,25 @@ public:
                         dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        SIMPLE_TIME(verbose_, gather_global_matrix,
-                    auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
-
-        SIMPLE_TIME(verbose_, generate_distributed_matrix,
-                    auto dist_A_org = init_distributed_matrix(
-                        gkomatrix, comm, device_partition, psi.size());)
-
-        SIMPLE_TIME(
-            verbose_, init_precond,
-            auto precond = this->init_preconditioner(
-                dist_A_org, this->get_exec_handler().get_device_exec());)
-
-        // check if repartitioning is requested
-        label ranks_per_gpu =
-            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1);
-        std::shared_ptr<gko::distributed::Partition<label, label>>
-            target_partition{};
-
-        auto dist_x_v_org = dist_x.get_vector();
-        auto dist_b_v_org = dist_b.get_vector();
-        std::shared_ptr<dist_vec> dist_x_v{};
-        std::shared_ptr<dist_vec> dist_b_v{};
-        std::shared_ptr<dist_mtx> dist_A{};
-        std::shared_ptr<dist_vec> to_x_vec;
-
-        std::shared_ptr<gko::distributed::repartitioner<label, label>>
-            repartitioner;
-
-        if (ranks_per_gpu != 1) {
-            // create new target partition
-            // if ranks_per_gpu == n, ranks which are not multiple of n have
-            // rows_start = rows_end
-            // ranks that are multiple of n have rows_end ==
-            // rows_start(n*(rank+1))
-
-
-            auto local_rank = comm->node_local_rank();
-            auto local_owning_rank =
-                ranks_per_gpu * (local_rank / ranks_per_gpu);
-            auto next_owning_rank = ranks_per_gpu + local_owning_rank;
-
-            // The new partition ranges up to next owning rank elements
-            auto target_rows_end =
-                device_partition->get_range_bounds()[next_owning_rank];
-
-            // if we are not on a owning rank start rows are set to be the end
-            // row else the rows start are unchanged
-            auto target_rows_start = (local_rank % ranks_per_gpu != 0)
-                                         ? target_rows_end
-                                         : rows_start;
-
-            target_partition = gko::share(
-                gko::distributed::build_partition_from_local_range<label,
-                                                                   label>(
-                    this->get_exec_handler().get_device_exec(),
-                    target_rows_start, target_rows_end, *comm.get()));
-
-            repartitioner = gko::share(
-                gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(), device_partition, target_partition));
-            auto to_comm = repartitioner->get_to_communicator();
-
-            to_x_vec = gko::share(dist_vec::create(to_comm));
-            auto to_b_vec = gko::share(dist_vec::create(to_comm));
-            auto to_mat = gko::share(dist_mtx::create(to_comm));
-
-            // gather data
-            SIMPLE_TIME(
-                verbose_, repartition_matrix,
-                this->repartition_gather(repartitioner, dist_A_org, to_mat);)
-
-            SIMPLE_TIME(verbose_, repartition_rhs,
-                        this->repartition_gather(repartitioner, dist_b_v_org,
-                                                 to_b_vec);)
-
-            SIMPLE_TIME(verbose_, repartition_x,
-                        this->repartition_gather(repartitioner, dist_x_v_org,
-                                                 to_x_vec);)
-
-            dist_x_v = to_x_vec;
-            dist_b_v = to_b_vec;
-            dist_A = to_mat;
-        } else {
-            target_partition = device_partition;
-            dist_x_v = dist_x.get_vector();
-            dist_b_v = dist_b.get_vector();
-            dist_A = dist_A_org;
-        }
-
+        SIMPLE_TIME(verbose_, init_precond,
+                    auto precond = this->init_preconditioner(
+                        dist_A_v, this->get_exec_handler().get_device_exec());)
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A, dist_x_v,
-            dist_b_v, verbose_, csr_matrix_wrapper_.get_export(), precond);
+            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
+            dist_b_v, verbose_, dist_A.get_export(), precond);
 
         SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(dist_A);)
+                    auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
         SIMPLE_TIME(verbose_, solve,
                     solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
-        // TODO this most likely involves copying via host, thus copying back to
-        // the device is uneeded
-        // check if scattering is nedded
-        if (ranks_per_gpu != 1) {
-            SIMPLE_TIME(
-                verbose_, repartition_scatter_x,
-                this->repartition_scatter(repartitioner, dist_x_v, to_x_vec);)
-        }
-
-
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
-        auto bandwith_copy_back =
-            sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
+        auto bandwith_copy_back = sizeof(scalar) *
+                                  partition.get_local_device_size() /
+                                  delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -501,7 +275,7 @@ public:
         this->store_number_of_iterations();
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / target_partition->get_size();
+            time_per_iter * 1000.0 / partition.get_total_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
@@ -528,7 +302,7 @@ public:
         if (Pstream::parRun()) {
             return solve_multi_gpu_impl(psi, source, solverPerf);
         } else {
-            return solve_serial_impl(psi, source, solverPerf);
+            Info << "Only parallel runs are supported " << endl;
         }
 
         return solverPerf;
