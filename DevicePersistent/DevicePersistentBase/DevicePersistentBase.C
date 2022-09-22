@@ -26,4 +26,8 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
 typedef gko::distributed::Partition<label, label> Partition;
 defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
                                "PersistentPartition");
+
+typedef gko::distributed::Matrix<scalar, label, label> GkoMatrix;
+defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
+                               "PersistentMatrix");
 }  // namespace Foam
