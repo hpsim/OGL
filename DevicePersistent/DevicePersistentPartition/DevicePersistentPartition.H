@@ -170,8 +170,7 @@ public:
     label get_local_device_size() const
     {
         auto comm = exec_.get_gko_mpi_device_comm();
-        auto local_rank = comm->node_local_rank();
-        return this->get_persistent_object()->get_part_size(local_rank);
+        return this->get_persistent_object()->get_part_size(comm->rank());
     }
 
 

@@ -55,7 +55,7 @@ struct ExecutorInitFunctor {
                           gko::share(gko::ReferenceExecutor::create()),
                           force_host_buffer)
                     : NULL),
-          device_id_((Pstream::parRun()) ? comm_->node_local_rank() : 0),
+          device_id_((Pstream::parRun()) ? comm_->rank() : 0),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
