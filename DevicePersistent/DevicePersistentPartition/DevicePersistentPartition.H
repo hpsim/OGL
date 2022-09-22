@@ -138,7 +138,7 @@ public:
         : PersistentBase<gko::distributed::Partition<label, label>,
                          PartitionInitFunctor>(
               "device_partition", db,
-              PartitionInitFunctor(exec, verbose, offset, offset + elements,
+              PartitionInitFunctor(exec, offset, offset + elements, verbose,
                                    ranks_per_gpu),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
