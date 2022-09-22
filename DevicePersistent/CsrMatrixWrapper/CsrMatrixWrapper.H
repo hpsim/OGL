@@ -122,10 +122,12 @@ struct MatrixInitFunctor {
                             *cols.get(), *rows.get()));
 
 
-        auto local_size = partition_.get_local_host_size();
 
         gko::matrix_data<scalar, label> A_data;
         local_mtx->write(A_data);
+
+        auto num_rows = partition_.get_total_size();
+	A_data.size = gko::dim<2> (num_rows, num_rows);
 
         auto comm = exec_.get_gko_mpi_comm_wrapper();
         auto dist_A = gko::share(dist_mtx::create(*comm.get()));
