@@ -121,15 +121,13 @@ struct MatrixInitFunctor {
             coo_mtx::create(exec, gko::dim<2>(nCells, nCells), *values.get(),
                             *cols.get(), *rows.get()));
 
-
-
         gko::matrix_data<scalar, label> A_data;
         local_mtx->write(A_data);
 
         auto num_rows = partition_.get_total_size();
-	A_data.size = gko::dim<2> (num_rows, num_rows);
+        A_data.size = gko::dim<2>(num_rows, num_rows);
 
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = gko::share(dist_mtx::create(*comm.get()));
         dist_A->read_distributed(A_data, partition_.get_host_partition().get());
 
@@ -147,7 +145,12 @@ struct MatrixInitFunctor {
 
         repartitioner->gather(dist_A.get(), to_mat.get());
 
-        return to_mat;
+        auto device_mat = gko::share(
+            dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
+
+        to_mat->move_to(device_mat.get());
+
+        return device_mat;
     }
 };
 

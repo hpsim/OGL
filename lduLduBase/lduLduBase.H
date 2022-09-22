@@ -184,13 +184,6 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        // build partition: uniform number of rows per rank
-        auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
-        auto rows_start =
-            this->get_global_cell_index().offset(Pstream::myProcNo());
-        auto rows_end = rows_start + psi.size();
-
-
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
         PersistentPartition partition{

@@ -152,7 +152,6 @@ typedef DevicePersistentBase<gko::OmpExecutor> GKOOmpExecPtr;
 typedef DevicePersistentBase<gko::HipExecutor> GKOHipExecPtr;
 typedef DevicePersistentBase<gko::DpcppExecutor> GKODpcppExecPtr;
 
-
 }  // namespace Foam
 
 #endif

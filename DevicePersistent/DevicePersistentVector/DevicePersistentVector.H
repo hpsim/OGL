@@ -110,7 +110,7 @@ struct VectorInitFunctor {
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto comm = exec_.get_gko_mpi_host_comm();
 
         const auto local_size = partition_.get_local_host_size();
         word msg{"initialising vector " + name_ + " of size " +
@@ -123,7 +123,7 @@ struct VectorInitFunctor {
 
         if (ranks_per_gpu_ == 1) {
             return gko::share(dist_vec::create(
-                *exec_.get_gko_mpi_comm_wrapper().get(),
+                *exec_.get_gko_mpi_host_comm().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
                     .get()));
         }
@@ -131,11 +131,11 @@ struct VectorInitFunctor {
         // when having more ranks than GPUs we must first repartition and
         // gather the vector
         auto host_vector = gko::share(dist_vec::create(
-            *exec_.get_gko_mpi_comm_wrapper().get(),
+            *exec_.get_gko_mpi_host_comm().get(),
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
 
         auto target_vector = gko::share(dist_vec::create(
-            *exec_.get_gko_mpi_comm_wrapper().get(),
+            *exec_.get_gko_mpi_host_comm().get(),
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
 
         // TODO test if this needs to be persistent
@@ -145,7 +145,13 @@ struct VectorInitFunctor {
                 partition_.get_device_partition()));
 
         repartitioner->gather(host_vector.get(), target_vector.get());
-        return target_vector;
+
+        auto device_vec = gko::share(
+            dist_vec::create(*exec_.get_gko_mpi_device_comm().get()));
+
+        target_vector->move_to(device_vec.get());
+
+        return device_vec;
     }
 };
 

@@ -70,7 +70,7 @@ struct PartitionInitFunctor {
     std::shared_ptr<gko::distributed::Partition<label, label>> init() const
     {
         auto exec = exec_.get_ref_exec();
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto comm = exec_.get_gko_mpi_host_comm();
 
         word msg{"initialising partition of size " +
                  std::to_string(rows_end_ - rows_start_)};
@@ -156,7 +156,7 @@ public:
     std::shared_ptr<const gko::distributed::Partition<label, label>>
     get_host_partition() const
     {
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto comm = exec_.get_gko_mpi_host_comm();
         return gko::share(
             gko::distributed::build_partition_from_local_range<label, label>(
                 exec_.get_ref_exec(), offset_, offset_ + elements_,
@@ -169,7 +169,7 @@ public:
     // number of elements on this rank on the device
     label get_local_device_size() const
     {
-        auto comm = exec_.get_gko_mpi_comm_wrapper();
+        auto comm = exec_.get_gko_mpi_device_comm();
         auto local_rank = comm->node_local_rank();
         return this->get_persistent_object()->get_part_size(local_rank);
     }

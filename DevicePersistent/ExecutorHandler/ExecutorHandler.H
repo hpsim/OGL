@@ -100,7 +100,7 @@ class ExecutorHandler
 private:
     const bool gko_force_host_buffer_;
 
-    mutable std::shared_ptr<gko::mpi::communicator> comm_;
+    mutable std::shared_ptr<gko::mpi::communicator> device_comm_;
 
     const word device_executor_name_;
 
@@ -119,7 +119,7 @@ public:
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("force_host_buffer", false)),
-          comm_((Pstream::parRun())
+          device_comm_((Pstream::parRun())
                     ? std::make_shared<gko::mpi::communicator>(
                           MPI_COMM_WORLD, this->get_persistent_object(),
                           gko_force_host_buffer_)
@@ -146,9 +146,16 @@ public:
 
     word get_exec_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_comm_wrapper() const
+    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_host_comm() const
     {
-        return this->comm_;
+        return std::make_shared<gko::mpi::communicator>(
+            MPI_COMM_WORLD, this->get_persistent_object()->get_master(),
+            gko_force_host_buffer_);
+    }
+
+    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_device_comm() const
+    {
+        return this->device_comm_;
     }
 };
 
