@@ -67,7 +67,13 @@ struct MatrixInitFunctor {
           verbose_(verbose)
     {}
 
-    void update(std::shared_ptr<dist_mtx> &csr_matrix) const {}
+    void update(std::shared_ptr<dist_mtx> &csr_matrix) const
+    {
+        // FIXME for now we just rebuild the distributed matrix
+        // on the Ginkgo side some update functionalities should be implemented
+
+        csr_matrix = init();
+    }
 
     std::shared_ptr<mtx> init() const
     {
