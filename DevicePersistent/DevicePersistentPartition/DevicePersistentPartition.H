@@ -44,9 +44,9 @@ struct PartitionInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const label rows_start_;
-
     const label rows_end_;
+
+    const label rows_start_;
 
     const label verbose_;
 

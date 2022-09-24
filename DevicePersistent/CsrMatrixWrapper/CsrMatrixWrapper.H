@@ -132,7 +132,10 @@ struct MatrixInitFunctor {
         dist_A->read_distributed(A_data, partition_.get_host_partition().get());
 
         if (partition_.get_ranks_per_gpu() == 1) {
-            return dist_A;
+            auto device_mat = gko::share(
+                dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
+            dist_A->move_to(device_mat.get());
+            return device_mat;
         }
 
         // TODO test if this needs to be persistent

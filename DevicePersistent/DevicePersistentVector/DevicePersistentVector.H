@@ -223,13 +223,12 @@ public:
             auto repartitioner = gko::share(
                 gko::distributed::repartitioner<label, label>::create(
                     *comm.get(),
-                    partition_.get_device_partition(),
-		    partition_.get_host_partition()
-		    )
-		);
+                    partition_.get_host_partition(),    // from
+                    partition_.get_device_partition())  // to
+            );
 
-            repartitioner->scatter(target_vector.get(),
-                                   host_device_vector.get());
+            repartitioner->scatter(host_device_vector.get(),
+                                   target_vector.get());
             host_buffer = target_vector->get_local_values();
         }
 
