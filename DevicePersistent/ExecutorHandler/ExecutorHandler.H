@@ -47,7 +47,7 @@ struct ExecutorInitFunctor {
     const label verbose_;
 
     ExecutorInitFunctor(const word executor_name, const word field_name,
-                        const label verbose,
+                        const label verbose, const label gpus_per_rank,
                         const bool force_host_buffer = false)
         : comm_((Pstream::parRun())  // TODO make this DRY
                     ? std::make_shared<gko::mpi::communicator>(
@@ -55,7 +55,7 @@ struct ExecutorInitFunctor {
                           gko::share(gko::ReferenceExecutor::create()),
                           force_host_buffer)
                     : NULL),
-          device_id_((Pstream::parRun()) ? comm_->rank() : 0),
+          device_id_((Pstream::parRun()) ? comm_->rank() / gpus_per_rank : 0),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
@@ -115,15 +115,16 @@ public:
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
-                  solverControls.lookupOrDefault("force_host_buffer", false)),
+                  solverControls.lookupOrDefault("force_host_buffer", false),
+                  solverControls.lookupOrDefault("RanksPerGPU", false)),
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("force_host_buffer", false)),
           device_comm_((Pstream::parRun())
-                    ? std::make_shared<gko::mpi::communicator>(
-                          MPI_COMM_WORLD, this->get_persistent_object(),
-                          gko_force_host_buffer_)
-                    : NULL),
+                           ? std::make_shared<gko::mpi::communicator>(
+                                 MPI_COMM_WORLD, this->get_persistent_object(),
+                                 gko_force_host_buffer_)
+                           : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
