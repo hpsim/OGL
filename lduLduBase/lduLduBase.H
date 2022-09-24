@@ -96,8 +96,8 @@ public:
             std::string(")\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
-            std::to_string(force_host_buffer_)
-                std::string("\n\tCPU ranks per GPU: ") +
+            std::to_string(force_host_buffer_) +
+            std::string("\n\tCPU ranks per GPU: ") +
             std::to_string(ranks_per_gpu_);
         MLOG_0(verbose_, msg)
 
