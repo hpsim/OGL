@@ -51,6 +51,8 @@ struct MatrixInitFunctor {
 
     const PersistentArray<scalar> &values_;
 
+    const word matrix_format_;
+
     const label verbose_;
 
     MatrixInitFunctor(const ExecutorHandler &exec,
@@ -58,12 +60,13 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &col_idxs,
                       const PersistentArray<label> &row_idxs,
                       const PersistentArray<scalar> &values,
-                      const label verbose)
+                      const word matrix_format, const label verbose)
         : exec_(exec),
           partition_(partition),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
           values_(values),
+          matrix_format_(matrix_format),
           verbose_(verbose)
     {}
 
@@ -73,6 +76,25 @@ struct MatrixInitFunctor {
         // on the Ginkgo side some update functionalities should be implemented
 
         init()->move_to(csr_matrix.get());
+    }
+
+    std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
+        std::shared_ptr<gko::mpi::communicator> comm) const
+    {
+        if (matrix_format_ == "csr") {
+            return dist_mtx::create(*comm.get(),
+                                    gko::with_matrix_type<gko::matrix::Csr>());
+        }
+        if (matrix_format_ == "Ell") {
+            return dist_mtx::create(*comm.get(),
+                                    gko::with_matrix_type<gko::matrix::Ell>());
+        }
+        if (matrix_format_ == "Hybrid") {
+            return dist_mtx::create(
+                *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
+        }
+        return dist_mtx::create(*comm.get(),
+                                gko::with_matrix_type<gko::matrix::Coo>());
     }
 
     std::shared_ptr<mtx> init() const
@@ -123,31 +145,38 @@ struct MatrixInitFunctor {
         }
         auto exec = exec_.get_ref_exec();
 
-        auto start_build= std::chrono::steady_clock::now();
+        auto start_build = std::chrono::steady_clock::now();
         auto local_mtx = gko::share(
             coo_mtx::create(exec, gko::dim<2>(nCells, nCells), *values.get(),
                             *cols.get(), *rows.get()));
         auto end_build = std::chrono::steady_clock::now();
-        auto delta_t_build = std::chrono::duration_cast<std::chrono::microseconds>(
-			end_build - start_build).count();                                                      
+        auto delta_t_build =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_build -
+                                                                  start_build)
+                .count();
 
         gko::matrix_data<scalar, label> A_data;
-        auto start_write= std::chrono::steady_clock::now();
+        auto start_write = std::chrono::steady_clock::now();
         local_mtx->write(A_data);
-        auto end_write= std::chrono::steady_clock::now();
-        auto delta_t_write = std::chrono::duration_cast<std::chrono::microseconds>(
-			end_write - start_write).count();                                                      
+        auto end_write = std::chrono::steady_clock::now();
+        auto delta_t_write =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_write -
+                                                                  start_write)
+                .count();
 
         auto num_rows = partition_.get_total_size();
         A_data.size = gko::dim<2>(num_rows, num_rows);
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto dist_A = gko::share(dist_mtx::create(*comm.get()));
-        auto start_dist= std::chrono::steady_clock::now();
+        auto start_dist = std::chrono::steady_clock::now();
+        auto dist_A =
+            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
         dist_A->read_distributed(A_data, partition_.get_host_partition().get());
-        auto end_dist= std::chrono::steady_clock::now();
-        auto delta_t_dist = std::chrono::duration_cast<std::chrono::microseconds>(
-			end_dist - start_dist).count();                                                      
+        auto end_dist = std::chrono::steady_clock::now();
+        auto delta_t_dist =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_dist -
+                                                                  start_dist)
+                .count();
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = gko::share(
@@ -163,8 +192,10 @@ struct MatrixInitFunctor {
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
         auto end_repart = std::chrono::steady_clock::now();
-        auto delta_t_repart = std::chrono::duration_cast<std::chrono::microseconds>(
-			end_repart - start_repart).count();                                                      
+        auto delta_t_repart =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_repart -
+                                                                  start_repart)
+                .count();
 
         auto to_mat =
             gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
@@ -172,14 +203,14 @@ struct MatrixInitFunctor {
         auto start_gather = std::chrono::steady_clock::now();
         repartitioner->gather(dist_A.get(), to_mat.get());
         auto end_gather = std::chrono::steady_clock::now();
-        auto delta_t_gather= std::chrono::duration_cast<std::chrono::microseconds>(
-			end_gather - start_gather).count();                                                      
+        auto delta_t_gather =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_gather -
+                                                                  start_gather)
+                .count();
 
-	std::cout << 
-		" delta t build " << delta_t_build <<
-		" delta t write " << delta_t_write <<
-		" delta t repart " << delta_t_repart << 
-		" delta t gather " << delta_t_gather << std::endl;
+        std::cout << " delta t build " << delta_t_build << " delta t write "
+                  << delta_t_write << " delta t repart " << delta_t_repart
+                  << " delta t gather " << delta_t_gather << std::endl;
 
         auto device_mat = gko::share(
             dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
@@ -215,8 +246,10 @@ public:
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
-              MatrixInitFunctor<mtx>(exec, partition, col_idxs, row_idxs,
-                                     values, verbose_),
+              MatrixInitFunctor<mtx>(
+                  exec, partition, col_idxs, row_idxs, values,
+                  controlDict.lookupOrDefault<word>("matrix_format", "coo"),
+                  verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
