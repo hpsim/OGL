@@ -72,7 +72,7 @@ struct MatrixInitFunctor {
         // FIXME for now we just rebuild the distributed matrix
         // on the Ginkgo side some update functionalities should be implemented
 
-        csr_matrix = init();
+        init()->move_to(csr_matrix.get());
     }
 
     std::shared_ptr<mtx> init() const
@@ -123,19 +123,31 @@ struct MatrixInitFunctor {
         }
         auto exec = exec_.get_ref_exec();
 
+        auto start_build= std::chrono::steady_clock::now();
         auto local_mtx = gko::share(
             coo_mtx::create(exec, gko::dim<2>(nCells, nCells), *values.get(),
                             *cols.get(), *rows.get()));
+        auto end_build = std::chrono::steady_clock::now();
+        auto delta_t_build = std::chrono::duration_cast<std::chrono::microseconds>(
+			end_build - start_build).count();                                                      
 
         gko::matrix_data<scalar, label> A_data;
+        auto start_write= std::chrono::steady_clock::now();
         local_mtx->write(A_data);
+        auto end_write= std::chrono::steady_clock::now();
+        auto delta_t_write = std::chrono::duration_cast<std::chrono::microseconds>(
+			end_write - start_write).count();                                                      
 
         auto num_rows = partition_.get_total_size();
         A_data.size = gko::dim<2>(num_rows, num_rows);
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = gko::share(dist_mtx::create(*comm.get()));
+        auto start_dist= std::chrono::steady_clock::now();
         dist_A->read_distributed(A_data, partition_.get_host_partition().get());
+        auto end_dist= std::chrono::steady_clock::now();
+        auto delta_t_dist = std::chrono::duration_cast<std::chrono::microseconds>(
+			end_dist - start_dist).count();                                                      
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = gko::share(
@@ -145,14 +157,29 @@ struct MatrixInitFunctor {
         }
 
         // TODO test if this needs to be persistent
+        auto start_repart = std::chrono::steady_clock::now();
         auto repartitioner =
             gko::share(gko::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
+        auto end_repart = std::chrono::steady_clock::now();
+        auto delta_t_repart = std::chrono::duration_cast<std::chrono::microseconds>(
+			end_repart - start_repart).count();                                                      
+
         auto to_mat =
             gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
 
+        auto start_gather = std::chrono::steady_clock::now();
         repartitioner->gather(dist_A.get(), to_mat.get());
+        auto end_gather = std::chrono::steady_clock::now();
+        auto delta_t_gather= std::chrono::duration_cast<std::chrono::microseconds>(
+			end_gather - start_gather).count();                                                      
+
+	std::cout << 
+		" delta t build " << delta_t_build <<
+		" delta t write " << delta_t_write <<
+		" delta t repart " << delta_t_repart << 
+		" delta t gather " << delta_t_gather << std::endl;
 
         auto device_mat = gko::share(
             dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));

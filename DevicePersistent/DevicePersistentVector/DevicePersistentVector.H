@@ -80,7 +80,7 @@ struct VectorInitFunctor {
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
 
-        persistent_vector = init();
+        init()->move_to(persistent_vector.get());
     }
 
     std::shared_ptr<gko::distributed::Vector<T>> init() const
