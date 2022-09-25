@@ -62,6 +62,8 @@ private:
 
     const label ranks_per_gpu_;
 
+    const word matrix_format_;
+
 public:
     OGL_Info(const word &fieldName, const dictionary &solverControls,
              const objectRegistry &db)
@@ -71,7 +73,9 @@ public:
           force_host_buffer_(
               solverControls.lookupOrDefault("force_host_buffer", false)),
           ranks_per_gpu_(
-              solverControls.lookupOrDefault<label>("RanksPerGPU", 1))
+              solverControls.lookupOrDefault<label>("RanksPerGPU", 1)),
+          matrix_format_(
+              solverControls.lookupOrDefault<word>("matrix_format", "coo"))
     {
         if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
             print_info();
@@ -98,7 +102,8 @@ public:
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
             std::string("\n\tCPU ranks per GPU: ") +
-            std::to_string(ranks_per_gpu_);
+            std::to_string(ranks_per_gpu_) +
+            std::string("\n\tMatrix format: ") + matrix_format_;
         MLOG_0(verbose_, msg)
 
         // if in debug mode write pid

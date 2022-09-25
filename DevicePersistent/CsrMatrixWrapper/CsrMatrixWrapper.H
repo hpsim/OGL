@@ -179,8 +179,8 @@ struct MatrixInitFunctor {
                 .count();
 
         if (partition_.get_ranks_per_gpu() == 1) {
-            auto device_mat = gko::share(
-                dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
+            auto device_mat = generate_dist_mtx_with_inner_type(
+                exec_.get_gko_mpi_device_comm());
             dist_A->move_to(device_mat.get());
             return device_mat;
         }

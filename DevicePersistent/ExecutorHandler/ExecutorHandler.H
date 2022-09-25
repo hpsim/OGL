@@ -115,8 +115,8 @@ public:
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
-                  solverControls.lookupOrDefault("force_host_buffer", false),
-                  solverControls.lookupOrDefault("RanksPerGPU", false)),
+                  solverControls.lookupOrDefault("RanksPerGPU", label(1)),
+                  solverControls.lookupOrDefault("force_host_buffer", false)),
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("force_host_buffer", false)),
