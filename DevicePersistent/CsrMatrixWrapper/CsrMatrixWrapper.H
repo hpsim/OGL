@@ -81,7 +81,7 @@ struct MatrixInitFunctor {
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
         std::shared_ptr<gko::mpi::communicator> comm) const
     {
-        if (matrix_format_ == "csr") {
+        if (matrix_format_ == "Csr") {
             return dist_mtx::create(*comm.get(),
                                     gko::with_matrix_type<gko::matrix::Csr>());
         }
@@ -93,8 +93,13 @@ struct MatrixInitFunctor {
             return dist_mtx::create(
                 *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
         }
-        return dist_mtx::create(*comm.get(),
-                                gko::with_matrix_type<gko::matrix::Coo>());
+        if (matrix_format_ == "Coo") {
+            return dist_mtx::create(*comm.get(),
+                                    gko::with_matrix_type<gko::matrix::Coo>());
+        }
+
+        FatalErrorInFunction << "Matrix format " << matrix_format_
+                             << " not supported " << abort(FatalError);
     }
 
     std::shared_ptr<mtx> init() const
@@ -248,7 +253,7 @@ public:
               sys_matrix_name + "_matrix", db,
               MatrixInitFunctor<mtx>(
                   exec, partition, col_idxs, row_idxs, values,
-                  controlDict.lookupOrDefault<word>("matrix_format", "coo"),
+                  controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
                   verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}

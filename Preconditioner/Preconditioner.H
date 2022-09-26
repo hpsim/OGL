@@ -60,7 +60,7 @@ public:
         : sys_matrix_name_(sys_matrix_name),
           db_(db),
           cache_preconditioner_(
-              solverControls.lookupOrDefault("PreconditionerCaching", 1)),
+              solverControls.lookupOrDefault("preconditionerCaching", 1)),
           solverControls_(solverControls),
           verbose_(verbose)
     {}
@@ -111,12 +111,12 @@ public:
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
-            controls.lookupOrDefault<Switch>("SkipSorting", true);
+            controls.lookupOrDefault<Switch>("skipSorting", true);
 
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(
-                controls.lookupOrDefault("MaxBlockSize", label(1)));
+                controls.lookupOrDefault("maxBlockSize", label(1)));
 
             word msg = "Generate preconditioner " + name + " MaxBlockSize " +
                        std::to_string(max_block_size);
@@ -223,7 +223,7 @@ public:
         }
         if (name == "ICT") {
             bool approx_select(
-                controls.lookupOrDefault("ApproximateSelect", false));
+                controls.lookupOrDefault("approximateSelect", false));
             word msg = "Generate preconditioner " + name +
                        " with approximate select " +
                        std::to_string(approx_select);
@@ -247,7 +247,7 @@ public:
         }
         if (name == "ISAI") {
             label sparsity_power(
-                controls.lookupOrDefault("SparsityPower", label(1)));
+                controls.lookupOrDefault("sparsityPower", label(1)));
 
             word msg = "Generate preconditioner " + name + " SparsityPower " +
                        std::to_string(sparsity_power);
@@ -301,7 +301,7 @@ public:
             //                   .on(device_exec));
 
             const label coarse_solver_iters(
-                controls.lookupOrDefault("CoarseSolverIters", label(4)));
+                controls.lookupOrDefault("coarseSolverIters", label(4)));
             auto coarsest_gen = gko::share(
                 cg::build()
                     .with_criteria(gko::stop::Iteration::build()
@@ -309,7 +309,7 @@ public:
                                        .on(device_exec))
                     .on(device_exec));
 
-            auto cycle_name = controls.lookupOrDefault("Cycle", word("v"));
+            auto cycle_name = controls.lookupOrDefault("cycle", word("v"));
             gko::solver::multigrid::cycle cycle;
 
             if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
@@ -321,10 +321,10 @@ public:
                 cycle = gko::solver::multigrid::cycle::kgcr;
 
             // Create multigrid factory
-            label max_levels(controls.lookupOrDefault("MaxLevels", label(9)));
+            label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
             label min_coarse_rows(
-                controls.lookupOrDefault("MinCoarseRows", label(10)));
-            bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess", true));
+                controls.lookupOrDefault("minCoarseRows", label(10)));
+            bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
 
             word msg = "Generate preconditioner " + name + " MaxLevels " +
                        std::to_string(max_levels) + " MinCoarseRows " +
@@ -395,7 +395,7 @@ public:
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
                 const label caching_period =
-                    controls.lookupOrDefault<label>("Caching", 0);
+                    controls.lookupOrDefault<label>("caching", 0);
                 set_next_caching(sys_matrix_name_, db_, caching_period);
 
                 auto generated_precond = init_preconditioner_impl(
@@ -407,7 +407,7 @@ public:
             }
         }
         const label caching_period =
-            controls.lookupOrDefault<label>("Caching", 0);
+            controls.lookupOrDefault<label>("caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
         cache = get_next_caching(sys_matrix_name_, db_);
 

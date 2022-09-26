@@ -115,11 +115,11 @@ public:
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
-                  solverControls.lookupOrDefault("RanksPerGPU", label(1)),
-                  solverControls.lookupOrDefault("force_host_buffer", false)),
+                  solverControls.lookupOrDefault("ranksPerGPU", label(1)),
+                  solverControls.lookupOrDefault("forceHostBuffer", false)),
               true, 0),
           gko_force_host_buffer_(
-              solverControls.lookupOrDefault("force_host_buffer", false)),
+              solverControls.lookupOrDefault("forceHostBuffer", false)),
           device_comm_((Pstream::parRun())
                            ? std::make_shared<gko::mpi::communicator>(
                                  MPI_COMM_WORLD, this->get_persistent_object(),

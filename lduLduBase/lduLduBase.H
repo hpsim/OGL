@@ -71,11 +71,11 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
           force_host_buffer_(
-              solverControls.lookupOrDefault("force_host_buffer", false)),
+              solverControls.lookupOrDefault("forceHostBuffer", false)),
           ranks_per_gpu_(
-              solverControls.lookupOrDefault<label>("RanksPerGPU", 1)),
+              solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
-              solverControls.lookupOrDefault<word>("matrix_format", "coo"))
+              solverControls.lookupOrDefault<word>("matrixFormat", "Coo"))
     {
         if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
             print_info();
@@ -201,7 +201,7 @@ public:
             db_,
             this->get_exec_handler(),
             verbose_,
-            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1),
+            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             this->get_global_cell_index().offset(
                 Pstream::myProcNo()),  // offset
             psi.size()                 // number of elements
