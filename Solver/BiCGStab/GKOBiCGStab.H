@@ -105,6 +105,18 @@ public:
         return stoppingCriterion_.get_res_norms();
     }
 
+    scalar get_solve_prev_rel_res_cost() const
+    {
+        return ::Foam::get_solve_prev_rel_res_cost(sysMatrixName_, db_);
+    }
+
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
+
+
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,

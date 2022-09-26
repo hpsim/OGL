@@ -86,16 +86,17 @@ void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
     }
 }
 
-label get_gko_solver_property(word sys_matrix_name_, word key,
-                              const objectRegistry &db)
+template <typename T>
+T get_gko_solver_property(word sys_matrix_name_, word key,
+                          const objectRegistry &db, T in)
 {
     const word solvPropsDict = sys_matrix_name_ + "_gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
         label pre_solve_iters = db.lookupObject<IOdictionary>(solvPropsDict)
-                                    .lookupOrDefault<label>(key, 0);
+                                    .lookupOrDefault<T>(key, in);
         return pre_solve_iters;
     }
-    return 0;
+    return in;
 }
 
 void set_next_caching(word sys_matrix_name, const objectRegistry &db,
@@ -107,10 +108,24 @@ void set_next_caching(word sys_matrix_name, const objectRegistry &db,
 
 label get_next_caching(word sys_matrix_name, const objectRegistry &db)
 {
-    return get_gko_solver_property(sys_matrix_name, "preconditionerCaching",
-                                   db);
+    return get_gko_solver_property(sys_matrix_name, "preconditionerCaching", db,
+                                   label(0));
 }
 
+void set_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                 const objectRegistry &db,
+                                 scalar prev_solve_rel_res_cost)
+{
+    set_gko_solver_property(sys_matrix_name, db, "_prev_solve",
+                            prev_solve_rel_res_cost);
+}
+
+scalar get_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                   const objectRegistry &db)
+{
+    return get_gko_solver_property(sys_matrix_name, "_prev_solve", db,
+                                   scalar(0.0));
+}
 
 void set_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters, const bool is_final)
@@ -125,7 +140,7 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
 {
     const word iters_name =
         (is_final) ? "prevSolveIters_final" : "prevSolveIters";
-    return get_gko_solver_property(sys_matrix_name, iters_name, db);
+    return get_gko_solver_property(sys_matrix_name, iters_name, db, label(1));
 }
 
 std::ostream &operator<<(std::ostream &os,

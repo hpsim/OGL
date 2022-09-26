@@ -82,7 +82,7 @@ struct PartitionInitFunctor {
 
         if (ranks_per_gpu_ == 1) return host_partition;
 
-        auto local_rank = comm->node_local_rank();
+        auto local_rank = comm->rank();
         auto local_owning_rank = ranks_per_gpu_ * (local_rank / ranks_per_gpu_);
         auto next_owning_rank = ranks_per_gpu_ + local_owning_rank;
 

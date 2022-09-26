@@ -279,6 +279,7 @@ public:
         this->store_number_of_iterations();
         auto time_for_res_norm_eval = this->get_res_norm_time();
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        this->set_prev_rel_res_cost(time_per_iter / time_for_res_norm_eval);
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition.get_total_size();
         word msg =
