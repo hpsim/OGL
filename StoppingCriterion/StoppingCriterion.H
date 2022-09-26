@@ -574,8 +574,9 @@ public:
         if (!export_res) {
             if (prev_solve_iters > 0 && adapt_minIter_) {
                 minIter = prev_solve_iters * relaxationFactor_;
+                auto alpha = sqrt(1.0/(prev_solve_iters*(1.0-relaxationFactor_)));
                 frequency =
-                    min(norm_eval_limit_, max(1, minIter * res_norm_eval_));
+                    min(norm_eval_limit_, max(1, label(1/alpha)));
             }
         }
 
