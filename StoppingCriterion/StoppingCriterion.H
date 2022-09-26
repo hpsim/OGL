@@ -71,6 +71,9 @@ class StoppingCriterion {
             std::add_pointer<label>::type GKO_FACTORY_PARAMETER_SCALAR(iter,
                                                                        NULL);
 
+            std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(time,
+                                                                        NULL);
+
             std::add_pointer<scalar>::type GKO_FACTORY_PARAMETER_SCALAR(
                 residual_norm, NULL);
 
@@ -96,7 +99,7 @@ class StoppingCriterion {
 
         GKO_ENABLE_BUILD_METHOD(Factory);
 
-    //protected:
+        // protected:
         /* Compute the SPMV of A with x_ref
          *
          *
@@ -177,6 +180,7 @@ class StoppingCriterion {
                         bool *one_changed,
                         const Criterion::Updater &updater) override
         {
+            auto start_eval = std::chrono::steady_clock::now();
             if (*(parameters_.iter) > 0 &&
                 *(parameters_.iter) < parameters_.openfoam_minIter) {
                 *(parameters_.iter) += 1;
@@ -247,6 +251,11 @@ class StoppingCriterion {
             }
 
             *(parameters_.iter) += 1;
+
+            auto end_eval = std::chrono::steady_clock::now();
+            *(parameters_.time) =
+                std::chrono::duration_cast<std::chrono::microseconds>(end_eval -
+                                                                    start_eval).count()/1.0;
             return result;
         }
 
@@ -331,7 +340,7 @@ class StoppingCriterion {
 
         GKO_ENABLE_BUILD_METHOD(Factory);
 
-//    protected:
+        //    protected:
         void compute_Axref(std::shared_ptr<const gko::Executor> device_exec,
                            std::shared_ptr<const mtx> gkomatrix,
                            std::shared_ptr<vec> x,
@@ -476,8 +485,8 @@ class StoppingCriterion {
                   std::move(exec))
         {}
 
-        /*explicit*/ OpenFOAMStoppingCriterion(const Factory *factory,
-                                           const gko::stop::CriterionArgs &args)
+        /*explicit*/ OpenFOAMStoppingCriterion(
+            const Factory *factory, const gko::stop::CriterionArgs &args)
 
             : EnablePolymorphicObject<OpenFOAMStoppingCriterion, Criterion>(
                   factory->get_executor()),
@@ -524,6 +533,7 @@ class StoppingCriterion {
 
     mutable label iter_;
 
+    mutable scalar time_;
 
 public:
     StoppingCriterion(const dictionary &controlDict)
@@ -545,49 +555,11 @@ public:
               gko::dim<2>{(gko::dim<2>::dimension_type)maxIter_, 1}))),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0),
-          iter_(0)
+          iter_(0),
+          time_(0)
     {
         normalised_res_norms_->fill(0.0);
         if (word(controlDict.lookup("solver")) == "GKOBiCGStab") maxIter_ *= 2;
-    }
-
-    std::shared_ptr<const gko::stop::CriterionFactory> build_stopping_criterion(
-        std::shared_ptr<gko::Executor> device_exec,
-        std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-        std::shared_ptr<vec> b, label verbose, bool export_res,
-        label prev_solve_iters) const
-    {
-        label minIter = minIter_;
-        label frequency = frequency_;
-        if (!export_res) {
-            if (prev_solve_iters > 0 && adapt_minIter_) {
-                minIter = prev_solve_iters * relaxationFactor_;
-                frequency = max(1, minIter / 20);
-            }
-        }
-
-        word msg = "Creating stopping criterion with minIter " +
-                   std::to_string(minIter) + " frequency " +
-                   std::to_string(frequency);
-
-        MLOG_1(verbose, msg)
-
-        return OpenFOAMStoppingCriterion::build()
-            .with_openfoam_absolute_tolerance(tolerance_)
-            .with_openfoam_relative_tolerance(relTol_)
-            .with_openfoam_minIter(minIter)
-            .with_openfoam_maxIter(maxIter_)
-            .with_frequency(frequency)
-            .with_verbose(verbose)
-            .with_export_res(export_res)
-            .with_init_residual_norm(&init_normalised_res_norm_)
-            .with_residual_norm(&normalised_res_norm_)
-            .with_residual_norms(normalised_res_norms_)
-            .with_iter(&iter_)
-            .with_gkomatrix(gkomatrix)
-            .with_x(x)
-            .with_b(b)
-            .on(device_exec);
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory>
@@ -625,6 +597,7 @@ public:
             .with_residual_norm(&normalised_res_norm_)
             .with_residual_norms(normalised_res_norms_)
             .with_iter(&iter_)
+            .with_time(&time_)
             .with_gkomatrix(gkomatrix)
             .with_x(x)
             .with_b(b)
@@ -635,27 +608,12 @@ public:
 
     scalar get_res_norm() const { return normalised_res_norm_; }
 
-    std::shared_ptr<vec> get_res_norms() const
-    {
-        // std::unique_ptr<val_array> norms_array{new val_array{
-        //     exec, normalised_res_norms_.begin(),
-        //     normalised_res_norms_.end()}};
-
-        // auto res_norms = gko::share(
-        //     vec::create(exec->get_master(), gko::dim<2>(res_norms_.size(),
-        //     1),
-        //                 norms_array->as_view(), 1));
-
-        // std::string fn_x{"export/p_res_norms.mtx"};
-        // std::ofstream stream_x{fn_x};
-        // std::cerr << "Writing " << fn_x << std::endl;
-        // gko::write(stream_x, res_norms.get());
-
-        return normalised_res_norms_;
-    }
+    std::shared_ptr<vec> get_res_norms() const { return normalised_res_norms_; }
     label get_is_final() const { return relTol_ == 0.0; }
 
     label get_num_iters() const { return iter_; }
+
+    scalar get_res_norm_time() const { return time_; }
 };
 }  // namespace Foam
 

@@ -277,12 +277,15 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
+        auto time_for_res_norm_eval = this->get_res_norm_time();
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition.get_total_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
+            std::string(" [mu s]\n\tTime per residual norm calculation: ") +
+            std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
             std::string("\n\tRetrieve results bandwith ") +

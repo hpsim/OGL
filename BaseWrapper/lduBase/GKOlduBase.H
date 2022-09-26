@@ -61,21 +61,6 @@ namespace Foam {
         return create_default(exec);                                         \
     };                                                                       \
                                                                              \
-    std::unique_ptr<Solver::Factory, std::default_delete<Solver::Factory>>   \
-    create_solver(                                                           \
-        std::shared_ptr<gko::Executor> exec, std::shared_ptr<mtx> gkomatrix, \
-        std::shared_ptr<vec> x, std::shared_ptr<vec> b, const label verbose, \
-        const bool export_res, std::shared_ptr<gko::LinOp> precond) const    \
-    {                                                                        \
-        stoppingCriterionVec_.push_back(                                     \
-            stoppingCriterion_.build_stopping_criterion(                     \
-                exec, gkomatrix, x, b, verbose, export_res,                  \
-                get_prev_number_of_iterations()));                           \
-                                                                             \
-        if (precond != NULL) return create_precond(exec, precond);           \
-        return create_default(exec);                                         \
-    };
-
 
 template <class SolverFactory>
 class GKOlduBaseSolver : public lduLduBase<lduMatrix, SolverFactory> {

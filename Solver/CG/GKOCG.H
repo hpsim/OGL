@@ -89,6 +89,8 @@ public:
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
 
+    scalar get_res_norm_time() const { return stoppingCriterion_.get_res_norm_time(); }
+
     std::shared_ptr<vec> get_res_norms() const
     {
         return stoppingCriterion_.get_res_norms();
