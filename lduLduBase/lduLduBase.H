@@ -38,6 +38,9 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+#include <unistd.h>
+#include <fstream>
+#include <iostream>
 
 const char *git_version(void);
 
@@ -47,88 +50,37 @@ const char *git_branch(void);
 
 namespace Foam {
 
-template <class MatrixType, class SolverFactory>
-class lduLduBase : public SolverFactory,
-                   public HostMatrixWrapper<MatrixType>,
-                   public Preconditioner {
+class OGL_Info {
 private:
-    using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
-    using GlobalIndexType = gko::int64;
-    using part_type = gko::distributed::Partition<label, label>;
-    using mtx = gko::matrix::Csr<scalar>;
-    using coo_mtx = gko::matrix::Coo<scalar>;
-    using vec = gko::matrix::Dense<scalar>;
-    using idx_array = gko::array<label>;
-    using val_array = gko::array<scalar>;
-
     const objectRegistry &db_;
-
-    const CsrMatrixWrapper csr_matrix_wrapper_;
-
-    const dictionary &solver_controls_;
 
     const label verbose_;
 
+    const bool debug_;
+
+    const bool force_host_buffer_;
+
+    const label ranks_per_gpu_;
+
+    const word matrix_format_;
+
 public:
-    // constructor for segregated solver
-    lduLduBase(const word &fieldName, const lduMatrix &matrix,
-               const FieldField<Field, scalar> &interfaceBouCoeffs,
-               const FieldField<Field, scalar> &interfaceIntCoeffs,
-               const lduInterfaceFieldPtrsList &interfaces,
-               const dictionary &solverControls)
-        : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>{matrix.mesh().thisDb(),
-                                        matrix,
-                                        interfaceBouCoeffs,
-                                        interfaceIntCoeffs,
-                                        interfaces,
-                                        solverControls,
-                                        fieldName},
-          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
-                         this->get_verbose()),
-          db_(matrix.mesh().thisDb()),
-          csr_matrix_wrapper_{db_,  // 1
-                              this->get_exec_handler(),
-                              this->get_col_idxs(),
-                              this->get_row_idxs(),
-                              this->get_values(),
-                              solverControls,
-                              fieldName,
-                              this->get_global_cell_index(),
-                              this->get_verbose()},
-          // gkoPreconditionerFactory_{db_, solverControls, fieldName},
-          solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+    OGL_Info(const word &fieldName, const dictionary &solverControls,
+             const objectRegistry &db)
+        : db_(db),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
+          force_host_buffer_(
+              solverControls.lookupOrDefault("forceHostBuffer", false)),
+          ranks_per_gpu_(
+              solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
+          matrix_format_(
+              solverControls.lookupOrDefault<word>("matrixFormat", "Coo"))
     {
         if (!db_.foundObject<regIOobject>(fieldName + "_rhs")) {
             print_info();
         }
     }
-
-
-    //- Construct from matrix components and solver controls
-    lduLduBase(const word &fieldName, const MatrixType &matrix,
-               const dictionary &solverControls)
-        : SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
-                                        solverControls, fieldName),
-          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
-                         this->get_verbose()),
-          db_(matrix.mesh().thisDb()),
-          csr_matrix_wrapper_{db_,  // 1
-                              this->get_exec_handler(),
-                              this->get_col_idxs(),
-                              this->get_row_idxs(),
-                              this->get_values(),
-                              solverControls,
-                              fieldName,
-                              this->get_global_cell_index(),
-                              this->get_verbose()},
-          // gkoPreconditionerFactory_{db_, solverControls, fieldName},
-          solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
-    {}
 
     void print_info() const
     {
@@ -148,10 +100,87 @@ public:
             std::string(")\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
-            std::to_string(
-                this->get_exec_handler().get_gko_force_host_buffer());
+            std::to_string(force_host_buffer_) +
+            std::string("\n\tCPU ranks per GPU: ") +
+            std::to_string(ranks_per_gpu_) +
+            std::string("\n\tMatrix format: ") + matrix_format_;
         MLOG_0(verbose_, msg)
-    };
+
+        // if in debug mode write pid
+        if (debug_) {
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            word fn = "/tmp/mpi_debug_" + std::to_string(rank) + ".pid";
+            word msg = "writing pid to" + fn;
+            LOG_0(verbose_, msg)
+            std::ofstream os(fn);
+            os << getpid() << std::endl;
+            os.close();
+            sleep(20);
+        }
+    }
+};
+
+template <class MatrixType, class SolverFactory>
+class lduLduBase : public OGL_Info,
+                   public SolverFactory,
+                   public HostMatrixWrapper<MatrixType>,
+                   public Preconditioner {
+private:
+    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using GlobalIndexType = gko::int64;
+    using part_type = gko::distributed::Partition<label, label>;
+    using mtx = gko::matrix::Csr<scalar>;
+    using coo_mtx = gko::matrix::Coo<scalar>;
+    using csr_mtx = gko::matrix::Csr<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
+    using idx_array = gko::array<label>;
+    using val_array = gko::array<scalar>;
+
+    const objectRegistry &db_;
+
+    const dictionary &solver_controls_;
+
+    const label verbose_;
+
+public:
+    // constructor for segregated solver
+    lduLduBase(const word &fieldName, const lduMatrix &matrix,
+               const FieldField<Field, scalar> &interfaceBouCoeffs,
+               const FieldField<Field, scalar> &interfaceIntCoeffs,
+               const lduInterfaceFieldPtrsList &interfaces,
+               const dictionary &solverControls)
+        : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
+          HostMatrixWrapper<MatrixType>{matrix.mesh().thisDb(),
+                                        matrix,
+                                        interfaceBouCoeffs,
+                                        interfaceIntCoeffs,
+                                        interfaces,
+                                        solverControls,
+                                        fieldName},
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
+                         this->get_verbose()),
+          db_(matrix.mesh().thisDb()),
+          solver_controls_(solverControls),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+    {}
+
+
+    //- Construct from matrix components and solver controls
+    lduLduBase(const word &fieldName, const MatrixType &matrix,
+               const dictionary &solverControls)
+        : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
+          HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
+                                        solverControls, fieldName),
+          Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
+                         this->get_verbose()),
+          db_(matrix.mesh().thisDb()),
+          solver_controls_(solverControls),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+    {}
 
 
     // the solve_impl_ version called from the LduMatrix, ie for
@@ -162,152 +191,38 @@ public:
     {}
 
 
-    solverPerformance solve_serial_impl(scalarField &psi,
-                                        const scalarField &source,
-                                        solverPerformance &solverPerf) const
-    {
-        PersistentArray<scalar> b{
-            const_cast<scalar *>(&source[0]),
-            this->fieldName() + "_rhs",
-            db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-            false};
-
-        PersistentArray<scalar> x{
-            &psi[0],
-            this->fieldName() + "_solution",
-            db_,
-            this->get_exec_handler(),
-            this->get_global_cell_index(),
-            verbose_,
-            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
-            false};
-
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
-        LOG_1(verbose_, "get_gkomatrix")
-        auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();
-        auto dense_x = x.get_dense_vec();
-        auto dense_b = b.get_dense_vec();
-
-        scalar scaling =
-            solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
-
-        if (scaling != 1) {
-            auto dense_scaling =
-                gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
-                    {scaling}, ref_exec));
-
-            // TODO FIXME fails cudaErrorIllegalAddress
-            SIMPLE_TIME(verbose_, scale_RHS,
-                        dense_b->scale(dense_scaling.get());)
-        }
-
-        SIMPLE_TIME(verbose_, init_precond,
-                    auto precond = this->init_preconditioner(
-                        gkomatrix.get_persistent_object(),
-                        this->get_exec_handler().get_device_exec());)
-        auto solver_gen = this->create_solver(
-            this->get_exec_handler().get_device_exec(),
-            gkomatrix.get_persistent_object(), dense_x, dense_b, verbose_,
-            csr_matrix_wrapper_.get_export(), precond);
-        SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(
-                        gko::share(gkomatrix.get_persistent_object()));)
-        SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dense_b), gko::lend(dense_x));)
-        SIMPLE_TIME(verbose_, retrieve_result_from_device,
-                    x.copy_back(dense_x);)
-        auto bandwith_copy_back = sizeof(scalar) * psi.size() /
-                                  delta_t_retrieve_result_from_device / 1000.0;
-
-        solverPerf.initialResidual() = this->get_init_res_norm();
-        solverPerf.finalResidual() = this->get_res_norm();
-        solverPerf.nIterations() = this->get_number_of_iterations();
-        auto time_per_iter =
-            delta_t_solve * 1.0 / this->get_number_of_iterations();
-        auto time_per_iter_and_dof = time_per_iter * 1000.0 / psi.size();
-        word msg =
-            "Time per iteration  " + std::to_string(time_per_iter) +
-            std::string(" [mu s] Time per iteration and DOF ") +
-            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string(" retrieve results bandwith ") +
-            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
-        MLOG_0(verbose_, msg)
-
-        this->store_number_of_iterations();
-        return solverPerf;
-    }
-
-    template <class LocMatrixType>
-    std::shared_ptr<gko::distributed::Matrix<scalar, label, label>>
-    init_distributed_matrix(const LocMatrixType &gkomatrix,
-                            std::shared_ptr<const gko::mpi::communicator> comm,
-                            std::shared_ptr<const part_type> partition,
-                            const label local_size) const
-    {
-        auto device_exec = this->get_exec_handler().get_device_exec();
-        auto csr_matrix = gkomatrix.get_persistent_object();
-        auto num_elems = csr_matrix->get_num_stored_elements();
-
-        label size = partition->get_size();
-        auto coo = gko::share(
-            coo_mtx::create(device_exec, gko::dim<2>(local_size, local_size)));
-
-
-        auto csr_matrix_clone =
-            gko::make_temporary_clone(device_exec, csr_matrix.get());
-        csr_matrix_clone->convert_to(coo.get());
-
-        gko::device_matrix_data<scalar, label> A_data{
-            device_exec, gko::dim<2>{size, size},
-            idx_array::view(device_exec, num_elems, coo->get_row_idxs()),
-            idx_array::view(device_exec, num_elems, coo->get_col_idxs()),
-            val_array::view(device_exec, num_elems, coo->get_values())};
-
-        auto dist_A = gko::share(dist_mtx::create(device_exec, *comm.get()));
-        dist_A->read_distributed(A_data, partition.get());
-        return dist_A;
-    }
-
-
     solverPerformance solve_multi_gpu_impl(scalarField &psi,
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        // build partition: uniform number of rows per rank
-        auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
-        auto rows_start =
-            this->get_global_cell_index().offset(Pstream::myProcNo());
-        auto rows_end = rows_start + psi.size();
-
-        label ranks_per_gpu =
-            solver_controls_.lookupOrDefault<label>("RanksPerGPU", 1);
-
         auto ref_exec = this->get_exec_handler().get_ref_exec();
-        auto device_partition = gko::share(
-            gko::distributed::build_partition_from_local_range<label, label>(
-                this->get_exec_handler().get_device_exec(), rows_start,
-                rows_end, *comm.get()));
 
-        std::shared_ptr<gko::distributed::Partition<label, label>>
-            target_partition{};
-        if (ranks_per_gpu != 1) {
-            // create new target partition
-            target_partition = device_partition;
-        } else {
-            target_partition = device_partition;
-        }
+        PersistentPartition partition{
+            db_,
+            this->get_exec_handler(),
+            verbose_,
+            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
+            this->get_global_cell_index().offset(
+                Pstream::myProcNo()),  // offset
+            psi.size()                 // number of elements
+        };
 
+        MatrixWrapper<dist_mtx> dist_A{db_,
+                                       this->get_exec_handler(),  // get exec
+                                       this->get_col_idxs(),
+                                       this->get_row_idxs(),
+                                       this->get_values(),
+                                       partition,
+                                       solver_controls_,
+                                       this->fieldName(),
+                                       this->get_verbose()};
 
         PersistentVector<scalar> dist_b{
             &source[0],
             this->fieldName() + "_rhs",
             db_,
             this->get_exec_handler(),
-            target_partition,
+            partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -318,11 +233,14 @@ public:
             this->fieldName() + "_solution",
             db_,
             this->get_exec_handler(),
-            target_partition,
+            partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device/
         };
+        auto dist_x_v = dist_x.get_vector();
+        auto dist_b_v = dist_b.get_vector();
+        auto dist_A_v = dist_A.get();
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
@@ -335,56 +253,40 @@ public:
                         dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        SIMPLE_TIME(verbose_, gather_global_matrix,
-                    auto gkomatrix = csr_matrix_wrapper_.get_local_gkomatrix();)
-
-        SIMPLE_TIME(verbose_, generate_distributed_matrix,
-                    auto dist_A = init_distributed_matrix(
-                        gkomatrix, comm, target_partition, psi.size());)
-
         SIMPLE_TIME(verbose_, init_precond,
                     auto precond = this->init_preconditioner(
-                        dist_A, this->get_exec_handler().get_device_exec());)
-
+                        dist_A_v, this->get_exec_handler().get_device_exec());)
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A,
-            dist_x.get_vector(), dist_b.get_vector(), verbose_,
-            csr_matrix_wrapper_.get_export(), precond);
-
-        /* auto solver_gen = gko::share( */
-        /*     gko::solver::Cg<scalar>::build() */
-        /*         .with_criteria( */
-        /*             gko::stop::Iteration::build() */
-        /*                 .with_max_iters( */
-        /*                     solver_controls_.lookupOrDefault("maxIter",
-         * 1000)) */
-        /*                 .on(device_exec)) */
-        /*         .on(device_exec)); */
+            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
+            dist_b_v, verbose_, dist_A.get_export(), precond);
 
         SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(dist_A);)
+                    auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
         SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dist_b.get_vector()),
-                                  gko::lend(dist_x.get_vector()));)
-
+                    solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
         SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
-        auto bandwith_copy_back =
-            sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
+        auto bandwith_copy_back = sizeof(scalar) *
+                                  partition.get_local_device_size() /
+                                  delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
+        auto time_for_res_norm_eval = this->get_res_norm_time();
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
+        this->set_prev_rel_res_cost(time_per_iter / time_for_res_norm_eval);
         auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / target_partition->get_size();
+            time_per_iter * 1000.0 / partition.get_total_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
+            std::string(" [mu s]\n\tTime per residual norm calculation: ") +
+            std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
             std::string("\n\tRetrieve results bandwith ") +
@@ -408,7 +310,7 @@ public:
         if (Pstream::parRun()) {
             return solve_multi_gpu_impl(psi, source, solverPerf);
         } else {
-            return solve_serial_impl(psi, source, solverPerf);
+            Info << "Only parallel runs are supported " << endl;
         }
 
         return solverPerf;

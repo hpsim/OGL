@@ -100,6 +100,13 @@ void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
 label get_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                            const bool is_final);
 
+void set_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                 const objectRegistry &db,
+                                 scalar prev_prev_rel_res_cost);
+
+scalar get_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                   const objectRegistry &db);
+
 void set_next_caching(word sys_matrix_name, const objectRegistry &db,
                       label caching);
 

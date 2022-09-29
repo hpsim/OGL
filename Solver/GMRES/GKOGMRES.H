@@ -91,6 +91,23 @@ public:
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
 
+    scalar get_res_norm_time() const
+    {
+        return stoppingCriterion_.get_res_norm_time();
+    }
+
+    scalar get_solve_prev_rel_res_cost() const
+    {
+        return ::Foam::get_solve_prev_rel_res_cost(sysMatrixName_, db_);
+    }
+
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
+
+
     std::shared_ptr<vec> get_res_norms() const
     {
         return stoppingCriterion_.get_res_norms();
@@ -102,6 +119,7 @@ public:
                              stoppingCriterion_.get_num_iters(),
                              stoppingCriterion_.get_is_final());
     }
+
 
     label get_prev_number_of_iterations() const
     {

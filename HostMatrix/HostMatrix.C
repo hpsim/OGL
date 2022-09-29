@@ -280,14 +280,13 @@ void HostMatrixWrapper<MatrixType>::init_host_sparsity_pattern(
     // col of upper, row of lower
     const auto upper = upper_local.get_const_data();
 
-    auto rows = row_idxs_.get_data();  // row_idxs_local->get_data();
-    auto cols = col_idxs_.get_data();  // col_idxs_local->get_data();
+    auto rows = row_idxs_.get_data();
+    auto cols = col_idxs_.get_data();
 
     label element_ctr = 0;
     label upper_ctr = 0;
 
     std::vector<std::vector<std::pair<label, label>>> lower_stack(nNeighbours_);
-
 
     const auto permute = ldu_csr_idx_mapping_.get_data();
 
@@ -354,19 +353,18 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto ref_exec = exec_.get_ref_exec();
 
     const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
-    auto device_exec = exec_.get_device_exec();
 
     auto &db = values_.get_db();
     if (!permutation_stored_) {
         P_ = gko::share(gko::matrix::Permutation<label>::create(
-            device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_},
+            ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_},
             *sorting_idxs.get()));
         const fileName path = permutation_matrix_name_;
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
     }
 
     // unsorted entries on device
-    auto d = vec::create(device_exec,
+    auto d = vec::create(ref_exec,
                          gko::dim<2>((gko::dim<2>::dimension_type)nElems_, 1));
 
     // copy upper
@@ -374,13 +372,13 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto u_host_view =
         gko::array<scalar>::view(ref_exec, nNeighbours_, &upper[0]);
     auto u_device_view =
-        gko::array<scalar>::view(device_exec, nNeighbours_, d->get_values());
+        gko::array<scalar>::view(ref_exec, nNeighbours_, d->get_values());
     u_device_view = u_host_view;
 
     // copy lower
     auto lower = this->matrix().lower();
     auto l_device_view = gko::array<scalar>::view(
-        device_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
+        ref_exec, nNeighbours_, &d->get_values()[nNeighbours_]);
     if (lower == upper) {
         // symmetric case reuse data already on the device
         l_device_view = u_device_view;
@@ -396,7 +394,7 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     auto diag = this->matrix().diag();
     auto d_host_view = gko::array<scalar>::view(ref_exec, nCells_, &diag[0]);
     auto d_device_view = gko::array<scalar>::view(
-        device_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
+        ref_exec, nCells_, &d->get_values()[2 * nNeighbours_]);
     d_device_view = d_host_view;
 
     // copy interfaces
@@ -423,12 +421,12 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     }
 
     auto i_device_view = gko::array<scalar>::view(
-        device_exec, nInterfaces_, &d->get_values()[nElems_wo_Interfaces_]);
+        ref_exec, nInterfaces_, &d->get_values()[nElems_wo_Interfaces_]);
     i_device_view = tmp_contiguous_iface;
 
 
     auto dense_vec = vec::create(
-        device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1});
+        ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1});
 
     // NOTE apply changes the underlying pointer of dense_vec
     // thus copy_from is used to move the ptr to the underlying
@@ -436,8 +434,8 @@ void HostMatrixWrapper<MatrixType>::update_host_matrix_data(
     P_->apply(d.get(), dense_vec.get());
 
     auto dense_vec_after = vec::create(
-        device_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1},
-        gko::array<scalar>::view(device_exec, nElems_, values_.get_data()), 1);
+        ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1},
+        gko::array<scalar>::view(ref_exec, nElems_, values_.get_data()), 1);
 
     dense_vec_after->copy_from(dense_vec.get());
 }

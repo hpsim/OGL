@@ -84,9 +84,8 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       "${CMAKE_CXX_FLAGS_DEBUG} \
       --coverage\
       -fprofile-arcs \
-      -fsanitize=address \
-      -ggdb3 \
-      -ftest-coverage")
+      -ggdb3")
+  # -fsanitize=address \ -ftest-coverage \
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -125,6 +124,7 @@ target_sources(
           lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
+          DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
           DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
@@ -144,6 +144,7 @@ target_sources(
          lduLduBase/lduLduBase.H
          HostMatrix/HostMatrix.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
+         DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
          DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H

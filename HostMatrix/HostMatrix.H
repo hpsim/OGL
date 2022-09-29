@@ -68,8 +68,6 @@ private:
 
     mutable PersistentArray<label> ldu_csr_idx_mapping_;
 
-    // mutable PersistentArray<label> ldu_csr_idx_interface_mapping_;
-
     mutable PersistentArray<scalar> values_;
 
     // NOTE DevicePersistentArray is used here
@@ -116,27 +114,34 @@ public:
               false,
               false,
           },
-          values_{fieldName + "_values",
-                  db,
-                  exec_,
-                  global_matrix_index_,
-                  verbose_,
-                  true,
-                  true},
-          col_idxs_{fieldName + "_cols",
-                    db,
-                    exec_,
-                    global_matrix_index_,
-                    verbose_,
-                    false,
-                    false},
-          row_idxs_{fieldName + "_rows",
-                    db,
-                    exec_,
-                    global_matrix_index_,
-                    verbose_,
-                    false,
-                    false},
+          values_{
+              fieldName + "_values",
+              db,
+              exec_,
+              global_matrix_index_,
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
+          },
+          col_idxs_{
+              fieldName + "_cols",
+              db,
+              exec_,
+              global_matrix_index_,
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          row_idxs_{
+              fieldName + "_rows",
+              db,
+              exec_,
+              global_matrix_index_,
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
           permutation_matrix_name_{"PermutationMatrix"},
           permutation_stored_{
               db.template foundObject<regIOobject>(permutation_matrix_name_)},
@@ -162,7 +167,8 @@ public:
         }
     }
 
-    // coupled wrapper constructor
+    // TODO reimplement this at some point
+    // coupled  wrapper constructor
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, solverControls),
@@ -204,15 +210,6 @@ public:
                                    : nullptr}
     {
         // TODO reimplement this
-        // if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
-        //     SIMPLE_TIME(true, init_host_sparsity_pattern,
-        //                 init_host_sparsity_pattern();)
-        // }
-
-        // if (!values_.get_stored() || values_.get_update()) {
-        //     SIMPLE_TIME(true, update_host_matrix_data,
-        //                 update_host_matrix_data();)
-        // }
     }
 
 
