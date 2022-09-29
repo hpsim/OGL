@@ -574,9 +574,10 @@ public:
         if (!export_res) {
             if (prev_solve_iters > 0 && adapt_minIter_) {
                 minIter = prev_solve_iters * relaxationFactor_;
-                auto alpha = sqrt(1.0/(prev_solve_iters*(1.0-relaxationFactor_)*prev_rel_cost));
-                frequency =
-                    min(norm_eval_limit_, max(1, label(1/alpha)));
+                // auto alpha = sqrt(1.0/(prev_solve_iters*(1.0-relaxationFactor_))*prev_rel_cost);
+                // FIXME
+                frequency = 10;
+                    //min(norm_eval_limit_, max(1, label(1/alpha)));
             }
         }
 
