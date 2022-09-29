@@ -151,26 +151,17 @@ struct MatrixInitFunctor {
         auto exec = exec_.get_ref_exec();
 
         auto start_build = std::chrono::steady_clock::now();
-        auto local_mtx = gko::share(
-            coo_mtx::create(exec, gko::dim<2>(nCells, nCells), *values.get(),
-                            *cols.get(), *rows.get()));
+
+        auto num_rows = partition_.get_total_size();
+        gko::device_matrix_data<scalar, label> A_data(
+            exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
+            *values.get());
+
         auto end_build = std::chrono::steady_clock::now();
         auto delta_t_build =
             std::chrono::duration_cast<std::chrono::microseconds>(end_build -
                                                                   start_build)
                 .count();
-
-        gko::matrix_data<scalar, label> A_data;
-        auto start_write = std::chrono::steady_clock::now();
-        local_mtx->write(A_data);
-        auto end_write = std::chrono::steady_clock::now();
-        auto delta_t_write =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_write -
-                                                                  start_write)
-                .count();
-
-        auto num_rows = partition_.get_total_size();
-        A_data.size = gko::dim<2>(num_rows, num_rows);
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto start_dist = std::chrono::steady_clock::now();
@@ -213,9 +204,9 @@ struct MatrixInitFunctor {
                                                                   start_gather)
                 .count();
 
-        std::cout << " delta t build " << delta_t_build << " delta t write "
-                  << delta_t_write << " delta t repart " << delta_t_repart
-                  << " delta t gather " << delta_t_gather << std::endl;
+        std::cout << " delta t build " << delta_t_build << " delta t repart "
+                  << delta_t_repart << " delta t gather " << delta_t_gather
+                  << std::endl;
 
         auto device_mat = gko::share(
             dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
