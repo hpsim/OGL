@@ -103,7 +103,7 @@ public:
     {
         if (from_registry_) {
             word msg = "reading " + name_ + " from registry";
-            LOG_0(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             if (update) {
                 persistent_object_ =
@@ -120,7 +120,7 @@ public:
 
         } else {
             word msg = "initialising " + name_;
-            LOG_0(verbose_, msg)
+            MLOG_0(verbose_, msg)
             const fileName path = name_;
 
             // NOTE when objectRegistry is deleted delete for every pointer
