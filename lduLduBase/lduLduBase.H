@@ -202,16 +202,16 @@ public:
             this->get_exec_handler(),
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-            this->get_global_cell_index().offset(
-                Pstream::myProcNo()),  // offset
-            psi.size()                 // number of elements
+            this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
+            psi.size()  // number of elements
         };
 
+        // TODO this is now the local matrix part for dist_A
         MatrixWrapper<dist_mtx> dist_A{db_,
                                        this->get_exec_handler(),  // get exec
-                                       this->get_col_idxs(),
-                                       this->get_row_idxs(),
-                                       this->get_values(),
+                                       this->get_local_col_idxs(),
+                                       this->get_local_row_idxs(),
+                                       this->get_local_coeffs(),
                                        partition,
                                        solver_controls_,
                                        this->fieldName(),

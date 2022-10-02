@@ -37,6 +37,16 @@ SourceFiles
 
 namespace Foam {
 
+/* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
+ * format into Ginkgo array data structures
+ *
+ * It mainly generates:
+ * - sparsity pattern/device_matrix_data of the local_matrix and
+ * non_local_matrix (with global columns)
+ * - send_sizes
+ * - recv_sizes
+ *
+ * */
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
@@ -45,39 +55,34 @@ private:
     //
     const ExecutorHandler exec_;
 
-    const std::shared_ptr<gko::mpi::communicator> comm_;
-
-    const label nCells_;
-
-    const label nNeighbours_;
-
-    const label nInterfaces_;
-
-    const label nElems_wo_Interfaces_;
-
-    const label nElems_;
-
-    const gkoGlobalIndex global_cell_index_;
-    // TODO make this persistent
-    // global index of the full matrix sparsity pattern
-    const gkoGlobalIndex global_matrix_index_;
-
     const label verbose_;
 
-    const scalar scaling_;
+    //  local matrix indices
+    const label nrows_;
 
-    mutable PersistentArray<label> ldu_csr_idx_mapping_;
+    const label upper_nnz_;
 
-    mutable PersistentArray<scalar> values_;
+    const label non_diag_nnz_;
 
-    // NOTE DevicePersistentArray is used here
-    // since at some point a global col_idxs row_idxs are neeeded
-    // for parallel runs
-    // TODO make shure the col_idxs_ arrays are not! stored since
-    // they will be stored in the gko matrix
-    mutable PersistentArray<label> col_idxs_;
+    const label nnz_local_matrix_;
 
-    mutable PersistentArray<label> row_idxs_;
+    const gkoGlobalIndex global_row_index_;
+
+    mutable PersistentArray<label> local_col_idxs_;
+
+    mutable PersistentArray<label> local_row_idxs_;
+
+    mutable PersistentArray<scalar> local_coeffs_;
+
+    mutable PersistentArray<label> local_ldu_csr_idx_mapping_;
+    // non-local indices
+    const label nnz_non_local_matrix_;
+
+    mutable PersistentArray<label> non_local_col_idxs_;
+
+    mutable PersistentArray<label> non_local_row_idxs_;
+
+    mutable PersistentArray<scalar> non_local_coeffs_;
 
     const word permutation_matrix_name_;
 
@@ -96,51 +101,79 @@ public:
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
           exec_{db, solverControls, fieldName},
-          nCells_(matrix.diag().size()),
-          nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nInterfaces_(count_elements_on_interfaces(interfaces)),
-          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
-          nElems_(nCells_ + 2 * nNeighbours_ + nInterfaces_),
-          global_cell_index_{nCells_},
-          global_matrix_index_{nElems_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          ldu_csr_idx_mapping_{
-              fieldName + "_ldu_csr_map",
+          nrows_(matrix.diag().size()),
+          upper_nnz_(matrix.lduAddr().upperAddr().size()),
+          non_diag_nnz_(2 * upper_nnz_),
+          nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
+          global_row_index_{nrows_},
+          local_col_idxs_{
+              // TODO make a class for the triplet of these arrays
+              fieldName + "_cols",
               db,
               exec_,
-              global_matrix_index_,
+              global_row_index_,  // TODO is that needed
               verbose_,
-              false,
-              false,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
           },
-          values_{
+          local_row_idxs_{
+              fieldName + "_rows",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          local_coeffs_{
               fieldName + "_values",
               db,
               exec_,
-              global_matrix_index_,
+              global_row_index_,  // TODO is that needed
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
-          col_idxs_{
+          local_ldu_csr_idx_mapping_{
+              fieldName + "_ldu_csr_map",
+              db,
+              exec_,
+              global_row_index_,
+              verbose_,
+              false,
+              false,
+          },
+          nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
+          non_local_col_idxs_{
+              // TODO make a class for the triplet of these arrays
               fieldName + "_cols",
               db,
               exec_,
-              global_matrix_index_,
+              global_row_index_,  // TODO is that needed
               verbose_,
               false,  // For now we assume columns and rows to be constant
               false   // same as for values, leave on device
           },
-          row_idxs_{
+          non_local_row_idxs_{
               fieldName + "_rows",
               db,
               exec_,
-              global_matrix_index_,
+              global_row_index_,  // TODO is that needed
               verbose_,
               false,  // For now we assume columns and rows to be constant
               false   // same as for values, leave on device
+          },
+          non_local_coeffs_{
+              fieldName + "_values",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
           },
           permutation_matrix_name_{"PermutationMatrix"},
           permutation_stored_{
@@ -151,19 +184,23 @@ public:
                                          .get_ptr()
                                    : nullptr}
     {
-        if (!col_idxs_.get_stored() || col_idxs_.get_update()) {
-            auto other_proc_cell_ids =
-                get_other_proc_cell_ids(nInterfaces_, interfaces);
-            SIMPLE_TIME(
-                verbose_, init_host_sparsity_pattern,
-                init_host_sparsity_pattern(interfaces, other_proc_cell_ids);)
+        if (!local_col_idxs_.get_stored() || local_col_idxs_.get_update()) {
+            SIMPLE_TIME(verbose_, init_local_sparsity_pattern,
+                        init_local_sparsity_pattern();)
+            auto other_proc_cell_ids = communicate_non_local_row_indices(
+                nnz_non_local_matrix_, interfaces);
+            SIMPLE_TIME(verbose_, init_non_local_sparsity_pattern,
+                        init_non_local_sparsity_pattern(interfaces);)
         }
-        if (!values_.get_stored() || values_.get_update()) {
-            auto other_proc_bou_coeffs = get_other_proc_bou_coeffs(
-                nInterfaces_, interfaces, interfaceBouCoeffs);
+        if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
+            SIMPLE_TIME(verbose_, update_local_matrix_data,
+                        update_local_matrix_data();)
+
+            auto non_local_coeffs = compute_non_local_coeffs(
+                nnz_non_local_matrix_, interfaces, interfaceBouCoeffs);
             SIMPLE_TIME(
-                verbose_, update_host_matrix_data,
-                update_host_matrix_data(interfaces, other_proc_bou_coeffs);)
+                verbose_, update_non_local_matrix_data,
+                update_non_local_matrix_data(interfaces, non_local_coeffs);)
         }
     }
 
@@ -173,33 +210,79 @@ public:
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, solverControls),
           exec_{db, solverControls, fieldName},
-          nCells_(matrix.diag().size()),
-          nNeighbours_(matrix.lduAddr().upperAddr().size()),
-          nInterfaces_(0),
-          nElems_wo_Interfaces_(nCells_ + 2 * nNeighbours_),
-          nElems_(nCells_ + 2 * nNeighbours_),
-          global_cell_index_{nCells_},
-          global_matrix_index_{nElems_},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          ldu_csr_idx_mapping_{fieldName + "ldu_csr_map",
-                               db,
-                               exec_,
-                               global_matrix_index_,
-                               verbose_,
-                               false,
-                               false},
-          values_{fieldName + "values",
-                  db,
-                  exec_,
-                  global_matrix_index_,
-                  verbose_,
-                  true,
-                  false},
-          col_idxs_{fieldName + "cols", db,    exec_, global_matrix_index_,
-                    verbose_,           false, true},
-          row_idxs_{fieldName + "rows", db,    exec_, global_matrix_index_,
-                    verbose_,           false, true},
+          nrows_(matrix.diag().size()),
+          upper_nnz_(matrix.lduAddr().upperAddr().size()),
+          non_diag_nnz_(2 * upper_nnz_),
+          nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
+          global_row_index_{nrows_},
+          local_col_idxs_{
+              fieldName + "_cols",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          local_row_idxs_{
+              fieldName + "_rows",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          local_coeffs_{
+              fieldName + "_values",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a
+                     // distributed matrix it will be put on the device
+          },
+          local_ldu_csr_idx_mapping_{
+              fieldName + "_ldu_csr_map",
+              db,
+              exec_,
+              global_row_index_,
+              verbose_,
+              false,
+              false,
+          },
+          nnz_non_local_matrix_(),
+          non_local_col_idxs_{
+              // TODO make a class for the triplet of these arrays
+              fieldName + "_cols",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          non_local_row_idxs_{
+              fieldName + "_rows",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for values, leave on device
+          },
+          non_local_coeffs_{
+              fieldName + "_values",
+              db,
+              exec_,
+              global_row_index_,  // TODO is that needed
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
+          },
           permutation_matrix_name_{"PermutationMatrix"},
           permutation_stored_{
               db.template foundObject<regIOobject>(permutation_matrix_name_)},
@@ -213,57 +296,98 @@ public:
     }
 
 
-    label count_elements_on_interfaces(
+    /* Iterates all interfaces and counts elements
+    **
+    */
+    label compute_non_local_nnz(
         const lduInterfaceFieldPtrsList &interfaces_) const;
 
-    // TODO merge with get_other_proc_cell_ids
-    std::vector<scalar> get_other_proc_bou_coeffs(
+    /* Collect the non local matrix coefficients
+    **
+    */
+    std::vector<scalar> compute_non_local_coeffs(
         const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
         const FieldField<Field, scalar> interfaceBouCoeffs);
 
-    std::vector<label> get_other_proc_cell_ids(
+    std::vector<label> communicate_non_local_row_indices(
         const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces);
 
-    // TODO this is pretty much the same as get_other_proc_cell_ids
-    // and could probably trimmed down a lot
-    void insert_interface_coeffs(const lduInterfaceFieldPtrsList &interfaces,
-                                 const std::vector<label> &other_proc_cell_ids,
-                                 int *rows, int *cols, label row,
-                                 label global_row, label &element_ctr,
-                                 label *sorting_interface_idxs,
-                                 const bool upper) const;
+    /* Based on OpenFOAMs ldu matrix format this function computes two
+     *consecutive index arrays in row major ordering and scattering indices
+     **
+     */
+    void init_local_sparsity_pattern() const;
 
-    void init_host_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const std::vector<label> other_proc_cell_ids) const;
+    void init_non_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const
+    {}
+
+    // // TODO this is pretty much the same as
+    // communicate_non_local_row_indices
+    // // and could probably trimmed down a lot
+    // void insert_interface_coeffs(const lduInterfaceFieldPtrsList
+    // &interfaces,
+    //                              const std::vector<label>
+    //                              &other_proc_cell_ids, int *rows, int
+    //                              *cols, label row, label global_row,
+    //                              label &element_ctr, label
+    //                              *sorting_interface_idxs, const bool
+    //                              upper) const;
+
 
     bool get_verbose() const { return verbose_; }
 
-    void update_host_matrix_data(
+    // updater
+
+    void update_local_matrix_data() const;
+
+    void update_non_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
         const std::vector<scalar> &interfaceBouCoeffs) const;
 
-    label local_nCells() const { return nCells_; }
+    // getter
 
-    label nCells() const { return global_cell_index_.size(); }
+    label get_local_nrows() const { return nrows_; }
 
-    label nElems() const { return nElems_; }
-
-    label nNeighbours() const { return nNeighbours_; }
+    label get_global_nrows() const { return global_row_index_.size(); }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
-    const gkoGlobalIndex &get_global_cell_index() const
+    const gkoGlobalIndex &get_global_row_index() const
     {
-        return global_cell_index_;
+        return global_row_index_;
     }
 
 
-    PersistentArray<scalar> &get_values() const { return values_; };
+    PersistentArray<scalar> &get_local_coeffs() const  //
+    {
+        return local_coeffs_;
+    };
 
-    PersistentArray<label> &get_col_idxs() const { return col_idxs_; };
+    PersistentArray<label> &get_local_col_idxs() const
+    {
+        return local_col_idxs_;
+    };
 
-    PersistentArray<label> &get_row_idxs() const { return row_idxs_; };
+    PersistentArray<label> &get_local_row_idxs() const
+    {
+        return local_row_idxs_;
+    };
+
+    PersistentArray<scalar> &get_non_local_values() const  //
+    {
+        return non_local_coeffs_;
+    };
+
+    PersistentArray<label> &get_non_local_col_idxs() const
+    {
+        return non_local_col_idxs_;
+    };
+
+    PersistentArray<label> &get_non_local_row_idxs() const
+    {
+        return non_local_row_idxs_;
+    };
 };
 
 
