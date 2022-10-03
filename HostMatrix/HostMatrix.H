@@ -193,11 +193,9 @@ public:
             SIMPLE_TIME(verbose_, update_local_matrix_data,
                         update_local_matrix_data();)
 
-            auto non_local_coeffs = compute_non_local_coeffs(
-                nnz_non_local_matrix_, interfaces, interfaceBouCoeffs);
             SIMPLE_TIME(
                 verbose_, update_non_local_matrix_data,
-                update_non_local_matrix_data(interfaces, non_local_coeffs);)
+                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
         }
     }
 
@@ -272,9 +270,9 @@ public:
     /* Collect the non local matrix coefficients
     **
     */
-    std::vector<scalar> compute_non_local_coeffs(
-        const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> interfaceBouCoeffs);
+    std::vector<scalar> communicate_non_local_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     /* Iterates all interfaces and collects non-local global column indices
     **
@@ -318,7 +316,7 @@ public:
 
     void update_non_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const std::vector<scalar> &interfaceBouCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
 

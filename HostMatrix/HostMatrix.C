@@ -48,14 +48,13 @@ label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
 template label HostMatrixWrapper<lduMatrix>::compute_non_local_nnz(
     const lduInterfaceFieldPtrsList &interfaces_) const;
 
-// TODO merge with communicate_non_local_row_indices
 template <class MatrixType>
-std::vector<scalar> HostMatrixWrapper<MatrixType>::compute_non_local_coeffs(
-    const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> interfaceBouCoeffs)
+std::vector<scalar> HostMatrixWrapper<MatrixType>::communicate_non_local_coeffs(
+    const lduInterfaceFieldPtrsList &interfaces,
+    const FieldField<Field, scalar> &interfaceBouCoeffs) const
 {
     std::vector<scalar> ret{};
-    ret.reserve(nInterfaces);
+    ret.reserve(nnz_non_local_matrix_);
 
     label startOfRequests = Pstream::nRequests();
     for (int i = 0; i < interfaces.size(); i++) {
@@ -116,9 +115,8 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::compute_non_local_coeffs(
 }
 
 template std::vector<scalar>
-HostMatrixWrapper<lduMatrix>::compute_non_local_coeffs(
-    const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> interfaceBouCoeffs);
+HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
+    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
 
 // TODO merge with communicate_non_local_row_indices
 template <class MatrixType>
@@ -377,4 +375,53 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 
 template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data() const;
 
+template <class MatrixType>
+void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
+    const lduInterfaceFieldPtrsList &interfaces,
+    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+{
+    auto ref_exec = exec_.get_ref_exec();
+
+    auto interface_coeffs =
+        communicate_non_local_coeffs(interfaces, interfaceBouCoeffs);
+
+    // copy interfaces
+    auto tmp_contiguous_iface =
+        gko::array<scalar>(ref_exec, nnz_non_local_matrix_);
+    auto contiguous_iface = tmp_contiguous_iface.get_data();
+
+    // auto contiguos = vec::create(
+    //     ref_exec,
+    //     gko::dim<2>((gko::dim<2>::dimension_type)nnz_non_local_matrix_, 1),
+    //     gko::array<scalar>::view(ref_exec, nnz_non_local_matrix_,
+    //                              non_local_coeffs_.get_data()),
+    //     1);
+
+    label interface_ctr{0};
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
+            continue;
+        }
+        const auto iface{interfaces.operator()(i)};
+        const label patch_size = iface->interface().faceCells().size();
+
+        if (!isA<processorLduInterface>(iface->interface())) {
+            continue;
+        }
+
+        for (label cellI = 0; cellI < patch_size; cellI++) {
+            contiguous_iface[interface_ctr + cellI] =
+                -interface_coeffs[interface_ctr + cellI];
+        }
+        interface_ctr += patch_size;
+    }
+
+    // copy to persistent
+    auto i_device_view = gko::array<scalar>::view(
+        ref_exec, nnz_non_local_matrix_, non_local_coeffs_.get_data());
+    i_device_view = tmp_contiguous_iface;
+}
+
+template void HostMatrixWrapper<lduMatrix>::update_non_local_matrix_data(
+    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
 }  // namespace Foam
