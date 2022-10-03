@@ -196,8 +196,8 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     auto non_local_row_indices = communicate_non_local_col_indices(interfaces);
-    auto rows = local_sparsity_.row_idxs_.get_data();
-    auto cols = local_sparsity_.col_idxs_.get_data();
+    auto rows = non_local_sparsity_.row_idxs_.get_data();
+    auto cols = non_local_sparsity_.col_idxs_.get_data();
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {

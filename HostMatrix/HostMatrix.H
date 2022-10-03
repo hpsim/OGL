@@ -137,10 +137,10 @@ public:
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
           global_row_index_{nrows_},
           local_sparsity_{
-              fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
+              fieldName + "_local", db, exec_, nnz_local_matrix_, verbose_,
           },
           local_coeffs_{
-              fieldName + "_coeffs",
+              fieldName + "_local_coeffs",
               db,
               exec_,
               nnz_local_matrix_,
@@ -160,8 +160,8 @@ public:
           },
           nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
           non_local_sparsity_{
-              fieldName + "_non_local_", db,       exec_,
-              nnz_non_local_matrix_,     verbose_,
+              fieldName + "_non_local", db,       exec_,
+              nnz_non_local_matrix_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",
@@ -192,7 +192,6 @@ public:
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
             SIMPLE_TIME(verbose_, update_local_matrix_data,
                         update_local_matrix_data();)
-
             SIMPLE_TIME(
                 verbose_, update_non_local_matrix_data,
                 update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
@@ -235,8 +234,8 @@ public:
           },
           nnz_non_local_matrix_(),
           non_local_sparsity_{
-              fieldName + "_non_local_", db,       exec_,
-              nnz_non_local_matrix_,     verbose_,
+              fieldName + "_non_local", db,       exec_,
+              nnz_non_local_matrix_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",
@@ -347,7 +346,7 @@ public:
         return local_sparsity_.row_idxs_;
     };
 
-    PersistentArray<scalar> &get_non_local_values() const  //
+    PersistentArray<scalar> &get_non_local_coeffs() const
     {
         return non_local_coeffs_;
     };
