@@ -37,6 +37,39 @@ SourceFiles
 
 namespace Foam {
 
+
+struct PersistentSparsityPattern {
+    PersistentSparsityPattern(
+      const word &fieldName,
+      const objectRegistry &db,
+      const ExecutorHandler &exec,
+      const label size,
+      const label verbose):
+    col_idxs_{
+        fieldName + "_cols",
+        db,
+        exec,
+        size,
+        verbose,
+        false,  // For now we assume columns and rows to be constant
+        false   // same as for values, leave on device
+    },
+    row_idxs_{
+        fieldName + "_rows",
+        db,
+        exec,
+        size,
+        verbose,
+        false,  // For now we assume columns and rows to be constant
+        false   // same as for values, leave on device
+  }
+    {}
+
+    mutable PersistentArray<label> col_idxs_;
+
+    mutable PersistentArray<label> row_idxs_;
+};
+
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
  * format into Ginkgo array data structures
  *
@@ -68,9 +101,7 @@ private:
 
     const gkoGlobalIndex global_row_index_;
 
-    mutable PersistentArray<label> local_col_idxs_;
-
-    mutable PersistentArray<label> local_row_idxs_;
+    mutable PersistentSparsityPattern local_sparsity_;
 
     mutable PersistentArray<scalar> local_coeffs_;
 
@@ -78,9 +109,7 @@ private:
     // non-local indices
     const label nnz_non_local_matrix_;
 
-    mutable PersistentArray<label> non_local_col_idxs_;
-
-    mutable PersistentArray<label> non_local_row_idxs_;
+    mutable PersistentSparsityPattern non_local_sparsity_;
 
     mutable PersistentArray<scalar> non_local_coeffs_;
 
@@ -107,70 +136,38 @@ public:
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
           global_row_index_{nrows_},
-          local_col_idxs_{
-              // TODO make a class for the triplet of these arrays
-              fieldName + "_cols",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
-          },
-          local_row_idxs_{
-              fieldName + "_rows",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
+          local_sparsity_{
+              fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
           },
           local_coeffs_{
-              fieldName + "_values",
+              fieldName + "_coeffs",
               db,
               exec_,
-              global_row_index_,  // TODO is that needed
+              nnz_local_matrix_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
           local_ldu_csr_idx_mapping_{
-              // TODO this needs to be size nnz_local
               fieldName + "_ldu_csr_map",
               db,
               exec_,
-              global_row_index_,
+              nnz_local_matrix_,
               verbose_,
               false,
               false,
           },
           nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
-          non_local_col_idxs_{
-              // TODO make a class for the triplet of these arrays
-              fieldName + "_cols",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
-          },
-          non_local_row_idxs_{
-              fieldName + "_rows",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
+          non_local_sparsity_{
+              fieldName + "_non_local_", db,       exec_,
+              nnz_non_local_matrix_,     verbose_,
           },
           non_local_coeffs_{
-              fieldName + "_values",
+              fieldName + "_non_local_coeffs",
               db,
               exec_,
-              global_row_index_,  // TODO is that needed
+              nnz_non_local_matrix_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
@@ -185,7 +182,8 @@ public:
                                          .get_ptr()
                                    : nullptr}
     {
-        if (!local_col_idxs_.get_stored() || local_col_idxs_.get_update()) {
+        if (!local_sparsity_.col_idxs_.get_stored() ||
+            local_sparsity_.col_idxs_.get_update()) {
             SIMPLE_TIME(verbose_, init_local_sparsity_pattern,
                         init_local_sparsity_pattern();)
             SIMPLE_TIME(verbose_, init_non_local_sparsity_pattern,
@@ -215,68 +213,38 @@ public:
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
           global_row_index_{nrows_},
-          local_col_idxs_{
-              fieldName + "_cols",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
-          },
-          local_row_idxs_{
-              fieldName + "_rows",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
+          local_sparsity_{
+              fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
           },
           local_coeffs_{
-              fieldName + "_values",
+              fieldName + "_coeffs",
               db,
               exec_,
-              global_row_index_,  // TODO is that needed
+              nnz_local_matrix_,
               verbose_,
               true,  // needs to be updated
-              false  // leave it on host once it is turned into a
-                     // distributed matrix it will be put on the device
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
           },
           local_ldu_csr_idx_mapping_{
               fieldName + "_ldu_csr_map",
               db,
               exec_,
-              global_row_index_,
+              nnz_local_matrix_,
               verbose_,
               false,
               false,
           },
           nnz_non_local_matrix_(),
-          non_local_col_idxs_{
-              // TODO make a class for the triplet of these arrays
-              fieldName + "_cols",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
-          },
-          non_local_row_idxs_{
-              fieldName + "_rows",
-              db,
-              exec_,
-              global_row_index_,  // TODO is that needed
-              verbose_,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for values, leave on device
+          non_local_sparsity_{
+              fieldName + "_non_local_", db,       exec_,
+              nnz_non_local_matrix_,     verbose_,
           },
           non_local_coeffs_{
-              fieldName + "_values",
+              fieldName + "_non_local_coeffs",
               db,
               exec_,
-              global_row_index_,  // TODO is that needed
+              nnz_non_local_matrix_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
@@ -373,12 +341,12 @@ public:
 
     PersistentArray<label> &get_local_col_idxs() const
     {
-        return local_col_idxs_;
+        return local_sparsity_.col_idxs_;
     };
 
     PersistentArray<label> &get_local_row_idxs() const
     {
-        return local_row_idxs_;
+        return local_sparsity_.row_idxs_;
     };
 
     PersistentArray<scalar> &get_non_local_values() const  //
@@ -388,12 +356,12 @@ public:
 
     PersistentArray<label> &get_non_local_col_idxs() const
     {
-        return non_local_col_idxs_;
+        return non_local_sparsity_.col_idxs_;
     };
 
     PersistentArray<label> &get_non_local_row_idxs() const
     {
-        return non_local_row_idxs_;
+        return non_local_sparsity_.row_idxs_;
     };
 };
 

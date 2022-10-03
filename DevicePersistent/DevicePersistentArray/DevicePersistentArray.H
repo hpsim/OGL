@@ -32,7 +32,6 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 #include "../common/common.H"
 
@@ -45,7 +44,7 @@ struct ArrayInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const gkoGlobalIndex &global_index_;
+    const label size_;
 
     const label verbose_;
 
@@ -56,22 +55,22 @@ struct ArrayInitFunctor {
 
 
     ArrayInitFunctor(const ExecutorHandler &exec, const word name,
-                     const gkoGlobalIndex &global_index, const label verbose,
+                     const label size, const label verbose,
                      const bool on_device = false)
         : exec_(exec),
           name_(name),
-          global_index_(global_index),
+          size_(size),
           on_device_(on_device),
           verbose_(verbose),
           other_(NULL)
     {}
 
     ArrayInitFunctor(const ExecutorHandler &exec, const word name,
-                     const gkoGlobalIndex &global_index, const T *other,
-                     const label verbose, const bool on_device = false)
+                     const label size, const T *other, const label verbose,
+                     const bool on_device = false)
         : exec_(exec),
           name_(name),
-          global_index_(global_index),
+          size_(size),
           on_device_(on_device),
           verbose_(verbose),
           other_(other)
@@ -83,11 +82,10 @@ struct ArrayInitFunctor {
     {
         if (other_ != NULL) {
             word msg{"updating array " + name_ + " of size " +
-                     std::to_string(global_index_.localSize())};
+                     std::to_string(size_)};
             LOG_1(verbose_, msg)
 
-            auto host_view = gko::array<T>::view(exec_.get_ref_exec(),
-                                                 global_index_.localSize(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                                  const_cast<T *>(other_));
             persistent_array->operator=(host_view);
         }
@@ -98,18 +96,16 @@ struct ArrayInitFunctor {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         word msg{"initialising array " + name_ + " of size " +
-                 std::to_string(global_index_.localSize())};
+                 std::to_string(size_)};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
         if (other_ != NULL) {
-            auto host_view = gko::array<T>::view(exec_.get_ref_exec(),
-                                                 global_index_.localSize(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                                  const_cast<T *>(other_));
             return std::make_shared<gko::array<T>>(exec, host_view);
         } else {
-            return std::make_shared<gko::array<T>>(exec,
-                                                   global_index_.localSize());
+            return std::make_shared<gko::array<T>>(exec, size_);
         }
     }
 };
@@ -121,7 +117,7 @@ class PersistentArray
 
     T *memory_;
 
-    const gkoGlobalIndex &global_index_;
+    const label size_;
 
     const ExecutorHandler &exec_;
 
@@ -151,14 +147,14 @@ public:
      * registry
      */
     PersistentArray(const word name, const objectRegistry &db,
-                    const ExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool on_device)
+                    const ExecutorHandler &exec, const label size,
+                    const label verbose, const bool update,
+                    const bool on_device)
         : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
-              ArrayInitFunctor<T>(exec, name, global_index, verbose, on_device),
-              update, verbose),
-          global_index_(global_index),
+              ArrayInitFunctor<T>(exec, name, size, verbose, on_device), update,
+              verbose),
+          size_(size),
           exec_(exec),
           update_(update)
     {}
@@ -176,21 +172,19 @@ public:
      * device or host
      */
     PersistentArray(T *memory, const word name, const objectRegistry &db,
-                    const ExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool init_on_device)
+                    const ExecutorHandler &exec, const label size,
+                    const label verbose, const bool update,
+                    const bool init_on_device)
         : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
-              ArrayInitFunctor<T>(exec, name, global_index, memory, verbose,
+              ArrayInitFunctor<T>(exec, name, size, memory, verbose,
                                   init_on_device),
               update, verbose),
           memory_(memory),
-          global_index_(global_index),
+          size_(size),
           exec_(exec),
           update_(update)
     {}
-
-    label get_global_size() const { return global_index_.size(); }
 
     bool get_update() const { return update_; }
 
@@ -231,12 +225,11 @@ public:
      * */
     void copy_back(const std::shared_ptr<gko::distributed::Vector<T>> dist_x)
     {
-        const label nCells = global_index_.localSize();
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                              const_cast<T *>(memory_));
 
         auto dist_device_exec = dist_x->get_executor();
-        auto x_view = gko::array<T>::view(dist_device_exec, nCells,
+        auto x_view = gko::array<T>::view(dist_device_exec, size_,
                                           dist_x->get_local()->get_values());
 
         host_view = x_view;
@@ -244,48 +237,15 @@ public:
 
     void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
     {
-        const label nCells = global_index_.localSize();
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                              const_cast<T *>(memory_));
 
-        auto x_view = gko::array<T>::view(exec_.get_device_exec(), nCells,
+        auto x_view = gko::array<T>::view(exec_.get_device_exec(), size_,
                                           device_x->get_values());
 
         host_view = x_view;
     }
 
-    void copy_back_parallel(
-        const gkoGlobalIndex &global_address, T *memory,
-        const std::shared_ptr<gko::matrix::Dense<T>> device_x)
-    {
-        //	    std::cout << "!!!!!!!!!! copy back parallel" << std::endl;
-        const label nCells = global_index_.localSize();
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), nCells,
-                                             const_cast<T *>(memory));
-
-        auto x_view = (Pstream::master())
-                          ? gko::array<T>::view(exec_.get_device_exec(),
-                                                global_address.size(),
-                                                device_x->get_values())
-                          : gko::array<T>(gko::ReferenceExecutor::create());
-
-        if (Pstream::master()) {
-            x_view.set_executor(exec_.get_ref_exec());
-
-            // std::cout << "!!!!!!!!!! x_view before scatter back parallel" <<
-            // std::endl; for (int i=0; i< x_view.get_num_elems(); i++) {
-            // 	std::cout << i << ": " << host_view.get_const_data()[i] <<
-            // std::endl;
-            // }
-        }
-
-        global_address.scatter(x_view, host_view);
-
-        // std::cout << "!!!!!!!!!! host_view after scatter back parallel" <<
-        // std::endl; for (int i=0; i< nCells; i++) { 	std::cout << i << ": "
-        // << host_view.get_const_data()[i] << std::endl;
-        // }
-    }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 };

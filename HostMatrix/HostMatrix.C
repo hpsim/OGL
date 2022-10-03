@@ -198,8 +198,8 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     auto non_local_row_indices = communicate_non_local_col_indices(interfaces);
-    auto rows = local_row_idxs_.get_data();
-    auto cols = local_col_idxs_.get_data();
+    auto rows = local_sparsity_.row_idxs_.get_data();
+    auto cols = local_sparsity_.col_idxs_.get_data();
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
@@ -248,8 +248,8 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
     // col of upper, row of lower
     const auto upper = upper_local.get_const_data();
 
-    auto rows = local_row_idxs_.get_data();
-    auto cols = local_col_idxs_.get_data();
+    auto rows = local_sparsity_.row_idxs_.get_data();
+    auto cols = local_sparsity_.col_idxs_.get_data();
 
     label element_ctr = 0;
     label upper_ctr = 0;
@@ -320,7 +320,9 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
     }
 
-    auto d = vec::create(
+    // create a vector to hold contiguos matrix coefficients which can be
+    // permuted from ldu to row major format ordering
+    auto contiguos = vec::create(
         ref_exec,
         gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
 
@@ -329,13 +331,13 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     auto u_host_view =
         gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
     auto u_device_view =
-        gko::array<scalar>::view(ref_exec, upper_nnz_, d->get_values());
+        gko::array<scalar>::view(ref_exec, upper_nnz_, contiguos->get_values());
     u_device_view = u_host_view;
 
     // copy lower
     auto lower = this->matrix().lower();
-    auto l_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
-                                                  &d->get_values()[upper_nnz_]);
+    auto l_device_view = gko::array<scalar>::view(
+        ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
     if (lower == upper) {
         // symmetric case reuse data already on the device
         l_device_view = u_device_view;
@@ -349,11 +351,10 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 
     // copy diag
     auto diag = this->matrix().diag();
-    auto d_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
-    auto d_device_view = gko::array<scalar>::view(
-        ref_exec, nrows_, &d->get_values()[2 * upper_nnz_]);
-    d_device_view = d_host_view;
-
+    auto diag_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
+    auto diag_contiguous_view = gko::array<scalar>::view(
+        ref_exec, nrows_, &contiguos->get_values()[2 * upper_nnz_]);
+    diag_contiguous_view = diag_host_view;
 
     auto dense_vec = vec::create(
         ref_exec,
@@ -362,7 +363,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     // NOTE apply changes the underlying pointer of dense_vec
     // thus copy_from is used to move the ptr to the underlying
     // device persistent array
-    P_->apply(d.get(), dense_vec.get());
+    P_->apply(contiguos.get(), dense_vec.get());
 
     auto dense_vec_after = vec::create(
         ref_exec,
