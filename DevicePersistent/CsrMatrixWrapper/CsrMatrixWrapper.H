@@ -49,7 +49,13 @@ struct MatrixInitFunctor {
 
     const PersistentArray<label> &row_idxs_;
 
-    const PersistentArray<scalar> &values_;
+    const PersistentArray<scalar> &coeffs_;
+
+    const PersistentArray<label> &non_local_col_idxs_;
+
+    const PersistentArray<label> &non_local_row_idxs_;
+
+    const PersistentArray<scalar> &non_local_coeffs_;
 
     const word matrix_format_;
 
@@ -59,13 +65,19 @@ struct MatrixInitFunctor {
                       const PersistentPartition &partition,
                       const PersistentArray<label> &col_idxs,
                       const PersistentArray<label> &row_idxs,
-                      const PersistentArray<scalar> &values,
+                      const PersistentArray<scalar> &coeffs,
+                      const PersistentArray<label> &non_local_col_idxs,
+                      const PersistentArray<label> &non_local_row_idxs,
+                      const PersistentArray<scalar> &non_local_coeffs,
                       const word matrix_format, const label verbose)
         : exec_(exec),
           partition_(partition),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
-          values_(values),
+          coeffs_(coeffs),
+          non_local_col_idxs_(non_local_col_idxs),
+          non_local_row_idxs_(non_local_row_idxs),
+          non_local_coeffs_(non_local_coeffs),
           matrix_format_(matrix_format),
           verbose_(verbose)
     {}
@@ -110,9 +122,13 @@ struct MatrixInitFunctor {
         word msg{"init global csr matrix of size " + std::to_string(nCells)};
         LOG_1(verbose_, msg)
 
-        auto values = values_.get_array();
+        auto coeffs = coeffs_.get_array();
         auto cols = col_idxs_.get_array();
         auto rows = row_idxs_.get_array();
+
+        auto non_local_coeffs = non_local_coeffs_.get_array();
+        auto non_local_cols = non_local_col_idxs_.get_array();
+        auto non_local_rows = non_local_row_idxs_.get_array();
 
         // check if sorted
         if (false) {
@@ -155,7 +171,11 @@ struct MatrixInitFunctor {
         auto num_rows = partition_.get_total_size();
         gko::device_matrix_data<scalar, label> A_data(
             exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
-            *values.get());
+            *coeffs.get());
+
+        gko::device_matrix_data<scalar, label> non_local_A_data(
+            exec, gko::dim<2>(num_rows, num_rows), *non_local_rows.get(),
+            *non_local_cols.get(), *non_local_coeffs.get());
 
         auto end_build = std::chrono::steady_clock::now();
         auto delta_t_build =
@@ -167,7 +187,8 @@ struct MatrixInitFunctor {
         auto start_dist = std::chrono::steady_clock::now();
         auto dist_A =
             generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
-        dist_A->read_distributed(A_data, partition_.get_host_partition().get());
+        dist_A->read_distributed(A_data, non_local_A_data,
+                                 partition_.get_host_partition().get());
         auto end_dist = std::chrono::steady_clock::now();
         auto delta_t_dist =
             std::chrono::duration_cast<std::chrono::microseconds>(end_dist -
@@ -234,7 +255,10 @@ public:
     MatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,
                   const PersistentArray<label> &col_idxs,
                   const PersistentArray<label> &row_idxs,
-                  const PersistentArray<scalar> &values,
+                  const PersistentArray<scalar> &coeffs,
+                  const PersistentArray<label> &non_local_col_idxs,
+                  const PersistentArray<label> &non_local_row_idxs,
+                  const PersistentArray<scalar> &non_local_coeffs,
                   const PersistentPartition &partition,
                   const dictionary &controlDict, const word sys_matrix_name,
                   const label verbose)
@@ -243,7 +267,8 @@ public:
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
               MatrixInitFunctor<mtx>(
-                  exec, partition, col_idxs, row_idxs, values,
+                  exec, partition, col_idxs, row_idxs, coeffs,
+                  non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
                   verbose_),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),

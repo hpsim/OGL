@@ -347,7 +347,7 @@ public:
         return local_sparsity_.row_idxs_;
     };
 
-    PersistentArray<scalar> &get_non_local_values() const  //
+    PersistentArray<scalar> &get_non_local_coeffs() const
     {
         return non_local_coeffs_;
     };
