@@ -137,6 +137,7 @@ public:
                      // matrix it will be put on the device
           },
           local_ldu_csr_idx_mapping_{
+              // TODO this needs to be size nnz_local
               fieldName + "_ldu_csr_map",
               db,
               exec_,

@@ -306,99 +306,72 @@ template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern() const;
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 {
-    // auto ref_exec = exec_.get_ref_exec();
+    auto ref_exec = exec_.get_ref_exec();
 
-    // const auto sorting_idxs = ldu_csr_idx_mapping_.get_array();
+    const auto sorting_idxs = local_ldu_csr_idx_mapping_.get_array();
 
-    // auto &db = values_.get_db();
-    // if (!permutation_stored_) {
-    //     P_ = gko::share(gko::matrix::Permutation<label>::create(
-    //         ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_},
-    //         *sorting_idxs.get()));
-    //     const fileName path = permutation_matrix_name_;
-    //     auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path,
-    //     db), P_);
-    // }
+    auto &db = local_coeffs_.get_db();
+    if (!permutation_stored_) {
+        P_ = gko::share(gko::matrix::Permutation<label>::create(
+            ref_exec,
+            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_},
+            *sorting_idxs.get()));
+        const fileName path = permutation_matrix_name_;
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
+    }
 
-    // // unsorted entries on device
-    // auto d = vec::create(ref_exec,
-    //                      gko::dim<2>((gko::dim<2>::dimension_type)nElems_,
-    //                      1));
+    auto d = vec::create(
+        ref_exec,
+        gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
 
-    // // copy upper
-    // auto upper = this->matrix().upper();
-    // auto u_host_view =
-    //     gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
-    // auto u_device_view =
-    //     gko::array<scalar>::view(ref_exec, upper_nnz_, d->get_values());
-    // u_device_view = u_host_view;
+    // copy upper
+    auto upper = this->matrix().upper();
+    auto u_host_view =
+        gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
+    auto u_device_view =
+        gko::array<scalar>::view(ref_exec, upper_nnz_, d->get_values());
+    u_device_view = u_host_view;
 
-    // // copy lower
-    // auto lower = this->matrix().lower();
-    // auto l_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
-    //                                               &d->get_values()[upper_nnz_]);
-    // if (lower == upper) {
-    //     // symmetric case reuse data already on the device
-    //     l_device_view = u_device_view;
+    // copy lower
+    auto lower = this->matrix().lower();
+    auto l_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
+                                                  &d->get_values()[upper_nnz_]);
+    if (lower == upper) {
+        // symmetric case reuse data already on the device
+        l_device_view = u_device_view;
 
-    // } else {
-    //     // non-symmetric case copy data to the device
-    //     auto l_host_view =
-    //         gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
-    //     l_device_view = l_host_view;
-    // }
+    } else {
+        // non-symmetric case copy data to the device
+        auto l_host_view =
+            gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
+        l_device_view = l_host_view;
+    }
 
-    // // copy diag
-    // auto diag = this->matrix().diag();
-    // auto d_host_view = gko::array<scalar>::view(ref_exec, nrows_,
-    // &diag[0]); auto d_device_view = gko::array<scalar>::view(
-    //     ref_exec, nrows_, &d->get_values()[2 * upper_nnz_]);
-    // d_device_view = d_host_view;
-
-    // // copy interfaces
-    // auto tmp_contiguous_iface = gko::array<scalar>(ref_exec,
-    // nnz_non_local_matrix_); auto contiguous_iface =
-    // tmp_contiguous_iface.get_data();
-
-    // label interface_ctr{0};
-    // for (int i = 0; i < interfaces.size(); i++) {
-    //     if (interfaces.operator()(i) == nullptr) {
-    //         continue;
-    //     }
-    //     const auto iface{interfaces.operator()(i)};
-    //     const label patch_size = iface->interface().faceCells().size();
-
-    //     if (!isA<processorLduInterface>(iface->interface())) {
-    //         continue;
-    //     }
-
-    //     for (label cellI = 0; cellI < patch_size; cellI++) {
-    //         contiguous_iface[interface_ctr + cellI] =
-    //             -interfaceBouCoeffs[interface_ctr + cellI];
-    //     }
-    //     interface_ctr += patch_size;
-    // }
-
-    // auto i_device_view = gko::array<scalar>::view(
-    //     ref_exec, nnz_non_local_matrix_,
-    //     &d->get_values()[nElems_wo_Interfaces_]);
-    // i_device_view = tmp_contiguous_iface;
+    // copy diag
+    auto diag = this->matrix().diag();
+    auto d_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
+    auto d_device_view = gko::array<scalar>::view(
+        ref_exec, nrows_, &d->get_values()[2 * upper_nnz_]);
+    d_device_view = d_host_view;
 
 
-    // auto dense_vec = vec::create(
-    //     ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1});
+    auto dense_vec = vec::create(
+        ref_exec,
+        gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1});
 
-    // // NOTE apply changes the underlying pointer of dense_vec
-    // // thus copy_from is used to move the ptr to the underlying
-    // // device persistent array
-    // P_->apply(d.get(), dense_vec.get());
+    // NOTE apply changes the underlying pointer of dense_vec
+    // thus copy_from is used to move the ptr to the underlying
+    // device persistent array
+    P_->apply(d.get(), dense_vec.get());
 
-    // auto dense_vec_after = vec::create(
-    //     ref_exec, gko::dim<2>{(gko::dim<2>::dimension_type)nElems_, 1},
-    //     gko::array<scalar>::view(ref_exec, nElems_, values_.get_data()),
-    //     1);
+    auto dense_vec_after = vec::create(
+        ref_exec,
+        gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
+        gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
+                                 local_coeffs_.get_data()),
+        1);
 
-    // dense_vec_after->copy_from(dense_vec.get());
+    dense_vec_after->copy_from(dense_vec.get());
 }
 
 template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data() const;
