@@ -187,8 +187,6 @@ public:
         if (!local_col_idxs_.get_stored() || local_col_idxs_.get_update()) {
             SIMPLE_TIME(verbose_, init_local_sparsity_pattern,
                         init_local_sparsity_pattern();)
-            auto other_proc_cell_ids = communicate_non_local_row_indices(
-                nnz_non_local_matrix_, interfaces);
             SIMPLE_TIME(verbose_, init_non_local_sparsity_pattern,
                         init_non_local_sparsity_pattern(interfaces);)
         }
@@ -309,8 +307,17 @@ public:
         const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces,
         const FieldField<Field, scalar> interfaceBouCoeffs);
 
-    std::vector<label> communicate_non_local_row_indices(
-        const label nInterfaces, const lduInterfaceFieldPtrsList &interfaces);
+    /* Iterates all interfaces and collects non-local global column indices
+    **
+    ** Non-local global column indices are computed from the global cell-id
+    ** (row) on the other side of an interface
+    **
+    ** @return vector off size nnz_non_local, with sections for each interface
+    ** ret = [(1,2,3),(10,20,30), ...]
+    **         i0      i1,       i...
+    */
+    std::vector<label> communicate_non_local_col_indices(
+        const lduInterfaceFieldPtrsList &interfaces) const;
 
     /* Based on OpenFOAMs ldu matrix format this function computes two
      *consecutive index arrays in row major ordering and scattering indices
@@ -319,8 +326,7 @@ public:
     void init_local_sparsity_pattern() const;
 
     void init_non_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const
-    {}
+        const lduInterfaceFieldPtrsList &interfaces) const;
 
     // // TODO this is pretty much the same as
     // communicate_non_local_row_indices
