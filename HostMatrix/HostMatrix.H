@@ -235,8 +235,8 @@ public:
           },
           nnz_non_local_matrix_(),
           non_local_sparsity_{
-              fieldName + "_non_local_", db,       exec_,
-              nnz_non_local_matrix_,     verbose_,
+              fieldName + "_non_local", db,       exec_,
+              nnz_non_local_matrix_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",

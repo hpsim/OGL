@@ -84,10 +84,88 @@ struct MatrixInitFunctor {
 
     void update(std::shared_ptr<dist_mtx> &csr_matrix) const
     {
-        // FIXME for now we just rebuild the distributed matrix
-        // on the Ginkgo side some update functionalities should be implemented
+        label nCells = partition_.get_local_host_size();
+        word msg{"init global csr matrix of size " + std::to_string(nCells)};
+        LOG_1(verbose_, msg)
 
-        init()->move_to(csr_matrix.get());
+        auto coeffs = coeffs_.get_array();
+        auto cols = col_idxs_.get_array();
+        auto rows = row_idxs_.get_array();
+
+        auto non_local_coeffs = non_local_coeffs_.get_array();
+        auto non_local_cols = non_local_col_idxs_.get_array();
+        auto non_local_rows = non_local_row_idxs_.get_array();
+
+
+        auto exec = exec_.get_ref_exec();
+
+        auto start_build = std::chrono::steady_clock::now();
+
+        auto num_rows = partition_.get_total_size();
+        gko::device_matrix_data<scalar, label> A_data(
+            exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
+            *coeffs.get());
+
+        gko::device_matrix_data<scalar, label> non_local_A_data(
+            exec, gko::dim<2>(num_rows, num_rows), *non_local_rows.get(),
+            *non_local_cols.get(), *non_local_coeffs.get());
+
+        auto end_build = std::chrono::steady_clock::now();
+        auto delta_t_build =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_build -
+                                                                  start_build)
+                .count();
+
+        auto comm = exec_.get_gko_mpi_host_comm();
+        auto start_dist = std::chrono::steady_clock::now();
+        auto dist_A =
+            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
+        dist_A->read_distributed(A_data, non_local_A_data,
+                                 partition_.get_host_partition().get());
+        auto end_dist = std::chrono::steady_clock::now();
+        auto delta_t_dist =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_dist -
+                                                                  start_dist)
+                .count();
+
+        if (partition_.get_ranks_per_gpu() == 1) {
+            auto device_mat = generate_dist_mtx_with_inner_type(
+                exec_.get_gko_mpi_device_comm());
+            dist_A->move_to(csr_matrix.get());
+        }
+
+        // TODO test if this needs to be persistent
+        auto start_repart = std::chrono::steady_clock::now();
+        auto repartitioner =
+            gko::share(gko::distributed::repartitioner<label, label>::create(
+                *comm.get(), partition_.get_host_partition(),
+                partition_.get_device_partition()));
+        auto end_repart = std::chrono::steady_clock::now();
+        auto delta_t_repart =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_repart -
+                                                                  start_repart)
+                .count();
+
+        auto to_mat =
+            gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
+
+        auto start_gather = std::chrono::steady_clock::now();
+        repartitioner->gather(dist_A.get(), to_mat.get());
+        auto end_gather = std::chrono::steady_clock::now();
+        auto delta_t_gather =
+            std::chrono::duration_cast<std::chrono::microseconds>(end_gather -
+                                                                  start_gather)
+                .count();
+
+        std::cout << " delta t build " << delta_t_build << " delta t repart "
+                  << delta_t_repart << " delta t gather " << delta_t_gather
+                  << std::endl;
+
+        auto device_mat = gko::share(
+            dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
+
+        to_mat->move_to(device_mat.get());
+        dist_A->move_to(csr_matrix.get());
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
@@ -114,7 +192,7 @@ struct MatrixInitFunctor {
                              << " not supported " << abort(FatalError);
     }
 
-    std::shared_ptr<mtx> init() const
+    std::shared_ptr<dist_mtx> init() const
     {
         using coo_mtx = gko::matrix::Coo<scalar>;
 
