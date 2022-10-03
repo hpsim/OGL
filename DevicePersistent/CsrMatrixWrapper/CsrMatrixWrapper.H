@@ -349,7 +349,7 @@ public:
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
                   verbose_),
-              controlDict.lookupOrDefault<Switch>("updateSysMatrix", false),
+              controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
 
