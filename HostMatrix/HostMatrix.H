@@ -137,10 +137,10 @@ public:
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
           global_row_index_{nrows_},
           local_sparsity_{
-              fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
+              fieldName + "_local", db, exec_, nnz_local_matrix_, verbose_,
           },
           local_coeffs_{
-              fieldName + "_coeffs",
+              fieldName + "_local_coeffs",
               db,
               exec_,
               nnz_local_matrix_,
@@ -160,8 +160,8 @@ public:
           },
           nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
           non_local_sparsity_{
-              fieldName + "_non_local_", db,       exec_,
-              nnz_non_local_matrix_,     verbose_,
+              fieldName + "_non_local", db,       exec_,
+              nnz_non_local_matrix_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",
