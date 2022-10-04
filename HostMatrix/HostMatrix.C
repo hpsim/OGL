@@ -39,8 +39,10 @@ label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
         if (interfaces_.operator()(i) == nullptr) {
             continue;
         }
-        const auto iface{interfaces_.operator()(i)};
-        ctr += iface->interface().faceCells().size();
+        const auto iface{interfaces.operator()(i)};
+        if (isA<processorLduInterface>(iface->interface())) {
+            ctr += iface->interface().faceCells().size();
+        }
     }
     return ctr;
 }
