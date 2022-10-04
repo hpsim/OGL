@@ -132,6 +132,7 @@ struct MatrixInitFunctor {
             auto device_mat = generate_dist_mtx_with_inner_type(
                 exec_.get_gko_mpi_device_comm());
             dist_A->move_to(csr_matrix.get());
+            return;
         }
 
         // TODO test if this needs to be persistent
@@ -164,8 +165,7 @@ struct MatrixInitFunctor {
         auto device_mat = gko::share(
             dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
 
-        to_mat->move_to(device_mat.get());
-        dist_A->move_to(csr_matrix.get());
+        to_mat->move_to(csr_matrix.get();
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
