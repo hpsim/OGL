@@ -320,7 +320,7 @@ private:
 
     const bool export_;
 
-    mutable PersistentBase<dist_mtx, MatrixInitFunctor<dist_mtx>> gkomatrix_;
+    mutable PersistentBase<dist_mtx, MatrixInitFunctor> gkomatrix_;
 
     mutable label prev_solve_iters_ = 0;
 
