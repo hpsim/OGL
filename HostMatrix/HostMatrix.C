@@ -32,11 +32,11 @@ namespace Foam {
 
 template <class MatrixType>
 label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
-    const lduInterfaceFieldPtrsList &interfaces_) const
+    const lduInterfaceFieldPtrsList &interfaces) const
 {
     label ctr{0};
-    for (int i = 0; i < interfaces_.size(); i++) {
-        if (interfaces_.operator()(i) == nullptr) {
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
             continue;
         }
         const auto iface{interfaces.operator()(i)};
@@ -122,13 +122,13 @@ HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
 
 // TODO merge with communicate_non_local_row_indices
 template <class MatrixType>
-std::vector<label>
+std::vector<std::tuple<label, label>>
 HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of local cell ids on other side
-    std::vector<label> non_local_col_idxs{};
-    non_local_col_idxs.reserve(nnz_non_local_matrix_);
+    std::vector<std::tuple<label, label>> non_local_idxs{};
+    non_local_idxs.reserve(nnz_non_local_matrix_);
 
     label startOfRequests = Pstream::nRequests();
     for (int i = 0; i < interfaces.size(); i++) {
@@ -178,18 +178,20 @@ HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
             LOG_2(verbose_, "receive face cells done")
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                non_local_col_idxs.push_back(global_row_index_.toGlobal(
-                    neighbProcNo, otherSide_tmp()[cellI]));
+                non_local_idxs.push_back(
+                    {face_cells[cellI],
+                     global_row_index_.toGlobal(neighbProcNo,
+                                                otherSide_tmp()[cellI])});
             }
         }
     }
     word msg = "done collecting neighbouring processor cell id";
 
     LOG_2(verbose_, msg)
-    return non_local_col_idxs;
+    return non_local_idxs;
 }
 
-template std::vector<label>
+template std::vector<std::tuple<label, label>>
 HostMatrixWrapper<lduMatrix>::communicate_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const;
 
@@ -217,9 +219,9 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                label row = face_cells[cellI];
+                auto [row, col] = non_local_row_indices[interface_ctr];
                 rows[interface_ctr] = row;
-                cols[interface_ctr] = non_local_row_indices[interface_ctr];
+                cols[interface_ctr] = col;
                 interface_ctr += 1;
             }
         }
@@ -412,10 +414,9 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         }
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
-            contiguous_iface[interface_ctr + cellI] =
-                -interface_coeffs[interface_ctr + cellI];
+            contiguous_iface[interface_ctr] = -interface_coeffs[interface_ctr];
+            interface_ctr += 1;
         }
-        interface_ctr += patch_size;
     }
 
     // copy to persistent

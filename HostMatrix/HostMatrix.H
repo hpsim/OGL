@@ -282,7 +282,7 @@ public:
     ** ret = [(1,2,3),(10,20,30), ...]
     **         i0      i1,       i...
     */
-    std::vector<label> communicate_non_local_col_indices(
+    std::vector<std::tuple<label, label>> communicate_non_local_col_indices(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /* Based on OpenFOAMs ldu matrix format this function computes two
