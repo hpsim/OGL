@@ -340,7 +340,7 @@ public:
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
-              MatrixInitFunctor<dist_mtx>(
+              MatrixInitFunctor(
                   exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
