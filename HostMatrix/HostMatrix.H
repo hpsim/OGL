@@ -192,7 +192,6 @@ public:
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
             SIMPLE_TIME(verbose_, update_local_matrix_data,
                         update_local_matrix_data();)
-
             SIMPLE_TIME(
                 verbose_, update_non_local_matrix_data,
                 update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)

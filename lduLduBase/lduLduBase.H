@@ -207,18 +207,18 @@ public:
         };
 
         // TODO this is now the local matrix part for dist_A
-        MatrixWrapper<dist_mtx> dist_A{db_,
-                                       this->get_exec_handler(),  // get exec
-                                       this->get_local_col_idxs(),
-                                       this->get_local_row_idxs(),
-                                       this->get_local_coeffs(),
-                                       this->get_non_local_col_idxs(),
-                                       this->get_non_local_row_idxs(),
-                                       this->get_non_local_coeffs(),
-                                       partition,
-                                       solver_controls_,
-                                       this->fieldName(),
-                                       this->get_verbose()};
+        MatrixWrapper dist_A{db_,
+                             this->get_exec_handler(),  // get exec
+                             this->get_local_col_idxs(),
+                             this->get_local_row_idxs(),
+                             this->get_local_coeffs(),
+                             this->get_non_local_col_idxs(),
+                             this->get_non_local_row_idxs(),
+                             this->get_non_local_coeffs(),
+                             partition,
+                             solver_controls_,
+                             this->fieldName(),
+                             this->get_verbose()};
 
         PersistentVector<scalar> dist_b{
             &source[0],

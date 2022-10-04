@@ -37,7 +37,6 @@ SourceFiles
 namespace Foam {
 
 
-template <typename mtx>
 struct MatrixInitFunctor {
     using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
@@ -82,7 +81,7 @@ struct MatrixInitFunctor {
           verbose_(verbose)
     {}
 
-    void update(std::shared_ptr<dist_mtx> &csr_matrix) const
+    void update(std::shared_ptr<dist_mtx> &persistent_device_matrix) const
     {
         label nCells = partition_.get_local_host_size();
         word msg{"init global csr matrix of size " + std::to_string(nCells)};
@@ -95,7 +94,6 @@ struct MatrixInitFunctor {
         auto non_local_coeffs = non_local_coeffs_.get_array();
         auto non_local_cols = non_local_col_idxs_.get_array();
         auto non_local_rows = non_local_row_idxs_.get_array();
-
 
         auto exec = exec_.get_ref_exec();
 
@@ -129,9 +127,7 @@ struct MatrixInitFunctor {
                 .count();
 
         if (partition_.get_ranks_per_gpu() == 1) {
-            auto device_mat = generate_dist_mtx_with_inner_type(
-                exec_.get_gko_mpi_device_comm());
-            dist_A->move_to(csr_matrix.get());
+            dist_A->move_to(persistent_device_matrix.get());
             return;
         }
 
@@ -165,7 +161,7 @@ struct MatrixInitFunctor {
         auto device_mat = gko::share(
             dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
 
-        to_mat->move_to(csr_matrix.get());
+        to_mat->move_to(persistent_device_matrix.get());
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
@@ -317,14 +313,14 @@ struct MatrixInitFunctor {
 };
 
 
-template <typename mtx>
 class MatrixWrapper {
 private:
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
     const label verbose_;
 
     const bool export_;
 
-    mutable PersistentBase<mtx, MatrixInitFunctor<mtx>> gkomatrix_;
+    mutable PersistentBase<dist_mtx, MatrixInitFunctor<dist_mtx>> gkomatrix_;
 
     mutable label prev_solve_iters_ = 0;
 
