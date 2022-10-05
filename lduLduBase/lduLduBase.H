@@ -97,11 +97,12 @@ public:
             std::string("\n\tGinkgo version: ") +
             std::to_string(version_info.core_version.major) + std::string(".") +
             std::to_string(version_info.core_version.minor) + std::string(".") +
-            std::to_string(version_info.core_version.patch) + std::string("(") +
-            std::string(" ") + std::string(version_info.core_version.tag) +
-            std::string("\n\tGinkgo commit: ") +
+            std::to_string(version_info.core_version.patch) +
+            std::string(" (") + std::string(" ") +
+            std::string(version_info.core_version.tag) +
+            std::string(")\n\tGinkgo commit: ") +
             std::string(ginkgo_git_revision()) +
-            std::string(")\n\tMPI is GPU aware: ") +
+            std::string("\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
