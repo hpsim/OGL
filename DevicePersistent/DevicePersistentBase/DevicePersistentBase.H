@@ -128,8 +128,8 @@ public:
             // TODO make shure isOwnedByRegistry returns true
             auto po = new DevicePersistentBase<T>(IOobject(path, db), f.init());
 
-            SIMPLE_TIME(verbose_, call_init,
-                        persistent_object_ = po->get_ptr();)
+            SIMPLE_TIME2(verbose_, call_init, name_,
+                         persistent_object_ = po->get_ptr();)
         }
     }
 
