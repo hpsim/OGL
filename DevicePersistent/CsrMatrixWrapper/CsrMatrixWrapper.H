@@ -88,15 +88,45 @@ struct MatrixInitFunctor {
         LOG_1(verbose_, msg)
 
         auto coeffs = coeffs_.get_array();
-        auto cols = col_idxs_.get_array();
-        auto rows = row_idxs_.get_array();
-
         auto non_local_coeffs = non_local_coeffs_.get_array();
-        auto non_local_cols = non_local_col_idxs_.get_array();
-        auto non_local_rows = non_local_row_idxs_.get_array();
 
         auto exec = exec_.get_ref_exec();
 
+        if (partition_.get_ranks_per_gpu() == 1) {
+            auto device_exec = exec_.get_device_exec();
+            gko::array<scalar> device_values{device_exec, *coeffs.get()};
+            gko::array<scalar> device_non_local_values{device_exec,
+                                                       *non_local_coeffs.get()};
+
+	    std::shared_ptr<const gko::LinOp> local_matrix = 
+                    persistent_device_matrix->get_local_matrix();
+	    gko::matrix::Coo<scalar, label>* coo_ptr =
+                (gko::matrix::Coo<scalar, label>*)local_matrix.get();
+            scalar *value_ptr = coo_ptr->get_values();
+
+	    std::shared_ptr<const gko::LinOp> non_local_matrix = 
+                    persistent_device_matrix->get_non_local_matrix();
+	    gko::matrix::Coo<scalar, label>* non_local_coo_ptr =
+                (gko::matrix::Coo<scalar, label>*)non_local_matrix.get();
+            scalar *non_local_values_ptr = non_local_coo_ptr->get_values();
+
+            auto value_view =
+                val_array::view(device_exec, device_values.get_num_elems(),
+                                value_ptr);
+
+            auto non_local_view = val_array::view(
+                device_exec, device_non_local_values.get_num_elems(),
+                non_local_values_ptr);
+
+            value_view = device_values;
+            non_local_view = device_non_local_values;
+            return;
+        }
+
+        auto cols = col_idxs_.get_array();
+        auto rows = row_idxs_.get_array();
+        auto non_local_cols = non_local_col_idxs_.get_array();
+        auto non_local_rows = non_local_row_idxs_.get_array();
         auto start_build = std::chrono::steady_clock::now();
 
         auto num_rows = partition_.get_total_size();
@@ -126,10 +156,6 @@ struct MatrixInitFunctor {
                                                                   start_dist)
                 .count();
 
-        if (partition_.get_ranks_per_gpu() == 1) {
-            dist_A->move_to(persistent_device_matrix.get());
-            return;
-        }
 
         // TODO test if this needs to be persistent
         auto start_repart = std::chrono::steady_clock::now();
