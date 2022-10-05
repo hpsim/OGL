@@ -56,7 +56,7 @@ struct ArrayInitFunctor {
 
     ArrayInitFunctor(const ExecutorHandler &exec, const word name,
                      const label size, const label verbose,
-                     const bool on_device = false)
+                     const bool on_device)
         : exec_(exec),
           name_(name),
           size_(size),
@@ -65,9 +65,9 @@ struct ArrayInitFunctor {
           other_(NULL)
     {}
 
-    ArrayInitFunctor(const ExecutorHandler &exec, const word name,
-                     const label size, const T *other, const label verbose,
-                     const bool on_device = false)
+    ArrayInitFunctor(const ExecutorHandler &exec, const T *other,
+                     const word name, const label size, const label verbose,
+                     const bool on_device)
         : exec_(exec),
           name_(name),
           size_(size),
@@ -177,7 +177,7 @@ public:
                     const bool init_on_device)
         : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
-              ArrayInitFunctor<T>(exec, name, size, memory, verbose,
+              ArrayInitFunctor<T>(exec, memory, name, size, verbose,
                                   init_on_device),
               update, verbose),
           memory_(memory),

@@ -103,15 +103,15 @@ public:
     {
         if (from_registry_) {
             word msg = "reading " + name_ + " from registry";
-            MLOG_0(verbose_, msg)
+            MLOG_1(verbose_, msg)
 
             if (update) {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
                         .get_ptr();
 
-                SIMPLE_TIME(verbose_, call_update,
-                            f.update(persistent_object_);)
+                SIMPLE_TIME2(verbose_, call_update, name_,
+                             f.update(persistent_object_);)
             } else {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
@@ -120,7 +120,7 @@ public:
 
         } else {
             word msg = "initialising " + name_;
-            MLOG_0(verbose_, msg)
+            MLOG_1(verbose_, msg)
             const fileName path = name_;
 
             // NOTE when objectRegistry is deleted delete for every pointer
