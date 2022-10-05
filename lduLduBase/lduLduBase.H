@@ -46,6 +46,8 @@ const char *git_version(void);
 
 const char *git_revision(void);
 
+const char *ginkgo_git_revision(void);
+
 const char *git_branch(void);
 
 namespace Foam {
@@ -88,7 +90,7 @@ public:
         // auto exec_info =
         // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
-            std::string("Initialising OGL\n\tVersion: ") +
+            std::string("Initialising OGL\n\tOGL commit: ") +
             std::string(git_version()) + std::string(" ") +
             std::string(git_revision()) + std::string("\n\tBranch: ") +
             std::string(git_branch()) + std::string(" ") +
@@ -96,14 +98,17 @@ public:
             std::to_string(version_info.core_version.major) + std::string(".") +
             std::to_string(version_info.core_version.minor) + std::string(".") +
             std::to_string(version_info.core_version.patch) + std::string("(") +
-            std::string(version_info.core_version.tag) +
+            std::string(" ") + std::string(version_info.core_version.tag) +
+            std::string("\n\tGinkgo commit: ") +
+            std::string(ginkgo_git_revision()) +
             std::string(")\n\tMPI is GPU aware: ") +
             std::to_string(gko::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
             std::string("\n\tCPU ranks per GPU: ") +
             std::to_string(ranks_per_gpu_) +
-            std::string("\n\tMatrix format: ") + matrix_format_;
+            std::string("\n\tMatrix format: ") + matrix_format_ +
+            std::string("\n\tEnd OGL_INFO");
         MLOG_0(verbose_, msg)
 
         // if in debug mode write pid
