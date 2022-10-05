@@ -98,24 +98,70 @@ struct MatrixInitFunctor {
             gko::array<scalar> device_non_local_values{device_exec,
                                                        *non_local_coeffs.get()};
 
-            std::shared_ptr<const gko::LinOp> local_matrix =
-                persistent_device_matrix->get_local_matrix();
-            gko::matrix::Coo<scalar, label> *coo_ptr =
-                (gko::matrix::Coo<scalar, label> *)local_matrix.get();
-            scalar *value_ptr = coo_ptr->get_values();
+            scalar *value_ptr{};
+            scalar *non_local_value_ptr{};
 
-            std::shared_ptr<const gko::LinOp> non_local_matrix =
-                persistent_device_matrix->get_non_local_matrix();
-            gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
-                (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
-            scalar *non_local_values_ptr = non_local_coo_ptr->get_values();
+            if (matrix_format_ == "Csr") {
+                std::shared_ptr<const gko::LinOp> local_matrix =
+                    persistent_device_matrix->get_local_matrix();
+                gko::matrix::Csr<scalar, label> *coo_ptr =
+                    (gko::matrix::Csr<scalar, label> *)local_matrix.get();
+                scalar *value_ptr = coo_ptr->get_values();
+
+                std::shared_ptr<const gko::LinOp> non_local_matrix =
+                    persistent_device_matrix->get_non_local_matrix();
+                gko::matrix::Csr<scalar, label> *non_local_coo_ptr =
+                    (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
+                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+            }
+            if (matrix_format_ == "Ell") {
+                std::shared_ptr<const gko::LinOp> local_matrix =
+                    persistent_device_matrix->get_local_matrix();
+                gko::matrix::Ell<scalar, label> *coo_ptr =
+                    (gko::matrix::Ell<scalar, label> *)local_matrix.get();
+                scalar *value_ptr = coo_ptr->get_values();
+
+                std::shared_ptr<const gko::LinOp> non_local_matrix =
+                    persistent_device_matrix->get_non_local_matrix();
+                gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
+                    (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
+                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+            }
+            if (matrix_format_ == "Hybrid") {
+                std::shared_ptr<const gko::LinOp> local_matrix =
+                    persistent_device_matrix->get_local_matrix();
+                gko::matrix::Hybrid<scalar, label> *coo_ptr =
+                    (gko::matrix::Hybrid<scalar, label> *)local_matrix.get();
+                scalar *value_ptr = coo_ptr->get_values();
+
+                std::shared_ptr<const gko::LinOp> non_local_matrix =
+                    persistent_device_matrix->get_non_local_matrix();
+                gko::matrix::Hybrid<scalar, label> *non_local_coo_ptr =
+                    (gko::matrix::Hybrid<scalar, label> *)
+                        non_local_matrix.get();
+                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+            }
+            if (matrix_format_ == "Coo") {
+                std::shared_ptr<const gko::LinOp> local_matrix =
+                    persistent_device_matrix->get_local_matrix();
+                gko::matrix::Coo<scalar, label> *coo_ptr =
+                    (gko::matrix::Coo<scalar, label> *)local_matrix.get();
+                scalar *value_ptr = coo_ptr->get_values();
+
+                std::shared_ptr<const gko::LinOp> non_local_matrix =
+                    persistent_device_matrix->get_non_local_matrix();
+                gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
+                    (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
+                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+            }
+
 
             auto value_view = val_array::view(
                 device_exec, device_values.get_num_elems(), value_ptr);
 
             auto non_local_view = val_array::view(
                 device_exec, device_non_local_values.get_num_elems(),
-                non_local_values_ptr);
+                non_local_value_ptr);
 
             value_view = device_values;
             non_local_view = device_non_local_values;
