@@ -106,53 +106,39 @@ struct MatrixInitFunctor {
                     persistent_device_matrix->get_local_matrix();
                 gko::matrix::Csr<scalar, label> *coo_ptr =
                     (gko::matrix::Csr<scalar, label> *)local_matrix.get();
-                scalar *value_ptr = coo_ptr->get_values();
+                value_ptr = coo_ptr->get_values();
 
                 std::shared_ptr<const gko::LinOp> non_local_matrix =
                     persistent_device_matrix->get_non_local_matrix();
                 gko::matrix::Csr<scalar, label> *non_local_coo_ptr =
                     (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
-                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+                non_local_value_ptr = non_local_coo_ptr->get_values();
             }
             if (matrix_format_ == "Ell") {
                 std::shared_ptr<const gko::LinOp> local_matrix =
                     persistent_device_matrix->get_local_matrix();
                 gko::matrix::Ell<scalar, label> *coo_ptr =
                     (gko::matrix::Ell<scalar, label> *)local_matrix.get();
-                scalar *value_ptr = coo_ptr->get_values();
+                value_ptr = coo_ptr->get_values();
 
                 std::shared_ptr<const gko::LinOp> non_local_matrix =
                     persistent_device_matrix->get_non_local_matrix();
                 gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
                     (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
-                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
-            }
-            if (matrix_format_ == "Hybrid") {
-                std::shared_ptr<const gko::LinOp> local_matrix =
-                    persistent_device_matrix->get_local_matrix();
-                gko::matrix::Hybrid<scalar, label> *coo_ptr =
-                    (gko::matrix::Hybrid<scalar, label> *)local_matrix.get();
-                scalar *value_ptr = coo_ptr->get_values();
-
-                std::shared_ptr<const gko::LinOp> non_local_matrix =
-                    persistent_device_matrix->get_non_local_matrix();
-                gko::matrix::Hybrid<scalar, label> *non_local_coo_ptr =
-                    (gko::matrix::Hybrid<scalar, label> *)
-                        non_local_matrix.get();
-                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+                non_local_value_ptr = non_local_coo_ptr->get_values();
             }
             if (matrix_format_ == "Coo") {
                 std::shared_ptr<const gko::LinOp> local_matrix =
                     persistent_device_matrix->get_local_matrix();
                 gko::matrix::Coo<scalar, label> *coo_ptr =
                     (gko::matrix::Coo<scalar, label> *)local_matrix.get();
-                scalar *value_ptr = coo_ptr->get_values();
+                value_ptr = coo_ptr->get_values();
 
                 std::shared_ptr<const gko::LinOp> non_local_matrix =
                     persistent_device_matrix->get_non_local_matrix();
                 gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
                     (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
-                scalar *non_local_value_ptr = non_local_coo_ptr->get_values();
+                non_local_value_ptr = non_local_coo_ptr->get_values();
             }
 
 
@@ -246,10 +232,10 @@ struct MatrixInitFunctor {
             return dist_mtx::create(*comm.get(),
                                     gko::with_matrix_type<gko::matrix::Ell>());
         }
-        if (matrix_format_ == "Hybrid") {
-            return dist_mtx::create(
-                *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
-        }
+        // if (matrix_format_ == "Hybrid") {
+        //     return dist_mtx::create(
+        //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
+        // }
         if (matrix_format_ == "Coo") {
             return dist_mtx::create(*comm.get(),
                                     gko::with_matrix_type<gko::matrix::Coo>());
