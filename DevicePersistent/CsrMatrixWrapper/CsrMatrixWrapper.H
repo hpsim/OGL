@@ -98,21 +98,20 @@ struct MatrixInitFunctor {
             gko::array<scalar> device_non_local_values{device_exec,
                                                        *non_local_coeffs.get()};
 
-	    std::shared_ptr<const gko::LinOp> local_matrix = 
-                    persistent_device_matrix->get_local_matrix();
-	    gko::matrix::Coo<scalar, label>* coo_ptr =
-                (gko::matrix::Coo<scalar, label>*)local_matrix.get();
+            std::shared_ptr<const gko::LinOp> local_matrix =
+                persistent_device_matrix->get_local_matrix();
+            gko::matrix::Coo<scalar, label> *coo_ptr =
+                (gko::matrix::Coo<scalar, label> *)local_matrix.get();
             scalar *value_ptr = coo_ptr->get_values();
 
-	    std::shared_ptr<const gko::LinOp> non_local_matrix = 
-                    persistent_device_matrix->get_non_local_matrix();
-	    gko::matrix::Coo<scalar, label>* non_local_coo_ptr =
-                (gko::matrix::Coo<scalar, label>*)non_local_matrix.get();
+            std::shared_ptr<const gko::LinOp> non_local_matrix =
+                persistent_device_matrix->get_non_local_matrix();
+            gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
+                (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
             scalar *non_local_values_ptr = non_local_coo_ptr->get_values();
 
-            auto value_view =
-                val_array::view(device_exec, device_values.get_num_elems(),
-                                value_ptr);
+            auto value_view = val_array::view(
+                device_exec, device_values.get_num_elems(), value_ptr);
 
             auto non_local_view = val_array::view(
                 device_exec, device_non_local_values.get_num_elems(),
