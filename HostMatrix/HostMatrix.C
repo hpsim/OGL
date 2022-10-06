@@ -278,16 +278,14 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
     //
     //  position after all local offdiagonal elements, needed for
     //  permutation matrix
-    label after_neighbours = 2 * upper_nnz_;
+    label after_neighbours = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
     for (label row = 0; row < nrows_; row++) {
         // add lower elements
         // for now just scan till current upper ctr
         for (const auto [stored_upper_ctr, col] : lower_stack[row]) {
             rows[element_ctr] = row;
             cols[element_ctr] = col;
-            permute[element_ctr] = (is_symmetric)
-                                       ? stored_upper_ctr
-                                       : stored_upper_ctr + upper_nnz_;
+            permute[element_ctr] = stored_upper_ctr;
             element_ctr++;
         }
 
@@ -308,7 +306,8 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
             cols[element_ctr] = col_upper;
 
             // insert into lower_stack
-            lower_stack[col_upper].emplace_back(upper_ctr, row_upper);
+            lower_stack[col_upper].emplace_back(
+                (is_symmetric) ? upper_ctr : upper_ctr + upper_nnz_, row_upper);
             permute[element_ctr] = upper_ctr;
 
             element_ctr++;
@@ -346,10 +345,10 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     u_device_view = u_host_view;
 
     // copy lower
-    auto l_device_view = gko::array<scalar>::view(
-        ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
     if (!is_symmetric) {
         // non-symmetric case copy data to the device
+        auto l_device_view = gko::array<scalar>::view(
+            ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
         auto l_host_view =
             gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
         l_device_view = l_host_view;
