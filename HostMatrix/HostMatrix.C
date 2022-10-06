@@ -326,6 +326,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     auto ref_exec = exec_.get_ref_exec();
     auto upper = this->matrix().upper();
     auto lower = this->matrix().lower();
+    auto diag = this->matrix().diag();
 
     bool is_symmetric{upper == lower};
 
@@ -375,7 +376,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 
     // copy diag
     const label after_non_diag = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
-    auto diag = this->matrix().diag();
     auto diag_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
     auto diag_contiguous_view = gko::array<scalar>::view(
         ref_exec, nrows_, &contiguos->get_values()[after_non_diag]);
