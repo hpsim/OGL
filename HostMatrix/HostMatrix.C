@@ -323,18 +323,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 {
     auto ref_exec = exec_.get_ref_exec();
 
-    const auto sorting_idxs = local_sparsity_.ldu_mapping_.get_array();
-
-    auto &db = local_coeffs_.get_db();
-    if (!permutation_stored_) {
-        P_ = gko::share(gko::matrix::Permutation<label>::create(
-            ref_exec,
-            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_},
-            *sorting_idxs.get()));
-        const fileName path = permutation_matrix_name_;
-        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
-    }
-
     // create a vector to hold contiguos matrix coefficients which can be
     // permuted from ldu to row major format ordering
     auto contiguos = vec::create(
@@ -373,21 +361,17 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 
     auto dense_vec = vec::create(
         ref_exec,
-        gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1});
-
-    // NOTE apply changes the underlying pointer of dense_vec
-    // thus copy_from is used to move the ptr to the underlying
-    // device persistent array
-    P_->apply(contiguos.get(), dense_vec.get());
-
-    auto dense_vec_after = vec::create(
-        ref_exec,
         gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
         gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
                                  local_coeffs_.get_data()),
         1);
 
-    dense_vec_after->copy_from(dense_vec.get());
+    const auto permute = local_sparsity_.ldu_mapping_.get_data();
+    auto dense = dense_vec->get_values();
+    auto contiguos_values = contiguos->get_values();
+    for (label i = 0; i < nnz_local_matrix_; ++i) {
+        dense[i] = contiguos_values[permute[i]];
+    }
 }
 
 template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data() const;

@@ -100,7 +100,7 @@ struct VectorInitFunctor {
 
         if (partition_.get_ranks_per_gpu() == 1) {
             return gko::share(dist_vec::create(
-                *exec_.get_gko_mpi_host_comm().get(),
+                *exec_.get_gko_mpi_device_comm().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
                     .get()));
         }
