@@ -62,12 +62,25 @@ struct PersistentSparsityPattern {
         verbose,
         false,  // For now we assume columns and rows to be constant
         false   // same as for values, leave on device
-  }
+    },
+    ldu_mapping_{
+        fieldName + "_ldu_map",
+        db,
+        exec,
+        size,
+        verbose,
+        false,
+        false
+    }
     {}
 
     mutable PersistentArray<label> col_idxs_;
 
     mutable PersistentArray<label> row_idxs_;
+
+    // ldu_mapping[sorted_(csr)_position] =
+    // unsorted_(consecutive_ldu_)_position
+    mutable PersistentArray<label> ldu_mapping_;
 };
 
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
@@ -76,9 +89,6 @@ struct PersistentSparsityPattern {
  * It mainly generates:
  * - sparsity pattern/device_matrix_data of the local_matrix and
  * non_local_matrix (with global columns)
- * - send_sizes
- * - recv_sizes
- *
  * */
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
@@ -105,7 +115,6 @@ private:
 
     mutable PersistentArray<scalar> local_coeffs_;
 
-    mutable PersistentArray<label> local_ldu_csr_idx_mapping_;
     // non-local indices
     const label nnz_non_local_matrix_;
 
@@ -148,15 +157,6 @@ public:
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
-          },
-          local_ldu_csr_idx_mapping_{
-              fieldName + "_ldu_csr_map",
-              db,
-              exec_,
-              nnz_local_matrix_,
-              verbose_,
-              false,
-              false,
           },
           nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
           non_local_sparsity_{
@@ -223,15 +223,6 @@ public:
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
-          local_ldu_csr_idx_mapping_{
-              fieldName + "_ldu_csr_map",
-              db,
-              exec_,
-              nnz_local_matrix_,
-              verbose_,
-              false,
-              false,
-          },
           nnz_non_local_matrix_(),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
@@ -282,7 +273,8 @@ public:
     ** ret = [(1,2,3),(10,20,30), ...]
     **         i0      i1,       i...
     */
-    std::vector<std::tuple<label, label>> communicate_non_local_col_indices(
+    std::vector<std::tuple<label, label, label>>
+    communicate_non_local_col_indices(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /* Based on OpenFOAMs ldu matrix format this function computes two
@@ -293,18 +285,6 @@ public:
 
     void init_non_local_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
-
-    // // TODO this is pretty much the same as
-    // communicate_non_local_row_indices
-    // // and could probably trimmed down a lot
-    // void insert_interface_coeffs(const lduInterfaceFieldPtrsList
-    // &interfaces,
-    //                              const std::vector<label>
-    //                              &other_proc_cell_ids, int *rows, int
-    //                              *cols, label row, label global_row,
-    //                              label &element_ctr, label
-    //                              *sorting_interface_idxs, const bool
-    //                              upper) const;
 
 
     bool get_verbose() const { return verbose_; }

@@ -122,12 +122,12 @@ HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
 
 // TODO merge with communicate_non_local_row_indices
 template <class MatrixType>
-std::vector<std::tuple<label, label>>
+std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of local cell ids on other side
-    std::vector<std::tuple<label, label>> non_local_idxs{};
+    std::vector<std::tuple<label, label, label>> non_local_idxs{};
     non_local_idxs.reserve(nnz_non_local_matrix_);
 
     label startOfRequests = Pstream::nRequests();
@@ -155,6 +155,7 @@ HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
     Pstream::waitRequests(startOfRequests);
     LOG_2(verbose_, "send face cells done")
 
+    label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
             continue;
@@ -179,9 +180,10 @@ HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 non_local_idxs.push_back(
-                    {face_cells[cellI],
+                    {interface_ctr, face_cells[cellI],
                      global_row_index_.toGlobal(neighbProcNo,
                                                 otherSide_tmp()[cellI])});
+                interface_ctr += 1;
             }
         }
     }
@@ -191,7 +193,7 @@ HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
     return non_local_idxs;
 }
 
-template std::vector<std::tuple<label, label>>
+template std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<lduMatrix>::communicate_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const;
 
@@ -202,6 +204,15 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto non_local_row_indices = communicate_non_local_col_indices(interfaces);
     auto rows = non_local_sparsity_.row_idxs_.get_data();
     auto cols = non_local_sparsity_.col_idxs_.get_data();
+    auto permute = non_local_sparsity_.ldu_mapping_.get_data();
+
+    std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
+              [&](const auto &a, const auto &b) {
+                  auto [interface_idx_a, row_a, col_a] = a;
+                  auto [interface_idx_b, row_b, col_b] = b;
+                  return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+              });
+
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
@@ -219,9 +230,11 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto [row, col] = non_local_row_indices[interface_ctr];
+                auto [interface_idx, row, col] =
+                    non_local_row_indices[interface_ctr];
                 rows[interface_ctr] = row;
                 cols[interface_ctr] = col;
+                permute[interface_ctr] = interface_idx;
                 interface_ctr += 1;
             }
         }
@@ -258,7 +271,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
 
     std::vector<std::vector<std::pair<label, label>>> lower_stack(upper_nnz_);
 
-    const auto permute = local_ldu_csr_idx_mapping_.get_data();
+    const auto permute = local_sparsity_.ldu_mapping_.get_data();
 
     // Scan through given rows and insert row and column indices into array
     //
@@ -310,7 +323,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 {
     auto ref_exec = exec_.get_ref_exec();
 
-    const auto sorting_idxs = local_ldu_csr_idx_mapping_.get_array();
+    const auto sorting_idxs = local_sparsity_.ldu_mapping_.get_array();
 
     auto &db = local_coeffs_.get_db();
     if (!permutation_stored_) {
@@ -388,18 +401,12 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
 
     auto interface_coeffs =
         communicate_non_local_coeffs(interfaces, interfaceBouCoeffs);
+    auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
     // copy interfaces
     auto tmp_contiguous_iface =
         gko::array<scalar>(ref_exec, nnz_non_local_matrix_);
     auto contiguous_iface = tmp_contiguous_iface.get_data();
-
-    // auto contiguos = vec::create(
-    //     ref_exec,
-    //     gko::dim<2>((gko::dim<2>::dimension_type)nnz_non_local_matrix_, 1),
-    //     gko::array<scalar>::view(ref_exec, nnz_non_local_matrix_,
-    //                              non_local_coeffs_.get_data()),
-    //     1);
 
     label interface_ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
@@ -414,7 +421,8 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         }
 
         for (label cellI = 0; cellI < patch_size; cellI++) {
-            contiguous_iface[interface_ctr] = -interface_coeffs[interface_ctr];
+            contiguous_iface[interface_ctr] =
+                -interface_coeffs[permute[interface_ctr]];
             interface_ctr += 1;
         }
     }
