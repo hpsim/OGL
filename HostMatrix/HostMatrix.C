@@ -332,6 +332,26 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     label contiguous_size =
         (is_symmetric) ? nrows_ + upper_nnz_ : nnz_local_matrix_;
 
+    auto dense_vec = vec::create(
+        ref_exec,
+        gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
+        gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
+                                 local_coeffs_.get_data()),
+        1);
+
+    if (symmetric) {
+        const auto permute = local_sparsity_.ldu_mapping_.get_data();
+        auto dense = dense_vec->get_values();
+        auto contiguos_values = contiguos->get_values();
+        for (label i = 0; i < nnz_local_matrix_; ++i) {
+            const label pos{permute[i]};
+            const scalar value =
+                (pos >= upper_nnz_) ? diag[pos - upper_nnz_] : upper[pos];
+            dense[i] = value;
+        }
+        return;
+    }
+
     // create a vector to hold contiguos matrix coefficients which can be
     // permuted from ldu to row major format ordering
     auto contiguos = vec::create(
@@ -362,12 +382,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
         ref_exec, nrows_, &contiguos->get_values()[after_non_diag]);
     diag_contiguous_view = diag_host_view;
 
-    auto dense_vec = vec::create(
-        ref_exec,
-        gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
-        gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
-                                 local_coeffs_.get_data()),
-        1);
 
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
