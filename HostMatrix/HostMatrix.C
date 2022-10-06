@@ -248,6 +248,7 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
+    bool is_symmetric{this->matrix().upper() == this->matrix().lower()};
 
     auto lower_local = idx_array::view(
         exec_.get_ref_exec(), upper_nnz_,
@@ -284,7 +285,9 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
         for (const auto [stored_upper_ctr, col] : lower_stack[row]) {
             rows[element_ctr] = row;
             cols[element_ctr] = col;
-            permute[element_ctr] = stored_upper_ctr + upper_nnz_;
+            permute[element_ctr] = (is_symmetric)
+                                       ? stored_upper_ctr
+                                       : stored_upper_ctr + upper_nnz_;
             element_ctr++;
         }
 
@@ -322,15 +325,20 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
 {
     auto ref_exec = exec_.get_ref_exec();
+    auto upper = this->matrix().upper();
+    auto lower = this->matrix().lower();
+
+    bool is_symmetric{upper == lower};
+
+    label contiguous_size =
+        (is_symmetric) ? nrows_ + upper_nnz_ : nnz_local_matrix_;
 
     // create a vector to hold contiguos matrix coefficients which can be
     // permuted from ldu to row major format ordering
     auto contiguos = vec::create(
-        ref_exec,
-        gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
+        ref_exec, gko::dim<2>((gko::dim<2>::dimension_type)contiguous_size, 1));
 
     // copy upper
-    auto upper = this->matrix().upper();
     auto u_host_view =
         gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
     auto u_device_view =
@@ -338,14 +346,9 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     u_device_view = u_host_view;
 
     // copy lower
-    auto lower = this->matrix().lower();
     auto l_device_view = gko::array<scalar>::view(
         ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
-    if (lower == upper) {
-        // symmetric case reuse data already on the device
-        l_device_view = u_device_view;
-
-    } else {
+    if (!is_symmetric) {
         // non-symmetric case copy data to the device
         auto l_host_view =
             gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
@@ -353,10 +356,11 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     }
 
     // copy diag
+    const label after_non_diag = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
     auto diag = this->matrix().diag();
     auto diag_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
     auto diag_contiguous_view = gko::array<scalar>::view(
-        ref_exec, nrows_, &contiguos->get_values()[2 * upper_nnz_]);
+        ref_exec, nrows_, &contiguos->get_values()[after_non_diag]);
     diag_contiguous_view = diag_host_view;
 
     auto dense_vec = vec::create(
@@ -369,7 +373,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
     auto contiguos_values = contiguos->get_values();
-    for (label i = 0; i < nnz_local_matrix_; ++i) {
+    for (label i = 0; i < nnz_upper_; ++i) {
         dense[i] = contiguos_values[permute[i]];
     }
 }
