@@ -373,7 +373,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
     auto contiguos_values = contiguos->get_values();
-    for (label i = 0; i < nnz_upper_; ++i) {
+    for (label i = 0; i < nnz_local_matrix_; ++i) {
         dense[i] = contiguos_values[permute[i]];
     }
 }
