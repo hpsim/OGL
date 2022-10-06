@@ -339,7 +339,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
                                  local_coeffs_.get_data()),
         1);
 
-    if (symmetric) {
+    if (is_symmetric) {
         const auto permute = local_sparsity_.ldu_mapping_.get_data();
         auto dense = dense_vec->get_values();
         auto contiguos_values = contiguos->get_values();
