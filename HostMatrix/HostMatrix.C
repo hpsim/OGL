@@ -340,6 +340,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
                                  local_coeffs_.get_data()),
         1);
 
+    // TODO this does not work for Ell
     if (is_symmetric) {
         const auto permute = local_sparsity_.ldu_mapping_.get_data();
         auto dense = dense_vec->get_values();
@@ -347,7 +348,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
             const label pos{permute[i]};
             const scalar value =
                 (pos >= upper_nnz_) ? diag[pos - upper_nnz_] : upper[pos];
-            dense[i] = value;
+            dense[i] = value * scaling_;
         }
         return;
     }

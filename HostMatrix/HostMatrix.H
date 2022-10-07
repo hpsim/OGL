@@ -100,6 +100,8 @@ private:
 
     const label verbose_;
 
+    const scalar scaling_;
+
     //  local matrix indices
     const label nrows_;
 
@@ -140,6 +142,7 @@ public:
                              interfaceIntCoeffs, interfaces, solverControls),
           exec_{db, solverControls, fieldName},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
@@ -205,6 +208,7 @@ public:
         : MatrixType::solver(fieldName, matrix, solverControls),
           exec_{db, solverControls, fieldName},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
