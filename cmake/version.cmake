@@ -29,8 +29,12 @@ else()
   string(STRIP "${GIT_BRANCH}" GIT_BRANCH)
 endif()
 
+set(GINKGO_CHECKOUT_VERSION $ENV{GINKGO_CHECKOUT_VERSION})
+message("Getting Versions ${GINKGO_CHECKOUT_VERSION} ")
 set(VERSION
-    "const char* GIT_REV=\"${GIT_REV}${GIT_DIFF}\";
+    "
+const char* GINKGO_GIT_REV=\"${CMAKE_ARGV3}\";
+const char* GIT_REV=\"${GIT_REV}${GIT_DIFF}\";
 const char* GIT_TAG=\"${GIT_TAG}\";
 const char* GIT_BRANCH=\"${GIT_BRANCH}\";")
 

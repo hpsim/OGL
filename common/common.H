@@ -63,6 +63,26 @@ namespace Foam {
 #define MLOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 1)
 #define MLOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 1)
 
+#define SIMPLE_TIME2(VERBOSE, NAME, FIELD, F)                                 \
+    auto start_##NAME = std::chrono::steady_clock::now();                     \
+    F auto end_##NAME = std::chrono::steady_clock::now();                     \
+    auto delta_t_##NAME =                                                     \
+        std::chrono::duration_cast<std::chrono::microseconds>(end_##NAME -    \
+                                                              start_##NAME)   \
+            .count();                                                         \
+    if (VERBOSE > 0) {                                                        \
+        if (Pstream::parRun()) {                                              \
+            if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                    \
+                std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "]" \
+                          << FIELD << ": " #NAME ": "                         \
+                          << delta_t_##NAME / 1000.0 << " [ms]\n";            \
+            }                                                                 \
+        } else {                                                              \
+            std::cout << "[OGL LOG] " << FIELD << " " #NAME ": "              \
+                      << delta_t_##NAME / 1000.0 << " [ms]\n";                \
+        }                                                                     \
+    }
+
 #define SIMPLE_TIME(VERBOSE, NAME, F)                                       \
     auto start_##NAME = std::chrono::steady_clock::now();                   \
     F auto end_##NAME = std::chrono::steady_clock::now();                   \

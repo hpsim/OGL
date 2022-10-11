@@ -25,6 +25,10 @@ option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
+set(GINKGO_CHECKOUT_VERSION
+    "33f63e9"
+    CACHE STRING "Use specific version of ginkgo")
+
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 
@@ -115,7 +119,8 @@ endif()
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
          ${CMAKE_CURRENT_BINARY_DIR}/_version.C
-  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake)
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake
+          ${GINKGO_CHECKOUT_VERSION})
 
 target_sources(
   OGL
