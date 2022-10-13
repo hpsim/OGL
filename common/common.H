@@ -70,14 +70,14 @@ namespace Foam {
 #ifdef GINKGO_BUILD_CUDA
 #define START_ANNOTATE(NAME)
 nvtxRangePushA(#NAME);
-#elif
+#else
 #define START_ANNOTATE(NAME)
 #endif
 
 #ifdef GINKGO_BUILD_CUDA
 #define END_ANNOTATE(NAME) nvtxRangePop();
 #endif
-#elif
+#else
 #define END_ANNOTATE(NAME)
 #endif
 
