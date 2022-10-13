@@ -68,15 +68,13 @@ namespace Foam {
 #define MLOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 1)
 
 #ifdef GINKGO_BUILD_CUDA
-#define START_ANNOTATE(NAME)
-nvtxRangePushA(#NAME);
+#define START_ANNOTATE(NAME) nvtxRangePushA(#NAME);
 #else
 #define START_ANNOTATE(NAME)
 #endif
 
 #ifdef GINKGO_BUILD_CUDA
 #define END_ANNOTATE(NAME) nvtxRangePop();
-#endif
 #else
 #define END_ANNOTATE(NAME)
 #endif
