@@ -25,6 +25,10 @@ option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
+if(${GINKGO_BUILD_CUDA})
+  target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
+endif()
+
 set(GINKGO_CHECKOUT_VERSION
     "33f63e9"
     CACHE STRING "Use specific version of ginkgo")
