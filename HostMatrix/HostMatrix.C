@@ -361,10 +361,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
                 dense[i] = scaling_ * lower[pos - upper_nnz_];
                 continue;
             }
-            if (pos >= 2 * upper_nnz_) {
-                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
-                continue;
-            }
+            dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
         }
     }
 }
