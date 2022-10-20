@@ -87,6 +87,13 @@ public:
     void print_info() const
     {
         auto version_info = gko::version_info::get();
+
+#ifndef NDEBUG
+        auto build_type = std::string("Debug");
+#else
+        auto build_type = std::string("Release");
+#endif
+
         // auto exec_info =
         // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
@@ -94,6 +101,7 @@ public:
             std::string(git_version()) + std::string(" ") +
             std::string(git_revision()) + std::string("\n\tBranch: ") +
             std::string(git_branch()) + std::string(" ") +
+            std::string("\n\tBuild type: ") + build_type +
             std::string("\n\tGinkgo version: ") +
             std::to_string(version_info.core_version.major) + std::string(".") +
             std::to_string(version_info.core_version.minor) + std::string(".") +
