@@ -361,7 +361,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
                 value = diag[pos - 2 * upper_nnz_];
             }
             if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                value = lower[pos];
+                value = lower[pos - upper_nnz_];
             }
             if (pos < upper_nnz_) {
                 value = upper[pos];
