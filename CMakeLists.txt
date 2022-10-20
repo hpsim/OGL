@@ -26,7 +26,7 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
 set(GINKGO_CHECKOUT_VERSION
-    "33f63e9"
+    "e3b80960"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
@@ -187,6 +187,7 @@ if(${GINKGO_WITH_OGL_EXTENSIONS})
 endif()
 if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
+  target_link_libraries(OGL PUBLIC nvToolsExt)
 endif()
 
 install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})
