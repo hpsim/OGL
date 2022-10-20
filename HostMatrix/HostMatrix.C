@@ -341,53 +341,28 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
         1);
 
     // TODO this does not work for Ell
-    if (is_symmetric) {
-        const auto permute = local_sparsity_.ldu_mapping_.get_data();
-        auto dense = dense_vec->get_values();
-        for (label i = 0; i < nnz_local_matrix_; ++i) {
-            const label pos{permute[i]};
-            const scalar value =
-                (pos >= upper_nnz_) ? diag[pos - upper_nnz_] : upper[pos];
-            dense[i] = value * scaling_;
-        }
-        return;
-    }
-
-    // create a vector to hold contiguos matrix coefficients which can be
-    // permuted from ldu to row major format ordering
-    auto contiguos = vec::create(
-        ref_exec, gko::dim<2>((gko::dim<2>::dimension_type)contiguous_size, 1));
-
-    // copy upper
-    auto u_host_view =
-        gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
-    auto u_device_view =
-        gko::array<scalar>::view(ref_exec, upper_nnz_, contiguos->get_values());
-    u_device_view = u_host_view;
-
-    // copy lower
-    if (!is_symmetric) {
-        // non-symmetric case copy data to the device
-        auto l_device_view = gko::array<scalar>::view(
-            ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
-        auto l_host_view =
-            gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
-        l_device_view = l_host_view;
-    }
-
-    // copy diag
-    const label after_non_diag = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
-    auto diag_host_view = gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
-    auto diag_contiguous_view = gko::array<scalar>::view(
-        ref_exec, nrows_, &contiguos->get_values()[after_non_diag]);
-    diag_contiguous_view = diag_host_view;
-
-
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
-    auto contiguos_values = contiguos->get_values();
-    for (label i = 0; i < nnz_local_matrix_; ++i) {
-        dense[i] = contiguos_values[permute[i]];
+    if (is_symmetric) {
+        for (label i = 0; i < nnz_local_matrix_; ++i) {
+            const label pos{permute[i]};
+            dense[i] = scaling_ * (pos >= upper_nnz_) ? diag[pos - upper_nnz_]
+                                                      : upper[pos];
+        }
+        return;
+    } else {
+        for (label i = 0; i < nnz_local_matrix_; ++i) {
+            const label pos{permute[i]};
+            if (pos < upper_nnz_) {
+                dense[i] = scaling_ * upper[pos];
+                continue;
+            }
+            if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
+                dense[i] = scaling_ * lower[pos - upper_nnz_];
+                continue;
+            }
+            dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
+        }
     }
 }
 
