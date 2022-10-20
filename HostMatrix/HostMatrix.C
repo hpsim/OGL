@@ -341,32 +341,30 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
         1);
 
     // TODO this does not work for Ell
+    const auto permute = local_sparsity_.ldu_mapping_.get_data();
+    auto dense = dense_vec->get_values();
     if (is_symmetric) {
-        const auto permute = local_sparsity_.ldu_mapping_.get_data();
-        auto dense = dense_vec->get_values();
         for (label i = 0; i < nnz_local_matrix_; ++i) {
             const label pos{permute[i]};
-            const scalar value =
-                (pos >= upper_nnz_) ? diag[pos - upper_nnz_] : upper[pos];
-            dense[i] = value * scaling_;
+            dense[i] = scaling_ * (pos >= upper_nnz_) ? diag[pos - upper_nnz_]
+                                                      : upper[pos];
         }
         return;
     } else {
-        const auto permute = local_sparsity_.ldu_mapping_.get_data();
-        auto dense = dense_vec->get_values();
-        scalar value;
         for (label i = 0; i < nnz_local_matrix_; ++i) {
             const label pos{permute[i]};
-            if (pos >= 2 * upper_nnz_) {
-                value = diag[pos - 2 * upper_nnz_];
+            if (pos < upper_nnz_) {
+                dense[i] = scaling_ * upper[pos];
+                continue;
             }
             if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                value = lower[pos - upper_nnz_];
+                dense[i] = scaling_ * lower[pos - upper_nnz_];
+                continue;
             }
-            if (pos < upper_nnz_) {
-                value = upper[pos];
+            if (pos >= 2 * upper_nnz_) {
+                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
+                continue;
             }
-            dense[i] = value * scaling_;
         }
     }
 }
