@@ -28,6 +28,10 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
+#ifdef GINKGO_BUILD_CUDA
+#include "nvToolsExt.h"
+#endif
+
 #include <string.h>
 #include <ginkgo/ginkgo.hpp>
 
@@ -63,9 +67,24 @@ namespace Foam {
 #define MLOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 1)
 #define MLOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 1)
 
+#ifdef GINKGO_BUILD_CUDA
+#define START_ANNOTATE(NAME) nvtxRangePushA(#NAME);
+#else
+#define START_ANNOTATE(NAME)
+#endif
+
+#ifdef GINKGO_BUILD_CUDA
+#define END_ANNOTATE(NAME) nvtxRangePop();
+#else
+#define END_ANNOTATE(NAME)
+#endif
+
+
 #define SIMPLE_TIME2(VERBOSE, NAME, FIELD, F)                                 \
+    START_ANNOTATE(NAME);                                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                     \
     F auto end_##NAME = std::chrono::steady_clock::now();                     \
+    END_ANNOTATE(NAME);                                                       \
     auto delta_t_##NAME =                                                     \
         std::chrono::duration_cast<std::chrono::microseconds>(end_##NAME -    \
                                                               start_##NAME)   \
@@ -83,25 +102,8 @@ namespace Foam {
         }                                                                     \
     }
 
-#define SIMPLE_TIME(VERBOSE, NAME, F)                                       \
-    auto start_##NAME = std::chrono::steady_clock::now();                   \
-    F auto end_##NAME = std::chrono::steady_clock::now();                   \
-    auto delta_t_##NAME =                                                   \
-        std::chrono::duration_cast<std::chrono::microseconds>(end_##NAME -  \
-                                                              start_##NAME) \
-            .count();                                                       \
-    if (VERBOSE > 0) {                                                      \
-        if (Pstream::parRun()) {                                            \
-            if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                  \
-                std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo()      \
-                          << "]" #NAME ": " << delta_t_##NAME / 1000.0      \
-                          << " [ms]\n";                                     \
-            }                                                               \
-        } else {                                                            \
-            std::cout << "[OGL LOG] " #NAME ": " << delta_t_##NAME / 1000.0 \
-                      << " [ms]\n";                                         \
-        }                                                                   \
-    }
+#define SIMPLE_TIME(VERBOSE, NAME, F) SIMPLE_TIME2(VERBOSE, NAME, "", F)
+
 
 std::ostream &operator<<(
     std::ostream &os,

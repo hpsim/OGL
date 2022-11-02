@@ -40,6 +40,8 @@ namespace Foam {
 struct MatrixInitFunctor {
     using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
+    const objectRegistry &db_;
+
     const ExecutorHandler &exec_;
 
     const PersistentPartition &partition_;
@@ -60,7 +62,7 @@ struct MatrixInitFunctor {
 
     const label verbose_;
 
-    MatrixInitFunctor(const ExecutorHandler &exec,
+    MatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
                       const PersistentPartition &partition,
                       const PersistentArray<label> &col_idxs,
                       const PersistentArray<label> &row_idxs,
@@ -69,7 +71,8 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &non_local_row_idxs,
                       const PersistentArray<scalar> &non_local_coeffs,
                       const word matrix_format, const label verbose)
-        : exec_(exec),
+        : db_(db),
+          exec_(exec),
           partition_(partition),
           col_idxs_(col_idxs),
           row_idxs_(row_idxs),
@@ -81,66 +84,106 @@ struct MatrixInitFunctor {
           verbose_(verbose)
     {}
 
-    void update(std::shared_ptr<dist_mtx> &persistent_device_matrix) const
+    void update(std::shared_ptr<dist_mtx> persistent_device_matrix) const
     {
-        label nCells = partition_.get_local_host_size();
-        word msg{"init global csr matrix of size " + std::to_string(nCells)};
-        LOG_1(verbose_, msg)
-
         auto coeffs = coeffs_.get_array();
         auto non_local_coeffs = non_local_coeffs_.get_array();
 
         auto exec = exec_.get_ref_exec();
+        auto device_exec = exec_.get_device_exec();
 
-        if (partition_.get_ranks_per_gpu() == 1) {
-            auto device_exec = exec_.get_device_exec();
+        scalar *value_ptr{};
+        scalar *non_local_value_ptr{};
+
+        std::shared_ptr<const gko::LinOp> local_matrix =
+            persistent_device_matrix->get_local_matrix();
+        std::shared_ptr<const gko::LinOp> non_local_matrix =
+            persistent_device_matrix->get_non_local_matrix();
+        if (matrix_format_ == "Csr") {
+            gko::matrix::Csr<scalar, label> *coo_ptr =
+                (gko::matrix::Csr<scalar, label> *)local_matrix.get();
+            value_ptr = coo_ptr->get_values();
+
+            gko::matrix::Csr<scalar, label> *non_local_coo_ptr =
+                (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
+            non_local_value_ptr = non_local_coo_ptr->get_values();
+        }
+        if (matrix_format_ == "Ell") {
+            gko::matrix::Ell<scalar, label> *coo_ptr =
+                (gko::matrix::Ell<scalar, label> *)local_matrix.get();
+            value_ptr = coo_ptr->get_values();
+
+            gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
+                (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
+            non_local_value_ptr = non_local_coo_ptr->get_values();
+        }
+        if (matrix_format_ == "Coo") {
+            gko::matrix::Coo<scalar, label> *coo_ptr =
+                (gko::matrix::Coo<scalar, label> *)local_matrix.get();
+            value_ptr = coo_ptr->get_values();
+
+            gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
+                (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
+            non_local_value_ptr = non_local_coo_ptr->get_values();
+        }
+
+        if (partition_.get_ranks_per_gpu() != 1) {
+            // TODO add field name
+            PersistentArray<label> local_scatter_map_pers{
+                "local_scatter_map",  //
+                db_,
+                exec_,
+                0,
+                verbose_,
+                false,
+                false};
+
+            // TODO add field name
+            PersistentArray<label> non_local_scatter_map_pers{
+                "non_local_scatter_map",  //
+                db_,
+                exec_,
+                0,
+                verbose_,
+                false,
+                false};
+
+            auto comm = exec_.get_gko_mpi_host_comm();
+            auto repartitioner = gko::share(
+                gko::distributed::repartitioner<label, label>::create(
+                    *comm.get(), partition_.get_host_partition(),
+                    partition_.get_device_partition()));
+
+            auto local_nnz =
+                local_scatter_map_pers.get_array()->get_num_elems();
+            auto non_local_nnz =
+                non_local_scatter_map_pers.get_array()->get_num_elems();
+
+            gko::array<scalar> local_values{exec, local_nnz};
+            gko::array<scalar> non_local_values{exec, non_local_nnz};
+
+            repartitioner->update_existing(
+                *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
+                *coeffs.get(), *non_local_coeffs.get(),
+                *local_scatter_map_pers.get_array().get(),
+                *non_local_scatter_map_pers.get_array().get(), local_values,
+                non_local_values);
+
+            auto value_view =
+                val_array::view(device_exec, local_nnz, value_ptr);
+
+            auto non_local_view = val_array::view(device_exec, non_local_nnz,
+                                                  non_local_value_ptr);
+
+            local_values.set_executor(device_exec);
+            value_view = local_values;
+
+            non_local_values.set_executor(device_exec);
+            non_local_view = non_local_values;
+        } else {
             gko::array<scalar> device_values{device_exec, *coeffs.get()};
             gko::array<scalar> device_non_local_values{device_exec,
                                                        *non_local_coeffs.get()};
-
-            scalar *value_ptr{};
-            scalar *non_local_value_ptr{};
-
-            if (matrix_format_ == "Csr") {
-                std::shared_ptr<const gko::LinOp> local_matrix =
-                    persistent_device_matrix->get_local_matrix();
-                gko::matrix::Csr<scalar, label> *coo_ptr =
-                    (gko::matrix::Csr<scalar, label> *)local_matrix.get();
-                value_ptr = coo_ptr->get_values();
-
-                std::shared_ptr<const gko::LinOp> non_local_matrix =
-                    persistent_device_matrix->get_non_local_matrix();
-                gko::matrix::Csr<scalar, label> *non_local_coo_ptr =
-                    (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
-                non_local_value_ptr = non_local_coo_ptr->get_values();
-            }
-            if (matrix_format_ == "Ell") {
-                std::shared_ptr<const gko::LinOp> local_matrix =
-                    persistent_device_matrix->get_local_matrix();
-                gko::matrix::Ell<scalar, label> *coo_ptr =
-                    (gko::matrix::Ell<scalar, label> *)local_matrix.get();
-                value_ptr = coo_ptr->get_values();
-
-                std::shared_ptr<const gko::LinOp> non_local_matrix =
-                    persistent_device_matrix->get_non_local_matrix();
-                gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
-                    (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
-                non_local_value_ptr = non_local_coo_ptr->get_values();
-            }
-            if (matrix_format_ == "Coo") {
-                std::shared_ptr<const gko::LinOp> local_matrix =
-                    persistent_device_matrix->get_local_matrix();
-                gko::matrix::Coo<scalar, label> *coo_ptr =
-                    (gko::matrix::Coo<scalar, label> *)local_matrix.get();
-                value_ptr = coo_ptr->get_values();
-
-                std::shared_ptr<const gko::LinOp> non_local_matrix =
-                    persistent_device_matrix->get_non_local_matrix();
-                gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
-                    (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
-                non_local_value_ptr = non_local_coo_ptr->get_values();
-            }
-
 
             auto value_view = val_array::view(
                 device_exec, device_values.get_num_elems(), value_ptr);
@@ -151,74 +194,7 @@ struct MatrixInitFunctor {
 
             value_view = device_values;
             non_local_view = device_non_local_values;
-            return;
         }
-
-        auto cols = col_idxs_.get_array();
-        auto rows = row_idxs_.get_array();
-        auto non_local_cols = non_local_col_idxs_.get_array();
-        auto non_local_rows = non_local_row_idxs_.get_array();
-        auto start_build = std::chrono::steady_clock::now();
-
-        auto num_rows = partition_.get_total_size();
-        gko::device_matrix_data<scalar, label> A_data(
-            exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
-            *coeffs.get());
-
-        gko::device_matrix_data<scalar, label> non_local_A_data(
-            exec, gko::dim<2>(num_rows, num_rows), *non_local_rows.get(),
-            *non_local_cols.get(), *non_local_coeffs.get());
-
-        auto end_build = std::chrono::steady_clock::now();
-        auto delta_t_build =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_build -
-                                                                  start_build)
-                .count();
-
-        auto comm = exec_.get_gko_mpi_host_comm();
-        auto start_dist = std::chrono::steady_clock::now();
-        auto dist_A =
-            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
-        dist_A->read_distributed(A_data, non_local_A_data,
-                                 partition_.get_host_partition().get());
-        auto end_dist = std::chrono::steady_clock::now();
-        auto delta_t_dist =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_dist -
-                                                                  start_dist)
-                .count();
-
-
-        // TODO test if this needs to be persistent
-        auto start_repart = std::chrono::steady_clock::now();
-        auto repartitioner =
-            gko::share(gko::distributed::repartitioner<label, label>::create(
-                *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition()));
-        auto end_repart = std::chrono::steady_clock::now();
-        auto delta_t_repart =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_repart -
-                                                                  start_repart)
-                .count();
-
-        auto to_mat =
-            gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
-
-        auto start_gather = std::chrono::steady_clock::now();
-        repartitioner->gather(dist_A.get(), to_mat.get());
-        auto end_gather = std::chrono::steady_clock::now();
-        auto delta_t_gather =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_gather -
-                                                                  start_gather)
-                .count();
-
-        std::cout << " delta t build " << delta_t_build << " delta t repart "
-                  << delta_t_repart << " delta t gather " << delta_t_gather
-                  << std::endl;
-
-        auto device_mat = gko::share(
-            dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
-
-        to_mat->move_to(persistent_device_matrix.get());
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
@@ -297,8 +273,6 @@ struct MatrixInitFunctor {
         }
         auto exec = exec_.get_ref_exec();
 
-        auto start_build = std::chrono::steady_clock::now();
-
         auto num_rows = partition_.get_total_size();
         gko::device_matrix_data<scalar, label> A_data(
             exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
@@ -308,23 +282,12 @@ struct MatrixInitFunctor {
             exec, gko::dim<2>(num_rows, num_rows), *non_local_rows.get(),
             *non_local_cols.get(), *non_local_coeffs.get());
 
-        auto end_build = std::chrono::steady_clock::now();
-        auto delta_t_build =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_build -
-                                                                  start_build)
-                .count();
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto start_dist = std::chrono::steady_clock::now();
         auto dist_A =
             generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
         dist_A->read_distributed(A_data, non_local_A_data,
                                  partition_.get_host_partition().get());
-        auto end_dist = std::chrono::steady_clock::now();
-        auto delta_t_dist =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_dist -
-                                                                  start_dist)
-                .count();
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = generate_dist_mtx_with_inner_type(
@@ -334,34 +297,40 @@ struct MatrixInitFunctor {
         }
 
         // TODO test if this needs to be persistent
-        auto start_repart = std::chrono::steady_clock::now();
         auto repartitioner =
             gko::share(gko::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
-        auto end_repart = std::chrono::steady_clock::now();
-        auto delta_t_repart =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_repart -
-                                                                  start_repart)
-                .count();
-
         auto to_mat =
             gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
 
-        auto start_gather = std::chrono::steady_clock::now();
-        repartitioner->gather(dist_A.get(), to_mat.get());
-        auto end_gather = std::chrono::steady_clock::now();
-        auto delta_t_gather =
-            std::chrono::duration_cast<std::chrono::microseconds>(end_gather -
-                                                                  start_gather)
-                .count();
+        auto [local_scatter_map, non_local_scatter_map] =
+            repartitioner->gather(dist_A.get(), to_mat.get());
 
-        std::cout << " delta t build " << delta_t_build << " delta t repart "
-                  << delta_t_repart << " delta t gather " << delta_t_gather
-                  << std::endl;
+        // TODO add field name
+        PersistentArray<label> local_scatter_map_pers{
+            local_scatter_map.get_data(),
+            "local_scatter_map",
+            db_,
+            exec_,
+            local_scatter_map.get_num_elems(),
+            verbose_,
+            false,
+            false};
 
-        auto device_mat = gko::share(
-            dist_mtx::create(*exec_.get_gko_mpi_device_comm().get()));
+        // TODO add field name
+        PersistentArray<label> non_local_scatter_map_pers{
+            non_local_scatter_map.get_data(),
+            "non_local_scatter_map",
+            db_,
+            exec_,
+            non_local_scatter_map.get_num_elems(),
+            verbose_,
+            false,
+            false};
+
+        auto device_mat =
+            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_device_comm());
 
         to_mat->move_to(device_mat.get());
 
@@ -373,6 +342,8 @@ struct MatrixInitFunctor {
 class MatrixWrapper {
 private:
     using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+
+
     const label verbose_;
 
     const bool export_;
@@ -398,7 +369,7 @@ public:
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
               MatrixInitFunctor(
-                  exec, partition, col_idxs, row_idxs, coeffs,
+                  db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
                   verbose_),

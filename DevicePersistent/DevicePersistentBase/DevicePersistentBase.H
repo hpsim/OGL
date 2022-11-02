@@ -126,10 +126,11 @@ public:
             // NOTE when objectRegistry is deleted delete for every pointer
             // owned by the registry is called
             // TODO make shure isOwnedByRegistry returns true
-            auto po = new DevicePersistentBase<T>(IOobject(path, db), f.init());
-
             SIMPLE_TIME2(verbose_, call_init, name_,
-                         persistent_object_ = po->get_ptr();)
+                         auto po = new DevicePersistentBase<T>(
+                             IOobject(path, db), f.init());)
+
+            persistent_object_ = po->get_ptr();
         }
     }
 
