@@ -363,6 +363,7 @@ public:
 
         word name;
 
+#ifdef WITH_ESI_VERSION
         const entry &e =
             solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
 
@@ -371,6 +372,15 @@ public:
         } else {
             e.stream() >> name;
         }
+#else
+        const entry &e =
+            solverControls_.lookupEntry("preconditioner", true, true);
+        if (e.isDict()) {
+            name = e.dict().lookup<word>("preconditioner");
+        } else {
+            e.stream() >> name;
+        }
+#endif
 
         const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
 
