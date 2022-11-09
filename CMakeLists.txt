@@ -17,6 +17,8 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
+option(OGL_USE_FOAM_FOUNDATION_VERSION
+       "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
@@ -188,6 +190,10 @@ endif()
 if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
   target_link_libraries(OGL PUBLIC nvToolsExt)
+endif()
+
+if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)
+  target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
 endif()
 
 install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})
