@@ -19,7 +19,7 @@ jobs:
         OF: [{repo: "https://github.com/OpenFOAM/OpenFOAM-9.git",
               path: "OpenFOAM-9",
               version: "9",
-              mpi: "OPENMPI"}]
+              mpi: "SYSTEMOPENMPI"}]
     
     env:
       FOAM_INST_DIR: /home/runner/OpenFOAM/
@@ -118,7 +118,6 @@ jobs:
     - name: Build OpenFOAM
       # Clone OpenFOAM
       run: |
-        [ -d /home/runner/OpenFOAM/ThirdParty-${{matrix.OF.version}} ] && cd /home/runner/OpenFOAM/ThirdParty-9 && ./Allwmake -j
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
         ./Allwmake -j
       
