@@ -104,7 +104,7 @@ jobs:
       run: |
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
-            /home/runner/OpenFOAM/${{ matrix.OF.path }} && \
+            /home/runner/OpenFOAM/${{ matrix.OF.path }}
         else
           echo "Skipping clone"
         fi
