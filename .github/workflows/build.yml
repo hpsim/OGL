@@ -123,6 +123,7 @@ jobs:
       # Clone OpenFOAM
       run: |
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
       
     - uses: actions/checkout@v2
