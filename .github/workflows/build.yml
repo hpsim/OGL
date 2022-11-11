@@ -116,10 +116,14 @@ jobs:
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
         ./Allwmake -j
+        ls platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
       
     - name: Show OpenFOAM folder
+      if: always()
       # Clone OpenFOAM
-      run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      run: |
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
       
     - uses: actions/checkout@v2
     - name: Install ninja-build tool
