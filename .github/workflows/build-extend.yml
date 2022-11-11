@@ -108,7 +108,9 @@ jobs:
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
         env
-        ./Allwmake.firstInstall -j
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        ./Allwmake -j
 
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
@@ -126,7 +128,6 @@ jobs:
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
-      shell: "/home/runner/OpenFOAM/openfoam/etc/openfoam"
       working-directory: ${{github.workspace}}
       run: |
         mkdir build 
