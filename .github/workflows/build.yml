@@ -113,6 +113,7 @@ jobs:
     - name: Build OpenFOAM src
       # Clone OpenFOAM
       run: |
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
         ./Allwmake -j
       
