@@ -105,20 +105,15 @@ jobs:
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
             /home/runner/OpenFOAM/${{ matrix.OF.path }} && \
-          git clone https://github.com/OpenFOAM/ThirdParty-9.git \
-            /home/runner/OpenFOAM/ThirdParty-9 && \
-          cd /home/runner/OpenFOAM/ThirdParty-9 && \
-          wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.bz2 && \
-          tar xvf openmpi-2.1.1.tar.bz2
         else
           echo "Skipping clone"
         fi
 
 
-    - name: Build OpenFOAM
+    - name: Build OpenFOAM src
       # Clone OpenFOAM
       run: |
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
         ./Allwmake -j
       
     - name: Show OpenFOAM folder
