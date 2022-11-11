@@ -106,8 +106,8 @@ jobs:
     - name: Build OpenFOAM
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      run: ./Allwmake -j
-      
+      run: ./Allwmake.firstInstall -j
+
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
       run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
