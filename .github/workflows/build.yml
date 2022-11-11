@@ -115,6 +115,7 @@ jobs:
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
         ./Allwmake -j
         ls platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
       
