@@ -31,6 +31,7 @@ jobs:
         echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
         echo "WM_PROJECT=OpenFOAM" >> $GITHUB_ENV
         echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "WM_OPTIONS=linux64gccDPInt32Opt" >> $GITHUB_ENV
         echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_ENV
         echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
