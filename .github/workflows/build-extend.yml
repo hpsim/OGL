@@ -31,6 +31,7 @@ jobs:
         echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
         echo "WM_PROJECT=OpenFOAM" >> $GITHUB_ENV
         echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "WM_OPTIONS=linux64gccDPInt32Opt" >> $GITHUB_ENV
         echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_ENV
         echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
@@ -99,18 +100,19 @@ jobs:
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
             /home/runner/OpenFOAM/${{ matrix.OF.path }}
-          chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
-        else
-          chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
-          echo "Skipping clone"
         fi
 
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      run: /home/runner/OpenFOAM/foam-extend-4.1/etc/openfoam ./Allwmake -j
-      
+      run: |
+        env
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
+        ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        ./Allwmake -j
+
     - name: Show OpenFOAM folder
       # Clone OpenFOAM
       run: ls /home/runner/OpenFOAM/${{ matrix.OF.path }}
@@ -127,7 +129,6 @@ jobs:
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
-      shell: "/home/runner/OpenFOAM/openfoam/etc/openfoam"
       working-directory: ${{github.workspace}}
       run: |
         mkdir build 
@@ -135,7 +136,7 @@ jobs:
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build
-      shell: "/home/runner/OpenFOAM/etc/openfoam"
+      shell: bash
       working-directory: ${{github.workspace}}/build
       # Execute the build.  You can specify a specific target with "--target <NAME>"
       run: cmake --build . --config $BUILD_TYPE
