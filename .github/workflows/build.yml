@@ -114,12 +114,11 @@ jobs:
       # Clone OpenFOAM
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
         mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream/mpi
         mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/parallel/decompose/ptscotchDecomp/
         ./Allwmake -j
-        ls platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream
-      
+
     - name: Show OpenFOAM folder
       if: always()
       # Clone OpenFOAM
