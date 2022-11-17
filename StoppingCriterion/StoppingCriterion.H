@@ -580,7 +580,9 @@ public:
                 auto alpha =
                     sqrt(1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *
                          prev_rel_cost);
-                frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
+                if (alpha != 0) {
+                    frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
+                }
             }
         }
 
