@@ -254,8 +254,10 @@ class StoppingCriterion {
 
             auto end_eval = std::chrono::steady_clock::now();
             *(parameters_.time) =
-                std::chrono::duration_cast<std::chrono::microseconds>(end_eval -
-                                                                    start_eval).count()/1.0;
+                std::chrono::duration_cast<std::chrono::microseconds>(
+                    end_eval - start_eval)
+                    .count() /
+                1.0;
             return result;
         }
 
@@ -567,17 +569,18 @@ public:
                                   std::shared_ptr<gko::LinOp> gkomatrix,
                                   std::shared_ptr<dist_vec> x,
                                   std::shared_ptr<dist_vec> b, label verbose,
-                                  bool export_res, label prev_solve_iters, scalar prev_rel_cost) const
+                                  bool export_res, label prev_solve_iters,
+                                  scalar prev_rel_cost) const
     {
         label minIter = minIter_;
         label frequency = frequency_;
         if (!export_res) {
             if (prev_solve_iters > 0 && adapt_minIter_) {
                 minIter = prev_solve_iters * relaxationFactor_;
-                // auto alpha = sqrt(1.0/(prev_solve_iters*(1.0-relaxationFactor_))*prev_rel_cost);
-                // FIXME
-                frequency = 10;
-                    //min(norm_eval_limit_, max(1, label(1/alpha)));
+                auto alpha =
+                    sqrt(1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *
+                         prev_rel_cost);
+                frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
             }
         }
 
