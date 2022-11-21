@@ -41,10 +41,6 @@ Then, make sure that the `system/controlDict` includes the `libOGL.so` or  `libO
 
     libs ("libOGL.so");
 
-### Experimental OGL ginkgo features
-
-Some of OGL features might depend on features which are not already implemented on ginkgo's dev branch. To enable experimental features pass `-DGINKGO_WITH_OGL_EXTENSIONS` as cmake flag.
-
 
 ## Usage
 
