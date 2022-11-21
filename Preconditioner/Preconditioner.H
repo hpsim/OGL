@@ -38,6 +38,10 @@ class Preconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
+    using cg = gko::solver::Cg<scalar>;
+    using mg = gko::solver::Multigrid;
+    using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+    using ras = gko::preconditioner::Schwarz<scalar, label, label>;
 
 private:
     const word sys_matrix_name_;
@@ -56,111 +60,198 @@ public:
         : sys_matrix_name_(sys_matrix_name),
           db_(db),
           cache_preconditioner_(
-              solverControls.lookupOrDefault("PreconditionerCaching", 1)),
+              solverControls.lookupOrDefault("preconditionerCaching", 1)),
           solverControls_(solverControls),
           verbose_(verbose)
     {}
 
+    template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_schwarz(
+        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::unique_ptr<PrecondFactory> precond) const
+    {
+        if (Pstream::parRun()) {
+            return gko::share(
+                ras::build()
+                    .with_generated_inner_solvers(
+                        std::vector<std::shared_ptr<const gko::LinOp>>{
+                            gko::share(precond->generate(
+                                gko::as<gko::distributed::Matrix<
+                                    scalar, label, label>>(gkomatrix)
+                                    ->get_local_matrix()))})
+                    .on(device_exec)
+                    ->generate(gkomatrix));
+        }
+        return gko::share(precond->generate(gkomatrix));
+    }
+
+    template <typename PrecondFactory, typename Factorization>
+    std::shared_ptr<gko::LinOp> wrap_schwarz(
+        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::unique_ptr<PrecondFactory> precond,
+        std::shared_ptr<Factorization> factorization) const
+    {
+        if (Pstream::parRun()) {
+            return gko::share(
+                ras::build()
+                    .with_generated_inner_solvers(
+                        std::vector<std::shared_ptr<const gko::LinOp>>{
+                            std::move(precond->generate(factorization))})
+                    .on(device_exec)
+                    ->generate(gkomatrix));
+        }
+        return gko::share(precond->generate(factorization));
+    }
+
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
-            controls.lookupOrDefault<Switch>("SkipSorting", true);
+            controls.lookupOrDefault<Switch>("skipSorting", true);
 
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(
-                controls.lookupOrDefault("MaxBlockSize", label(1)));
+                controls.lookupOrDefault("maxBlockSize", label(1)));
 
             word msg = "Generate preconditioner " + name + " MaxBlockSize " +
                        std::to_string(max_block_size);
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto pre_factory = bj::build()
                                    .with_skip_sorting(skip_sorting)
                                    .with_max_block_size(max_block_size)
                                    .on(device_exec);
-            return gko::share(pre_factory->generate(gkomatrix));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "ILU") {
-            auto factorizaton_factory =
+            word msg = "Generate preconditioner " + name;
+            MLOG_0(verbose_, msg)
+
+            auto factorization_factory =
                 gko::factorization::Ilu<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
-            auto par_ilu =
-                gko::share(factorizaton_factory->generate(gkomatrix));
+            auto factorization = gko::share(factorization_factory->generate(
+                gko::as<gko::distributed::Matrix<scalar, label, label>>(
+                    gkomatrix)
+                    ->get_local_matrix()));
 
+            auto precond_factory =
+                gko::preconditioner::Ilu<>::build().on(device_exec);
+
+
+            return wrap_schwarz(gkomatrix, device_exec,
+                                std::move(precond_factory), factorization);
+        }
+        if (name == "ILUT") {
             word msg = "Generate preconditioner " + name;
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
-
-            auto ilu_pre_factory =
-                gko::preconditioner::Ilu<gko::solver::LowerTrs<scalar, label>,
-                                         gko::solver::UpperTrs<scalar, label>,
-                                         false>::build()
+            auto factorization_factory =
+                gko::factorization::ParIlut<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
-            // Use incomplete factors to generate ILU preconditioner auto
-            return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
+            auto factorization = gko::share(factorization_factory->generate(
+                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                    ->get_local_matrix()));
+
+            auto precond_factory =
+                gko::preconditioner::Ilu<>::build().on(device_exec);
+
+
+            return wrap_schwarz(gkomatrix, device_exec,
+                                std::move(precond_factory), factorization);
         }
         if (name == "IRILU") {
-            auto factorizaton_factory =
-                gko::factorization::Ilu<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .on(device_exec);
-
-            auto par_ilu =
-                gko::share(factorizaton_factory->generate(gkomatrix));
-
-            auto bj_factory =
-                bj::build().with_max_block_size(1).on(device_exec);
-
             auto trisolve_factory =
                 ir::build()
-                    .with_solver(share(bj_factory))
+                    .with_solver(
+                        bj::build().with_max_block_size(1).on(device_exec))
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(5).on(
                             device_exec))
                     .on(device_exec);
 
-            // Generate an ILU preconditioner factory by setting lower and upper
-            // triangular solver - in this case the previously defined iterative
-            // refinement method.
-            auto ilu_pre_factory =
+            // Generate an ILU preconditioner factory by setting lower and
+            // upper triangular solver - in this case the previously defined
+            // iterative refinement method.
+            auto precond_factory =
                 gko::preconditioner::Ilu<ir, ir>::build()
                     .with_l_solver_factory(gko::clone(trisolve_factory))
                     .with_u_solver_factory(gko::clone(trisolve_factory))
                     .on(device_exec);
 
+            auto factorization_factory =
+                gko::factorization::Ilu<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
+
+            auto factorization = gko::share(factorization_factory->generate(
+                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                    ->get_local_matrix()));
+
             // Use incomplete factors to generate ILU preconditioner
-            return gko::share(ilu_pre_factory->generate(gko::share(par_ilu)));
+            return wrap_schwarz(gkomatrix, device_exec,
+                                std::move(precond_factory), factorization);
         }
         if (name == "IC") {
-            auto factorizaton_factory =
+            word msg = "Generate preconditioner " + name;
+            MLOG_0(verbose_, msg)
+
+            auto factorization_factory =
                 gko::factorization::Ic<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
-            word msg = "Generate preconditioner " + name;
-            LOG_1(verbose_, msg)
+            auto factorization = gko::share(factorization_factory->generate(
+                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                    ->get_local_matrix()));
 
-
-            auto ic = gko::share(factorizaton_factory->generate(gkomatrix));
-            auto pre_factory =
+            auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
 
-            return gko::share(pre_factory->generate(ic));
+
+            return wrap_schwarz(gkomatrix, device_exec,
+                                std::move(precond_factory), factorization);
+        }
+        if (name == "ICT") {
+            bool approx_select(
+                controls.lookupOrDefault("approximateSelect", false));
+            word msg = "Generate preconditioner " + name +
+                       " with approximate select " +
+                       std::to_string(approx_select);
+            MLOG_0(verbose_, msg)
+
+            auto factorization_factory =
+                gko::factorization::ParIct<scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .on(device_exec);
+
+            auto ic_factorization = gko::share(factorization_factory->generate(
+                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                    ->get_local_matrix()));
+
+            auto precond_factory =
+                gko::preconditioner::Ic<>::build().on(device_exec);
+
+
+            return wrap_schwarz(gkomatrix, device_exec,
+                                std::move(precond_factory), ic_factorization);
         }
         if (name == "ISAI") {
             label sparsity_power(
-                controls.lookupOrDefault("SparsityPower", label(1)));
+                controls.lookupOrDefault("sparsityPower", label(1)));
 
             word msg = "Generate preconditioner " + name + " SparsityPower " +
                        std::to_string(sparsity_power);
-            LOG_1(verbose_, msg)
+            MLOG_0(verbose_, msg)
 
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
@@ -169,15 +260,9 @@ public:
                     .with_sparsity_power(sparsity_power)
                     .on(device_exec);
 
-            return gko::share(pre_factory->generate(gkomatrix));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "Multigrid") {
-            using ir = gko::solver::Ir<scalar>;
-            using cg = gko::solver::Cg<scalar>;
-            using mg = gko::solver::Multigrid;
-            using bj = gko::preconditioner::Jacobi<scalar, label>;
-            using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
-
             auto inner_solver_gen =
                 gko::share(bj::build().with_max_block_size(1u).on(device_exec));
 
@@ -197,7 +282,8 @@ public:
             // Create CoarsestSolver factory
             // std::shared_ptr<gko::LinOp> coarsest_gen;
             // coarsest_gen =
-            //     (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
+            //
+            // (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
             //                                      word("IR")) == "IR")
             //         ? gko::share(
             //               ir::build()
@@ -214,45 +300,61 @@ public:
             //                                      .on(device_exec))
             //                   .on(device_exec));
 
+            const label coarse_solver_iters(
+                controls.lookupOrDefault("coarseSolverIters", label(4)));
             auto coarsest_gen = gko::share(
                 cg::build()
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(4u).on(
-                            device_exec))
+                    .with_criteria(gko::stop::Iteration::build()
+                                       .with_max_iters(coarse_solver_iters)
+                                       .on(device_exec))
                     .on(device_exec));
 
+            auto cycle_name = controls.lookupOrDefault("cycle", word("v"));
+            gko::solver::multigrid::cycle cycle;
+
+            if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
+            if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
+            if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
+            if (cycle_name == "kfcg")
+                cycle = gko::solver::multigrid::cycle::kfcg;
+            if (cycle_name == "kgcr")
+                cycle = gko::solver::multigrid::cycle::kgcr;
+
             // Create multigrid factory
-            label max_levels(controls.lookupOrDefault("MaxLevels", label(9)));
+            label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
             label min_coarse_rows(
-                controls.lookupOrDefault("MinCoarseRows", label(10)));
-            bool zeroGuess(controls.lookupOrDefault<Switch>("ZeroGuess", true));
+                controls.lookupOrDefault("minCoarseRows", label(10)));
+            bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
 
             word msg = "Generate preconditioner " + name + " MaxLevels " +
                        std::to_string(max_levels) + " MinCoarseRows " +
                        std::to_string(min_coarse_rows) + " ZeroGuess " +
-                       std::to_string(zeroGuess);
-            LOG_1(verbose_, msg)
+                       std::to_string(zeroGuess) + " Cycle " + cycle_name;
+            MLOG_0(verbose_, msg)
 
             auto pre_factory =
                 mg::build()
                     .with_max_levels(max_levels)
+                    .with_cycle(cycle)
                     .with_min_coarse_rows(min_coarse_rows)
                     .with_pre_smoother(smoother_gen)
                     .with_post_uses_pre(true)
-                    .with_mg_level(gko::share(mg_level_gen))
+                    .with_mg_level(
+                        amgx_pgm::build().with_deterministic(true).on(
+                            device_exec))
                     .with_coarsest_solver(coarsest_gen)
                     .with_zero_guess(zeroGuess)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
                     .on(device_exec);
-            return gko::share(pre_factory->generate(gkomatrix));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         return {};
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<mtx> gkomatrix,
+        std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
@@ -261,6 +363,7 @@ public:
 
         word name;
 
+#ifdef WITH_ESI_VERSION
         const entry &e =
             solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
 
@@ -269,29 +372,54 @@ public:
         } else {
             e.stream() >> name;
         }
+#else
+        const entry &e =
+            solverControls_.lookupEntry("preconditioner", true, true);
+        if (e.isDict()) {
+            name = e.dict().lookup<word>("preconditioner");
+        } else {
+            e.stream() >> name;
+        }
+#endif
 
         const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
-        if (stored && cache > 0) {
-            word msg = "Read preconditioner from registry for " +
-                       std::to_string(cache);
 
-            LOG_1(verbose_, msg)
+        if (stored) {
+            if (cache > 0) {
+                word msg = "Read preconditioner from registry for " +
+                           std::to_string(cache);
 
-            cache = cache - 1;
+                LOG_1(verbose_, msg)
 
-            set_next_caching(sys_matrix_name_, db_, cache--);
-            return db_
-                .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                    precond_store_name)
-                .get_ptr();
+                cache = cache - 1;
+
+                set_next_caching(sys_matrix_name_, db_, cache--);
+                return db_
+                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name)
+                    .get_ptr();
+            } else {
+                auto prev_precond = db_.template lookupObjectRef<
+                    DevicePersistentBase<gko::LinOp>>(precond_store_name);
+                const label caching_period =
+                    controls.lookupOrDefault<label>("caching", 0);
+                set_next_caching(sys_matrix_name_, db_, caching_period);
+
+                auto generated_precond = init_preconditioner_impl(
+                    name, controls, gkomatrix, device_exec);
+
+                auto precond_ptr = prev_precond.get_ptr();
+                precond_ptr = generated_precond;
+                return precond_ptr;
+            }
         }
-
         const label caching_period =
-            controls.lookupOrDefault<label>("Caching", 0);
+            controls.lookupOrDefault<label>("caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
+        cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
             init_preconditioner_impl(name, controls, gkomatrix, device_exec);

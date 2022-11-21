@@ -32,7 +32,6 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include "../DevicePersistentBase/DevicePersistentBase.H"
 #include "../ExecutorHandler/ExecutorHandler.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
 
 #include "../common/common.H"
 
@@ -45,7 +44,7 @@ struct ArrayInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const gkoGlobalIndex &global_index_;
+    const label size_;
 
     const label verbose_;
 
@@ -56,22 +55,22 @@ struct ArrayInitFunctor {
 
 
     ArrayInitFunctor(const ExecutorHandler &exec, const word name,
-                     const gkoGlobalIndex &global_index, const label verbose,
-                     const bool on_device = false)
+                     const label size, const label verbose,
+                     const bool on_device)
         : exec_(exec),
           name_(name),
-          global_index_(global_index),
+          size_(size),
           on_device_(on_device),
           verbose_(verbose),
           other_(NULL)
     {}
 
-    ArrayInitFunctor(const ExecutorHandler &exec, const word name,
-                     const gkoGlobalIndex &global_index, const T *other,
-                     const label verbose, const bool on_device = false)
+    ArrayInitFunctor(const ExecutorHandler &exec, const T *other,
+                     const word name, const label size, const label verbose,
+                     const bool on_device)
         : exec_(exec),
           name_(name),
-          global_index_(global_index),
+          size_(size),
           on_device_(on_device),
           verbose_(verbose),
           other_(other)
@@ -79,58 +78,52 @@ struct ArrayInitFunctor {
 
 
     // update persistent array from host memory
-    void update(std::shared_ptr<gko::Array<T>> persistent_array) const
+    void update(std::shared_ptr<gko::array<T>> persistent_array) const
     {
         if (other_ != NULL) {
             word msg{"updating array " + name_ + " of size " +
-                     std::to_string(global_index_.localSize())};
+                     std::to_string(size_)};
             LOG_1(verbose_, msg)
 
-            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
-                                                 global_index_.localSize(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                                  const_cast<T *>(other_));
             persistent_array->operator=(host_view);
         }
     }
 
-    std::shared_ptr<gko::Array<T>> init() const
+    std::shared_ptr<gko::array<T>> init() const
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         word msg{"initialising array " + name_ + " of size " +
-                 std::to_string(global_index_.localSize())};
+                 std::to_string(size_)};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
         if (other_ != NULL) {
-            auto host_view = gko::Array<T>::view(exec_.get_ref_exec(),
-                                                 global_index_.localSize(),
+            auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                                  const_cast<T *>(other_));
-            return std::make_shared<gko::Array<T>>(exec, host_view);
+            return std::make_shared<gko::array<T>>(exec, host_view);
         } else {
-            return std::make_shared<gko::Array<T>>(exec,
-                                                   global_index_.localSize());
+            return std::make_shared<gko::array<T>>(exec, size_);
         }
     }
 };
 
 template <class T>
 class PersistentArray
-    : public PersistentBase<gko::Array<T>, ArrayInitFunctor<T>> {
-    const gkoGlobalIndex &global_index_;
+    : public PersistentBase<gko::array<T>, ArrayInitFunctor<T>> {
+    using vec = gko::matrix::Dense<scalar>;
+
+    T *memory_;
+
+    const label size_;
 
     const ExecutorHandler &exec_;
 
     // indicating if the underlying array needs to
     // updated even if was found in the object registry
     const bool update_;
-
-
-    // TODO store_global_on_device
-    // to store global on the device the data has to be inialized
-    // first locally, then gathered, and finally moved to the device
-    const bool store_global_;
-
 
     // The same as dpb but for the global data
     // NOTE if on the host:
@@ -142,175 +135,117 @@ class PersistentArray
 
 
 public:
+    /* PersistentArray constructor
+     *
+     * @param name name of the underlying field or data
+     * @param objectRegistry reference to registry for storage
+     * @param exec executor handler
+     * @param verbose whether to print infos out
+     * @param update whether to update the underlying array if found in registry
+     * TODO fix documentation
+     * @param init_on_device whether to update the underlying array if found in
+     * registry
+     */
     PersistentArray(const word name, const objectRegistry &db,
-                    const ExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool store_global)
-        : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
-              name, db, ArrayInitFunctor<T>(exec, name, global_index, verbose),
-              update, verbose),
-          global_index_(global_index),
+                    const ExecutorHandler &exec, const label size,
+                    const label verbose, const bool update,
+                    const bool on_device)
+        : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
+              name, db,
+              ArrayInitFunctor<T>(exec, name, size, verbose, on_device), update,
+              verbose),
+          size_(size),
           exec_(exec),
-          update_(update),
-          store_global_(store_global)
+          update_(update)
     {}
 
-    /* PersistentArray constructor
+    /* PersistentArray constructor using existing memory
      *
      * @param memory ptr to memory on host from which the gko array is
      *               initialized
+     * @param name name of the underlying field or data
+     * @param objectRegistry reference to registry for storage
+     * @param exec executor handler
+     * @param verbose whether to print infos out
      * @param update whether to update the underlying array if found in registry
      * @param init_on_device whether the array is to be initialized on the
      * device or host
      */
-    PersistentArray(const T *memory, const word name, const objectRegistry &db,
-                    const ExecutorHandler &exec,
-                    const gkoGlobalIndex &global_index, const label verbose,
-                    const bool update, const bool store_global,
+    PersistentArray(T *memory, const word name, const objectRegistry &db,
+                    const ExecutorHandler &exec, const label size,
+                    const label verbose, const bool update,
                     const bool init_on_device)
-        : PersistentBase<gko::Array<T>, ArrayInitFunctor<T>>(
+        : PersistentBase<gko::array<T>, ArrayInitFunctor<T>>(
               name, db,
-              ArrayInitFunctor<T>(exec, name, global_index, memory, verbose,
+              ArrayInitFunctor<T>(exec, memory, name, size, verbose,
                                   init_on_device),
               update, verbose),
-          global_index_(global_index),
+          memory_(memory),
+          size_(size),
           exec_(exec),
-          update_(update),
-          store_global_(store_global)
+          update_(update)
     {}
-
-    // gather the underlying data and return a
-    // shared_ptr to the corresponding global array
-    // currently the shared_ptr is a nullptr on all but the main rank
-    std::shared_ptr<gko::Array<T>> get_global_array() const
-    {
-        if (!Pstream::parRun()) {
-            return this->get_persistent_object();
-        }
-
-        const word global_name = this->get_name() + "_global";
-
-        // if the global array is not stored or has to be updated from
-        // the local arrays gather has to be called (again)
-        const label global_size = Pstream::master() ? global_index_.size() : 0;
-        LOG_1(this->get_verbose(), "initialising global array " + global_name +
-                                       " of size " +
-                                       std::to_string(global_size))
-
-        // create a new unitialised array
-        auto persistent_object_global =
-            std::make_shared<gko::Array<T>>(exec_.get_ref_exec(), global_size);
-
-        LOG_1(this->get_verbose(), "gather global array: " + global_name)
-        global_index_.gather<T>(this->get_persistent_object(),
-                                persistent_object_global);
-        LOG_1(this->get_verbose(), "gather global array done")
-
-        return persistent_object_global;
-    };
-
-    label get_global_size() const { return global_index_.size(); }
 
     bool get_update() const { return update_; }
 
     T *get_data() const { return this->get_persistent_object()->get_data(); }
 
-    std::shared_ptr<gko::Array<T>> get_array() const
+    void set_data(T *data)
     {
-        return this->get_persistent_object();
-    }
-
-    std::shared_ptr<gko::matrix::Dense<T>> get_global_dense_vec() const
-    {
-        const word global_name = this->get_name() + "_global";
-        const fileName path = global_name;
-        auto &db = this->get_db();
-        bool stored{db.template foundObject<regIOobject>(global_name)};
-        if (stored && !update_) {
-            LOG_1(this->get_verbose(),
-                  "global dense vector" + global_name +
-                      " stored, retrieving from object registry")
-
-            persistent_object_global_ =
-                db.template lookupObjectRef<
-                      DevicePersistentBase<gko::matrix::Dense<T>>>(global_name)
-                    .get_ptr();
-
-            return persistent_object_global_;
-        }
-
-        auto host_global_array = get_global_array();
-        persistent_object_global_ = gko::share(
-            vec::create(exec_.get_device_exec(),
-                        gko::dim<2>(host_global_array->get_num_elems(), 1),
-                        *host_global_array.get(), 1));
-
-        if (store_global_) {
-            auto s = new DevicePersistentBase<gko::matrix::Dense<T>>(
-                IOobject(path, db), persistent_object_global_);
-        }
-
-        return persistent_object_global_;
-    }
-
-    std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
-    {
-        auto host_array = get_array();
-        return gko::share(vec::create(
-            exec_.get_device_exec(),
-            gko::dim<2>(host_array->get_num_elems(), 1), *host_array.get(), 1));
-    }
+        this->get_persistent_object()->get_data() = data;
+    };
 
     const T *get_const_data() const
     {
         return this->get_persistent_object()->get_const_data();
     };
 
-    void copy_back(T *memory,
-                   const std::shared_ptr<gko::matrix::Dense<T>> device_x)
-    {
-        const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
-                                             const_cast<T *>(memory));
 
-        auto x_view = gko::Array<T>::view(exec_.get_device_exec(), nCells,
+    std::shared_ptr<gko::array<T>> get_array() const
+    {
+        return this->get_persistent_object();
+    }
+
+    /* Create a Dense<T> vector from underlying data
+     * */
+    std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
+    {
+        auto array = get_array();
+        auto result = gko::share(vec::create(
+            exec_.get_device_exec(), gko::dim<2>(array->get_num_elems(), 1),
+            gko::array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
+                                get_data()),
+            1));
+        return result;
+    }
+
+    /* Copies from a distributed::Vector<T> back into raw host memory
+     *
+     * TODO store and use *memory
+     * */
+    void copy_back(const std::shared_ptr<gko::distributed::Vector<T>> dist_x)
+    {
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
+                                             const_cast<T *>(memory_));
+
+        auto dist_device_exec = dist_x->get_executor();
+        auto x_view = gko::array<T>::view(dist_device_exec, size_,
+                                          dist_x->get_local()->get_values());
+
+        host_view = x_view;
+    }
+
+    void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
+    {
+        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
+                                             const_cast<T *>(memory_));
+
+        auto x_view = gko::array<T>::view(exec_.get_device_exec(), size_,
                                           device_x->get_values());
 
         host_view = x_view;
     }
 
-    void copy_back_parallel(
-        const gkoGlobalIndex &global_address, T *memory,
-        const std::shared_ptr<gko::matrix::Dense<T>> device_x)
-    {
-        //	    std::cout << "!!!!!!!!!! copy back parallel" << std::endl;
-        const label nCells = global_index_.localSize();
-        auto host_view = gko::Array<T>::view(exec_.get_ref_exec(), nCells,
-                                             const_cast<T *>(memory));
-
-        auto x_view = (Pstream::master())
-                          ? gko::Array<T>::view(exec_.get_device_exec(),
-                                                global_address.size(),
-                                                device_x->get_values())
-                          : gko::Array<T>(gko::ReferenceExecutor::create());
-
-        if (Pstream::master()) {
-            x_view.set_executor(exec_.get_ref_exec());
-
-            // std::cout << "!!!!!!!!!! x_view before scatter back parallel" <<
-            // std::endl; for (int i=0; i< x_view.get_num_elems(); i++) {
-            // 	std::cout << i << ": " << host_view.get_const_data()[i] <<
-            // std::endl;
-            // }
-        }
-
-        global_address.scatter(x_view, host_view);
-
-        // std::cout << "!!!!!!!!!! host_view after scatter back parallel" <<
-        // std::endl; for (int i=0; i< nCells; i++) { 	std::cout << i << ": "
-        // << host_view.get_const_data()[i] << std::endl;
-        // }
-    }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 };

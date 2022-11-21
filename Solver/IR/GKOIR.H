@@ -38,6 +38,12 @@ namespace Foam {
 class GKOIRFactory {
 private:
     using ir = gko::solver::Ir<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
+    using cg = gko::solver::Cg<scalar>;
+    using val_array = gko::array<scalar>;
+
+    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 
@@ -67,23 +73,7 @@ public:
           outerStoppingCriterion_(solverControls),
           innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)){};
 
-    std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec,
-                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const label verbose,
-                  const bool export_res,
-                  std::shared_ptr<gko::LinOp> precond) const
-    {
-        outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, export_res, 0));
-
-        // if (innerSolverControls_.lookupOrDefault("solver", word("CG")) ==
-        //     "scalarJacobi") {
-        //     return create_scalar_jacobi(exec, gkomatrix, x, b, verbose);
-        // }
-        return create_default(exec, gkomatrix, x, b, verbose);
-    };
+    CREATE_SOLVER_METHODS(ir)
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
@@ -142,6 +132,12 @@ public:
         return outerStoppingCriterion_.get_res_norm();
     }
 
+    scalar get_res_norm_time() const
+    {
+        return stoppingCriterion_.get_res_norm_time();
+    }
+
+
     std::shared_ptr<vec> get_res_norms() const
     {
         return outerStoppingCriterion_.get_res_norms();
@@ -150,13 +146,14 @@ public:
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,
-                             innerStoppingCriterion_.get_num_iters());
+                             stoppingCriterion_.get_num_iters(),
+                             stoppingCriterion_.get_is_final());
     }
 
-    label get_number_of_iterations() const
+    label get_prev_number_of_iterations() const
     {
-        return innerStoppingCriterion_.get_num_iters() +
-               outerStoppingCriterion_.get_num_iters();
+        return get_solve_prev_iters(sysMatrixName_, db_,
+                                    stoppingCriterion_.get_is_final());
     }
 };
 

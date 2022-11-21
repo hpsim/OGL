@@ -52,17 +52,16 @@ OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to us
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-updateSysMatrix | true | whether to copy the system matrix to device on every solver call
+ranksPerGPU  | 1 | gather from n ranks to GPU
 updateRHS | true | whether to copy the system matrix to device on every solver call
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
 verbose | 0 | print out extra info
-device_id | 0 | on which device to offload
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
-evalFrequency | 1 | evaluate residual norm every n-th iteration
 adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 scaling | 1.0 | Scale the complete system by the scaling factor
+forceHostBuffer  | false | whether to copy to host before MPI calls
 
 ### Supported Solver
 Currently, the following solver are supported
@@ -74,6 +73,14 @@ Currently, the following solver are supported
 * Multigrid (experimental)
 
 additionally, the following preconditioner are available
+
+### Supported Matrix Format
+Currently the following matrix formats can be set by **matrixFormat**
+
+* Coo 
+* Csr
+* Ell (not supported for ranksPerGPU != 1)
+* Hybrid (not supported for ranksPerGPU != 1)
 
 ### Supported Preconditioner
 * BJ, block Jacobi
@@ -93,6 +100,7 @@ SparsityPower | 1 | ISAI
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
+
 
 
 

@@ -103,13 +103,15 @@ public:
     {
         if (from_registry_) {
             word msg = "reading " + name_ + " from registry";
-            LOG_1(verbose_, msg)
+            MLOG_1(verbose_, msg)
 
             if (update) {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
                         .get_ptr();
-                f.update(persistent_object_);
+
+                SIMPLE_TIME2(verbose_, call_update, name_,
+                             f.update(persistent_object_);)
             } else {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
@@ -118,13 +120,15 @@ public:
 
         } else {
             word msg = "initialising " + name_;
-            LOG_1(verbose_, msg)
+            MLOG_1(verbose_, msg)
             const fileName path = name_;
 
             // NOTE when objectRegistry is deleted delete for every pointer
             // owned by the registry is called
             // TODO make shure isOwnedByRegistry returns true
-            auto po = new DevicePersistentBase<T>(IOobject(path, db), f.init());
+            SIMPLE_TIME2(verbose_, call_init, name_,
+                         auto po = new DevicePersistentBase<T>(
+                             IOobject(path, db), f.init());)
 
             persistent_object_ = po->get_ptr();
         }
@@ -151,7 +155,6 @@ typedef DevicePersistentBase<gko::ReferenceExecutor> GKOReferenceExecPtr;
 typedef DevicePersistentBase<gko::OmpExecutor> GKOOmpExecPtr;
 typedef DevicePersistentBase<gko::HipExecutor> GKOHipExecPtr;
 typedef DevicePersistentBase<gko::DpcppExecutor> GKODpcppExecPtr;
-
 
 }  // namespace Foam
 
