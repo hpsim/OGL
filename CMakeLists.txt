@@ -28,7 +28,7 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
 set(GINKGO_CHECKOUT_VERSION
-    "6ea7adc"
+    "7983cb053c2"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
@@ -47,7 +47,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
   find_package(
     Ginkgo
     CONFIG
-    1.4.0
+    1.5.0
     REQUIRED
     PATHS
     $ENV{FOAM_USER_LIBBIN}/lib/cmake/Ginkgo
