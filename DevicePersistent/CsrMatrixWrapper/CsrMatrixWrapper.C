@@ -30,7 +30,8 @@ SourceFiles
 
 namespace Foam {
 
-// using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+// using dist_mtx = gko::experimental::distributed::Matrix<scalar, label,
+// label>;
 
 // template <typename mtx>
 // void MatrixInitFunctor<mtx>::update(std::shared_ptr<dist_mtx> &matrix) const
@@ -107,7 +108,8 @@ namespace Foam {
 
 //     auto comm = this->get_exec_handler().get_gko_mpi_comm_wrapper();
 //     auto dist_A = gko::share(dist_mtx::create(*comm.get()));
-//     dist_A->read_distributed(A_data, partition_.get_host_partition().get());
+//     dist_A->read_experimental::distributed(A_data,
+//     partition_.get_host_partition().get());
 
 //     if (partition_.get_ranks_per_gpu() == 1) {
 //         return dist_A;
@@ -115,7 +117,8 @@ namespace Foam {
 
 //     // TODO test if this needs to be persistent
 //     auto repartitioner =
-//         gko::share(gko::distributed::repartitioner<label, label>::create(
+//         gko::share(gko::experimental::distributed::repartitioner<label,
+//         label>::create(
 //             *comm.get(), partition_.get_host_partition(),
 //             partition_.get_device_partition()));
 //     auto to_mat =

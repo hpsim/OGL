@@ -38,7 +38,8 @@ namespace Foam {
 
 
 struct MatrixInitFunctor {
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const objectRegistry &db_;
 
@@ -150,9 +151,10 @@ struct MatrixInitFunctor {
 
             auto comm = exec_.get_gko_mpi_host_comm();
             auto repartitioner = gko::share(
-                gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(), partition_.get_host_partition(),
-                    partition_.get_device_partition()));
+                gko::experimental::distributed::repartitioner<
+                    label, label>::create(*comm.get(),
+                                          partition_.get_host_partition(),
+                                          partition_.get_device_partition()));
 
             auto local_nnz =
                 local_scatter_map_pers.get_array()->get_num_elems();
@@ -286,8 +288,8 @@ struct MatrixInitFunctor {
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A =
             generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
-        dist_A->read_distributed(A_data, non_local_A_data,
-                                 partition_.get_host_partition().get());
+        dist_A->read_experimental::distributed(
+            A_data, non_local_A_data, partition_.get_host_partition().get());
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = generate_dist_mtx_with_inner_type(
@@ -297,8 +299,8 @@ struct MatrixInitFunctor {
         }
 
         // TODO test if this needs to be persistent
-        auto repartitioner =
-            gko::share(gko::distributed::repartitioner<label, label>::create(
+        auto repartitioner = gko::share(
+            gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
         auto to_mat =
@@ -341,7 +343,8 @@ struct MatrixInitFunctor {
 
 class MatrixWrapper {
 private:
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
 
     const label verbose_;

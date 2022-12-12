@@ -42,7 +42,7 @@ namespace Foam {
 template <class T>
 struct VectorInitFunctor {
     using vec = gko::matrix::Dense<scalar>;
-    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
 
     const word name_;
 
@@ -72,8 +72,8 @@ struct VectorInitFunctor {
 
 
     // update persistent array from host memory
-    void update(
-        std::shared_ptr<gko::distributed::Vector<T>> persistent_vector) const
+    void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
+                    persistent_vector) const
     {
         const auto local_size = partition_.get_local_host_size();
         word msg{"updating array " + name_ + " of size " +
@@ -83,7 +83,7 @@ struct VectorInitFunctor {
         init()->move_to(persistent_vector.get());
     }
 
-    std::shared_ptr<gko::distributed::Vector<T>> init() const
+    std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
@@ -116,8 +116,8 @@ struct VectorInitFunctor {
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
 
         // TODO test if this needs to be persistent
-        auto repartitioner =
-            gko::share(gko::distributed::repartitioner<label, label>::create(
+        auto repartitioner = gko::share(
+            gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
 
@@ -135,8 +135,9 @@ struct VectorInitFunctor {
 
 template <class T>
 class PersistentVector
-    : public PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>> {
-    using dist_vec = gko::distributed::Vector<scalar>;
+    : public PersistentBase<gko::experimental::distributed::Vector<T>,
+                            VectorInitFunctor<T>> {
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using vec = gko::matrix::Dense<scalar>;
 
     const T *memory_;
@@ -169,7 +170,8 @@ public:
                      const ExecutorHandler &exec,
                      const PersistentPartition partition, const label verbose,
                      const bool update, const bool init_on_device)
-        : PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>>(
+        : PersistentBase<gko::experimental::distributed::Vector<T>,
+                         VectorInitFunctor<T>>(
               name, db,
               VectorInitFunctor<T>(exec, name, partition, memory, verbose,
                                    init_on_device),
@@ -197,7 +199,8 @@ public:
     };
 
 
-    std::shared_ptr<gko::distributed::Vector<T>> get_vector() const
+    std::shared_ptr<gko::experimental::distributed::Vector<T>> get_vector()
+        const
     {
         return this->get_persistent_object();
     }
@@ -221,10 +224,10 @@ public:
 
         if (partition_.get_ranks_per_gpu() != 1) {
             auto repartitioner = gko::share(
-                gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(),
-                    partition_.get_host_partition(),    // from
-                    partition_.get_device_partition())  // to
+                gko::experimental::distributed::repartitioner<label, label>::
+                    create(*comm.get(),
+                           partition_.get_host_partition(),    // from
+                           partition_.get_device_partition())  // to
             );
 
             repartitioner->scatter(host_device_vector.get(),

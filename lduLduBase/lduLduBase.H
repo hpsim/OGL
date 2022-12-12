@@ -141,10 +141,11 @@ class lduLduBase : public OGL_Info,
                    public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
-    using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
     using GlobalIndexType = gko::int64;
-    using part_type = gko::distributed::Partition<label, label>;
+    using part_type = gko::experimental::distributed::Partition<label, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;

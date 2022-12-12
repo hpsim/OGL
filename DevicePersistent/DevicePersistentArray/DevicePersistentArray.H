@@ -223,7 +223,8 @@ public:
      *
      * TODO store and use *memory
      * */
-    void copy_back(const std::shared_ptr<gko::distributed::Vector<T>> dist_x)
+    void copy_back(
+        const std::shared_ptr<gko::experimental::distributed::Vector<T>> dist_x)
     {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                              const_cast<T *>(memory_));

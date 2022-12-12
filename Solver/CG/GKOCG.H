@@ -40,8 +40,9 @@ private:
     using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
 
-    using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 
@@ -113,7 +114,8 @@ public:
 
     void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
     {
-        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_, prev_rel_res_cost);
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
     }
 
 

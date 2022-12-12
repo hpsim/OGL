@@ -10,7 +10,7 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::matrix::Csr<scalar>>,
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::array<scalar>>,
                                "PersistentScalarArray");
 defineTemplateTypeNameWithName(
-    DevicePersistentBase<gko::distributed::Vector<scalar>>,
+    DevicePersistentBase<gko::experimental::distributed::Vector<scalar>>,
     "PersistentScalarVector");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::array<label>>,
                                "PersistentLabelArray");
@@ -23,11 +23,11 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
 
 // typedef needed  to avoid confusion with the comma separated template
 // arguments as macro arguments
-typedef gko::distributed::Partition<label, label> Partition;
+typedef gko::experimental::distributed::Partition<label, label> Partition;
 defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
                                "PersistentPartition");
 
-typedef gko::distributed::Matrix<scalar, label, label> GkoMatrix;
+typedef gko::experimental::distributed::Matrix<scalar, label, label> GkoMatrix;
 defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
                                "PersistentMatrix");
 }  // namespace Foam

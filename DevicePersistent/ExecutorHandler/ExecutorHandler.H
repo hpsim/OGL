@@ -36,7 +36,7 @@ SourceFiles
 namespace Foam {
 
 struct ExecutorInitFunctor {
-    mutable std::shared_ptr<gko::mpi::communicator> comm_;
+    mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
 
     const label device_id_;
 
@@ -50,7 +50,7 @@ struct ExecutorInitFunctor {
                         const label verbose, const label gpus_per_rank,
                         const bool force_host_buffer = false)
         : comm_((Pstream::parRun())  // TODO make this DRY
-                    ? std::make_shared<gko::mpi::communicator>(
+                    ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD,
                           gko::share(gko::ReferenceExecutor::create()),
                           force_host_buffer)
@@ -100,7 +100,7 @@ class ExecutorHandler
 private:
     const bool gko_force_host_buffer_;
 
-    mutable std::shared_ptr<gko::mpi::communicator> device_comm_;
+    mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
 
     const word device_executor_name_;
 
@@ -120,11 +120,12 @@ public:
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
-          device_comm_((Pstream::parRun())
-                           ? std::make_shared<gko::mpi::communicator>(
-                                 MPI_COMM_WORLD, this->get_persistent_object(),
-                                 gko_force_host_buffer_)
-                           : NULL),
+          device_comm_(
+              (Pstream::parRun())
+                  ? std::make_shared<gko::experimental::mpi::communicator>(
+                        MPI_COMM_WORLD, this->get_persistent_object(),
+                        gko_force_host_buffer_)
+                  : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
@@ -147,9 +148,10 @@ public:
 
     word get_exec_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_host_comm() const
+    std::shared_ptr<gko::experimental::mpi::communicator>
+    get_gko_mpi_host_comm() const
     {
-        return std::make_shared<gko::mpi::communicator>(
+        return std::make_shared<gko::experimental::mpi::communicator>(
             MPI_COMM_WORLD, this->get_persistent_object()->get_master(),
             gko_force_host_buffer_);
     }
