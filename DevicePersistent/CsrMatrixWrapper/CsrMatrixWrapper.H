@@ -200,7 +200,7 @@ struct MatrixInitFunctor {
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
-        std::shared_ptr<gko::executor> exec,
+        std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
         if (matrix_format_ == "Csr") {
