@@ -118,7 +118,7 @@ struct VectorInitFunctor {
         // TODO test if this needs to be persistent
         auto repartitioner = gko::share(
             gko::experimental::distributed::repartitioner<label, label>::create(
-                exec, *comm.get(), partition_.get_host_partition(),
+                *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
 
         repartitioner->gather(host_vector.get(), target_vector.get());
