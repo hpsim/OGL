@@ -339,7 +339,6 @@ public:
                         amgx_pgm::build().with_deterministic(true).on(
                             device_exec))
                     .with_coarsest_solver(coarsest_gen)
-                    .with_zero_guess(zeroGuess)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
