@@ -111,7 +111,7 @@ public:
             std::string(")\n\tGinkgo commit: ") +
             std::string(ginkgo_git_revision()) +
             std::string("\n\tMPI is GPU aware: ") +
-            std::to_string(gko::mpi::is_gpu_aware()) +
+            std::to_string(gko::experimental::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
             std::string("\n\tCPU ranks per GPU: ") +
