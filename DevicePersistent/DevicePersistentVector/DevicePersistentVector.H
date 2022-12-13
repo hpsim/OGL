@@ -212,7 +212,8 @@ public:
         auto global_size = partition_.get_total_size();
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto host_device_vector = dist_vec::create(*comm.get());
+        auto host_device_vector =
+            dist_vec::create(exec_.get_ref_exec(), *comm.get());
         host_device_vector->operator=(*get_vector().get());
 
         // TODO why does it need its size
