@@ -315,10 +315,6 @@ public:
             if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
             if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
             if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
-            if (cycle_name == "kfcg")
-                cycle = gko::solver::multigrid::cycle::kfcg;
-            if (cycle_name == "kgcr")
-                cycle = gko::solver::multigrid::cycle::kgcr;
 
             // Create multigrid factory
             label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
@@ -350,6 +346,9 @@ public:
                     .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
+
+        FatalErrorInFunction << "Preconditioner " << name << " not supported "
+                             << abort(FatalError);
         return {};
     }
 
