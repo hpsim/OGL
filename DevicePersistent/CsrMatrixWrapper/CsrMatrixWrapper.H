@@ -200,14 +200,15 @@ struct MatrixInitFunctor {
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
+        std::shared_ptr<gko::executor> exec,
         std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
         if (matrix_format_ == "Csr") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Csr>());
         }
         if (matrix_format_ == "Ell") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Ell>());
         }
         // if (matrix_format_ == "Hybrid") {
@@ -215,7 +216,7 @@ struct MatrixInitFunctor {
         //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
         // }
         if (matrix_format_ == "Coo") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Coo>());
         }
 
@@ -286,14 +287,14 @@ struct MatrixInitFunctor {
 
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto dist_A =
-            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
-        dist_A->read_experimental::distributed(
-            A_data, non_local_A_data, partition_.get_host_partition().get());
+        auto dist_A = generate_dist_mtx_with_inner_type(
+            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
+        dist_A->read_distributed(A_data, non_local_A_data,
+                                 partition_.get_host_partition().get());
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = generate_dist_mtx_with_inner_type(
-                exec_.get_gko_mpi_device_comm());
+                exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
             dist_A->move_to(device_mat.get());
             return device_mat;
         }
@@ -331,8 +332,8 @@ struct MatrixInitFunctor {
             false,
             false};
 
-        auto device_mat =
-            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_device_comm());
+        auto device_mat = generate_dist_mtx_with_inner_type(
+            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
 
         to_mat->move_to(device_mat.get());
 
