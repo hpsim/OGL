@@ -345,6 +345,9 @@ public:
                     .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
+        if (name == "none") {
+            return {};
+        }
 
         FatalErrorInFunction << "Preconditioner " << name << " not supported "
                              << abort(FatalError);
