@@ -123,8 +123,7 @@ public:
           device_comm_(
               (Pstream::parRun())
                   ? std::make_shared<gko::experimental::mpi::communicator>(
-                        MPI_COMM_WORLD, this->get_persistent_object(),
-                        gko_force_host_buffer_)
+                        MPI_COMM_WORLD, gko_force_host_buffer_)
                   : NULL),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
@@ -156,7 +155,8 @@ public:
             gko_force_host_buffer_);
     }
 
-    std::shared_ptr<gko::mpi::communicator> get_gko_mpi_device_comm() const
+    std::shared_ptr<gko::experimental::mpi::communicator>
+    get_gko_mpi_device_comm() const
     {
         return this->device_comm_;
     }
