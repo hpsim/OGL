@@ -51,9 +51,7 @@ struct ExecutorInitFunctor {
                         const bool force_host_buffer = false)
         : comm_((Pstream::parRun())  // TODO make this DRY
                     ? std::make_shared<gko::experimental::mpi::communicator>(
-                          MPI_COMM_WORLD,
-                          gko::share(gko::ReferenceExecutor::create()),
-                          force_host_buffer)
+                          MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
           device_id_((Pstream::parRun()) ? comm_->rank() / gpus_per_rank : 0),
           executor_name_(executor_name),
