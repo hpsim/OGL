@@ -304,8 +304,8 @@ struct MatrixInitFunctor {
             gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition()));
-        auto to_mat =
-            gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
+        auto to_mat = gko::share(
+            dist_mtx::create(exec, repartitioner->get_to_communicator()));
 
         auto [local_scatter_map, non_local_scatter_map] =
             repartitioner->gather(dist_A.get(), to_mat.get());
