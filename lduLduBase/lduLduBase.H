@@ -299,7 +299,7 @@ public:
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
         this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            &prev_rel_res_cost, 1, 0);
+            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition.get_total_size();
