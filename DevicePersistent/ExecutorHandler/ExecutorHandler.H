@@ -149,8 +149,7 @@ public:
     get_gko_mpi_host_comm() const
     {
         return std::make_shared<gko::experimental::mpi::communicator>(
-            MPI_COMM_WORLD, this->get_persistent_object()->get_master(),
-            gko_force_host_buffer_);
+            MPI_COMM_WORLD, gko_force_host_buffer_);
     }
 
     std::shared_ptr<gko::experimental::mpi::communicator>
