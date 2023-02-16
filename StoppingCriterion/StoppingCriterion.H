@@ -113,7 +113,7 @@ class StoppingCriterion {
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {0}, device_exec);
 
-            x->compute_average_unsafe(xAvg.get());
+            x->compute_mean(xAvg.get());
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
             gkomatrix->compute_column_vector_sum(res.get());

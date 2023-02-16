@@ -80,7 +80,8 @@ struct PartitionInitFunctor {
 
         auto host_partition = gko::share(
             gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec, rows_start_, rows_end_, *comm.get()));
+                label, label>(exec, *comm.get(),
+                              gko::span(rows_start_, rows_end_)));
 
         if (ranks_per_gpu_ == 1) return host_partition;
 
@@ -98,8 +99,8 @@ struct PartitionInitFunctor {
             (local_rank % ranks_per_gpu_ != 0) ? target_rows_end : rows_start_;
         return gko::share(
             gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec, target_rows_start, target_rows_end,
-                              *comm.get()));
+                label, label>(exec, *comm.get(),
+                              gko::span(target_rows_start, target_rows_end)));
     }
 };
 
@@ -165,8 +166,8 @@ public:
         auto comm = exec_.get_gko_mpi_host_comm();
         return gko::share(
             gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec_.get_ref_exec(), offset_,
-                              offset_ + elements_, *comm.get()));
+                label, label>(exec_.get_ref_exec(), *comm.get(),
+                              gko::span(offset_, offset_ + elements_)));
     }
 
     // number of elements on this rank on the host

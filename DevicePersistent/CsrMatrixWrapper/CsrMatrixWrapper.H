@@ -316,7 +316,7 @@ struct MatrixInitFunctor {
             "local_scatter_map",
             db_,
             exec_,
-            local_scatter_map.get_num_elems(),
+            static_cast<label>(local_scatter_map.get_num_elems()),
             verbose_,
             false,
             false};
@@ -327,7 +327,7 @@ struct MatrixInitFunctor {
             "non_local_scatter_map",
             db_,
             exec_,
-            non_local_scatter_map.get_num_elems(),
+            static_cast<label>(non_local_scatter_map.get_num_elems()),
             verbose_,
             false,
             false};

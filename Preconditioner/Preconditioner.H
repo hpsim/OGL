@@ -41,7 +41,9 @@ class Preconditioner {
     using cg = gko::solver::Cg<scalar>;
     using mg = gko::solver::Multigrid;
     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
-    using ras = gko::preconditioner::Schwarz<scalar, label, label>;
+    using ras =
+        gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
+                                                                label>;
 
 private:
     const word sys_matrix_name_;
@@ -74,12 +76,10 @@ public:
         if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
-                    .with_generated_inner_solvers(
-                        std::vector<std::shared_ptr<const gko::LinOp>>{
-                            gko::share(precond->generate(
-                                gko::as<gko::experimental::distributed::Matrix<
-                                    scalar, label, label>>(gkomatrix)
-                                    ->get_local_matrix()))})
+                    .with_generated_inner_solvers(gko::share(precond->generate(
+                        gko::as<gko::experimental::distributed::Matrix<
+                            scalar, label, label>>(gkomatrix)
+                            ->get_local_matrix())))
                     .on(device_exec)
                     ->generate(gkomatrix));
         }
@@ -97,8 +97,7 @@ public:
             return gko::share(
                 ras::build()
                     .with_generated_inner_solvers(
-                        std::vector<std::shared_ptr<const gko::LinOp>>{
-                            std::move(precond->generate(factorization))})
+                            precond->generate(factorization))
                     .on(device_exec)
                     ->generate(gkomatrix));
         }
