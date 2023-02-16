@@ -28,7 +28,7 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
 set(GINKGO_CHECKOUT_VERSION
-    "edc2bd023"
+    "6b441077b"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
