@@ -93,10 +93,18 @@ struct PartitionInitFunctor {
         auto target_rows_end =
             host_partition->get_range_bounds()[next_owning_rank];
 
-        // if we are not on a owning rank start rows are set to be the end
+        // if we are not on an owning rank start rows are set to be the end
         // row else the rows start are unchanged
         auto target_rows_start =
             (local_rank % ranks_per_gpu_ != 0) ? target_rows_end : rows_start_;
+
+        // to be consistent non owning ranks need to have rows_end ==
+        // rows_start;
+        target_rows_end = (local_rank % ranks_per_gpu_ != 0 &&
+                           target_rows_end != target_rows_start)
+                              ? target_rows_start
+                              : target_rows_end;
+
         return gko::share(
             gko::experimental::distributed::build_partition_from_local_range<
                 label, label>(exec, *comm.get(),
@@ -134,8 +142,9 @@ public:
      * @param objectRegistry reference to registry for storage
      * @param exec executor handler
      * @param verbose whether to print infos out
-     * device or host
      * @param ranks_per_gpu
+     * @param offset
+     * @param elements
      */
     PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
                         const label verbose, const int ranks_per_gpu,
