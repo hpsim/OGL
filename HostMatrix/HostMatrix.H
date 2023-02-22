@@ -187,17 +187,19 @@ public:
     {
         if (!local_sparsity_.col_idxs_.get_stored() ||
             local_sparsity_.col_idxs_.get_update()) {
-            SIMPLE_TIME(verbose_, init_local_sparsity_pattern,
-                        init_local_sparsity_pattern();)
-            SIMPLE_TIME(verbose_, init_non_local_sparsity_pattern,
-                        init_non_local_sparsity_pattern(interfaces);)
+            TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
+                                this->fieldName(),
+                                init_local_sparsity_pattern();)
+            TIME_WITH_FIELDNAME(
+                verbose_, init_non_local_sparsity_pattern,
+                this->fieldName() init_non_local_sparsity_pattern(interfaces);)
         }
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
-            SIMPLE_TIME(verbose_, update_local_matrix_data,
-                        update_local_matrix_data();)
-            SIMPLE_TIME(
-                verbose_, update_non_local_matrix_data,
-                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
+            TIME_WITH_FIELDNAME(verbose_, update_local_matrix_data,
+                                this->fieldName() update_local_matrix_data();)
+            TIME_WITH_FIELDNAME(verbose_, update_non_local_matrix_data,
+                                this->fieldName() update_non_local_matrix_data(
+                                    interfaces, interfaceBouCoeffs);)
         }
     }
 
