@@ -169,7 +169,7 @@ struct MatrixInitFunctor {
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
             TIME_WITH_FIELDNAME(
-                verbose_, update_repartitioned_existing, fieldName_,
+                verbose_, update_repartitioned_existing, field_name_,
                 repartitioner->update_existing(
                     *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
                     *coeffs.get(), *non_local_coeffs.get(),
@@ -184,12 +184,12 @@ struct MatrixInitFunctor {
                                                   non_local_value_ptr);
 
             TIME_WITH_FIELDNAME(verbose_, update_offload_local_values,
-                                fieldName_,
+                                field_name_,
                                 local_values.set_executor(device_exec);
                                 value_view = local_values;)
 
             TIME_WITH_FIELDNAME(verbose_, update_offload_non_local_values,
-                                fieldName_,
+                                field_name_,
                                 non_local_values.set_executor(device_exec);
                                 non_local_view = non_local_values;)
         } else {
