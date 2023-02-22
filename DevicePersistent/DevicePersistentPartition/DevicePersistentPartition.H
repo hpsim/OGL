@@ -98,13 +98,6 @@ struct PartitionInitFunctor {
         auto target_rows_start =
             (local_rank % ranks_per_gpu_ != 0) ? target_rows_end : rows_start_;
 
-        // to be consistent non owning ranks need to have rows_end ==
-        // rows_start;
-        target_rows_end = (local_rank % ranks_per_gpu_ != 0 &&
-                           target_rows_end != target_rows_start)
-                              ? target_rows_start
-                              : target_rows_end;
-
         return gko::share(
             gko::experimental::distributed::build_partition_from_local_range<
                 label, label>(exec, *comm.get(),

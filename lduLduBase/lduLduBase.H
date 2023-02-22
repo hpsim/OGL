@@ -329,7 +329,10 @@ public:
 
         // Solve system
         if (Pstream::parRun()) {
-            return solve_multi_gpu_impl(psi, source, solverPerf);
+            SIMPLE_TIME(
+                verbose_, solve_multi_gpu,
+                auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
+            return res
         } else {
             Info << "Only parallel runs are supported " << endl;
         }
