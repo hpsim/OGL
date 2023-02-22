@@ -267,26 +267,30 @@ public:
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
                     {scaling}, ref_exec));
 
-            SIMPLE_TIME(verbose_, scale_RHS,
-                        dist_b.get_vector()->scale(dense_scaling.get());)
+            TIME_WITH_FIELDNAME(
+                verbose_, scale_RHS, this->fieldName(),
+                dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        SIMPLE_TIME(verbose_, init_precond,
-                    auto precond = this->init_preconditioner(
-                        dist_A_v, this->get_exec_handler().get_device_exec());)
+        TIME_WITH_FIELDNAME(
+            verbose_, init_precond, this->fieldName(),
+            auto precond = this->init_preconditioner(
+                dist_A_v, this->get_exec_handler().get_device_exec());)
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
             dist_b_v, verbose_, dist_A.get_export(), precond);
 
-        SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(dist_A_v);)
+        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
+                            auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
+        TIME_WITH_FIELDNAME(
+            verbose_, solve, this->fieldName(),
+            solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
-        SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
+        TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
+                            dist_x.copy_back();)
         auto bandwith_copy_back = sizeof(scalar) *
                                   partition.get_local_device_size() /
                                   delta_t_copy_x_back / 1000.0;
