@@ -153,6 +153,23 @@ struct MatrixInitFunctor {
                 false,
                 false};
 
+            // TODO add field name
+            PersistentArray<label> send_sizes_pers{
+                "send_sizes", db_, exec_, 0, verbose_, false, false};
+
+            // TODO add field name
+            PersistentArray<label> send_offs_pers{"send_offs", db_,   exec_, 0,
+                                                  verbose_,    false, false};
+
+            // TODO add field name
+            PersistentArray<label> recv_sizes_pers{
+                "recv_sizes", db_, exec_, 0, verbose_, false, false};
+
+            // TODO add field name
+            PersistentArray<label> recv_offs_pers{"recv_offs", db_,   exec_, 0,
+                                                  verbose_,    false, false};
+
+
             auto comm = exec_.get_gko_mpi_host_comm();
             auto repartitioner = gko::share(
                 gko::experimental::distributed::repartitioner<
@@ -168,11 +185,31 @@ struct MatrixInitFunctor {
             gko::array<scalar> local_values{exec, local_nnz};
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
+            std::vector<label> send_sizes;
+            std::vector<label> send_offsets;
+            std::vector<label> recv_sizes;
+            std::vector<label> recv_offsets;
+
+            send_sizes.assign(send_sizes_pers.get_array().get_data(),
+                              send_sizes_pers.get_array().get_data() +
+                                  send_sizes_pers.get_array().get_num_elems());
+            send_offs.assign(send_offs_pers.get_array().get_data(),
+                             send_offs_pers.get_array().get_data() +
+                                 send_offs_pers.get_array().get_num_elems());
+            recv_sizes.assign(recv_sizes_pers.get_array().get_data(),
+                              recv_sizes_pers.get_array().get_data() +
+                                  recv_sizes_pers.get_array().get_num_elems());
+            recv_offs.assign(recv_offs_pers.get_array().get_data(),
+                             recv_offs_pers.get_array().get_data() +
+                                 recv_offs_pers.get_array().get_num_elems());
+
+
             TIME_WITH_FIELDNAME(
                 verbose_, update_repartitioned_existing, field_name_,
                 repartitioner->update_existing(
                     *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-                    *coeffs.get(), *non_local_coeffs.get(),
+                    send_sizes, send_offs, recv_sizes, recv_offs, *coeffs.get(),
+                    *non_local_coeffs.get(),
                     *local_scatter_map_pers.get_array().get(),
                     *non_local_scatter_map_pers.get_array().get(), local_values,
                     non_local_values);)
@@ -317,7 +354,8 @@ struct MatrixInitFunctor {
         auto to_mat = gko::share(
             dist_mtx::create(exec, repartitioner->get_to_communicator()));
 
-        auto [local_scatter_map, non_local_scatter_map] =
+        auto [local_scatter_map, non_local_scatter_map, send_sizes,
+              send_offsets, recv_sizes, recv_offsets] =
             repartitioner->gather(dist_A.get(), to_mat.get());
 
         // TODO add field name
@@ -338,6 +376,49 @@ struct MatrixInitFunctor {
             db_,
             exec_,
             static_cast<label>(non_local_scatter_map.get_num_elems()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> send_sizes_pers{
+            send_sizes.data(),
+            "send_sizes",
+            db_,
+            exec_,
+            static_cast<label>(send_sizes.size()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> send_offs_pers{
+            send_offs_pers.data(),
+            "send_offs",
+            db_,
+            exec_,
+            static_cast<label>(send_offs.size()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> recv_sizes_pers{
+            recv_sizes.data(),
+            "recv_sizes",
+            db_,
+            exec_,
+            static_cast<label>(recv_sizes.size()),
+            verbose_,
+            false,
+            false};
+
+        PersistentArray<label> recv_offs_pers{
+            recv_offs.data(),
+            "recv_offs",
+            db_,
+            exec_,
+            static_cast<label>(recv_offs.size()),
             verbose_,
             false,
             false};
