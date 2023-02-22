@@ -329,8 +329,8 @@ public:
 
         // Solve system
         if (Pstream::parRun()) {
-            SIMPLE_TIME(
-                verbose_, solve_multi_gpu,
+            TIME_WITH_FIELDNAME(
+                verbose_, solve_multi_gpu, this->fieldName(),
                 auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
             return res;
         } else {

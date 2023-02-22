@@ -80,7 +80,7 @@ namespace Foam {
 #endif
 
 
-#define SIMPLE_TIME2(VERBOSE, NAME, FIELD, F)                                 \
+#define TIME_WITH_FIELDNAME(VERBOSE, NAME, FIELD, F)                                 \
     START_ANNOTATE(NAME);                                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                     \
     F auto end_##NAME = std::chrono::steady_clock::now();                     \
@@ -102,7 +102,7 @@ namespace Foam {
         }                                                                     \
     }
 
-#define SIMPLE_TIME(VERBOSE, NAME, F) SIMPLE_TIME2(VERBOSE, NAME, "", F)
+#define SIMPLE_TIME(VERBOSE, NAME, F) TIME_WITH_FIELDNAME(VERBOSE, NAME, "", F)
 
 
 std::ostream &operator<<(

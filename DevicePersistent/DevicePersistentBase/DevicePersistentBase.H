@@ -110,7 +110,7 @@ public:
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
                         .get_ptr();
 
-                SIMPLE_TIME2(verbose_, call_update, name_,
+                TIME_WITH_FIELDNAME(verbose_, call_update, name_,
                              f.update(persistent_object_);)
             } else {
                 persistent_object_ =
@@ -126,7 +126,7 @@ public:
             // NOTE when objectRegistry is deleted delete for every pointer
             // owned by the registry is called
             // TODO make shure isOwnedByRegistry returns true
-            SIMPLE_TIME2(verbose_, call_init, name_,
+            TIME_WITH_FIELDNAME(verbose_, call_init, name_,
                          auto po = new DevicePersistentBase<T>(
                              IOobject(path, db), f.init());)
 
