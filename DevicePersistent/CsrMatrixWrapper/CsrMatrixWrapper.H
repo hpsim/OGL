@@ -63,6 +63,8 @@ struct MatrixInitFunctor {
 
     const label verbose_;
 
+    const word field_name_;
+
     MatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
                       const PersistentPartition &partition,
                       const PersistentArray<label> &col_idxs,
@@ -71,7 +73,8 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &non_local_col_idxs,
                       const PersistentArray<label> &non_local_row_idxs,
                       const PersistentArray<scalar> &non_local_coeffs,
-                      const word matrix_format, const label verbose)
+                      const word matrix_format, const label verbose,
+                      const word field_name)
         : db_(db),
           exec_(exec),
           partition_(partition),
@@ -82,7 +85,8 @@ struct MatrixInitFunctor {
           non_local_row_idxs_(non_local_row_idxs),
           non_local_coeffs_(non_local_coeffs),
           matrix_format_(matrix_format),
-          verbose_(verbose)
+          verbose_(verbose),
+          field_name_(field_name)
     {}
 
     void update(std::shared_ptr<dist_mtx> persistent_device_matrix) const
@@ -164,12 +168,14 @@ struct MatrixInitFunctor {
             gko::array<scalar> local_values{exec, local_nnz};
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
-            repartitioner->update_existing(
-                *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-                *coeffs.get(), *non_local_coeffs.get(),
-                *local_scatter_map_pers.get_array().get(),
-                *non_local_scatter_map_pers.get_array().get(), local_values,
-                non_local_values);
+            TIME_WITH_FIELDNAME(
+                verbose_, update_repartitioned_existing, fieldName_,
+                repartitioner->update_existing(
+                    *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
+                    *coeffs.get(), *non_local_coeffs.get(),
+                    *local_scatter_map_pers.get_array().get(),
+                    *non_local_scatter_map_pers.get_array().get(), local_values,
+                    non_local_values);)
 
             auto value_view =
                 val_array::view(device_exec, local_nnz, value_ptr);
@@ -177,11 +183,15 @@ struct MatrixInitFunctor {
             auto non_local_view = val_array::view(device_exec, non_local_nnz,
                                                   non_local_value_ptr);
 
-            local_values.set_executor(device_exec);
-            value_view = local_values;
+            TIME_WITH_FIELDNAME(verbose_, update_offload_local_values,
+                                fieldName_,
+                                local_values.set_executor(device_exec);
+                                value_view = local_values;)
 
-            non_local_values.set_executor(device_exec);
-            non_local_view = non_local_values;
+            TIME_WITH_FIELDNAME(verbose_, update_offload_non_local_values,
+                                fieldName_,
+                                non_local_values.set_executor(device_exec);
+                                non_local_view = non_local_values;)
         } else {
             gko::array<scalar> device_values{device_exec, *coeffs.get()};
             gko::array<scalar> device_non_local_values{device_exec,
@@ -376,7 +386,7 @@ public:
                   db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
-                  verbose_),
+                  verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
