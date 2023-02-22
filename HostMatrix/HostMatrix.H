@@ -190,16 +190,16 @@ public:
             TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
                                 this->fieldName(),
                                 init_local_sparsity_pattern();)
-            TIME_WITH_FIELDNAME(
-                verbose_, init_non_local_sparsity_pattern,
-                this->fieldName() init_non_local_sparsity_pattern(interfaces);)
+            TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
+                                this->fieldName(),
+                                init_non_local_sparsity_pattern(interfaces);)
         }
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
             TIME_WITH_FIELDNAME(verbose_, update_local_matrix_data,
-                                this->fieldName() update_local_matrix_data();)
-            TIME_WITH_FIELDNAME(verbose_, update_non_local_matrix_data,
-                                this->fieldName() update_non_local_matrix_data(
-                                    interfaces, interfaceBouCoeffs);)
+                                this->fieldName(), update_local_matrix_data();)
+            TIME_WITH_FIELDNAME(
+                verbose_, update_non_local_matrix_data, this->fieldName(),
+                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
         }
     }
 
