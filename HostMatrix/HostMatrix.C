@@ -40,6 +40,24 @@ label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
             continue;
         }
         const auto iface{interfaces.operator()(i)};
+        // NOTE assume that all non processorLduInterface are local interfaces
+        if (!isA<processorLduInterface>(iface->interface())) {
+            ctr += iface->interface().faceCells().size();
+        }
+    }
+    return ctr;
+}
+
+template <class MatrixType>
+label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
+    const lduInterfaceFieldPtrsList &interfaces) const
+{
+    label ctr{0};
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
+            continue;
+        }
+        const auto iface{interfaces.operator()(i)};
         if (isA<processorLduInterface>(iface->interface())) {
             ctr += iface->interface().faceCells().size();
         }
@@ -120,7 +138,44 @@ template std::vector<scalar>
 HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
     const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
 
-// TODO merge with communicate_non_local_row_indices
+template <class MatrixType>
+std::vector<std::tuple<label, label, label>>
+HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
+    const lduInterfaceFieldPtrsList &interfaces) const
+{
+    std::vector<std::tuple<label, label, label>> local_interface_idxs{};
+    local_interface_idxs.reserve(local_interface_nnz_);
+
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
+            continue;
+        }
+
+        const auto iface{interfaces.operator()(i)};
+
+        // cells on this patch
+        // TODO this seems to be used as mapping face internal index to
+        const auto &face_cells{iface->interface().faceCells()};
+        // Now what is missing is the mapping between internal index to a column
+        // row
+        // Probably interface(Int)Coeffs already contain needed coeffs
+
+        if (!isA<processorLduInterface>(iface->interface())) {
+            for (label cellI = 0; cellI < interface_size; cellI++) {
+                const labelUList &nbrFaceCells =
+                    lduAddr.patchAddr(this->cyclicPatch().neighbPatchID());
+
+                local_interface_idxs.push_back(
+                    {interface_ctr, face_cells[cellI],
+                     global_row_index_.toGlobal(neighbProcNo,
+                                                otherSide_tmp()[cellI])});
+                interface_ctr += 1;
+            }
+        }
+    }
+    return local_interface_idxs;
+}
+
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
@@ -224,8 +279,8 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         const label interface_size = face_cells.size();
 
         if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
+            // const processorLduInterface &pldui =
+            //     refCast<const processorLduInterface>(iface->interface());
 
             // check if current cell is on the current patch
             // NOTE cells can be several times on same patch
@@ -242,20 +297,22 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
 }
 
 template void HostMatrixWrapper<lduMatrix>::init_non_local_sparsity_pattern(
-    const lduInterfaceFieldPtrsList &interface) const;
+    const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
+void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
+    const lduInterfaceFieldPtrsList &interfaces) const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
     bool is_symmetric{this->matrix().upper() == this->matrix().lower()};
 
+
     auto lower_local = idx_array::view(
-        exec_.get_ref_exec(), upper_nnz_,
+        exec_.get_ref_exec(), upper_nnz_ - local_interface_nnzs_,
         const_cast<label *>(&this->matrix().lduAddr().lowerAddr()[0]));
 
     auto upper_local = idx_array::view(
-        exec_.get_ref_exec(), upper_nnz_,
+        exec_.get_ref_exec(), upper_nnz_ - local_interface_nnzs_,
         const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
 
     // row of upper, col of lower
@@ -315,10 +372,59 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern() const
             row_upper = lower[upper_ctr];
         }
     }
+    // if no local interfaces we are done here
+    // otherwise we need to add local interfaces in order
+    if (local_interface_nnzs_) {
+        auto local_interfaces = collect_local_interfaces(interfaces);
+        // sort local interfaces to be in row major order
+        // and keep original indices
+        std::sort(local_interfaces.begin(), local_indices.end(),
+                  [&](const auto &a, const auto &b) {
+                      auto [interface_idx_a, row_a, col_a] = a;
+                      auto [interface_idx_b, row_b, col_b] = b;
+                      return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+                  });
+
+        // copy current rows and columns to tmp array
+        //
+        // iterate local interfaces i
+        // insert all coeffs for row < interface[i].row
+
+        label current_idx_ctr = 0;
+        label total_ctr = 0;
+        // find local_interface with lowes row, column
+        for (int i = 0; i < local_interfaces.size(); i++) {
+            auto [interface_idx, interface_row, interface_col] =
+                local_interfaces[i];
+
+            while ([&]() {
+                // TODO check if that is correct
+                // check for length
+                if (interface_row < rows[current_idx_ctr]) {
+                    return false;
+                } else {
+                    return interface_col >= cols[current_idx_ctr];
+                }
+            }()) {
+                // insert coeffs
+                rows[total_ctr] = cols_copy[current_idx_ctr];
+                cols[total_ctr] = rows_copy[current_idx_ctr];
+                permute[total_ctr] = permute_copy[current_idx_ctr];
+                // TODO what happens to Permute?
+                current_idx_ctr++;
+            }
+
+            rows[total_ctr] = interface.row;
+            cols[total_ctr] = interface.col;
+            permute[total_ctr] = permute_copy[nnz + interface_idx];
+        }
+    }
+
     LOG_1(verbose_, "done init host matrix")
 }
 
-template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern() const;
+template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern(
+    const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
@@ -327,6 +433,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     auto upper = this->matrix().upper();
     auto lower = this->matrix().lower();
     auto diag = this->matrix().diag();
+    label diag_nnz = diag.size();
 
     bool is_symmetric{upper == lower};
 
@@ -343,25 +450,73 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     // TODO this does not work for Ell
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
-    if (is_symmetric) {
-        for (label i = 0; i < nnz_local_matrix_; ++i) {
-            const label pos{permute[i]};
-            dense[i] = scaling_ * (pos >= upper_nnz_) ? diag[pos - upper_nnz_]
-                                                      : upper[pos];
+
+    // TODO Permute does store where coeffs come from  so if we are above
+    // nnzs-local_interface_nnzs we copy coeffs from the local_interfaces this
+    // however needs local_interfaces to be sorted every time, or we keep the
+    // sorting idxs
+    //
+    if (local_interface_nnz_) {
+        // TODO add a second implementation fill_with_interfaces
+        auto local_interfaces = collect_local_interface_values(interfaces);
+        if (is_symmetric) {
+            for (label i = 0; i < nnz_local_matrix_; ++i) {
+                const label pos{permute[i]};
+                scalar value;
+                if (pos < upper_nnz_) value = diag[];
+                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz ) value = upper[pos];
+                // TODO
+                // if (pos >= upper_nnz_ + diag_nnz) value = interface[pos];
+                dense[i] = scaling_ * value;
+            }
+            return;
         }
-        return;
+        // TODO implement non symmetric variant
     } else {
-        for (label i = 0; i < nnz_local_matrix_; ++i) {
-            const label pos{permute[i]};
-            if (pos < upper_nnz_) {
-                dense[i] = scaling_ * upper[pos];
-                continue;
+        // TODO move this to a function fill_non_interfaces
+        if (is_symmetric) {
+            for (label i = 0; i < nnz_local_matrix_; ++i) {
+                const label pos{permute[i]};
+                dense[i] = scaling_ * (pos >= upper_nnz_)
+                               ? diag[pos - upper_nnz_]
+                               : upper[pos];
             }
-            if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                dense[i] = scaling_ * lower[pos - upper_nnz_];
-                continue;
+            return;
+        } else {
+            for (label i = 0; i < nnz_local_matrix_; ++i) {
+                const label pos{permute[i]};
+                if (pos < upper_nnz_) {
+                    dense[i] = scaling_ * upper[pos];
+                    continue;
+                }
+                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
+                    dense[i] = scaling_ * lower[pos - upper_nnz_];
+                    continue;
+                }
+                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
             }
-            dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
+        }
+        if (is_symmetric) {
+            for (label i = 0; i < nnz_local_matrix_; ++i) {
+                const label pos{permute[i]};
+                dense[i] = scaling_ * (pos >= upper_nnz_)
+                               ? diag[pos - upper_nnz_]
+                               : upper[pos];
+            }
+            return;
+        } else {
+            for (label i = 0; i < nnz_local_matrix_; ++i) {
+                const label pos{permute[i]};
+                if (pos < upper_nnz_) {
+                    dense[i] = scaling_ * upper[pos];
+                    continue;
+                }
+                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
+                    dense[i] = scaling_ * lower[pos - upper_nnz_];
+                    continue;
+                }
+                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
+            }
         }
     }
 }

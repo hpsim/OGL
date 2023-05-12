@@ -194,10 +194,10 @@ struct MatrixInitFunctor {
             gko::array<scalar> local_values{exec, local_nnz};
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
-            std::vector<label> send_sizes;
-            std::vector<label> send_offsets;
-            std::vector<label> recv_sizes;
-            std::vector<label> recv_offsets;
+            std::vector<int> send_sizes;
+            std::vector<int> send_offsets;
+            std::vector<int> recv_sizes;
+            std::vector<int> recv_offsets;
 
             send_sizes.assign(send_sizes_pers.get_array()->get_data(),
                               send_sizes_pers.get_array()->get_data() +
