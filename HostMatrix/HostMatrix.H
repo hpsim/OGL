@@ -105,6 +105,9 @@ private:
     //  local matrix indices
     const label nrows_;
 
+    // number of local elements on interfaces
+    const label local_interface_nnz_;
+
     const label upper_nnz_;
 
     const label non_diag_nnz_;
@@ -133,6 +136,12 @@ private:
 
 public:
     // segregated wrapper constructor
+    // TODO - compute local_interface_nnzs these are matrix coefficient
+    //      that are on an interface but not on a different rank
+    //      - then a new array/vector is needed to store local_interfaces
+    //      - if local interfaces are present init_local_sparsity_pattern
+    //      needs to be adapted
+    //      - local_sparsity_.ldu_mapping needs a new section for interfaces
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const FieldField<Field, scalar> &interfaceBouCoeffs,
                       const FieldField<Field, scalar> &interfaceIntCoeffs,
@@ -144,7 +153,9 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
-          upper_nnz_(matrix.lduAddr().upperAddr().size()),
+          local_interface_nnzs_(compute_local_interface_nnz(interfaces)),
+          upper_nnz_(matrix.lduAddr().upperAddr().size() +
+                     local_interface_nnzs_),
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
           global_row_index_{nrows_},
@@ -189,7 +200,7 @@ public:
             local_sparsity_.col_idxs_.get_update()) {
             TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
                                 this->fieldName(),
-                                init_local_sparsity_pattern();)
+                                init_local_sparsity_pattern(interfaces);)
             TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
                                 this->fieldName(),
                                 init_non_local_sparsity_pattern(interfaces);)
@@ -212,6 +223,7 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
+          local_interface_nnzs_(compute_local_interface_nnz(interfaces)),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
@@ -256,6 +268,27 @@ public:
         // TODO reimplement this
     }
 
+    /* Iterates all interfaces and counts elements
+    **
+    */
+    label compute_local_interface_nnz(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+    /* Iterates all interfaces and counts elements
+    **
+    */
+    std::vector<scalar> collect_local_interface_values(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+
+    /* Iterates all local interfaces and returns the relative order and
+     *corresponding row and column indices
+     **
+     */
+    Std::vector<std::tuple<label, label, label>>
+    collect_local_interface_indices(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
 
     /* Iterates all interfaces and counts elements
     **
@@ -287,7 +320,8 @@ public:
      *consecutive index arrays in row major ordering and scattering indices
      **
      */
-    void init_local_sparsity_pattern() const;
+    void init_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
 
     void init_non_local_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
