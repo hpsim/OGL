@@ -92,7 +92,7 @@ jobs:
           libfl-dev \
           mpi-default-bin mpi-default-dev \
           libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
-          libscotch-dev libcgal-dev python python-dev
+          libscotch-dev libcgal-dev
 
     - name: Clone OpenFOAM 
       run: |
