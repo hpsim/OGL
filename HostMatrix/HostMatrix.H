@@ -106,7 +106,7 @@ private:
     const label nrows_;
 
     // number of local elements on interfaces
-    const label local_interface_nnz_;
+    const label local_interface_nnzs_;
 
     const label upper_nnz_;
 
@@ -223,7 +223,7 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
-          local_interface_nnzs_(compute_local_interface_nnz(interfaces)),
+          local_interface_nnzs_(0),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
@@ -285,7 +285,7 @@ public:
      *corresponding row and column indices
      **
      */
-    Std::vector<std::tuple<label, label, label>>
+    std::vector<std::tuple<label, label, label>>
     collect_local_interface_indices(
         const lduInterfaceFieldPtrsList &interfaces_) const;
 
