@@ -127,6 +127,36 @@ HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
     const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
 
 template <class MatrixType>
+std::vector<scalar>
+HostMatrixWrapper<MatrixType>::collect_local_interface_coeffs(
+    const lduInterfaceFieldPtrsList &interfaces,
+    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+{
+    std::vector<scalar> ret{};
+    ret.reserve(local_interface_nnzs_);
+
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interfaces.operator()(i) == nullptr) {
+            continue;
+        }
+        const auto &face_cells{interfaceBouCoeffs[i]};
+        if (!isA<processorLduInterface>(iface->interface())) {
+            // TODO doTransform here
+            for (label cellI = 0; cellI < interface_size; cellI++) {
+                ret.push_back(face_cells[cellI]);
+            }
+        }
+    }
+
+    return ret;
+}
+
+
+template std::vector<scalar>
+HostMatrixWrapper<lduMatrix>::collect_local_interface_coeffs(
+    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
+
+template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
@@ -171,7 +201,7 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
+HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of local cell ids on other side
@@ -242,14 +272,14 @@ HostMatrixWrapper<MatrixType>::communicate_non_local_col_indices(
 }
 
 template std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper<lduMatrix>::communicate_non_local_col_indices(
+HostMatrixWrapper<lduMatrix>::collect_non_local_col_indices(
     const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
-    auto non_local_row_indices = communicate_non_local_col_indices(interfaces);
+    auto non_local_row_indices = collect_non_local_col_indices(interfaces);
     auto rows = non_local_sparsity_.row_idxs_.get_data();
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
@@ -413,25 +443,29 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
             // copy from existing matrix coefficients
             while ([&]() {
-                // TODO check if that is correct
                 // check for length
-                if (interface_row < rows[current_idx_ctr]) {
+                if (rows[current_idx_ctr] > interface_row) {
                     return false;
-                } else {
-                    return interface_col >= cols[current_idx_ctr];
                 }
+                // the copy rows are or equal
+                // in that case we need to check if the
+                // copy colums are lower
+                if (rows[current_idx_ctr] == interface_row) {
+                    return cols[current_idx_ctr] < interface_col;
+                }
+                return true;
             }()) {
                 // insert coeffs
                 rows[total_ctr] = cols_copy[current_idx_ctr];
                 cols[total_ctr] = rows_copy[current_idx_ctr];
                 permute[total_ctr] = permute_copy[current_idx_ctr];
-                // TODO what happens to Permute?
                 current_idx_ctr++;
             }
 
             rows[total_ctr] = interface_row;
             cols[total_ctr] = interface_col;
-            // permute[total_ctr] = permute_copy[nnz + interface_idx];
+            // store the original position of the contiguous interfaces
+            permute[total_ctr] = interface_idx;
         }
 
         local_sparsity_.row_idxs_.set_size(nnz_local_matrix_w_interfaces_);
@@ -452,6 +486,7 @@ template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern(
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
+    const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> &interfaceIntCoeffs) const
 {
     auto ref_exec = exec_.get_ref_exec();
@@ -476,28 +511,21 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
 
-    // TODO Permute does store where coeffs come from  so if we are above
-    // nnzs-local_interface_nnzs we copy coeffs from the local_interfaces this
-    // however needs local_interfaces to be sorted every time, or we keep the
-    // sorting idxs
-    //
-
     if (local_interface_nnzs_) {
-        // fill couple_coeffs 
-        std::vector<label> couple_coeffs (local_interface_nnzs_);
-
-
-        // // TODO add a second implementation fill_with_interfaces
-        // auto local_interfaces = collect_local_interface_values(interfaces);
+        std::vector<scalar> couple_coeffs =
+            collect_local_interface_coeffs(interfaces, interfaceBouCoeffs);
         if (is_symmetric) {
             for (label i = 0; i < nnz_local_matrix_; ++i) {
+                // where the element is stored in a combined array
                 const label pos{permute[i]};
                 scalar value;
-                // TODO
-                // if (pos < upper_nnz_) value = diag[pos-upper_nnz_];
-                // if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz)
-                //     value = upper[pos];
-                // if (pos >= upper_nnz_ + diag_nnz) value = interface[pos];
+                // all values up to upper_nnz_ are upper_nnz_ values
+                if (pos < upper_nnz_) value = upper[pos];
+                // all values up to upper_nnz_ are upper_nnz_ values
+                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz_)
+                    value = diag[pos - upper_nnz_];
+                if (pos >= upper_nnz_ + diag_nnz_)
+                    value = couple_coeffs[pos - upper_nnz_ - diag_nnz];
                 dense[i] = scaling_ * value;
             }
             return;

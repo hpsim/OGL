@@ -146,15 +146,16 @@ public:
     //      - if local interfaces are present init_local_sparsity_pattern
     //      needs to be adapted
     //      - local_sparsity_.ldu_mapping needs a new section for interfaces
-    HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      // coeffs for cells on boundaries 
-                      const FieldField<Field, scalar> &interfaceBouCoeffs,
-                      // coeffs for internal cells
-                      const FieldField<Field, scalar> &interfaceIntCoeffs,
-                      // pointers to interfaces can be used to access concrete 
-                      // functions such as transfering indices, patch neighbours etc
-                      const lduInterfaceFieldPtrsList &interfaces,
-                      const dictionary &solverControls, const word &fieldName)
+    HostMatrixWrapper(
+        const objectRegistry &db, const MatrixType &matrix,
+        // coeffs for cells on boundaries
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        // coeffs for internal cells
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        // pointers to interfaces can be used to access concrete
+        // functions such as transfering indices, patch neighbours etc
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
           exec_{db, solverControls, fieldName},
@@ -216,9 +217,9 @@ public:
                                 init_non_local_sparsity_pattern(interfaces);)
         }
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
-            TIME_WITH_FIELDNAME(verbose_, update_local_matrix_data,
-                                this->fieldName(),
-                                update_local_matrix_data(interfaceIntCoeffs);)
+            TIME_WITH_FIELDNAME(
+                verbose_, update_local_matrix_data, this->fieldName(),
+                update_local_matrix_data(interfaces, interfaceBouCoeffs);)
             TIME_WITH_FIELDNAME(
                 verbose_, update_non_local_matrix_data, this->fieldName(),
                 update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
@@ -322,8 +323,7 @@ public:
     ** ret = [(1,2,3),(10,20,30), ...]
     **         i0      i1,       i...
     */
-    std::vector<std::tuple<label, label, label>>
-    communicate_non_local_col_indices(
+    std::vector<std::tuple<label, label, label>> collect_non_local_col_indices(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /* Based on OpenFOAMs ldu matrix format this function computes two
@@ -342,6 +342,7 @@ public:
     // updater
 
     void update_local_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces,
         const FieldField<Field, scalar> &interfaceIntCoeffs) const;
 
     void update_non_local_matrix_data(
