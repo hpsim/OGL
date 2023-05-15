@@ -112,7 +112,11 @@ private:
 
     const label non_diag_nnz_;
 
+    // nnzs of local matrix wo local interfaces
     const label nnz_local_matrix_;
+
+    // nnzs of local matrix including local interfaces
+    const label nnz_local_matrix_w_interfaces_;
 
     const gkoGlobalIndex global_row_index_;
 
@@ -143,8 +147,12 @@ public:
     //      needs to be adapted
     //      - local_sparsity_.ldu_mapping needs a new section for interfaces
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
+                      // coeffs for cells on boundaries 
                       const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      // coeffs for internal cells
                       const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      // pointers to interfaces can be used to access concrete 
+                      // functions such as transfering indices, patch neighbours etc
                       const lduInterfaceFieldPtrsList &interfaces,
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
@@ -153,11 +161,12 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
-          local_interface_nnzs_(compute_local_interface_nnz(interfaces)),
-          upper_nnz_(matrix.lduAddr().upperAddr().size() +
-                     local_interface_nnzs_),
+          local_interface_nnzs_(count_interface_nnz(interfaces, false)),
+          upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
+          nnz_local_matrix_w_interfaces_(nnz_local_matrix_ +
+                                         local_interface_nnzs_),
           global_row_index_{nrows_},
           local_sparsity_{
               fieldName + "_local", db, exec_, nnz_local_matrix_, verbose_,
@@ -172,7 +181,7 @@ public:
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
-          nnz_non_local_matrix_(compute_non_local_nnz(interfaces)),
+          nnz_non_local_matrix_(count_interface_nnz(interfaces, true)),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
               nnz_non_local_matrix_,    verbose_,
@@ -196,6 +205,7 @@ public:
                                          .get_ptr()
                                    : nullptr}
     {
+        std::cout << "local_interface_nnzs" << local_interface_nnzs_ << endl;
         if (!local_sparsity_.col_idxs_.get_stored() ||
             local_sparsity_.col_idxs_.get_update()) {
             TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
@@ -207,7 +217,8 @@ public:
         }
         if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
             TIME_WITH_FIELDNAME(verbose_, update_local_matrix_data,
-                                this->fieldName(), update_local_matrix_data();)
+                                this->fieldName(),
+                                update_local_matrix_data(interfaceIntCoeffs);)
             TIME_WITH_FIELDNAME(
                 verbose_, update_non_local_matrix_data, this->fieldName(),
                 update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
@@ -227,6 +238,8 @@ public:
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
           nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
+          nnz_local_matrix_w_interfaces_(nnz_local_matrix_ +
+                                         local_interface_nnzs_),
           global_row_index_{nrows_},
           local_sparsity_{
               fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
@@ -271,12 +284,6 @@ public:
     /* Iterates all interfaces and counts elements
     **
     */
-    label compute_local_interface_nnz(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
-
-    /* Iterates all interfaces and counts elements
-    **
-    */
     std::vector<scalar> collect_local_interface_values(
         const lduInterfaceFieldPtrsList &interfaces_) const;
 
@@ -290,11 +297,14 @@ public:
         const lduInterfaceFieldPtrsList &interfaces_) const;
 
 
-    /* Iterates all interfaces and counts elements
+    /* Iterates all interfaces and counts the number of elements
     **
+    ** @param interfaces The list of interfaces for the search
+    ** @param proc_interfaces Count only elements on (true)
+    *processorLduInterfaces or exclude processorLduInterfaces (false)
     */
-    label compute_non_local_nnz(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
+    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
+                              bool proc_interfaces) const;
 
     /* Collect the non local matrix coefficients
     **
@@ -331,7 +341,8 @@ public:
 
     // updater
 
-    void update_local_matrix_data() const;
+    void update_local_matrix_data(
+        const FieldField<Field, scalar> &interfaceIntCoeffs) const;
 
     void update_non_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,

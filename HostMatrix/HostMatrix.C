@@ -25,14 +25,16 @@ SourceFiles
 
 #include "HostMatrix.H"
 
+#include "cyclicFvPatchField.H"
 #include "lduMatrix.H"
 
 
 namespace Foam {
 
+
 template <class MatrixType>
-label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
-    const lduInterfaceFieldPtrsList &interfaces) const
+label HostMatrixWrapper<MatrixType>::count_interface_nnz(
+    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
     label ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
@@ -40,33 +42,19 @@ label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
             continue;
         }
         const auto iface{interfaces.operator()(i)};
-        // NOTE assume that all non processorLduInterface are local interfaces
-        if (!isA<processorLduInterface>(iface->interface())) {
+
+        bool count = (proc_interfaces)
+                         ? !!isA<processorLduInterface>(iface->interface())
+                         : !isA<processorLduInterface>(iface->interface());
+        if (count) {
             ctr += iface->interface().faceCells().size();
         }
     }
     return ctr;
 }
 
-template <class MatrixType>
-label HostMatrixWrapper<MatrixType>::compute_non_local_nnz(
-    const lduInterfaceFieldPtrsList &interfaces) const
-{
-    label ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
-            continue;
-        }
-        const auto iface{interfaces.operator()(i)};
-        if (isA<processorLduInterface>(iface->interface())) {
-            ctr += iface->interface().faceCells().size();
-        }
-    }
-    return ctr;
-}
-
-template label HostMatrixWrapper<lduMatrix>::compute_non_local_nnz(
-    const lduInterfaceFieldPtrsList &interfaces_) const;
+template label HostMatrixWrapper<lduMatrix>::count_interface_nnz(
+    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const;
 
 template <class MatrixType>
 std::vector<scalar> HostMatrixWrapper<MatrixType>::communicate_non_local_coeffs(
@@ -144,7 +132,7 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
-    local_interface_idxs.reserve(local_interface_nnz_);
+    local_interface_idxs.reserve(local_interface_nnzs_);
 
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
@@ -153,22 +141,27 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
 
         const auto iface{interfaces.operator()(i)};
 
-        // cells on this patch
-        // TODO this seems to be used as mapping face internal index to
         const auto &face_cells{iface->interface().faceCells()};
-        // Now what is missing is the mapping between internal index to a column
-        // row
-        // Probably interface(Int)Coeffs already contain needed coeffs
+        const label interface_size = face_cells.size();
 
-        if (!isA<processorLduInterface>(iface->interface())) {
+        // TODO make this a seperate specialized function
+        label interface_ctr = 0;
+        if (isA<cyclicLduInterface>(iface->interface())) {
+            const cyclicLduInterface &pldui =
+                refCast<const cyclicLduInterface>(iface->interface());
+            const labelUList &rows = this->matrix().lduAddr().patchAddr(i);
+
+            const label neighbPatchId = pldui.neighbPatchID();
+            const labelUList &cols =
+                this->matrix().lduAddr().patchAddr(neighbPatchId);
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                const labelUList &nbrFaceCells =
-                    lduAddr.patchAddr(this->cyclicPatch().neighbPatchID());
-
+                // DEBUG
+                // cout << "patch_ctr " << cellI << " ictr " << interface_ctr
+                //     << " patchId " << i << " neighPatchId " << neighbPatchId
+                //      << " row " << rows[cellI] << " col " << cols[cellI]
+                //      << "\n" << endl;
                 local_interface_idxs.push_back(
-                    {interface_ctr, face_cells[cellI],
-                     global_row_index_.toGlobal(neighbProcNo,
-                                                otherSide_tmp()[cellI])});
+                    {interface_ctr, rows[cellI], cols[cellI]});
                 interface_ctr += 1;
             }
         }
@@ -375,28 +368,50 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     // if no local interfaces we are done here
     // otherwise we need to add local interfaces in order
     if (local_interface_nnzs_) {
-        auto local_interfaces = collect_local_interfaces(interfaces);
-        // sort local interfaces to be in row major order
-        // and keep original indices
-        std::sort(local_interfaces.begin(), local_indices.end(),
-                  [&](const auto &a, const auto &b) {
-                      auto [interface_idx_a, row_a, col_a] = a;
-                      auto [interface_idx_b, row_b, col_b] = b;
-                      return std::tie(row_a, col_a) < std::tie(row_b, col_b);
-                  });
+        auto local_interfaces = collect_local_interface_indices(interfaces);
+        // // sort local interfaces to be in row major order
+        // // and keep original indices
+        // std::sort(local_interfaces.begin(), local_indices.end(),
+        //           [&](const auto &a, const auto &b) {
+        //               auto [interface_idx_a, row_a, col_a] = a;
+        //               auto [interface_idx_b, row_b, col_b] = b;
+        //               return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+        //           });
 
         // copy current rows and columns to tmp array
-        //
-        // iterate local interfaces i
-        // insert all coeffs for row < interface[i].row
+        auto rows_copy_a = gko::array<label>(
+            *local_sparsity_.row_idxs_.get_persistent_object().get());
+        auto cols_copy_a = gko::array<label>(
+            *local_sparsity_.col_idxs_.get_persistent_object().get());
+        auto permute_copy_a = gko::array<label>(
+            *local_sparsity_.ldu_mapping_.get_persistent_object().get());
+
+        auto rows_copy = rows_copy_a.get_data();
+        auto cols_copy = cols_copy_a.get_data();
+        auto permute_copy = permute_copy_a.get_data();
+
+        // fix size of persistent local_sparsity
+        auto rows_w_ifaces = std::make_shared<gko::array<label>>(
+            rows_copy_a.get_executor(), nnz_local_matrix_w_interfaces_);
+        auto cols_w_ifaces = std::make_shared<gko::array<label>>(
+            rows_copy_a.get_executor(), nnz_local_matrix_w_interfaces_);
+        auto permute_w_ifaces = std::make_shared<gko::array<label>>(
+            rows_copy_a.get_executor(), nnz_local_matrix_w_interfaces_);
+
+        auto rows = rows_w_ifaces->get_data();
+        auto cols = cols_w_ifaces->get_data();
+        auto permute = permute_w_ifaces->get_data();
 
         label current_idx_ctr = 0;
         label total_ctr = 0;
+        // iterate local interfaces i
+        // insert all coeffs for row < interface[i].row
         // find local_interface with lowes row, column
         for (int i = 0; i < local_interfaces.size(); i++) {
             auto [interface_idx, interface_row, interface_col] =
                 local_interfaces[i];
 
+            // copy from existing matrix coefficients
             while ([&]() {
                 // TODO check if that is correct
                 // check for length
@@ -414,11 +429,20 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
                 current_idx_ctr++;
             }
 
-            rows[total_ctr] = interface.row;
-            cols[total_ctr] = interface.col;
-            permute[total_ctr] = permute_copy[nnz + interface_idx];
+            rows[total_ctr] = interface_row;
+            cols[total_ctr] = interface_col;
+            // permute[total_ctr] = permute_copy[nnz + interface_idx];
         }
+
+        local_sparsity_.row_idxs_.set_size(nnz_local_matrix_w_interfaces_);
+        local_sparsity_.col_idxs_.set_size(nnz_local_matrix_w_interfaces_);
+        local_sparsity_.ldu_mapping_.set_size(nnz_local_matrix_w_interfaces_);
+
+        local_sparsity_.row_idxs_.set_persistent_object(rows_w_ifaces);
+        local_sparsity_.col_idxs_.set_persistent_object(cols_w_ifaces);
+        local_sparsity_.ldu_mapping_.set_persistent_object(permute_w_ifaces);
     }
+
 
     LOG_1(verbose_, "done init host matrix")
 }
@@ -427,7 +451,8 @@ template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
+void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
+    const FieldField<Field, scalar> &interfaceIntCoeffs) const
 {
     auto ref_exec = exec_.get_ref_exec();
     auto upper = this->matrix().upper();
@@ -456,16 +481,22 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
     // however needs local_interfaces to be sorted every time, or we keep the
     // sorting idxs
     //
-    if (local_interface_nnz_) {
-        // TODO add a second implementation fill_with_interfaces
-        auto local_interfaces = collect_local_interface_values(interfaces);
+
+    if (local_interface_nnzs_) {
+        // fill couple_coeffs 
+        std::vector<label> couple_coeffs (local_interface_nnzs_);
+
+
+        // // TODO add a second implementation fill_with_interfaces
+        // auto local_interfaces = collect_local_interface_values(interfaces);
         if (is_symmetric) {
             for (label i = 0; i < nnz_local_matrix_; ++i) {
                 const label pos{permute[i]};
                 scalar value;
-                if (pos < upper_nnz_) value = diag[];
-                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz ) value = upper[pos];
                 // TODO
+                // if (pos < upper_nnz_) value = diag[pos-upper_nnz_];
+                // if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz)
+                //     value = upper[pos];
                 // if (pos >= upper_nnz_ + diag_nnz) value = interface[pos];
                 dense[i] = scaling_ * value;
             }
@@ -496,32 +527,11 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data() const
                 dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
             }
         }
-        if (is_symmetric) {
-            for (label i = 0; i < nnz_local_matrix_; ++i) {
-                const label pos{permute[i]};
-                dense[i] = scaling_ * (pos >= upper_nnz_)
-                               ? diag[pos - upper_nnz_]
-                               : upper[pos];
-            }
-            return;
-        } else {
-            for (label i = 0; i < nnz_local_matrix_; ++i) {
-                const label pos{permute[i]};
-                if (pos < upper_nnz_) {
-                    dense[i] = scaling_ * upper[pos];
-                    continue;
-                }
-                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                    dense[i] = scaling_ * lower[pos - upper_nnz_];
-                    continue;
-                }
-                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
-            }
-        }
     }
 }
 
-template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data() const;
+template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data(
+    const FieldField<Field, scalar> &interfaceIntCoeffs) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
