@@ -181,10 +181,10 @@ struct MatrixInitFunctor {
                     label, label>::create(*comm.get(),
                                           partition_.get_host_partition(),
                                           partition_.get_device_partition(),
-					  false
-					  )
-		    );
-	    )
+                      false
+                      )
+            );
+        )
 
             auto local_nnz =
                 local_scatter_map_pers.get_array()->get_num_elems();
@@ -217,9 +217,9 @@ struct MatrixInitFunctor {
                 verbose_, update_repartitioned_existing, field_name_,
                 repartitioner->update_existing(
                     *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-		    *coeffs.get(),
+            *coeffs.get(),
                     *non_local_coeffs.get(),
-		    *sorting_idx_pers.get_array().get(),
+            *sorting_idx_pers.get_array().get(),
                     send_sizes, send_offsets, recv_sizes, recv_offsets,
                     *local_scatter_map_pers.get_array().get(),
                     *non_local_scatter_map_pers.get_array().get(), local_values,
@@ -299,7 +299,7 @@ struct MatrixInitFunctor {
         auto non_local_rows = non_local_row_idxs_.get_array();
 
         // check if sorted
-        if (false) {
+        if (true) {
             bool is_sorted_rows = true;
             bool is_sorted_cols = true;
             auto rows_data = rows->get_const_data();
@@ -362,9 +362,9 @@ struct MatrixInitFunctor {
             gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
                 partition_.get_device_partition(),
-	        false
-		)
-	    );
+            false
+        )
+        );
         auto to_mat = gko::share(
             dist_mtx::create(exec, repartitioner->get_to_communicator()));
 

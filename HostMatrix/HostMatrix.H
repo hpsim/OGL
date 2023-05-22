@@ -172,11 +172,14 @@ public:
           local_sparsity_{
               fieldName + "_local", db, exec_, nnz_local_matrix_, verbose_,
           },
+          // in contrast to to sparsity pattern this with full size including
+          // local interfaces since we just it once instead of doing it in two
+          // sweeps
           local_coeffs_{
               fieldName + "_local_coeffs",
               db,
               exec_,
-              nnz_local_matrix_,
+              nnz_local_matrix_w_interfaces_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
@@ -285,8 +288,9 @@ public:
     /* Iterates all interfaces and counts elements
     **
     */
-    std::vector<scalar> collect_local_interface_values(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
+    std::vector<scalar> collect_local_interface_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces_,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
 
     /* Iterates all local interfaces and returns the relative order and
@@ -343,7 +347,7 @@ public:
 
     void update_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceIntCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     void update_non_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
