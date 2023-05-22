@@ -1,8 +1,6 @@
 name: Build OpenFOAM (ESI)
 on: [pull_request]
-
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   FOAM_INST_DIR: /home/runner/OpenFOAM/
   WM_PROJECT: OpenFOAM
@@ -39,7 +37,7 @@ jobs:
           
     - name: Writing an OF enviroment file
       run: |
-        echo "FOAM_ENV_FILE=$FOAM_INST_DIR/env_file"
+        echo "FOAM_ENV_FILE=$FOAM_INST_DIR/env_file" >> $GITHUB_ENV
         echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" > $FOAM_ENV_FILE
         echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $FOAM_ENV_FILE
         echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $FOAM_ENV_FILE
@@ -92,7 +90,6 @@ jobs:
           chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
           echo "Skipping clone"
         fi
-
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
