@@ -75,7 +75,7 @@ jobs:
 
     
     - name: Cache OpenFOAM
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
         path: /home/runner/OpenFOAM/
