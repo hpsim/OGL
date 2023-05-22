@@ -1,17 +1,25 @@
-name: OpenFOAM (ESI)
-
+name: Build OpenFOAM (ESI)
 on: [pull_request]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  FOAM_INST_DIR: /home/runner/OpenFOAM/
+  WM_PROJECT: OpenFOAM
+  WM_OPTIONS: linux64gccDPInt32Opt
+  WM_COMPILER_TYPE: system
+  WM_COMPILER: Gcc
+  WM_PRECISION_OPTION: DP
+  WM_LABEL_SIZE: 32
+  WM_COMPILE_OPTION: Opt
+  WM_OSTYPE: POSIX
+  WM_ARCH: linux64
+  WM_ARCH_OPTION: 64
+  WM_LINK_LANGUAGE: c++
+  WM_LABEL_OPTION:  Int32
   
 jobs:
-  build:
-    # The CMake configure and build commands are platform agnostic and should work equally
-    # well on Windows or Mac.  You can convert this to a matrix build if you need
-    # cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  build-foam:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -19,66 +27,46 @@ jobs:
         OF: [
              {repo: "https://develop.openfoam.com/Development/openfoam.git",
               path: "openfoam",
-              version: "v2106",
+              version: "v2212",
               mpi: "SYSTEMOPENMPI"}]
-    
-    env:
-      FOAM_INST_DIR: /home/runner/OpenFOAM/
   
     steps:
-    - name: Setting up OF enviroment
-      run: |
-        echo "FOAM_INST_DIR=/home/runner/OpenFOAM" >> $GITHUB_ENV
-        echo "WM_PROJECT=OpenFOAM" >> $GITHUB_ENV
-        echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" >> $GITHUB_ENV
-        echo "WM_OPTIONS=linux64gccDPInt32Opt" >> $GITHUB_ENV
-        echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_ENV
-        echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
-        echo "WM_COMPILER_TYPE=system" >> $GITHUB_ENV
-        echo "WM_COMPILER=Gcc" >> $GITHUB_ENV
-        echo "WM_PRECISION_OPTION=DP" >> $GITHUB_ENV
-        echo "WM_LABEL_SIZE=32" >> $GITHUB_ENV
-        echo "WM_COMPILE_OPTION=Opt" >> $GITHUB_ENV
-        echo "WM_MPLIB=${{matrix.OF.mpi}}" >> $GITHUB_ENV
-        echo "WM_OSTYPE=POSIX" >> $GITHUB_ENV
-        echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $GITHUB_ENV
-        echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "WM_ARCH=linux64" >> $GITHUB_ENV
-        echo "WM_ARCH_OPTION=64" >> $GITHUB_ENV
-        echo "WM_LINK_LANGUAGE=c++" >> $GITHUB_ENV
-        echo "WM_LABEL_OPTION=Int32" >> $GITHUB_ENV
-        echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $GITHUB_ENV
-        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src" >> $GITHUB_ENV
-        echo "FOAM_APP=$FOAM_INST_DIR/${{matrix.OF.path}}/applications" >> $GITHUB_ENV
-        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $GITHUB_ENV
-        echo "FOAM_UTILITIES=$FOAM_INST_DIR/${{matrix.OF.path}}/applications/utilities" >> $GITHUB_ENV
-        echo "FOAM_SOLVERS=$FOAM_INST_DIR/${{matrix.OF.path}}/applications/solvers" >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
-        echo "WM_OPTIONS=linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
-        echo "FOAM_EXT_LIBBIN=$FOAM_INST_DIR/ThirdParty/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
-        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_ENV
-        echo "${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $GITHUB_PATH
-        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
-        echo "LD_LIBRARY_PATH=${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib:        ${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib/dummy:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib:        ${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib64" >> $GITHUB_ENV
-        env
-        #FOAM_SITE_APPBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/bin
-        #FOAM_SITE_LIBBIN: ${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/site/2106/platforms/darwin64ClangDPInt32Opt/lib
-        #FOAM_RUN: ${{env.FOAM_INST_DIR}}/go-v2106/run
-        #FOAM_API: 2106
-
-    
     - name: Cache OpenFOAM
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
         path: /home/runner/OpenFOAM/
           
+    - name: Writing an OF enviroment file
+      run: |
+        echo "FOAM_ENV_FILE=$FOAM_INST_DIR/env_file"
+        echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}" > $FOAM_ENV_FILE
+        echo "WM_DIR=${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $FOAM_ENV_FILE
+        echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $FOAM_ENV_FILE
+        echo "WM_MPLIB=${{matrix.OF.mpi}}" >> $FOAM_ENV_FILE
+        echo "WM_PROJECT_INST_DIR=${{env.FOAM_INST_DIR}}" >> $FOAM_ENV_FILE
+        echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}" >> $FOAM_ENV_FILE
+        echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $FOAM_ENV_FILE
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src" >> $FOAM_ENV_FILE
+        echo "FOAM_APP=$FOAM_INST_DIR/${{matrix.OF.path}}/applications" >> $FOAM_ENV_FILE
+        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $FOAM_ENV_FILE
+        echo "FOAM_UTILITIES=$FOAM_INST_DIR/${{matrix.OF.path}}/applications/utilities" >> $FOAM_ENV_FILE
+        echo "FOAM_SOLVERS=$FOAM_INST_DIR/${{matrix.OF.path}}/applications/solvers" >> $FOAM_ENV_FILE
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $FOAM_ENV_FILE
+        echo "FOAM_LIBBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib" >> $FOAM_ENV_FILE
+        echo "FOAM_APPBIN=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $FOAM_ENV_FILE
+        echo "FOAM_EXT_LIBBIN=$FOAM_INST_DIR/ThirdParty/platforms/linux64GccDPInt32Opt/lib" >> $FOAM_ENV_FILE
+        echo "$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/bin" >> $FOAM_ENV_FILE
+        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $FOAM_ENV_FILE
+        echo "FOAM_USER_PLATTFORM=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $FOAM_ENV_FILE
+        echo "FOAM_USER_LIBBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $FOAM_ENV_FILE
+        echo "FOAM_USER_APPBIN=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $FOAM_ENV_FILE
+        echo "${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/bin" >> $FOAM_ENV_FILE
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $FOAM_ENV_FILE
+        echo "LD_LIBRARY_PATH=${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib:${{env.FOAM_INST_DIR}}/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt/lib/dummy:${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib:${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}/platforms/linux64Gcc/openmpi-2.1.1/lib64" >> $FOAM_ENV_FILE
+        cat $FOAM_INST_DIR/env_file >> $GITHUB_ENV
+
+    
     - name: Install build depencies  
       # Clone OpenFOAM
       run: |
@@ -133,6 +121,19 @@ jobs:
         cd build
         /home/runner/OpenFOAM/openfoam/etc/openfoam \
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+
+  build-ogl:
+    needs: build-foam
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}
+        path: /home/runner/OpenFOAM/
+
+    - name: Writing an OF enviroment file
+      run: |
+        echo "FOAM_ENV_FILE=$FOAM_INST_DIR/env_file"
+        cat $FOAM_INST_DIR/env_file >> $GITHUB_ENV
 
     - name: Build
       working-directory: ${{github.workspace}}/build
