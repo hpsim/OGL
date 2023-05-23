@@ -121,6 +121,8 @@ jobs:
 
   build-ogl:
     needs: build-foam
+    runs-on: ubuntu-latest
+    steps:
     - name: Cache OpenFOAM
       uses: actions/cache@v3
       with:
