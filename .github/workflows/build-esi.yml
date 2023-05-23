@@ -182,6 +182,7 @@ jobs:
         cat $FOAM_INST_DIR/env_file >> $GITHUB_ENV
 
     - name: Install OBR
+      run: |
           git clone  github.com/hpsim/OBR.git 
           cd OBR 
           pip install .
