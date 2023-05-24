@@ -120,7 +120,7 @@ jobs:
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}"             >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        cat $FOAM_INST_DIR/env_file >> $GITHUB_ENV
+        cat $HOME/.esi_env >> $GITHUB_ENV
 
     - name: Test OF enviroment
       run: foamInstallationTest
@@ -179,7 +179,7 @@ jobs:
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}"             >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        cat $FOAM_INST_DIR/env_file >> $GITHUB_ENV
+        cat $HOME/.esi_env >> $GITHUB_ENV
 
     - name: Install OBR
       run: |
