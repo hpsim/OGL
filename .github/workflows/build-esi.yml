@@ -1,7 +1,7 @@
 name: Build OpenFOAM (ESI)
 on: 
   pull_request:
-    types: opened,ready_for_review,syncronize
+    types: synchronize
   schedule:
     - cron: "* * * * 0"
 env:
