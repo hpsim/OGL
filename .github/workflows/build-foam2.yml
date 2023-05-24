@@ -98,16 +98,14 @@ jobs:
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
             /home/runner/OpenFOAM/${{ matrix.OF.path }}
-          chmod +x /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam
         else
-          chmod +x /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam
           echo "Skipping clone"
         fi
 
     - name: Build OpenFOAM
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
-      run: $HOME/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
+      run: ./Allwmake -j
 
   build-ogl:
     needs: build-foam
@@ -135,6 +133,7 @@ jobs:
 
     - name: Source OF enviroment
       run: |
+        echo "$PATH:/Users/go/OpenFOAM/${{matrix.OF.path}}/wmake/wmake" >> $PATH
         echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
