@@ -19,7 +19,7 @@ env:
   WM_ARCH_OPTION: 64
   WM_LINK_LANGUAGE: c++
   WM_LABEL_OPTION:  Int32
-  
+
 jobs:
   build-foam:
     runs-on: ubuntu-latest
@@ -30,13 +30,13 @@ jobs:
               path: "openfoam",
               version: "v2212",
               mpi: "SYSTEMOPENMPI"}]
-  
+
     steps:
-    - name: Cache OpenFOAM
-      uses: actions/cache@v3
-      with:
-        key: ${{ matrix.OF.path }}
-        path: /home/runner/OpenFOAM/
+    # - name: Cache OpenFOAM
+    #   uses: actions/cache@v3
+    #   with:
+    #     key: ${{ matrix.OF.path }}
+    #     path: /home/runner/OpenFOAM/
 
     - name: Writing an OF enviroment file
       run: |
@@ -67,8 +67,8 @@ jobs:
         echo "LD_LIBRARY_PATH=$FOAM_LIBBIN:$FOAM_LIBBIN/dummy"               >> $HOME/.esi_env
         cat $HOME/.esi_env                                                   >> $GITHUB_ENV
 
-    
-    - name: Install build depencies  
+
+    - name: Install build depencies
       # Clone OpenFOAM
       run: |
         sudo apt update
@@ -83,7 +83,7 @@ jobs:
           libopenmpi-dev openmpi-bin gnuplot libreadline-dev libncurses-dev libxt-dev \
           libscotch-dev libcgal-dev
 
-    - name: Clone OpenFOAM 
+    - name: Clone OpenFOAM
       run: |
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
