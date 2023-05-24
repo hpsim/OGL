@@ -54,6 +54,7 @@ jobs:
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "UPLATFORM=$FOAM_USER_PATH/platforms/linux64GccDPInt32Opt"      >> $GITHUB_ENV
+        echo "$PATH:$HOME/$WM_PROJECT_DIR/wmake"                             >> $PATH
         echo "FOAM_ETC=$WM_PROJECT_DIR/etc"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_SRC=$WM_PROJECT_DIR/src"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
