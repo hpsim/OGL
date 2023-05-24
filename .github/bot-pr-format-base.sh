@@ -18,4 +18,3 @@ git config user.name "OGLBot"
 # checkout current PR head
 LOCAL_BRANCH=format-tmp-$HEAD_BRANCH
 git checkout -b $LOCAL_BRANCH fork/$HEAD_BRANCH
-

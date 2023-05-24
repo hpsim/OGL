@@ -119,9 +119,7 @@ struct VectorInitFunctor {
         auto repartitioner = gko::share(
             gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(),
-		true
-		));
+                partition_.get_device_partition(), true));
 
         repartitioner->gather(host_vector.get(), target_vector.get());
 
@@ -229,11 +227,9 @@ public:
             auto repartitioner = gko::share(
                 gko::experimental::distributed::repartitioner<label, label>::
                     create(*comm.get(),
-                           partition_.get_host_partition(),   // from
-                           partition_.get_device_partition(), // to
-			   true
-			   ) 
-            );
+                           partition_.get_host_partition(),    // from
+                           partition_.get_device_partition(),  // to
+                           true));
 
             repartitioner->scatter(host_device_vector.get(),
                                    target_vector.get());

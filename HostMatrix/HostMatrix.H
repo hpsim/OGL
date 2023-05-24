@@ -100,9 +100,11 @@ private:
 
     const label verbose_;
 
+    // multiply the complete system by this factor, ie sAx=sb
+    // NOTE this could be also achieved by just fliping the sign
     const scalar scaling_;
 
-    //  local matrix indices
+    // local matrix indices
     const label nrows_;
 
     // number of local elements on interfaces

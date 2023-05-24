@@ -144,8 +144,9 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_coeffs(
         const label interface_size = face_cells.size();
 
         if (!isA<processorLduInterface>(iface->interface())) {
-            //const cyclicFvPatchField<scalar> *pldui =(const cyclicFvPatchField<scalar>*)(iface);
-            //pldui->transformCoupleField(face_cells);
+            // const cyclicFvPatchField<scalar> *pldui =(const
+            // cyclicFvPatchField<scalar>*)(iface);
+            // pldui->transformCoupleField(face_cells);
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 ret.push_back(-face_cells[cellI]);
             }
@@ -474,18 +475,18 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
             rows[total_ctr] = interface_row;
             cols[total_ctr] = interface_col;
             // store the original position of the contiguous interfaces
-            permute[total_ctr] = after_neighbours+ nrows_ +  interface_idx;
+            permute[total_ctr] = after_neighbours + nrows_ + interface_idx;
             total_ctr++;
         }
 
-        // post insert if local interfaces were consumed but stuff remains in rows_copy
-        // and cols_copy
-        for (int i = total_ctr;i < nnz_local_matrix_w_interfaces_; i++){
-                std::cout << "insert missing values " << i << endl;
-                rows[i] = rows_copy[current_idx_ctr];
-                cols[i] = cols_copy[current_idx_ctr];
-                permute[i] = permute_copy[current_idx_ctr];
-                current_idx_ctr++;
+        // post insert if local interfaces were consumed but stuff remains in
+        // rows_copy and cols_copy
+        for (int i = total_ctr; i < nnz_local_matrix_w_interfaces_; i++) {
+            std::cout << "insert missing values " << i << endl;
+            rows[i] = rows_copy[current_idx_ctr];
+            cols[i] = cols_copy[current_idx_ctr];
+            permute[i] = permute_copy[current_idx_ctr];
+            current_idx_ctr++;
         }
 
         local_sparsity_.row_idxs_.set_size(nnz_local_matrix_w_interfaces_);
@@ -534,7 +535,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         std::vector<scalar> couple_coeffs =
             collect_local_interface_coeffs(interfaces, interfaceBouCoeffs);
         if (is_symmetric) {
-            for (label i = 0; i < nnz_local_matrix_w_interfaces_ ; ++i) {
+            for (label i = 0; i < nnz_local_matrix_w_interfaces_; ++i) {
                 // where the element is stored in a combined array
                 const label pos{permute[i]};
                 scalar value;
@@ -544,10 +545,10 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz)
                     value = diag[pos - upper_nnz_];
                 if (pos >= upper_nnz_ + diag_nnz) {
-                    std::cout <<  "idx ( "  
-                    << local_sparsity_.row_idxs_.get_data()[i] << ", " 
-                    << local_sparsity_.col_idxs_.get_data()[i] << "): " 
-                    << value << "\n" ;
+                    std::cout << "idx ( "
+                              << local_sparsity_.row_idxs_.get_data()[i] << ", "
+                              << local_sparsity_.col_idxs_.get_data()[i]
+                              << "): " << value << "\n";
                     value = couple_coeffs[pos - upper_nnz_ - diag_nnz];
                 }
 

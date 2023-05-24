@@ -111,7 +111,7 @@ public:
                         .get_ptr();
 
                 TIME_WITH_FIELDNAME(verbose_, call_update, name_,
-                             f.update(persistent_object_);)
+                                    f.update(persistent_object_);)
             } else {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
@@ -127,8 +127,8 @@ public:
             // owned by the registry is called
             // TODO make shure isOwnedByRegistry returns true
             TIME_WITH_FIELDNAME(verbose_, call_init, name_,
-                         auto po = new DevicePersistentBase<T>(
-                             IOobject(path, db), f.init());)
+                                auto po = new DevicePersistentBase<T>(
+                                    IOobject(path, db), f.init());)
 
             persistent_object_ = po->get_ptr();
         }

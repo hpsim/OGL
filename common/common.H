@@ -80,7 +80,7 @@ namespace Foam {
 #endif
 
 
-#define TIME_WITH_FIELDNAME(VERBOSE, NAME, FIELD, F)                                 \
+#define TIME_WITH_FIELDNAME(VERBOSE, NAME, FIELD, F)                          \
     START_ANNOTATE(NAME);                                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                     \
     F auto end_##NAME = std::chrono::steady_clock::now();                     \

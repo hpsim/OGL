@@ -26,11 +26,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        OF: [
-             {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam",
-              version: "v2212",
-              mpi: "SYSTEMOPENMPI"}]
+        version: [v2212, v2206]
+        # OF: [{repo: "https://develop.openfoam.com/Development/openfoam.git",
+        #       path: "openfoam",
+        #       version: "v2212",
+        #       mpi: "SYSTEMOPENMPI"}]
   
     steps:
     - name: Cache OpenFOAM
