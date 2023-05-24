@@ -98,9 +98,9 @@ jobs:
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
             /home/runner/OpenFOAM/${{ matrix.OF.path }}
-          chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
+          chmod +x /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam
         else
-          chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
+          chmod +x /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam
           echo "Skipping clone"
         fi
 
@@ -112,6 +112,19 @@ jobs:
   build-ogl:
     needs: build-foam
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        OF: [
+          {repo: "https://develop.openfoam.com/Development/openfoam.git",
+              path: "openfoam",
+              version: "v2212",
+              mpi: "SYSTEMOPENMPI"},
+          {repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+              path: "OpenFOAM-10",
+              version: "10",
+              mpi: "SYSTEMOPENMPI"}]
+
     steps:
     - uses: actions/checkout@v2
     - name: Cache OpenFOAM
