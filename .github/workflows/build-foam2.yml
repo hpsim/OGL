@@ -1,4 +1,4 @@
-name: Build OpenFOAM (ESI)
+name: Build OpenFOAM (ESI|FOUNDATION)
 on:
   pull_request:
     types: synchronize
