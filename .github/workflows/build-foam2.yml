@@ -45,6 +45,7 @@ jobs:
 
     - name: Writing an OF enviroment file
       run: |
+        mkdir $HOME/OpenFOAM
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         rm -f $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
