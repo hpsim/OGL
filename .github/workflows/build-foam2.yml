@@ -127,7 +127,7 @@ jobs:
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-        /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/wmake
+        /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/wmake all
 
   build-ogl:
     needs: build-foam
