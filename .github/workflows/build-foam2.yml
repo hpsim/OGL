@@ -129,8 +129,11 @@ jobs:
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/Pstream && ./Allwmake libo
+        ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OSspecific/POSIX && wmake libo
+        ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OpenFOAM && wmake -j
+        ls $FOAM_LIBBIN
 
     - uses: actions/cache/save@v3
       if: always()
