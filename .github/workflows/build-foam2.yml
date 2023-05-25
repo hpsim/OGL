@@ -118,7 +118,7 @@ jobs:
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
-      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }
+      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         ./Allwmake -j
