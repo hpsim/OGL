@@ -61,7 +61,7 @@ jobs:
 
     - name: Writing an OF enviroment file
       run: |
-        echo "${HOME}/${WM_PROJECT_DIR}/wmake"                       >> $GITHUB_PATH
+        echo "$WM_PROJECT_DIR/wmake"                       >> $GITHUB_PATH
         echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_SRC=$WM_PROJECT_DIR/src"                          >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                          >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -122,12 +122,12 @@ jobs:
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
-        echo "${HOME}/${WM_PROJECT_DIR}/wmake" >> $GITHUB_PATH
         echo "$PATH"
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-        /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/wmake all
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        ./Allwmake -j
 
   build-ogl:
     needs: build-foam
