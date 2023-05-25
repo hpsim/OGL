@@ -67,6 +67,7 @@ jobs:
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                          >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_MPLIB=SYSTEMOPENMPI"                                >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_LIBBIN=$PLATFORM/lib"                             >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_SITE_LIBBIN=$PLATFORM/lib"                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_APPBIN=$PLATFORM/bin"                             >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_USER_LIBBIN=$UPLATFORM/lib"                       >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_USER_APPBIN=$UPLATFORM/bin"                       >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -79,8 +80,8 @@ jobs:
         echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}"  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_EXT_LIBBIN=$FOAM_INST_DIR/ThirdParty/platforms/linux64GccDPInt32Opt/lib" >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         # echo "Ginkgo_DIR=$FOAM_USER_LIBBIN/cmake/Ginkgo"                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "LD_LIBRARY_PATH=$PLATFORM/lib"         >> $GITHUB_ENV
-        cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PLATFORM/lib"  >> $GITHUB_ENV
+        cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env           >> $GITHUB_ENV
 
     - name: Install build depencies
       # Clone OpenFOAM
