@@ -130,6 +130,12 @@ jobs:
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }} && ./Allwmake -j
 
+    - uses: actions/cache/save@v3
+      if: always() // or any other condition to invoke the save action
+      with:
+        path: /home/runner/OpenFOAM/
+        key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
+
 
   build-ogl:
     needs: build-foam
