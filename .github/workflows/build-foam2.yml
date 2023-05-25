@@ -8,7 +8,7 @@ env:
   BUILD_TYPE: Release
   FOAM_INST_DIR: /home/runner/OpenFOAM
   WM_PROJECT: OpenFOAM
-  WM_OPTIONS: linux64gccDPInt32Opt
+  WM_OPTIONS: linux64GccDPInt32Opt
   WM_COMPILER_TYPE: system
   WM_COMPILER: Gcc
   WM_PRECISION_OPTION: DP
@@ -118,16 +118,6 @@ jobs:
       run: |
         chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
         /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
-
-    - name: Setup ENV OpenFOAM (Foundation)
-      if: ${{ matrix.OF.fork == 'Foundation' }}
-      run: |
-        echo "WM_PROJECT_VERSION=10"             >> $GITHUB_ENV
-        echo "FOAM_LIBBIN=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
-        echo "LD_RUN_PATH=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
-        echo "FOAM_LIBBIN" $FOAM_LIBBIN
-        ls $FOAM_LIBBIN
-        ls /home/runner/OpenFOAM/OpenFOAM-10/platforms/linux64gccDPInt32Opt/lib
 
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
