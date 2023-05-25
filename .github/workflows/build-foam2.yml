@@ -135,7 +135,8 @@ jobs:
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OpenFOAM && wmake -j
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/fileFormats && wmake -j
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/surfMesh && wmake -j
+        ls $FOAM_LIBBIN
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src && ./Allwmake -j
 
 
     # - uses: actions/cache/save@v3
