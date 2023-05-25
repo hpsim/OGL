@@ -139,7 +139,7 @@ jobs:
       if: always()
       with:
         path: /home/runner/OpenFOAM/
-        key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
+        key: ${{ matrix.OF.path }}${{ matrix.OF.version }}-save
 
 
   build-ogl:
