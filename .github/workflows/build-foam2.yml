@@ -104,6 +104,7 @@ jobs:
           libncurses-dev \
           libxt-dev \
           libscotch-dev \
+          libptscotch-dev \
           libcgal-dev
 
     - name: Clone OpenFOAM
