@@ -123,7 +123,8 @@ jobs:
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }} && ./Allwmake -j
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+        /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/wmake
 
   build-ogl:
     needs: build-foam
