@@ -82,6 +82,7 @@ jobs:
         # echo "Ginkgo_DIR=$FOAM_USER_LIBBIN/cmake/Ginkgo"                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PLATFORM/lib"  >> $GITHUB_ENV
         echo "C_INCLUDE_PATH=$C_INCLUDE_PATH:$PLATFORM/lib"    >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:$PLATFORM/lib"    >> $GITHUB_ENV
         cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env           >> $GITHUB_ENV
 
     - name: Install build depencies
