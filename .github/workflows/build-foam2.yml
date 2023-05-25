@@ -122,6 +122,8 @@ jobs:
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
+        echo "${HOME}/${WM_PROJECT_DIR}/wmake" >> $GITHUB_PATH
+        echo "$PATH"
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         ls /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
