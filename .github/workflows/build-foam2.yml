@@ -119,13 +119,17 @@ jobs:
         chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
         /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
 
+    - name: Setup ENV OpenFOAM (Foundation)
+      if: ${{ matrix.OF.fork == 'Foundation' }}
+      run: |
+        echo "WM_PROJECT_VERSION=10"             >> $GITHUB_ENV
+        echo "FOAM_LIBBIN=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
+
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
-        echo "WM_PROJECT_VERSION=10"             >> $GITHUB_ENV
-        echo "FOAM_LIBBIN=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
         ls $FOAM_LIBBIN
