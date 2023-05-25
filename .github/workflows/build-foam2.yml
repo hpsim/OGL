@@ -136,11 +136,11 @@ jobs:
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/fileFormats && wmake -j
 
-    - uses: actions/cache/save@v3
-      if: always()
-      with:
-        path: /home/runner/OpenFOAM/
-        key: ${{ matrix.OF.path }}${{ matrix.OF.version }}-save
+    # - uses: actions/cache/save@v3
+    #   if: always()
+    #   with:
+    #     path: /home/runner/OpenFOAM/
+    #     key: ${{ matrix.OF.path }}${{ matrix.OF.version }}-save
 
 
   build-ogl:
