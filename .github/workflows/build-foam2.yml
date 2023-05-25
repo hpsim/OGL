@@ -119,11 +119,8 @@ jobs:
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-      run:
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
-        mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream/mpi
-        mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/parallel/decompose/ptscotchDecomp/
+      run: |
+        echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
         ./Allwmake -j
 
   build-ogl:
