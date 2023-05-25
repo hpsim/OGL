@@ -53,34 +53,34 @@ jobs:
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         rm -f $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"                        >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}"             >> $GITHUB_ENV
+        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "UPLATFORM=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt"   >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "UPLATFORM=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
 
     - name: Writing an OF enviroment file
       run: |
-        echo "${HOME}/${WM_PROJECT_DIR}/wmake"                               >> $GITHUB_PATH
-        echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                                >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_SRC=$WM_PROJECT_DIR/src"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_DIR=$WM_PROJECT_DIR/wmake"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_MPLIB=SYSTEMOPENMPI"                                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_LIBBIN=$PLATFORM/lib"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_APPBIN=$PLATFORM/bin"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_USER_LIBBIN=$UPLATFORM/lib"                               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_USER_APPBIN=$UPLATFORM/bin"                               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_APP=$WM_PROJECT_DIR/applications"                         >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_TUTORIALS=$WM_PROJECT_DIR/tutorials"                      >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}"                   >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_PROJECT_INST_DIR=$FOAM_INST_DIR"                            >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_SOLVERS=$WM_PROJECT_DIR/applications/solvers"             >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "FOAM_UTILITIES=$WM_PROJECT_DIR/applications/utilities"         >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "${HOME}/${WM_PROJECT_DIR}/wmake"                       >> $GITHUB_PATH
+        echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_SRC=$WM_PROJECT_DIR/src"                          >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_DIR=$WM_PROJECT_DIR/wmake"                          >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_MPLIB=SYSTEMOPENMPI"                                >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_LIBBIN=$PLATFORM/lib"                             >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_APPBIN=$PLATFORM/bin"                             >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_USER_LIBBIN=$UPLATFORM/lib"                       >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_USER_APPBIN=$UPLATFORM/bin"                       >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_APP=$WM_PROJECT_DIR/applications"                 >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_TUTORIALS=$WM_PROJECT_DIR/tutorials"              >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_PROJECT_VERSION=${{ matrix.OF.version }}"           >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_PROJECT_INST_DIR=$FOAM_INST_DIR"                    >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_SOLVERS=$WM_PROJECT_DIR/applications/solvers"     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_UTILITIES=$WM_PROJECT_DIR/applications/utilities" >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_THIRD_PARTY_DIR=${{env.FOAM_INST_DIR}}/ThirdParty-${{matrix.OF.version}}"  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_EXT_LIBBIN=$FOAM_INST_DIR/ThirdParty/platforms/linux64GccDPInt32Opt/lib" >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         # echo "Ginkgo_DIR=$FOAM_USER_LIBBIN/cmake/Ginkgo"                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         # echo "LD_LIBRARY_PATH=$FOAM_LIBBIN:$FOAM_LIBBIN/dummy"               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        # cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env                         >> $GITHUB_ENV
+        cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env                 >> $GITHUB_ENV
 
     - name: Install build depencies
       # Clone OpenFOAM
