@@ -58,11 +58,11 @@ jobs:
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
         echo "UPLATFORM=$FOAM_USER_PATH/platforms/linux64GccDPInt32Opt"      >> $GITHUB_ENV
-        echo "${HOME}/${WM_PROJECT_DIR}/wmake"                        >> $GITHUB_PATH
-        echo "FOAM_ETC=$WM_PROJECT_DIR/etc"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "${HOME}/${WM_PROJECT_DIR}/wmake"                               >> $GITHUB_PATH
+        echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_SRC=$WM_PROJECT_DIR/src"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_MPLIB=SYSTEMOPENMPI"                                   >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_MPLIB=SYSTEMOPENMPI"                                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_LIBBIN=$PLATFORM/lib"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_APPBIN=$PLATFORM/bin"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_USER_LIBBIN=$UPLATFORM/lib"                               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -118,9 +118,9 @@ jobs:
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
-      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
+      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }
       run: |
-        echo "${{env.FOAM_INST_DIR}}/${{ matrix.OF.path }}/wmake" >> $GITHUB_PATH
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         ./Allwmake -j
 
   build-ogl:
