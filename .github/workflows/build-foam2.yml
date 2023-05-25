@@ -27,14 +27,18 @@ jobs:
       fail-fast: false
       matrix:
         OF: [
-          {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam",
-              version: "v2212",
-              mpi: "SYSTEMOPENMPI"},
-          {repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-              path: "OpenFOAM-10",
-              version: "10",
-              mpi: "SYSTEMOPENMPI"}]
+          {
+            fork: "ESI",
+            path: "openfoam",
+            version: "v2212",
+            repo: "https://develop.openfoam.com/Development/openfoam.git",
+            },
+          {
+            fork: "Foundation",
+            path: "OpenFOAM-10",
+            version: "10",
+            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            }]
 
     steps:
     - name: Cache OpenFOAM
@@ -58,7 +62,7 @@ jobs:
         echo "FOAM_ETC=$WM_PROJECT_DIR/etc"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_SRC=$WM_PROJECT_DIR/src"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "WM_MPLIB=${{matrix.OF.mpi}}"                                   >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "WM_MPLIB=SYSTEMOPENMPI"                                   >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_LIBBIN=$PLATFORM/lib"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_APPBIN=$PLATFORM/bin"                                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_USER_LIBBIN=$UPLATFORM/lib"                               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -103,10 +107,24 @@ jobs:
           echo "Skipping clone"
         fi
 
-    - name: Build OpenFOAM
+    - name: Build OpenFOAM (ESI)
+      if: ${{ matrix.OF.fork == 'ESI' }}
+      # Clone OpenFOAM
+      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      run: |
+        chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
+        /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
+
+    - name: Build OpenFOAM (Foundation)
+      if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}/src
-      run: /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/wmake all
+      run:
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
+        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}
+        mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/Pstream/mpi
+        mkdir -p /home/runner/OpenFOAM/${{ matrix.OF.path }}/platforms/linux64GccDPInt32OptSYSTEMOPENMPI/src/parallel/decompose/ptscotchDecomp/
+        ./Allwmake -j
 
   build-ogl:
     needs: build-foam
@@ -115,14 +133,18 @@ jobs:
       fail-fast: false
       matrix:
         OF: [
-          {repo: "https://develop.openfoam.com/Development/openfoam.git",
-              path: "openfoam",
-              version: "v2212",
-              mpi: "SYSTEMOPENMPI"},
-          {repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-              path: "OpenFOAM-10",
-              version: "10",
-              mpi: "SYSTEMOPENMPI"}]
+          {
+            fork: "ESI",
+            path: "openfoam",
+            version: "v2212",
+            repo: "https://develop.openfoam.com/Development/openfoam.git",
+            },
+          {
+            fork: "Foundation",
+            path: "OpenFOAM-10",
+            version: "10",
+            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            }]
 
     steps:
     - uses: actions/checkout@v2
