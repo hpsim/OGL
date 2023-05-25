@@ -97,10 +97,14 @@ jobs:
           libfl-dev \
           mpi-default-bin \
           mpi-default-dev \
-          libopenmpi-dev openmpi-bin \
-          gnuplot libreadline-dev \
-          libncurses-dev libxt-dev \
-          libscotch-dev libcgal-dev
+          libopenmpi-dev \
+          openmpi-bin \
+          gnuplot \
+          libreadline-dev \
+          libncurses-dev \
+          libxt-dev \
+          libscotch-dev \
+          libcgal-dev
 
     - name: Clone OpenFOAM
       run: |
@@ -126,6 +130,7 @@ jobs:
       run: |
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
+        ./Allwmake -j
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/Pstream && ./Allwmake libso
@@ -135,8 +140,6 @@ jobs:
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OpenFOAM && wmake -j
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/fileFormats && wmake -j
-        ls $FOAM_LIBBIN
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src && ./Allwmake -j
 
 
     # - uses: actions/cache/save@v3
