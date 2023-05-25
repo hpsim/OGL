@@ -124,6 +124,7 @@ jobs:
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
+        echo "WM_PROJECT_VERSION=10"             >> $GITHUB_ENV
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
         ls $FOAM_LIBBIN
