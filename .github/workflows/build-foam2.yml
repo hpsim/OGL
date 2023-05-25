@@ -124,7 +124,8 @@ jobs:
       # Clone OpenFOAM
       working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
       run: |
-        echo $LD_LIBRARY_PATH
+        mkdir -p  $FOAM_LIBBIN
+        mkdir -p  $FOAM_APPBIN
         ls $FOAM_LIBBIN
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
         cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/PStream && ./Allwmake -j
