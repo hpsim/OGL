@@ -47,7 +47,7 @@ jobs:
         key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
         path: /home/runner/OpenFOAM/
 
-    - name: Writing an OF enviroment file
+    - name: Set basice OF enviroment
       run: |
         mkdir -p $HOME/OpenFOAM
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -56,10 +56,13 @@ jobs:
         echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"                        >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}"             >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "UPLATFORM=$FOAM_USER_PATH/platforms/linux64GccDPInt32Opt"      >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
+        echo "UPLATFORM=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt"   >> $GITHUB_ENV
+
+    - name: Writing an OF enviroment file
+      run: |
         echo "${HOME}/${WM_PROJECT_DIR}/wmake"                               >> $GITHUB_PATH
-        echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        echo "FOAM_ETC=${WM_PROJECT_DIR}/etc"                                >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "FOAM_SRC=$WM_PROJECT_DIR/src"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_DIR=$WM_PROJECT_DIR/wmake"                                  >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "WM_MPLIB=SYSTEMOPENMPI"                                        >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
@@ -78,7 +81,6 @@ jobs:
         echo "Ginkgo_DIR=$FOAM_USER_LIBBIN/cmake/Ginkgo"                     >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         echo "LD_LIBRARY_PATH=$FOAM_LIBBIN:$FOAM_LIBBIN/dummy"               >> $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env                         >> $GITHUB_ENV
-
 
     - name: Install build depencies
       # Clone OpenFOAM
