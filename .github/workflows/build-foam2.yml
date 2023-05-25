@@ -125,6 +125,7 @@ jobs:
         echo "WM_PROJECT_VERSION=10"             >> $GITHUB_ENV
         echo "FOAM_LIBBIN=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
         echo "LD_RUN_PATH=$FOAM_INST_DIR/OpenFOAM-10/platforms/linux64GccDPInt32Opt/lib"        >> $GITHUB_ENV
+        ls /home/runner/OpenFOAM/OpenFOAM-10/platforms/linux64gccDPInt32Opt/lib
 
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
