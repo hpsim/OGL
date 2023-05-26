@@ -22,7 +22,7 @@ env:
 
 jobs:
   build-foam:
-    runs-on: ubuntu-latest
+    container: greole/ofbase
     strategy:
       fail-fast: false
       matrix:
@@ -83,29 +83,6 @@ jobs:
         echo "CPATH=$CPATH:$PLATFORM/lib"                      >> $GITHUB_ENV
         cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env           >> $GITHUB_ENV
 
-    - name: Install build depencies
-      # Clone OpenFOAM
-      run: |
-        sudo apt update
-        sudo apt install \
-          git \
-          build-essential \
-          autoconf \
-          autotools-dev \
-          flex bison cmake zlib1g-dev \
-          libfl-dev \
-          mpi-default-bin \
-          mpi-default-dev \
-          libopenmpi-dev \
-          openmpi-bin \
-          gnuplot \
-          libreadline-dev \
-          libncurses-dev \
-          libxt-dev \
-          libscotch-dev \
-          libptscotch-dev \
-          libcgal-dev
-
     - name: Clone OpenFOAM
       run: |
         if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
@@ -162,7 +139,6 @@ jobs:
 
     - name: Source OF enviroment
       run: |
-        ls /home/runner/OpenFOAM
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}"     >> $GITHUB_ENV
