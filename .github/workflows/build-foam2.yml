@@ -28,15 +28,15 @@ jobs:
       matrix:
         OF: [
           {
+            version: "v2212",
             fork: "ESI",
             path: "openfoam",
-            version: "v2212",
             repo: "https://develop.openfoam.com/Development/openfoam.git",
             },
           {
+            version: "10",
             fork: "Foundation",
             path: "OpenFOAM-10",
-            version: "10",
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
             }]
 
@@ -53,7 +53,6 @@ jobs:
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         rm -f $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
         touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}"     >> $GITHUB_ENV
@@ -132,23 +131,6 @@ jobs:
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
         ./Allwmake -j
-        ls $FOAM_LIBBIN
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/wmake/src && make
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/Pstream && ./Allwmake libso
-        ls $FOAM_LIBBIN
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OSspecific/POSIX && wmake libo
-        ls $FOAM_LIBBIN
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/OpenFOAM && wmake -j
-        ls $FOAM_LIBBIN
-        cd /home/runner/OpenFOAM/${{ matrix.OF.path }}/src/fileFormats && wmake -j
-
-
-    # - uses: actions/cache/save@v3
-    #   if: always()
-    #   with:
-    #     path: /home/runner/OpenFOAM/
-    #     key: ${{ matrix.OF.path }}${{ matrix.OF.version }}-save
-
 
   build-ogl:
     needs: build-foam
@@ -158,15 +140,15 @@ jobs:
       matrix:
         OF: [
           {
+            version: "v2212",
             fork: "ESI",
             path: "openfoam",
-            version: "v2212",
             repo: "https://develop.openfoam.com/Development/openfoam.git",
             },
           {
+            version: "10",
             fork: "Foundation",
             path: "OpenFOAM-10",
-            version: "10",
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
             }]
 
@@ -180,11 +162,12 @@ jobs:
 
     - name: Source OF enviroment
       run: |
-        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        cat $HOME/.esi_env >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "UPLATFORM=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
+        echo "$WM_PROJECT_DIR/wmake"                                 >> $GITHUB_PATH
+        cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env           >> $GITHUB_ENV
 
     - name: Test OF enviroment
       run: foamInstallationTest
