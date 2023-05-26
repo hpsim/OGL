@@ -22,6 +22,7 @@ env:
 
 jobs:
   build-foam:
+    runs-on: ubuntu-latest
     container: greole/ofbase
     strategy:
       fail-fast: false
