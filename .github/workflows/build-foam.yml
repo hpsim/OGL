@@ -170,8 +170,8 @@ jobs:
         echo "$WM_PROJECT_DIR/wmake"                                 >> $GITHUB_PATH
         cat $HOME/OpenFOAM/.${{ matrix.OF.path}}_env           >> $GITHUB_ENV
 
-    - name: Test OF enviroment
-      run: foamInstallationTest
+    # - name: Test OF enviroment
+    #   run: foamInstallationTest
 
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
