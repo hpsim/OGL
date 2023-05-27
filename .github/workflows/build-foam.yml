@@ -6,7 +6,7 @@ on:
     - cron: "* * * * 0"
 env:
   BUILD_TYPE: Release
-  FOAM_INST_DIR: /home/runner/OpenFOAM
+  FOAM_INST_DIR: /github/home/OpenFOAM
   WM_PROJECT: OpenFOAM
   WM_OPTIONS: linux64GccDPInt32Opt
   WM_COMPILER_TYPE: system
@@ -46,7 +46,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
-        path: /home/runner/OpenFOAM/
+        path: $HOME/OpenFOAM
 
     - name: Set basice OF enviroment
       run: |
@@ -86,9 +86,9 @@ jobs:
 
     - name: Clone OpenFOAM
       run: |
-        if [ ! -d /home/runner/OpenFOAM/${{matrix.OF.path}} ]; then
+        if [ ! -d $HOME/OpenFOAM/${{matrix.OF.path}} ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} \
-            /home/runner/OpenFOAM/${{ matrix.OF.path }}
+            $HOME/OpenFOAM/${{ matrix.OF.path }}
         else
           echo "Skipping clone"
         fi
@@ -96,15 +96,15 @@ jobs:
     - name: Build OpenFOAM (ESI)
       if: ${{ matrix.OF.fork == 'ESI' }}
       # Clone OpenFOAM
-      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      working-directory: $HOME/OpenFOAM/${{ matrix.OF.path }}
       run: |
-        chmod +x /home/runner/OpenFOAM/openfoam/etc/openfoam
-        /home/runner/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
+        chmod +x $HOME/OpenFOAM/openfoam/etc/openfoam
+        $HOME/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
 
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
-      working-directory: /home/runner/OpenFOAM/${{ matrix.OF.path }}
+      working-directory: $HOME/OpenFOAM/${{ matrix.OF.path }}
       run: |
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
@@ -137,7 +137,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
-        path: /home/runner/OpenFOAM/
+        path: $HOME/OpenFOAM
 
     - name: Source OF enviroment
       run: |
@@ -197,7 +197,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
-        path: /home/runner/OpenFOAM/
+        path: $HOME/OpenFOAM/
 
     - name: Source OF enviroment
       run: |
