@@ -46,14 +46,14 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
-        path: $HOME/OpenFOAM
+        path: $FOAM_INST_DIR
 
     - name: Set basice OF enviroment
       run: |
-        mkdir -p $HOME/OpenFOAM
-        touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        rm -f $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
-        touch $HOME/OpenFOAM/.${{ matrix.OF.path }}_env
+        mkdir -p $FOAM_INST_DIR
+        touch $FOAM_INST_DIR/.${{ matrix.OF.path }}_env
+        rm -f $FOAM_INST_DIR/.${{ matrix.OF.path }}_env
+        touch $FOAM_INST_DIR/.${{ matrix.OF.path }}_env
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=$FOAM_INST_DIR/${{github.actor}}-${{matrix.OF.version}}"     >> $GITHUB_ENV
@@ -86,7 +86,6 @@ jobs:
 
     - name: Clone OpenFOAM
       run: |
-        mkdir -p $FOAM_INST_DIR
         if [ ! -d $WM_PROJECT_DIR ]; then
           git clone  --depth 1 ${{ matrix.OF.repo }} $WM_PROJECT_DIR
         else
