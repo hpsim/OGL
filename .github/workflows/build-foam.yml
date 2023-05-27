@@ -86,9 +86,9 @@ jobs:
 
     - name: Clone OpenFOAM
       run: |
-        if [ ! -d $HOME/OpenFOAM/${{matrix.OF.path}} ]; then
-          git clone  --depth 1 ${{ matrix.OF.repo }} \
-            $HOME/OpenFOAM/${{ matrix.OF.path }}
+        mkdir -p $FOAM_INST_DIR
+        if [ ! -d $WM_PROJECT_DIR ]; then
+          git clone  --depth 1 ${{ matrix.OF.repo }} $WM_PROJECT_DIR
         else
           echo "Skipping clone"
         fi
@@ -96,19 +96,17 @@ jobs:
     - name: Build OpenFOAM (ESI)
       if: ${{ matrix.OF.fork == 'ESI' }}
       # Clone OpenFOAM
-      working-directory: $HOME/OpenFOAM/${{ matrix.OF.path }}
       run: |
-        chmod +x $HOME/OpenFOAM/openfoam/etc/openfoam
-        $HOME/OpenFOAM/${{ matrix.OF.path }}/etc/openfoam ./Allwmake -j
+        chmod +x $WM_PROJECT_DIR/etc/openfoam
+        $WM_PROJECT_DIR/etc/openfoam ./Allwmake -j
 
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
       # Clone OpenFOAM
-      working-directory: $HOME/OpenFOAM/${{ matrix.OF.path }}
       run: |
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
-        ./Allwmake -j
+        cd $WM_PROJECT_DIR ./Allwmake -j
 
   build-ogl:
     needs: build-foam
@@ -137,7 +135,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
-        path: $HOME/OpenFOAM
+        path: $FOAM_INST_DIR
 
     - name: Source OF enviroment
       run: |
