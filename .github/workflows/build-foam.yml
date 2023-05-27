@@ -23,9 +23,10 @@ env:
 jobs:
   build-foam:
     runs-on: ubuntu-latest
-    container: greole/ofbase
-    volumes:
-      - OpenFOAM:/opt
+    container:
+      image: greole/ofbase
+      volumes:
+        - OpenFOAM:/opt
     strategy:
       fail-fast: false
       matrix:
