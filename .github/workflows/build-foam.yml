@@ -97,7 +97,7 @@ jobs:
       # Clone OpenFOAM
       run: |
         chmod +x $WM_PROJECT_DIR/etc/openfoam
-        $WM_PROJECT_DIR/etc/openfoam ./Allwmake -j
+        $WM_PROJECT_DIR/etc/openfoam $WM_PROJECT_DIR/Allwmake -j
 
     - name: Build OpenFOAM (Foundation)
       if: ${{ matrix.OF.fork == 'Foundation' }}
@@ -105,7 +105,7 @@ jobs:
       run: |
         mkdir -p  $FOAM_LIBBIN
         mkdir -p  $FOAM_APPBIN
-        cd $WM_PROJECT_DIR ./Allwmake -j
+        cd $WM_PROJECT_DIR && ./Allwmake -j
 
   build-ogl:
     needs: build-foam
