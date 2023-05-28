@@ -41,17 +41,6 @@ jobs:
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
             }]
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: Cache OpenFOAM
-      uses: actions/cache@v3
-      with:
-        key: ${{ matrix.OF.path }}${{ matrix.OF.version }}
-        path: $FOAM_INST_DIR
-
-    - name: Source OF enviroment
-      run: source $HOME/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
       # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
@@ -64,9 +53,11 @@ jobs:
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
+      shell: bash
       run: |
         mkdir build
         cd build
+        source $HOME/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
