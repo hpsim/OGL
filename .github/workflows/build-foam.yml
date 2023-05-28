@@ -41,27 +41,6 @@ jobs:
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
             }]
 
-  build-ogl:
-    needs: build-foam
-    runs-on: ubuntu-latest
-    container: greole/ofbase
-    strategy:
-      fail-fast: false
-      matrix:
-        OF: [
-          {
-            version: "v2212",
-            fork: "ESI",
-            path: "openfoam",
-            repo: "https://develop.openfoam.com/Development/openfoam.git",
-            },
-          {
-            version: "10",
-            fork: "Foundation",
-            path: "OpenFOAM-10",
-            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-            }]
-
     steps:
     - uses: actions/checkout@v2
     - name: Cache OpenFOAM
