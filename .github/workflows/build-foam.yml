@@ -56,12 +56,11 @@ jobs:
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        ls 
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
+        ls $FOAM_INST_DIR 
+        ls $WM_PROJ_DIR
         mkdir build
         cd build
-        ls /home/
-        ls $HOME
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
