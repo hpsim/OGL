@@ -56,8 +56,11 @@ jobs:
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
+        ls 
         mkdir build
         cd build
+        ls /home/
+        ls $HOME
         source $HOME/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
