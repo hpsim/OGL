@@ -41,6 +41,7 @@ jobs:
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
             }]
 
+    steps:
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
       # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
