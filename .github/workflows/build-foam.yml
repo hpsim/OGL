@@ -91,7 +91,7 @@ jobs:
         path: ${{github.workspace}}/build
 
   run-integration-tests:
-    needs: [build-foam, build-ogl]
+    needs: [build-ogl]
     runs-on: ubuntu-latest
     steps:
     - name: Cache OpenFOAM
