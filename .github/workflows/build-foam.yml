@@ -6,7 +6,7 @@ on:
     - cron: "* * * * 0"
 env:
   BUILD_TYPE: Release
-  FOAM_INST_DIR: /root
+  FOAM_INST_DIR: /root/OpenFOAM
   WM_PROJECT: OpenFOAM
   WM_OPTIONS: linux64GccDPInt32Opt
   WM_COMPILER_TYPE: system
