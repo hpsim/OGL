@@ -87,6 +87,7 @@ jobs:
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
+      if: failure()
       with:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
