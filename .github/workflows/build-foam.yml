@@ -6,7 +6,7 @@ on:
     - cron: "* * * * 0"
 env:
   BUILD_TYPE: Release
-  FOAM_INST_DIR: /opt
+  FOAM_INST_DIR: /root
   WM_PROJECT: OpenFOAM
   WM_OPTIONS: linux64GccDPInt32Opt
   WM_COMPILER_TYPE: system
@@ -50,15 +50,21 @@ jobs:
         # Version of ninja-build to install
         version: 1.10.0 # default is 1.10.0
 
+    - name: Set basice OF enviroment
+      run: |
+        mkdir -p $FOAM_INST_DIR
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         ls $FOAM_INST_DIR 
-        ls $WM_PROJ_DIR
+        ls $WM_PROJECT_DIR
         mkdir build
         cd build
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
