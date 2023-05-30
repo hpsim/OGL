@@ -4,8 +4,6 @@ set(PACKAGE_DOWNLOADER_SCRIPT
 function(ginkgo_load_git_package package_name package_url package_tag)
   set(GINKGO_GIT_REV "Debug")
   set(GINKGO_THIRD_PARTY_BUILD_TYPE "Debug")
-  set(uses_openmpi "0" CACHE STRING "Forcibly set by CMakeLists.txt." FORCE)
-  set(uses_openmpi__TRYRUN_OUTPUT "0" CACHE STRING "Forcibly set by CMakeLists.txt." FORCE)
   if(CMAKE_BUILD_TYPE MATCHES "[Rr][Ee][Ll][Ee][Aa][Ss][Ee]")
     set(GINKGO_THIRD_PARTY_BUILD_TYPE "Release")
   endif()
