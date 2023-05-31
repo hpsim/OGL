@@ -186,7 +186,11 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
                 refCast<const cyclicLduInterface>(iface->interface());
             // const labelUList &rows = this->matrix().lduAddr().patchAddr(i);
 
+#ifdef WITH_ESI_VERSION
             const label neighbPatchId = pldui.neighbPatchID();
+#else
+            const label neighbPatchId = pldui.nbrPatchID();
+#endif
             const labelUList &cols =
                 this->matrix().lduAddr().patchAddr(neighbPatchId);
             for (label cellI = 0; cellI < interface_size; cellI++) {
