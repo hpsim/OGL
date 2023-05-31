@@ -58,6 +58,7 @@ jobs:
         mkdir -p $FOAM_INST_DIR
         echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
         echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
 
     - name: Configure CMake
@@ -66,8 +67,7 @@ jobs:
       working-directory: ${{github.workspace}}
       shell: bash
       run: |
-        ls $FOAM_INST_DIR 
-        ls $WM_PROJECT_DIR
+        mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
         cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
