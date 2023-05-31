@@ -297,7 +297,7 @@ struct MatrixInitFunctor {
         auto non_local_rows = non_local_row_idxs_.get_array();
 
         // check if sorted
-        if (true) {
+        if (false) {
             bool is_sorted_rows = true;
             bool is_sorted_cols = true;
             auto rows_data = rows->get_const_data();
