@@ -578,7 +578,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
             }
             return;
         }
-        // TODO implement non symmetric variant
     } else {
         // TODO move this to a function fill_non_interfaces
         if (is_symmetric) {
