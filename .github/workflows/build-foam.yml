@@ -1,0 +1,121 @@
+name: Build OpenFOAM (ESI|FOUNDATION)
+on:
+  pull_request:
+    types: synchronize
+  schedule:
+    - cron: "* * * * 0"
+env:
+  BUILD_TYPE: Release
+  FOAM_INST_DIR: /root/OpenFOAM
+  WM_PROJECT: OpenFOAM
+  WM_OPTIONS: linux64GccDPInt32Opt
+  WM_COMPILER_TYPE: system
+  WM_COMPILER: Gcc
+  WM_PRECISION_OPTION: DP
+  WM_LABEL_SIZE: 32
+  WM_COMPILE_OPTION: Opt
+  WM_OSTYPE: POSIX
+  WM_ARCH: linux64
+  WM_ARCH_OPTION: 64
+  WM_LINK_LANGUAGE: c++
+  WM_LABEL_OPTION:  Int32
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+
+jobs:
+  build-ogl:
+    runs-on: ubuntu-latest
+    container: greole/ofbase
+    strategy:
+      fail-fast: false
+      matrix:
+        OF: [
+          {
+            version: "v2212",
+            fork: "ESI",
+            path: "openfoam",
+            repo: "https://develop.openfoam.com/Development/openfoam.git",
+            },
+          {
+            version: "10",
+            fork: "Foundation",
+            path: "OpenFOAM-10",
+            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            }]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install ninja-build tool
+      # You may pin to the exact commit or the version.
+      # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
+      uses: seanmiddleditch/gha-setup-ninja@v3
+      with:
+        # Version of ninja-build to install
+        version: 1.10.0 # default is 1.10.0
+
+    - name: Set basic OF enviroment
+      run: |
+        mkdir -p $FOAM_INST_DIR
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
+
+    - name: Configure CMake
+      # Use a bash shell so we can use the same syntax for environment variable
+      # access regardless of the host operating system
+      working-directory: ${{github.workspace}}
+      shell: bash
+      run: |
+        mkdir -p $FOAM_USER_LIBBIN
+        mkdir build
+        cd build
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+
+    - name: Build OGL
+      working-directory: ${{github.workspace}}/build
+      run: |
+        cmake --build . --config $BUILD_TYPE
+
+    - name: Test OGL
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: ctest -C $BUILD_TYPE
+
+    - name: Install OGL
+      working-directory: ${{github.workspace}}/build
+      run: |
+        cmake --install ./build
+
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: ogl_build_${{ matrix.OF.path }}
+        path: ${{github.workspace}}/build
+
+  run-integration-tests:
+    needs: [build-ogl]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}
+        path: $HOME/OpenFOAM/
+
+    - name: Source OF enviroment
+      run: |
+        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
+        cat $HOME/.esi_env >> $GITHUB_ENV
+
+    - name: Install OBR
+      run: |
+          git clone  github.com/hpsim/OBR.git
+          cd OBR
+          pip install .
+
