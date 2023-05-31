@@ -1,5 +1,6 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
 on:
+  push:
   pull_request:
     types: synchronize
   schedule:
