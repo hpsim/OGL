@@ -60,6 +60,7 @@ jobs:
         echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
         echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
