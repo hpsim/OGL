@@ -540,10 +540,12 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 const label pos{permute[i]};
                 scalar value;
                 // all values up to upper_nnz_ are upper_nnz_ values
-                if (pos < upper_nnz_) value = upper[pos];
+                if (pos < upper_nnz_){ value = upper[pos];}
                 // all values up to upper_nnz_ are upper_nnz_ values
                 if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz)
+                {
                     value = diag[pos - upper_nnz_];
+                }
                 if (pos >= upper_nnz_ + diag_nnz) {
                     // std::cout <<  "idx ( "
                     // << local_sparsity_.row_idxs_.get_data()[i] << ", "
@@ -553,30 +555,29 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 }
 
                 dense[i] = scaling_ * value;
-            }
-            else
-            {
-                for (label i = 0; i < nnz_local_matrix_w_interfaces_; ++i) {
-                    const label pos{permute[i]};
-                    scalar value;
-                    if (pos < upper_nnz_) {
-                        value = upper[pos];
-                        continue;
-                    }
-                    if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                        value = lower[pos - upper_nnz_];
-                        continue;
-                    }
-                    if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz) {
-                        value = diag[pos - 2 * upper_nnz_];
-                    }
-                    if (pos >= 2 * upper_nnz_ + diag_nnz) {
-                        value = couple_coeffs[pos - 2 * upper_nnz_ - diag_nnz];
-                    }
-                    dense[i] = scaling_ * value;
+            } 
+        }
+        else
+        {
+            for (label i = 0; i < nnz_local_matrix_w_interfaces_; ++i) {
+                const label pos{permute[i]};
+                scalar value;
+                if (pos < upper_nnz_) {
+                    value = upper[pos];
+                    continue;
                 }
+                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
+                    value = lower[pos - upper_nnz_];
+                    continue;
+                }
+                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz) {
+                    value = diag[pos - 2 * upper_nnz_];
+                }
+                if (pos >= 2 * upper_nnz_ + diag_nnz) {
+                    value = couple_coeffs[pos - 2 * upper_nnz_ - diag_nnz];
+                }
+                dense[i] = scaling_ * value;
             }
-            return;
         }
     } else {
         // TODO move this to a function fill_non_interfaces
