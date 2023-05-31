@@ -545,11 +545,10 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz)
                     value = diag[pos - upper_nnz_];
                 if (pos >= upper_nnz_ + diag_nnz) {
-                    // std::cout << "idx ( "
-                    //           << local_sparsity_.row_idxs_.get_data()[i] <<
-                    //           ", "
-                    //           << local_sparsity_.col_idxs_.get_data()[i]
-                    //           << "): " << value << "\n";
+                    // std::cout <<  "idx ( "
+                    // << local_sparsity_.row_idxs_.get_data()[i] << ", "
+                    // << local_sparsity_.col_idxs_.get_data()[i] << "): "
+                    // << value << "\n" ;
                     value = couple_coeffs[pos - upper_nnz_ - diag_nnz];
                 }
 
