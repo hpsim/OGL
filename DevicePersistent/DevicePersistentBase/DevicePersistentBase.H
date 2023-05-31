@@ -139,6 +139,12 @@ public:
         return persistent_object_;
     }
 
+    void set_persistent_object(std::shared_ptr<T> obj) const
+    {
+        persistent_object_ = obj;
+    }
+
+
     bool get_verbose() const { return verbose_; }
 
     word get_name() const { return name_; }
