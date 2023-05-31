@@ -46,6 +46,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
       # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
@@ -62,6 +63,12 @@ jobs:
         echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
+
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}
+        path: $FOAM_USER_LIBBIN
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -99,23 +106,43 @@ jobs:
   run-integration-tests:
     needs: [build-ogl]
     runs-on: ubuntu-latest
+    container: greole/ofbase
+    strategy:
+      fail-fast: false
+      matrix:
+        OF: [
+          {
+            version: "v2212",
+            fork: "ESI",
+            path: "openfoam",
+            repo: "https://develop.openfoam.com/Development/openfoam.git",
+            },
+          {
+            version: "10",
+            fork: "Foundation",
+            path: "OpenFOAM-10",
+            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            }]
+
     steps:
+    - name: Source OF enviroment
+      run: |
+        mkdir -p $FOAM_INST_DIR
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
+
     - name: Cache OpenFOAM
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
-        path: $HOME/OpenFOAM/
-
-    - name: Source OF enviroment
-      run: |
-        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
-        echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        cat $HOME/.esi_env >> $GITHUB_ENV
+        path: $FOAM_USER_LIBBIN
 
     - name: Install OBR
       run: |
+          ls $FOAM_USER_LIBBIN
           git clone  github.com/hpsim/OBR.git
           cd OBR
           pip install .
