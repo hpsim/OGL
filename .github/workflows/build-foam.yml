@@ -155,7 +155,7 @@ jobs:
     - name: Install OBR
       run: |
           apt install -y pip
-          git clone https://github.com/hpsim/OBR.git -b yaml_examples
+          git clone https://github.com/hpsim/OBR.git -b yaml-examples
           cd OBR
           pip install .
 
@@ -167,3 +167,9 @@ jobs:
         obr run -o generate
         obr run -o runParallelSolver -t 1
 
+    - name: Archive integration artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: ogl_integration_${{ matrix.OF.path }}
+        path: /github/home
