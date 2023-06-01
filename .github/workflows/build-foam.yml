@@ -150,12 +150,11 @@ jobs:
       run: |
         mkdir -p $FOAM_USER_LIBBIN
         cp -r /github/home $FOAM_USER_LIBBIN 
-        ls $FOAM_USER_LIBBIN
+        ls $FOAM_USER_LIBBIN/home
 
     - name: Install OBR
       run: |
-          ls $FOAM_USER_LIBBIN
-          git clone  github.com/hpsim/OBR.git
+          git clone https://github.com/hpsim/OBR.git
           cd OBR
           pip install .
 
