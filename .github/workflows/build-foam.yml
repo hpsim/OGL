@@ -68,7 +68,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
-        path: $FOAM_USER_LIBBIN
+        path: /home/runner/work/_temp/_github_home
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -95,6 +95,11 @@ jobs:
       working-directory: ${{github.workspace}}
       run: |
         cmake --install ./build
+
+    - name: Copy OGL to cached folder
+      working-directory: ${{github.workspace}}
+      run: |
+        cp -r $FOAM_USER_LIBBIN /github/home
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
@@ -138,7 +143,13 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}
-        path: $FOAM_USER_LIBBIN
+        path: /home/runner/work/_temp/_github_home
+
+    - name: Copy OGL to cached folder
+      working-directory: ${{github.workspace}}
+      run: |
+        cp -r /github/home $FOAM_USER_LIBBIN 
+        ls $FOAM_USER_LIBBIN
 
     - name: Install OBR
       run: |
