@@ -154,6 +154,7 @@ jobs:
 
     - name: Install OBR
       run: |
+          apt install -y pip
           git clone https://github.com/hpsim/OBR.git
           cd OBR
           pip install .
