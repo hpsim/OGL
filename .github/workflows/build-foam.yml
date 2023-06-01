@@ -148,6 +148,7 @@ jobs:
     - name: Copy OGL to cached folder
       working-directory: ${{github.workspace}}
       run: |
+        mkdir -p $FOAM_USER_LIBBIN
         cp -r /github/home $FOAM_USER_LIBBIN 
         ls $FOAM_USER_LIBBIN
 
