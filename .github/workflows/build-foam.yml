@@ -153,15 +153,19 @@ jobs:
         cp -r /github/home/lib/* $FOAM_USER_LIBBIN 
 
     - name: Install OBR
+      working-directory: /tmp
       run: |
           apt install -y pip
           git clone https://github.com/hpsim/OBR.git -b yaml-examples
           cd OBR
+          python -m venv obr-env
+          . obr-env/bin/activate
           pip install .
 
     - name: Run cavity test
       working-directory: /github/home/
       run: |
+        .  /tmp/OBR/obr-env/bin/activate
         obr init -f ${{github.workspace}}/test/cavity.yaml
         obr run -o fetchCase
         obr run -o generate
