@@ -166,6 +166,7 @@ jobs:
     - name: Run cavity test
       working-directory: /github/home/
       run: |
+        ls ${{github.workspace}}
         .  /tmp/OBR/obr-env/bin/activate
         obr init --config ${{github.workspace}}/test/cavity.yaml
         obr run -o fetchCase
@@ -186,8 +187,6 @@ jobs:
         obr status
         res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
         if [ $res -eq 2 ]; then exit 0; else exit 1; fi
-        
-        
 
     - name: Archive integration artifacts
       uses: actions/upload-artifact@v3
