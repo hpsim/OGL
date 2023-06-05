@@ -130,6 +130,7 @@ jobs:
             }]
 
     steps:
+    - uses: actions/checkout@v2
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -173,6 +174,19 @@ jobs:
         obr status
         res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
         if [ $res -eq 2 ]; then exit 0; else exit 1; fi
+
+    - name: Run cavity test
+      working-directory: /github/home/
+      run: |
+        .  /tmp/OBR/obr-env/bin/activate
+        obr init --config ${{github.workspace}}/test/cavity.yaml
+        obr run -o fetchCase
+        obr run -o generate
+        obr run -o runParallelSolver -t 1
+        obr status
+        res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
+        if [ $res -eq 2 ]; then exit 0; else exit 1; fi
+        
         
 
     - name: Archive integration artifacts
