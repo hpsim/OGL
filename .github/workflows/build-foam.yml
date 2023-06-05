@@ -166,7 +166,7 @@ jobs:
       working-directory: /github/home/
       run: |
         .  /tmp/OBR/obr-env/bin/activate
-        obr init -f ${{github.workspace}}/test/cavity.yaml
+        obr init --config ${{github.workspace}}/test/cavity.yaml
         obr run -o fetchCase
         obr run -o generate
         obr run -o runParallelSolver -t 1
