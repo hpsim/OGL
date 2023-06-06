@@ -170,8 +170,7 @@ jobs:
       working-directory: /github/home/
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
-        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$LD_LIBRARY_PATH
-        ls /__w/OGL/OGL
+        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         .  /tmp/OBR/obr-env/bin/activate
         obr init --config /__w/OGL/OGL/test/cavity.yaml
         obr run -o fetchCase
