@@ -171,6 +171,7 @@ jobs:
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         .  /tmp/OBR/obr-env/bin/activate
         obr init --config /__w/OGL/OGL/test/cavity.yaml
         obr run -o fetchCase
@@ -183,7 +184,9 @@ jobs:
     - name: Run cyclic channel test
       working-directory: /github/home/
       run: |
-        ls /__w/OGL/OGL
+        export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
+        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         .  /tmp/OBR/obr-env/bin/activate
         obr init --config /__w/OGL/OGL/test/cavity.yaml
         obr run -o fetchCase
