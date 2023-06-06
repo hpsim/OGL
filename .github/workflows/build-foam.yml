@@ -197,6 +197,13 @@ jobs:
         res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
         if [ $res -eq 2 ]; then exit 0; else exit 1; fi
 
+    - name: Run cyclic channel test
+      if: always()
+      working-directory: /github/home/
+      run: |
+        find . -name "*:*" -exec rename 's|:|-|g' {} \;
+
+
     - name: Archive integration artifacts
       uses: actions/upload-artifact@v3
       if: always()
