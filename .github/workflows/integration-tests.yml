@@ -71,6 +71,7 @@ jobs:
     - name: Install OBR
       working-directory: /tmp
       run: |
+          apt-get update
           apt install -y pip python3.10-venv rename
           git clone https://github.com/hpsim/OBR.git -b yaml-examples
           cd OBR
