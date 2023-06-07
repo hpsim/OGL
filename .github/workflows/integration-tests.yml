@@ -53,7 +53,7 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
-        echo "CYCLIC_CASE=${{matrix.cyclic_case}}" >> $GITHUB_ENV
+        echo "CYCLIC_CASE=${{matrix.OF.cyclic_case}}" >> $GITHUB_ENV
 
     - name: Cache OpenFOAM
       uses: actions/cache@v3
