@@ -20,7 +20,7 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 
 jobs:
-  integration-test:
+  integtest:
     runs-on: ubuntu-latest
     container: greole/ofbase
     strategy:
@@ -53,6 +53,7 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
+        echo "CYCLIC_CASE=${{matrix.cyclic_case}}" >> $GITHUB_ENV
 
     - name: Cache OpenFOAM
       uses: actions/cache@v3
@@ -83,7 +84,6 @@ jobs:
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
-        export CYCLIC_CASE=${{ matrix.cyclic_case }}
 
         .  /tmp/OBR/obr-env/bin/activate
         mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
