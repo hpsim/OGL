@@ -72,7 +72,7 @@ jobs:
       run: |
           apt-get update
           apt install -y pip python3.10-venv rename
-          git clone https://github.com/hpsim/OBR.git -b yaml-examples
+          git clone https://github.com/hpsim/OBR.git -b sandbox
           cd OBR
           python3 -m venv obr-env
           . obr-env/bin/activate
