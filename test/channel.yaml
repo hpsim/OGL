@@ -2,7 +2,7 @@ case:
     type: OpenFOAMTutorialCase
     solver: pimpleFoam
     domain: incompressible
-    case: LES/periodicPlaneChannel
+    case: ${{env.CYCLIC_CASE}}
     post_build:
       - controlDict:
            writeFormat: binary
