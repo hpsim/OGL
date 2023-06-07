@@ -109,4 +109,5 @@ jobs:
         path: ${{github.workspace}}/build
 
   tests:
+    needs: build-ogl
     uses: ./.github/workflows/integration-tests.yml
