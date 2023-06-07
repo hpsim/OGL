@@ -1,9 +1,5 @@
 name: Integration Tests
-on:
-    workflow_run:
-          workflows: ["Build OpenFOAM (ESI|FOUNDATION)"]
-    types: 
-      - completed
+on: ["workflow_call"]
 
 env:
   BUILD_TYPE: Release

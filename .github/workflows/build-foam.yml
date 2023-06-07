@@ -108,3 +108,5 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
+  tests:
+    uses: ./.github/workflows/integration-tests.yml
