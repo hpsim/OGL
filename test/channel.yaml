@@ -7,7 +7,7 @@ case:
       - controlDict:
            writeFormat: binary
            libs: ["libOGL.so"]
-      - cp -r 0.orig 0
+      - shell: cp -r 0.orig 0
       - blockMesh
       - decomposePar:
             method: simple
@@ -26,17 +26,4 @@ variation:
       - set: solvers/p
         solver: PCG
         preconditioner: none
-        executor: CPU
-  - operation: fvSolution
-    schema: "linear_solver/momentum-{solver}{preconditioner}{executor}"
-    values:
-      - set: 'solvers/"(U|k|nuTilda)"'
-        preconditioner: BJ
-        solver: GKOBiCGStab
-        forceHostBuffer: 1
-        verbose: 1
-        executor: ${{env.GINKGO_EXECUTOR}}
-      - set: 'solvers/"(U|k|nuTilda)"'
-        solver: PBiCGStab
-        preconditioner: DILU
         executor: CPU
