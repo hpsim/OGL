@@ -1,10 +1,10 @@
 name: Integration Tests
 on:
-  push:
-  pull_request:
-    types: synchronize
-  schedule:
-    - cron: "* * * * 0"
+    workflow_run:
+          workflows: ["Build OpenFOAM (ESI|FOUNDATION)"]
+    types: 
+      - completed
+
 env:
   BUILD_TYPE: Release
   FOAM_INST_DIR: /root/OpenFOAM
@@ -25,7 +25,6 @@ env:
 
 jobs:
   integration-test:
-    needs: [build-ogl]
     runs-on: ubuntu-latest
     container: greole/ofbase
     strategy:
