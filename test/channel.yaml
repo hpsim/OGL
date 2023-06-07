@@ -1,18 +1,12 @@
 case:
     type: OpenFOAMTutorialCase
-    solver: icoFoam
+    solver: pimpleFoam
     domain: incompressible
-    case: cavity/cavity
+    case: LES/periodicPlaneChannel
     post_build:
       - controlDict:
            writeFormat: binary
            libs: ["libOGL.so"]
-      - fvSolution:
-            set: solvers/p
-            clear: True
-            tolerance: 1e-04
-            relTol: 0
-            maxIter: 5000
       - blockMesh
       - decomposePar:
             method: simple
@@ -35,13 +29,13 @@ variation:
   - operation: fvSolution
     schema: "linear_solver/momentum-{solver}{preconditioner}{executor}"
     values:
-      - set: solvers/U
+      - set: 'solvers/"(U|k|nuTilda)"'
         preconditioner: BJ
         solver: GKOBiCGStab
         forceHostBuffer: 1
         verbose: 1
         executor: ${{env.GINKGO_EXECUTOR}}
-      - set: solvers/U
-        solver: PBiCGCGStab
+      - set: 'solvers/"(U|k|nuTilda)"'
+        solver: PBiCGStab
         preconditioner: DILU
         executor: CPU
