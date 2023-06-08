@@ -7,7 +7,7 @@ case:
       - controlDict:
            writeFormat: binary
            libs: ["libOGL.so"]
-      - shell: cp -r 0.orig 0
+           writeInterval: 400
       - blockMesh
       - decomposePar:
             method: simple

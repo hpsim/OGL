@@ -54,6 +54,7 @@ jobs:
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
         echo "CYCLIC_CASE=${{matrix.OF.cyclic_case}}" >> $GITHUB_ENV
+        echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
 
     - name: Cache OpenFOAM
       uses: actions/cache@v3
