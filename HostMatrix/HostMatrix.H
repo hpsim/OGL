@@ -94,8 +94,7 @@ template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
     using vec = gko::matrix::Dense<scalar>;
-    // dimensions of the local host matrix
-    //
+
     const ExecutorHandler exec_;
 
     const label verbose_;
@@ -104,21 +103,28 @@ private:
     // NOTE this could be also achieved by just fliping the sign
     const scalar scaling_;
 
-    // local matrix indices
+    // number of local matrix rows
     const label nrows_;
 
     // number of local elements on interfaces
-    const label local_interface_nnzs_;
+    // ie number of interfaces which column_idx is < nrows_
+    // and have to be sorted into local matrix
+    const label local_interface_nnz_;
 
+    // number of local upper elements
+    // ie coefficients which column_idx < nrows_
     const label upper_nnz_;
 
+    // total number of local upper and lower elements
+    // ie 2*upper_nnz_ since the sparsity pattern is symmetric
+    // TODO should this include the local_interface_nnz_ ?
     const label non_diag_nnz_;
 
-    // nnzs of local matrix wo local interfaces
-    const label nnz_local_matrix_;
+    // nnz of local matrix wo local interfaces
+    const label local_matrix_nnz_;
 
     // nnzs of local matrix including local interfaces
-    const label nnz_local_matrix_w_interfaces_;
+    const label local_matrix_w_interfaces_nnz_;
 
     const gkoGlobalIndex global_row_index_;
 
@@ -127,7 +133,7 @@ private:
     mutable PersistentArray<scalar> local_coeffs_;
 
     // non-local indices
-    const label nnz_non_local_matrix_;
+    const label non_local_matrix_nnz_;
 
     mutable PersistentSparsityPattern non_local_sparsity_;
 
@@ -164,39 +170,37 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
-          local_interface_nnzs_(count_interface_nnz(interfaces, false)),
+          local_interface_nnz_(count_interface_nnz(interfaces, false)),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
-          nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
-          nnz_local_matrix_w_interfaces_(nnz_local_matrix_ +
-                                         local_interface_nnzs_),
+          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
+          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
+                                         local_interface_nnz_),
           global_row_index_{nrows_},
           local_sparsity_{
-              fieldName + "_local", db, exec_, nnz_local_matrix_, verbose_,
+              fieldName + "_local",           db,       exec_,
+              local_matrix_w_interfaces_nnz_, verbose_,
           },
-          // in contrast to to sparsity pattern this with full size including
-          // local interfaces since we just it once instead of doing it in two
-          // sweeps
           local_coeffs_{
               fieldName + "_local_coeffs",
               db,
               exec_,
-              nnz_local_matrix_w_interfaces_,
+              local_matrix_w_interfaces_nnz_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
-          nnz_non_local_matrix_(count_interface_nnz(interfaces, true)),
+          non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
-              nnz_non_local_matrix_,    verbose_,
+              non_local_matrix_nnz_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",
               db,
               exec_,
-              nnz_non_local_matrix_,
+              non_local_matrix_nnz_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
@@ -211,7 +215,6 @@ public:
                                          .get_ptr()
                                    : nullptr}
     {
-        std::cout << "local_interface_nnzs" << local_interface_nnzs_ << endl;
         if (!local_sparsity_.col_idxs_.get_stored() ||
             local_sparsity_.col_idxs_.get_update()) {
             TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
@@ -240,36 +243,36 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
-          local_interface_nnzs_(0),
+          local_interface_nnz_(0),
           upper_nnz_(matrix.lduAddr().upperAddr().size()),
           non_diag_nnz_(2 * upper_nnz_),
-          nnz_local_matrix_(nrows_ + 2 * upper_nnz_),
-          nnz_local_matrix_w_interfaces_(nnz_local_matrix_ +
-                                         local_interface_nnzs_),
+          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
+          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
+                                         local_interface_nnz_),
           global_row_index_{nrows_},
           local_sparsity_{
-              fieldName + "_cols", db, exec_, nnz_local_matrix_, verbose_,
+              fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
           },
           local_coeffs_{
               fieldName + "_coeffs",
               db,
               exec_,
-              nnz_local_matrix_,
+              local_matrix_nnz_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed
                      // matrix it will be put on the device
           },
-          nnz_non_local_matrix_(),
+          non_local_matrix_nnz_(),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
-              nnz_non_local_matrix_,    verbose_,
+              non_local_matrix_nnz_,    verbose_,
           },
           non_local_coeffs_{
               fieldName + "_non_local_coeffs",
               db,
               exec_,
-              nnz_non_local_matrix_,
+              non_local_matrix_nnz_,
               verbose_,
               true,  // needs to be updated
               false  // leave it on host once it is turned into a distributed

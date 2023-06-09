@@ -79,7 +79,7 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
-        cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
