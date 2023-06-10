@@ -484,7 +484,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
         // post insert if local interfaces were consumed but stuff remains in
         // rows_copy and cols_copy
         for (int i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
-            std::cout << "insert missing values " << i << endl;
+            // std::cout << "insert missing values " << i << endl;
             rows[i] = rows_copy[current_idx_ctr];
             cols[i] = cols_copy[current_idx_ctr];
             permute[i] = permute_copy[current_idx_ctr];
@@ -557,13 +557,11 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 scalar value;
                 if (pos < upper_nnz_) {
                     value = upper[pos];
-                    continue;
                 }
                 if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
                     value = lower[pos - upper_nnz_];
-                    continue;
                 }
-                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz) {
+                if (pos >= 2*upper_nnz_ && pos < 2*upper_nnz_ + diag_nnz) {
                     value = diag[pos - 2 * upper_nnz_];
                 }
                 if (pos >= 2 * upper_nnz_ + diag_nnz) {
