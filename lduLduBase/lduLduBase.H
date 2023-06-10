@@ -38,6 +38,7 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+#include <string.h>
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -276,6 +277,21 @@ public:
             verbose_, init_precond, this->fieldName(),
             auto precond = this->init_preconditioner(
                 dist_A_v, this->get_exec_handler().get_device_exec());)
+
+#ifdef DATA_VALIDATION
+        // TODO improve this
+        if (Pstream::myProcNo() == 0) {
+            std::string fn{this->fieldName() + "_A.mtx"};
+            std::ofstream stream_x{fn};
+            std::shared_ptr<const gko::LinOp> local_mtx =
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_local_matrix();
+            gko::write(stream_x,
+                       (const gko::matrix::Coo<scalar> *)local_mtx.get());
+        }
+#endif
+
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
