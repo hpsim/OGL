@@ -1,0 +1,111 @@
+name: Integration Tests
+on: ["workflow_call"]
+
+env:
+  BUILD_TYPE: Release
+  FOAM_INST_DIR: /root/OpenFOAM
+  WM_PROJECT: OpenFOAM
+  WM_OPTIONS: linux64GccDPInt32Opt
+  WM_COMPILER_TYPE: system
+  WM_COMPILER: Gcc
+  WM_PRECISION_OPTION: DP
+  WM_LABEL_SIZE: 32
+  WM_COMPILE_OPTION: Opt
+  WM_OSTYPE: POSIX
+  WM_ARCH: linux64
+  WM_ARCH_OPTION: 64
+  WM_LINK_LANGUAGE: c++
+  WM_LABEL_OPTION:  Int32
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+
+jobs:
+  integtest:
+    runs-on: ubuntu-latest
+    container: greole/ofbase
+    strategy:
+      fail-fast: false
+      matrix:
+        OF: [
+          {
+            version: "v2212",
+            path: "openfoam",
+            cyclic_case: "LES/periodicPlaneChannel" 
+            },
+          {
+            version: "10",
+            path: "OpenFOAM-10",
+            cyclic_case: "LES/channel395" 
+            }]
+        Case: ["cavity", "channel"]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Source OF enviroment
+      run: |
+        mkdir -p $FOAM_INST_DIR
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $GITHUB_ENV
+        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
+        echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
+        echo "CYCLIC_CASE=${{matrix.OF.cyclic_case}}" >> $GITHUB_ENV
+        echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
+
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}
+        path: /home/runner/work/_temp/_github_home
+
+    - name: Copy OGL to cached folder
+      working-directory: ${{github.workspace}}
+      run: |
+        mkdir -p $FOAM_USER_LIBBIN
+        cp -r /github/home/lib/* $FOAM_USER_LIBBIN 
+
+    - name: Install OBR
+      working-directory: /tmp
+      run: |
+          apt-get update
+          apt install -y pip python3.10-venv rename
+          git clone https://github.com/hpsim/OBR.git -b sandbox
+          cd OBR
+          python3 -m venv obr-env
+          . obr-env/bin/activate
+          pip install .
+
+    - name: Run test case
+      working-directory: /github/home/
+      run: |
+        export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
+        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
+
+        .  /tmp/OBR/obr-env/bin/activate
+        mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
+        obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
+        obr run -o fetchCase
+        obr run -o generate
+        obr run -o runParallelSolver -t 1
+        obr status
+        obr query -q "{key:'state'}"
+        res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
+        # if [ $res -eq 2 ]; then exit 0; else exit 1; fi
+
+    - name: Rename log files
+      if: always()
+      working-directory: /github/home/
+      run: |
+        find . -name "*:*" -exec rename 's|:|-|g' {} \;
+
+    - name: Archive integration artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: ogl_integration_${{ matrix.OF.path }}
+        path: /github/home

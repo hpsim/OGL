@@ -1,5 +1,6 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
 on:
+  push:
   pull_request:
     types: synchronize
   schedule:
@@ -45,6 +46,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Install ninja-build tool
       # You may pin to the exact commit or the version.
       # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
@@ -62,6 +64,12 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
 
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}
+        path: /home/runner/work/_temp/_github_home
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -71,7 +79,7 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
-        cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
@@ -84,9 +92,14 @@ jobs:
       run: ctest -C $BUILD_TYPE
 
     - name: Install OGL
-      working-directory: ${{github.workspace}}/build
+      working-directory: ${{github.workspace}}
       run: |
         cmake --install ./build
+
+    - name: Copy OGL to cached folder
+      working-directory: ${{github.workspace}}
+      run: |
+        cp -r $FOAM_USER_LIBBIN /github/home
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
@@ -95,27 +108,6 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-  run-integration-tests:
-    needs: [build-ogl]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Cache OpenFOAM
-      uses: actions/cache@v3
-      with:
-        key: ${{ matrix.OF.path }}
-        path: $HOME/OpenFOAM/
-
-    - name: Source OF enviroment
-      run: |
-        echo "$HOME/.esi_env=$FOAM_INST_DIR/env_file"            >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
-        echo "PLATFORM=$FOAM_INST_DIR/${{matrix.OF.path}}/platforms/linux64GccDPInt32Opt" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=${{env.FOAM_INST_DIR}}/${{github.actor}}-${{matrix.OF.version}}" >> $GITHUB_ENV
-        cat $HOME/.esi_env >> $GITHUB_ENV
-
-    - name: Install OBR
-      run: |
-          git clone  github.com/hpsim/OBR.git
-          cd OBR
-          pip install .
-
+  tests:
+    needs: build-ogl
+    uses: ./.github/workflows/integration-tests.yml
