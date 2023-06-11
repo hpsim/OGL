@@ -27,3 +27,16 @@ variation:
         solver: PCG
         preconditioner: none
         executor: CPU
+  - operation: fvSolution
+    schema: "linear_solver/momentum-{solver}{preconditioner}{executor}"
+    values:
+      - set: solvers/U
+        preconditioner: BJ
+        solver: GKOBiCGStab
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}
+      - set: solvers/U
+        solver: PBiCGCGStab
+        preconditioner: DILU
+        executor: CPU

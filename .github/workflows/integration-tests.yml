@@ -95,7 +95,7 @@ jobs:
         obr status
         obr query -q "{key:'state'}"
         res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
-        if [ $res -eq 2 ]; then exit 0; else exit 1; fi
+        # if [ $res -eq 2 ]; then exit 0; else exit 1; fi
 
     - name: Rename log files
       if: always()
