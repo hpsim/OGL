@@ -179,7 +179,7 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 
-        // TODO make this a seperate specialized function
+        // TODO make this a separate specialized function
         label interface_ctr = 0;
         if (isA<cyclicLduInterface>(iface->interface())) {
             const cyclicLduInterface &pldui =
@@ -460,7 +460,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
                 // the copy rows are or equal
                 // in that case we need to check if the
-                // copy colums are lower
+                // copy columns are lower
                 if (rows_copy[current_idx_ctr] == interface_row &&
                     cols_copy[current_idx_ctr] > interface_col) {
                     return false;

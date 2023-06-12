@@ -161,7 +161,7 @@ public:
         // coeffs for internal cells
         const FieldField<Field, scalar> &interfaceIntCoeffs,
         // pointers to interfaces can be used to access concrete
-        // functions such as transfering indices, patch neighbours etc
+        // functions such as transferring indices, patch neighbours etc
         const lduInterfaceFieldPtrsList &interfaces,
         const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,

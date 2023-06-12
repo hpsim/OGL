@@ -217,7 +217,7 @@ public:
         host_device_vector->operator=(*get_vector().get());
 
         // TODO why does it need its size
-        // repartitioner size should be suficient
+        // repartitioner size should be sufficient
         auto target_vector = dist_vec::create(
             exec_.get_ref_exec(), *comm.get(), gko::dim<2>{global_size, 1},
             gko::dim<2>{local_host_size, 1}, 1);
