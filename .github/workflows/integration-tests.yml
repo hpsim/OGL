@@ -73,7 +73,7 @@ jobs:
       run: |
         mkdir -p $FOAM_USER_LIBBIN
         ls -la /github/home
-        cp -r /github/home/libbin/ $FOAM_USER_LIBBIN
+        cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
 
     - name: Install OBR
       working-directory: /tmp
