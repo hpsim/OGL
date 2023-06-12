@@ -561,7 +561,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                 if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
                     value = lower[pos - upper_nnz_];
                 }
-                if (pos >= 2*upper_nnz_ && pos < 2*upper_nnz_ + diag_nnz) {
+                if (pos >= 2 * upper_nnz_ && pos < 2 * upper_nnz_ + diag_nnz) {
                     value = diag[pos - 2 * upper_nnz_];
                 }
                 if (pos >= 2 * upper_nnz_ + diag_nnz) {
