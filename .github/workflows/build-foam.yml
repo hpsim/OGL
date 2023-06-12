@@ -75,8 +75,7 @@ jobs:
       run: |
         grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
-        echo "GINKGO_CHECKOUT_VERSON=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
-
+        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
 
     - name: Configure CMake
@@ -109,6 +108,8 @@ jobs:
     - name: Copy OGL to cached folder
       working-directory: ${{github.workspace}}
       run: |
+        rm -rf /github/home/libbin
+        rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
         cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
         cp -r $FOAM_USER_LIBBIN /github/home/libbin
         ls /github/home
