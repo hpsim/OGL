@@ -42,6 +42,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Get Ginkgo checkout version
+      shell: bash
+      run: |
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
+        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
+        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -59,7 +66,7 @@ jobs:
     - name: Cache OpenFOAM
       uses: actions/cache@v3
       with:
-        key: ${{ matrix.OF.path }}
+        key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: /home/runner/work/_temp/_github_home
 
     - name: Copy OGL to cached folder
