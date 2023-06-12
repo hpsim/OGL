@@ -354,7 +354,8 @@ public:
                 auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
             return res;
         } else {
-            Info << "Only parallel runs are supported " << endl;
+            FatalErrorInFunction << "Only parallel runs are supported for OGL"
+                                 << exit(FatalError);
         }
 
         return solverPerf;
