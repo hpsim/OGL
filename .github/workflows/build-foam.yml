@@ -70,6 +70,15 @@ jobs:
         key: ${{ matrix.OF.path }}
         path: /home/runner/work/_temp/_github_home
 
+    - name: Get Ginkgo checkout version
+      shell: bash
+      run: |
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
+        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
+        echo "GINKGO_CHECKOUT_VERSON=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
+
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -79,6 +88,7 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
+        [ -f "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
@@ -99,7 +109,9 @@ jobs:
     - name: Copy OGL to cached folder
       working-directory: ${{github.workspace}}
       run: |
-        cp -r $FOAM_USER_LIBBIN /github/home
+        cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
+        cp -r $FOAM_USER_LIBBIN /github/home/libbin
+        ls /github/home
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
