@@ -307,7 +307,7 @@ public:
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
-        auto bandwith_copy_back = sizeof(scalar) *
+        auto bandwidth_copy_back = sizeof(scalar) *
                                   partition.get_local_device_size() /
                                   delta_t_copy_x_back / 1000.0;
 
@@ -330,8 +330,8 @@ public:
             std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwith ") +
-            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
+            std::string("\n\tRetrieve results bandwidth ") +
+            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;

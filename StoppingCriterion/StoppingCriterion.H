@@ -119,7 +119,7 @@ class StoppingCriterion {
             gkomatrix->compute_column_vector_sum(res.get());
             res->scale(xAvg.get());
 #else
-            // if column vector sum is not availible use dot product
+            // if column vector sum is not available use dot product
             auto xAvg_vec = gko::share(dist_vec::create(
                 device_exec, x->get_communicator(), gko::dim<2>{global_size, 1},
                 gko::dim<2>{local_size, 1}));
