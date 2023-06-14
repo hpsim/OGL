@@ -89,6 +89,9 @@ jobs:
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
         ls .
         ls third_party
+        cp -r /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
+        cp -r /github/home/libbin/cmake $FOAM_USER_LIBBIN
+        cp -r /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
