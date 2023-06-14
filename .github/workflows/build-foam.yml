@@ -86,7 +86,7 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
-        [ -f "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
+        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
         ls /github/home
         ls .
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
