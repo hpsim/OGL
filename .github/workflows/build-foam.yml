@@ -87,8 +87,8 @@ jobs:
         mkdir build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        ls /github/home
         ls .
+        ls third_party
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
