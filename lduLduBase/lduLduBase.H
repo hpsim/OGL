@@ -308,8 +308,8 @@ public:
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
         auto bandwidth_copy_back = sizeof(scalar) *
-                                  partition.get_local_device_size() /
-                                  delta_t_copy_x_back / 1000.0;
+                                   partition.get_local_device_size() /
+                                   delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
