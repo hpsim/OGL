@@ -55,6 +55,18 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
     export_x(fn_mtx, x);
 }
 
+void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
+                const word local, const objectRegistry &db)
+{
+    auto time_name = db_.time().timeName();
+    auto folder =
+        "processor" + Foam::name(Pstream::myProcNo()) + "/" + time_name + "/";
+    system("mkdir -p " + folder);
+    std::string fn{folder + this->fieldName() + "_A_" + local ".mtx"};
+    std::ofstream stream{fn};
+    gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
+}
+
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time)

@@ -280,91 +280,95 @@ public:
 
 #ifdef DATA_VALIDATION
         // TODO improve this
-        if(db_.time().writeTime()) {
-
-            auto time_name = db_.time().timeName();
-            auto folder = "processor" + Foam::name(Pstream::myProcNo()) + "/" + time_name + "/export";
-            system("mkdir -p " + folder );
-                std::string fn{ folder + this->fieldName() + "_A.mtx"};
-                std::ofstream stream_x{fn};
-                std::shared_ptr<const gko::LinOp> local_mtx =
-                    gko::as<gko::experimental::distributed::Matrix<scalar, label,
-                                                                label>>(dist_A_v)
-                        ->get_local_matrix();
-                gko::write(stream_x,
-                        (const gko::matrix::Coo<scalar> *)local_mtx.get());
-        }
+        if (db_.time().writeTime()) {
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_local_matrix(),
+                "local" db_)
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_non_local_matrix(),
+                "non_local" db_)
+                }
 #endif
 
 
-        LOG_1(verbose_, "create solver")
-        auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
-            dist_b_v, verbose_, dist_A.get_export(), precond);
+                LOG_1(verbose_, "create solver") auto solver_gen =
+                    this->create_dist_solver(
+                        this->get_exec_handler().get_device_exec(), dist_A_v,
+                        dist_x_v, dist_b_v, verbose_, dist_A.get_export(),
+                        precond);
 
-        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
-                            auto solver = solver_gen->generate(dist_A_v);)
-        LOG_1(verbose_, "solve solver done")
-        TIME_WITH_FIELDNAME(
-            verbose_, solve, this->fieldName(),
-            solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
-
-        TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
-                            dist_x.copy_back();)
-        auto bandwidth_copy_back = sizeof(scalar) *
-                                  partition.get_local_device_size() /
-                                  delta_t_copy_x_back / 1000.0;
-
-        solverPerf.initialResidual() = this->get_init_res_norm();
-        solverPerf.finalResidual() = this->get_res_norm();
-        solverPerf.nIterations() = this->get_number_of_iterations();
-        this->store_number_of_iterations();
-        auto time_for_res_norm_eval = this->get_res_norm_time();
-        auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
-        scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
-        this->set_prev_rel_res_cost(prev_rel_res_cost);
-        auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition.get_total_size();
-        word msg =
-            "\nStatistics:\n\tTime per iteration: " +
-            std::to_string(time_per_iter) +
-            std::string(" [mu s]\n\tTime per residual norm calculation: ") +
-            std::to_string(time_for_res_norm_eval) +
-            std::string(" [mu s]\n\tTime per iteration and DOF: ") +
-            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwidth ") +
-            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
-        MLOG_0(verbose_, msg)
-
-        return solverPerf;
-    }
-
-    solverPerformance solve_impl_(word typeName, scalarField &psi,
-                                  const scalarField &source,
-                                  const direction cmpt = 0) const
-    {
-        // --- Setup class containing solver performance data
-        solverPerformance solverPerf(
-            lduMatrix::preconditioner::getName(this->controlDict_) +
-                this->get_exec_handler().get_exec_name() + typeName,
-            this->fieldName());
-
-        // Solve system
-        if (Pstream::parRun()) {
+            TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
+                                auto solver = solver_gen->generate(dist_A_v);)
+            LOG_1(verbose_, "solve solver done")
             TIME_WITH_FIELDNAME(
-                verbose_, solve_multi_gpu, this->fieldName(),
-                auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
-            return res;
-        } else {
-            FatalErrorInFunction << "Only parallel runs are supported for OGL"
-                                 << exit(FatalError);
+                verbose_, solve, this->fieldName(),
+                solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
+
+            TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
+                                dist_x.copy_back();)
+            auto bandwidth_copy_back = sizeof(scalar) *
+                                       partition.get_local_device_size() /
+                                       delta_t_copy_x_back / 1000.0;
+
+            solverPerf.initialResidual() = this->get_init_res_norm();
+            solverPerf.finalResidual() = this->get_res_norm();
+            solverPerf.nIterations() = this->get_number_of_iterations();
+            this->store_number_of_iterations();
+            auto time_for_res_norm_eval = this->get_res_norm_time();
+            auto time_per_iter =
+                delta_t_solve / this->get_number_of_iterations();
+            scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
+            this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
+                this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1,
+                0);
+            this->set_prev_rel_res_cost(prev_rel_res_cost);
+            auto time_per_iter_and_dof =
+                time_per_iter * 1000.0 / partition.get_total_size();
+            word msg =
+                "\nStatistics:\n\tTime per iteration: " +
+                std::to_string(time_per_iter) +
+                std::string(" [mu s]\n\tTime per residual norm calculation: ") +
+                std::to_string(time_for_res_norm_eval) +
+                std::string(" [mu s]\n\tTime per iteration and DOF: ") +
+                std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
+                std::string("\n\tRetrieve results bandwidth ") +
+                std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
+            MLOG_0(verbose_, msg)
+
+            return solverPerf;
         }
 
-        return solverPerf;
+        solverPerformance solve_impl_(word typeName, scalarField & psi,
+                                      const scalarField &source,
+                                      const direction cmpt = 0) const
+        {
+            // --- Setup class containing solver performance data
+            solverPerformance solverPerf(
+                lduMatrix::preconditioner::getName(this->controlDict_) +
+                    this->get_exec_handler().get_exec_name() + typeName,
+                this->fieldName());
+
+            // Solve system
+            if (Pstream::parRun()) {
+                TIME_WITH_FIELDNAME(
+                    verbose_, solve_multi_gpu, this->fieldName(),
+                    auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
+                return res;
+            } else {
+                FatalErrorInFunction
+                    << "Only parallel runs are supported for OGL"
+                    << exit(FatalError);
+            }
+
+            return solverPerf;
+        };
     };
-};
 }  // namespace Foam
 
 #endif
