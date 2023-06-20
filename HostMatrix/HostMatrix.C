@@ -71,13 +71,13 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
         }
         const auto iface{interfaces.operator()(i)};
         auto coeffs{interfaceBouCoeffs[i]};
-        const label interface_size = face_cells.size();
 
         bool collect = (local)
-                           ? !!isA<processorLduInterface>(iface->interface())
-                           : !isA<processorLduInterface>(iface->interface());
+                           ?!isA<processorLduInterface>(iface->interface())
+                           :!!isA<processorLduInterface>(iface->interface());
 
         if (collect) {
+            const label interface_size = iface->interface().faceCells().size();
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 ret.push_back(coeffs[cellI]);
             }

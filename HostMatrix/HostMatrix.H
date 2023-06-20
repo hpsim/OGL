@@ -296,7 +296,7 @@ public:
     */
     std::vector<scalar> collect_interface_coeffs(
         const lduInterfaceFieldPtrsList &interfaces_,
-        const FieldField<Field, scalar> &interfaceBouCoeffs
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
         const bool local) const;
 
 
