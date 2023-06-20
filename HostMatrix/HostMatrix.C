@@ -64,31 +64,6 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::communicate_non_local_coeffs(
     std::vector<scalar> ret{};
     ret.reserve(non_local_matrix_nnz_);
 
-    label startOfRequests = Pstream::nRequests();
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
-            continue;
-        }
-
-        const auto iface{interfaces.operator()(i)};
-        const auto &face_cells{interfaceBouCoeffs[i]};
-
-        if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg = "send face cells interface " + std::to_string(i) +
-                       " from proc " + std::to_string(Pstream::myProcNo()) +
-                       " to neighbour proc " + std::to_string(neighbProcNo);
-
-            LOG_2(verbose_, msg)
-            pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
-        }
-    }
-    Pstream::waitRequests(startOfRequests);
-    LOG_2(verbose_, "send face cells done")
-
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
             continue;
@@ -101,18 +76,9 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::communicate_non_local_coeffs(
         if (isA<processorLduInterface>(iface->interface())) {
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg_2 = "receive face cells interface " + std::to_string(i) +
-                         " from proc " + std::to_string(neighbProcNo);
-            LOG_2(verbose_, msg_2)
-
-            auto otherSide_tmp = pldui.receive<scalar>(
-                Pstream::commsTypes::nonBlocking, interface_size);
-            LOG_2(verbose_, "receive face cells done")
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                ret.push_back(otherSide_tmp()[cellI]);
+                ret.push_back(interfaceBouCoeffs[i][cellI]);
             }
         }
     }
@@ -266,10 +232,10 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
             LOG_2(verbose_, "receive face cells done")
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
+                auto global_row = global_row_index_.toGlobal(
+                    neighbProcNo, otherSide_tmp()[cellI]);
                 non_local_idxs.push_back(
-                    {interface_ctr, face_cells[cellI],
-                     global_row_index_.toGlobal(neighbProcNo,
-                                                otherSide_tmp()[cellI])});
+                    {interface_ctr, face_cells[cellI], global_row});
                 interface_ctr += 1;
             }
         }
