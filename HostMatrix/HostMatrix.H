@@ -290,12 +290,14 @@ public:
         // TODO reimplement this
     }
 
-    /* Iterates all interfaces and counts elements
+    /* Iterates all interfaces and collects the coefficients into a vector
     **
+    ** @param local whether local or non local coefficients should be collected
     */
-    std::vector<scalar> collect_local_interface_coeffs(
+    std::vector<scalar> collect_interface_coeffs(
         const lduInterfaceFieldPtrsList &interfaces_,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs
+        const bool local) const;
 
 
     /* Iterates all local interfaces and returns the relative order and
@@ -315,13 +317,6 @@ public:
     */
     label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
-
-    /* Collect the non local matrix coefficients
-    **
-    */
-    std::vector<scalar> communicate_non_local_coeffs(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     /* Iterates all interfaces and collects non-local global column indices
     **
