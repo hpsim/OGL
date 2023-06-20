@@ -73,8 +73,8 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
         auto coeffs{interfaceBouCoeffs[i]};
 
         bool collect = (local)
-                           ?!isA<processorLduInterface>(iface->interface())
-                           :!!isA<processorLduInterface>(iface->interface());
+                           ? !isA<processorLduInterface>(iface->interface())
+                           : !!isA<processorLduInterface>(iface->interface());
 
         if (collect) {
             const label interface_size = iface->interface().faceCells().size();
