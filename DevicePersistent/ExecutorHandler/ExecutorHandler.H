@@ -62,26 +62,54 @@ struct ExecutorInitFunctor {
 
     void update(std::shared_ptr<gko::Executor>) const {}
 
+    const std::string not_compiled_tag = "not compiled";
+    const gko::version_info version = gko::version_info::get();
     std::shared_ptr<gko::Executor> init() const
     {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         if (executor_name_ == "cuda") {
+            if (version.cuda_version.tag == not_compiled_tag) {
+                FatalErrorInFunction
+                    << "CUDA Backend was not compiled. Recompile OGL/Ginkgo "
+                       "with CUDA backend enabled."
+                    << abort(FatalError);
+            };
+
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec,
                 false, gko::allocation_mode::device));
         }
         if (executor_name_ == "dpcpp") {
+            if (version.dpcpp_version.tag == not_compiled_tag) {
+                FatalErrorInFunction
+                    << "SYCL Backend was not compiled. Recompile OGL/Ginkgo "
+                       "with SYCL backend enabled."
+                    << abort(FatalError);
+            };
             return gko::share(gko::DpcppExecutor::create(
                 device_id_ % gko::DpcppExecutor::get_num_devices("gpu"),
                 host_exec));
         }
         if (executor_name_ == "hip") {
+            if (version.hip_version.tag == not_compiled_tag) {
+                FatalErrorInFunction
+                    << "HIP Backend was not compiled. Recompile OGL/Ginkgo "
+                       "with HIP backend enabled."
+                    << abort(FatalError);
+            };
+
             return gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
                 true));
         }
         if (executor_name_ == "omp") {
+            if (version.omp_version.tag == not_compiled_tag) {
+                FatalErrorInFunction
+                    << "OMP Backend was not compiled. Recompile OGL/Ginkgo "
+                       "with OMP backend enabled."
+                    << abort(FatalError);
+            }
             return gko::share(gko::OmpExecutor::create());
         }
         if (executor_name_ == "reference") {
