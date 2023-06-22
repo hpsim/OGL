@@ -347,9 +347,10 @@ public:
             return {};
         }
 
-        FatalErrorInFunction << "OGL does not support the preconditioner: " << name 
-                             << "\nValid Choices: none, BJ, ILU, ISAI, IC, Multigrid" 
-                             << abort(FatalError);
+        FatalErrorInFunction
+            << "OGL does not support the preconditioner: " << name
+            << "\nValid Choices: none, BJ, ILU, ISAI, IC, Multigrid"
+            << abort(FatalError);
         return {};
     }
 
