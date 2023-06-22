@@ -280,15 +280,19 @@ public:
 
 #ifdef DATA_VALIDATION
         // TODO improve this
-        if (Pstream::myProcNo() == 0) {
-            std::string fn{this->fieldName() + "_A.mtx"};
-            std::ofstream stream_x{fn};
-            std::shared_ptr<const gko::LinOp> local_mtx =
+        if (db_.time().writeTime()) {
+            export_mtx(
+                this->fieldName(),
                 gko::as<gko::experimental::distributed::Matrix<scalar, label,
                                                                label>>(dist_A_v)
-                    ->get_local_matrix();
-            gko::write(stream_x,
-                       (const gko::matrix::Coo<scalar> *)local_mtx.get());
+                    ->get_local_matrix(),
+                "local", db_);
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_non_local_matrix(),
+                "non_local", db_);
         }
 #endif
 
