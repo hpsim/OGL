@@ -56,99 +56,30 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
 template label HostMatrixWrapper<lduMatrix>::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const;
 
-template <class MatrixType>
-std::vector<scalar> HostMatrixWrapper<MatrixType>::communicate_non_local_coeffs(
-    const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const
-{
-    std::vector<scalar> ret{};
-    ret.reserve(non_local_matrix_nnz_);
-
-    label startOfRequests = Pstream::nRequests();
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
-            continue;
-        }
-
-        const auto iface{interfaces.operator()(i)};
-        const auto &face_cells{interfaceBouCoeffs[i]};
-
-        if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg = "send face cells interface " + std::to_string(i) +
-                       " from proc " + std::to_string(Pstream::myProcNo()) +
-                       " to neighbour proc " + std::to_string(neighbProcNo);
-
-            LOG_2(verbose_, msg)
-            pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
-        }
-    }
-    Pstream::waitRequests(startOfRequests);
-    LOG_2(verbose_, "send face cells done")
-
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
-            continue;
-        }
-
-        const auto iface{interfaces.operator()(i)};
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-
-        if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg_2 = "receive face cells interface " + std::to_string(i) +
-                         " from proc " + std::to_string(neighbProcNo);
-            LOG_2(verbose_, msg_2)
-
-            auto otherSide_tmp = pldui.receive<scalar>(
-                Pstream::commsTypes::nonBlocking, interface_size);
-            LOG_2(verbose_, "receive face cells done")
-
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                ret.push_back(otherSide_tmp()[cellI]);
-            }
-        }
-    }
-    word msg = "done collecting neighbouring processor cell id";
-
-    LOG_2(verbose_, msg)
-    return ret;
-}
-
-template std::vector<scalar>
-HostMatrixWrapper<lduMatrix>::communicate_non_local_coeffs(
-    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
 
 template <class MatrixType>
-std::vector<scalar>
-HostMatrixWrapper<MatrixType>::collect_local_interface_coeffs(
+std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+    const FieldField<Field, scalar> &interfaceBouCoeffs, const bool local) const
 {
     std::vector<scalar> ret{};
-    ret.reserve(local_interface_nnz_);
+    ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
 
     for (int i = 0; i < interfaces.size(); i++) {
         if (interfaces.operator()(i) == nullptr) {
             continue;
         }
         const auto iface{interfaces.operator()(i)};
-        auto face_cells{interfaceBouCoeffs[i]};
-        const label interface_size = face_cells.size();
+        auto coeffs{interfaceBouCoeffs[i]};
 
-        if (!isA<processorLduInterface>(iface->interface())) {
-            // const cyclicFvPatchField<scalar> *pldui =(const
-            // cyclicFvPatchField<scalar>*)(iface);
-            // pldui->transformCoupleField(face_cells);
+        bool collect = (local)
+                           ? !isA<processorLduInterface>(iface->interface())
+                           : !!isA<processorLduInterface>(iface->interface());
+
+        if (collect) {
+            const label interface_size = iface->interface().faceCells().size();
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                ret.push_back(-face_cells[cellI]);
+                ret.push_back(coeffs[cellI]);
             }
         }
     }
@@ -158,8 +89,9 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_coeffs(
 
 
 template std::vector<scalar>
-HostMatrixWrapper<lduMatrix>::collect_local_interface_coeffs(
-    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
+HostMatrixWrapper<lduMatrix>::collect_interface_coeffs(
+    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &,
+    const bool) const;
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
@@ -266,10 +198,10 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
             LOG_2(verbose_, "receive face cells done")
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
+                auto global_row = global_row_index_.toGlobal(
+                    neighbProcNo, otherSide_tmp()[cellI]);
                 non_local_idxs.push_back(
-                    {interface_ctr, face_cells[cellI],
-                     global_row_index_.toGlobal(neighbProcNo,
-                                                otherSide_tmp()[cellI])});
+                    {interface_ctr, face_cells[cellI], global_row});
                 interface_ctr += 1;
             }
         }
@@ -526,8 +458,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto dense = dense_vec->get_values();
 
     if (local_interface_nnz_) {
-        std::vector<scalar> couple_coeffs =
-            collect_local_interface_coeffs(interfaces, interfaceBouCoeffs);
+        auto couple_coeffs =
+            collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
         if (is_symmetric) {
             for (label i = 0; i < local_matrix_w_interfaces_nnz_; ++i) {
                 // where the element is stored in a combined array
@@ -546,7 +478,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                     // << local_sparsity_.row_idxs_.get_data()[i] << ", "
                     // << local_sparsity_.col_idxs_.get_data()[i] << "): "
                     // << value << "\n" ;
-                    value = couple_coeffs[pos - upper_nnz_ - diag_nnz];
+                    value = -couple_coeffs[pos - upper_nnz_ - diag_nnz];
                 }
 
                 dense[i] = scaling_ * value;
@@ -565,7 +497,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                     value = diag[pos - 2 * upper_nnz_];
                 }
                 if (pos >= 2 * upper_nnz_ + diag_nnz) {
-                    value = couple_coeffs[pos - 2 * upper_nnz_ - diag_nnz];
+                    value = -couple_coeffs[pos - 2 * upper_nnz_ - diag_nnz];
                 }
                 dense[i] = scaling_ * value;
             }
@@ -610,7 +542,7 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     auto ref_exec = exec_.get_ref_exec();
 
     auto interface_coeffs =
-        communicate_non_local_coeffs(interfaces, interfaceBouCoeffs);
+        collect_interface_coeffs(interfaces, interfaceBouCoeffs, false);
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
     // copy interfaces
