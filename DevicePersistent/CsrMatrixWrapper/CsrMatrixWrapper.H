@@ -176,15 +176,12 @@ struct MatrixInitFunctor {
             auto comm = exec_.get_gko_mpi_host_comm();
             TIME_WITH_FIELDNAME(
                 verbose_, update_build_repartitioner, field_name_,
-            auto repartitioner = gko::share(
-                gko::experimental::distributed::repartitioner<
-                    label, label>::create(*comm.get(),
-                                          partition_.get_host_partition(),
-                                          partition_.get_device_partition(),
-					  false
-					  )
-		    );
-	    )
+                auto repartitioner = gko::share(
+                    gko::experimental::distributed::repartitioner<
+                        label, label>::create(*comm.get(),
+                                              partition_.get_host_partition(),
+                                              partition_.get_device_partition(),
+                                              false));)
 
             auto local_nnz =
                 local_scatter_map_pers.get_array()->get_num_elems();
@@ -194,33 +191,34 @@ struct MatrixInitFunctor {
             gko::array<scalar> local_values{exec, local_nnz};
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
-            std::vector<label> send_sizes;
-            std::vector<label> send_offsets;
-            std::vector<label> recv_sizes;
-            std::vector<label> recv_offsets;
+            std::vector<int> send_sizes;
+            std::vector<int> send_offsets;
+            std::vector<int> recv_sizes;
+            std::vector<int> recv_offsets;
 
             send_sizes.assign(send_sizes_pers.get_array()->get_data(),
                               send_sizes_pers.get_array()->get_data() +
-                              send_sizes_pers.get_array()->get_num_elems());
-            send_offsets.assign(send_offs_pers.get_array()->get_data(),
-                             send_offs_pers.get_array()->get_data() +
-                             send_offs_pers.get_array()->get_num_elems());
+                                  send_sizes_pers.get_array()->get_num_elems());
+            send_offsets.assign(
+                send_offs_pers.get_array()->get_data(),
+                send_offs_pers.get_array()->get_data() +
+                    send_offs_pers.get_array()->get_num_elems());
             recv_sizes.assign(recv_sizes_pers.get_array()->get_data(),
                               recv_sizes_pers.get_array()->get_data() +
-                              recv_sizes_pers.get_array()->get_num_elems());
-            recv_offsets.assign(recv_offs_pers.get_array()->get_data(),
-                             recv_offs_pers.get_array()->get_data() +
-                             recv_offs_pers.get_array()->get_num_elems());
+                                  recv_sizes_pers.get_array()->get_num_elems());
+            recv_offsets.assign(
+                recv_offs_pers.get_array()->get_data(),
+                recv_offs_pers.get_array()->get_data() +
+                    recv_offs_pers.get_array()->get_num_elems());
 
 
             TIME_WITH_FIELDNAME(
                 verbose_, update_repartitioned_existing, field_name_,
                 repartitioner->update_existing(
                     *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-		    *coeffs.get(),
-                    *non_local_coeffs.get(),
-		    *sorting_idx_pers.get_array().get(),
-                    send_sizes, send_offsets, recv_sizes, recv_offsets,
+                    *coeffs.get(), *non_local_coeffs.get(),
+                    *sorting_idx_pers.get_array().get(), send_sizes,
+                    send_offsets, recv_sizes, recv_offsets,
                     *local_scatter_map_pers.get_array().get(),
                     *non_local_scatter_map_pers.get_array().get(), local_values,
                     non_local_values);)
@@ -298,8 +296,13 @@ struct MatrixInitFunctor {
         auto non_local_cols = non_local_col_idxs_.get_array();
         auto non_local_rows = non_local_row_idxs_.get_array();
 
+#ifdef DATA_VALIDATION
+        bool debug = true;
+#else
+        bool debug = false;
+#endif
         // check if sorted
-        if (false) {
+        if (debug) {
             bool is_sorted_rows = true;
             bool is_sorted_cols = true;
             auto rows_data = rows->get_const_data();
@@ -361,10 +364,7 @@ struct MatrixInitFunctor {
         auto repartitioner = gko::share(
             gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(),
-	        false
-		)
-	    );
+                partition_.get_device_partition(), false));
         auto to_mat = gko::share(
             dist_mtx::create(exec, repartitioner->get_to_communicator()));
 

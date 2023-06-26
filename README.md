@@ -23,9 +23,8 @@ OGL has the following requirements
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-esi.yml/badge.svg)
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-extend.yml/badge.svg)
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build.yml/badge.svg)
+![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)
+![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
 
 ## Compilation
 

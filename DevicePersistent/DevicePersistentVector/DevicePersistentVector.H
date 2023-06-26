@@ -119,9 +119,7 @@ struct VectorInitFunctor {
         auto repartitioner = gko::share(
             gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(),
-		true
-		));
+                partition_.get_device_partition(), true));
 
         repartitioner->gather(host_vector.get(), target_vector.get());
 
@@ -219,7 +217,7 @@ public:
         host_device_vector->operator=(*get_vector().get());
 
         // TODO why does it need its size
-        // repartitioner size should be suficient
+        // repartitioner size should be sufficient
         auto target_vector = dist_vec::create(
             exec_.get_ref_exec(), *comm.get(), gko::dim<2>{global_size, 1},
             gko::dim<2>{local_host_size, 1}, 1);
@@ -229,11 +227,9 @@ public:
             auto repartitioner = gko::share(
                 gko::experimental::distributed::repartitioner<label, label>::
                     create(*comm.get(),
-                           partition_.get_host_partition(),   // from
-                           partition_.get_device_partition(), // to
-			   true
-			   ) 
-            );
+                           partition_.get_host_partition(),    // from
+                           partition_.get_device_partition(),  // to
+                           true));
 
             repartitioner->scatter(host_device_vector.get(),
                                    target_vector.get());

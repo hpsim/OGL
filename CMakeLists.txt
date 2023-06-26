@@ -17,18 +17,27 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
+option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
 option(OGL_USE_FOAM_FOUNDATION_VERSION
        "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
+option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
+option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
+if(NOT OGL_ALLOW_REFERENCE_ONLY)
+    if ((NOT GINKGO_BUILD_CUDA) AND (NOT GINKGO_BUILD_HIP) AND (NOT GINKGO_BUILD_SYCL))
+        message(FATAL_ERROR "No GPU Backend was selected, set either:\n -DGINGKO_BUILD_CUDA=True\n -DGINGKO_BUILD_HIP=True\n -DGINGKO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check")
+    endif()
+endif()
+
 set(GINKGO_CHECKOUT_VERSION
-    "c1448f1e74"
+    "4292ffdee"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
@@ -190,6 +199,10 @@ endif()
 if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
   target_link_libraries(OGL PUBLIC nvToolsExt)
+endif()
+
+if(OGL_DATA_VALIDATION)
+  target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
 endif()
 
 if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)

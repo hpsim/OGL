@@ -94,12 +94,11 @@ public:
         std::shared_ptr<Factorization> factorization) const
     {
         if (Pstream::parRun()) {
-            return gko::share(
-                ras::build()
-                    .with_generated_inner_solvers(
-                            precond->generate(factorization))
-                    .on(device_exec)
-                    ->generate(gkomatrix));
+            return gko::share(ras::build()
+                                  .with_generated_inner_solvers(
+                                      precond->generate(factorization))
+                                  .on(device_exec)
+                                  ->generate(gkomatrix));
         }
         return gko::share(precond->generate(factorization));
     }
@@ -348,8 +347,10 @@ public:
             return {};
         }
 
-        FatalErrorInFunction << "Preconditioner " << name << " not supported "
-                             << abort(FatalError);
+        FatalErrorInFunction
+            << "OGL does not support the preconditioner: " << name
+            << "\nValid Choices: none, BJ, ILU, ISAI, IC, Multigrid"
+            << abort(FatalError);
         return {};
     }
 

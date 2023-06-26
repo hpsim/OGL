@@ -1,0 +1,130 @@
+name: Build OpenFOAM (ESI|FOUNDATION)
+on:
+  push:
+  pull_request:
+    types: synchronize
+  schedule:
+    - cron: "* * * * 0"
+env:
+  BUILD_TYPE: Release
+  FOAM_INST_DIR: /root/OpenFOAM
+  WM_PROJECT: OpenFOAM
+  WM_OPTIONS: linux64GccDPInt32Opt
+  WM_COMPILER_TYPE: system
+  WM_COMPILER: Gcc
+  WM_PRECISION_OPTION: DP
+  WM_LABEL_SIZE: 32
+  WM_COMPILE_OPTION: Opt
+  WM_OSTYPE: POSIX
+  WM_ARCH: linux64
+  WM_ARCH_OPTION: 64
+  WM_LINK_LANGUAGE: c++
+  WM_LABEL_OPTION:  Int32
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+
+jobs:
+  build-ogl:
+    runs-on: ubuntu-latest
+    container: greole/ofbase
+    strategy:
+      fail-fast: false
+      matrix:
+        OF: [
+          {
+            version: "v2212",
+            fork: "ESI",
+            path: "openfoam",
+            repo: "https://develop.openfoam.com/Development/openfoam.git",
+            },
+          {
+            version: "10",
+            fork: "Foundation",
+            path: "OpenFOAM-10",
+            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            }]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install ninja-build tool
+      # You may pin to the exact commit or the version.
+      # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
+      uses: seanmiddleditch/gha-setup-ninja@v3
+      with:
+        # Version of ninja-build to install
+        version: 1.10.0 # default is 1.10.0
+
+    - name: Get Ginkgo checkout version
+      shell: bash
+      run: |
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
+        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
+        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
+    - name: Set basic OF enviroment
+      run: |
+        mkdir -p $FOAM_INST_DIR
+        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
+        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}"     >> $GITHUB_ENV
+        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib"     >> $GITHUB_ENV
+        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
+        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
+
+    - name: Cache OpenFOAM
+      uses: actions/cache@v3
+      with:
+        key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        path: /home/runner/work/_temp/_github_home
+
+    - name: Configure CMake
+      # Use a bash shell so we can use the same syntax for environment variable
+      # access regardless of the host operating system
+      working-directory: ${{github.workspace}}
+      shell: bash
+      run: |
+        mkdir -p $FOAM_USER_LIBBIN
+        mkdir build
+        cd build
+        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
+        ls .
+        ls third_party
+        cp -r /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
+        cp -r /github/home/libbin/cmake $FOAM_USER_LIBBIN
+        cp -r /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
+        cmake -G Ninja -DOGL_DATA_VALIDATION=On -DOGL_ALLOW_REFERENCE_ONLY=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+
+    - name: Build OGL
+      working-directory: ${{github.workspace}}/build
+      run: |
+        cmake --build . --config $BUILD_TYPE
+
+    - name: Test OGL
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: ctest -C $BUILD_TYPE
+
+    - name: Install OGL
+      working-directory: ${{github.workspace}}
+      run: |
+        cmake --install ./build
+
+    - name: Copy OGL to cached folder
+      working-directory: ${{github.workspace}}
+      run: |
+        rm -rf /github/home/libbin
+        rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
+        cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
+        cp -r $FOAM_USER_LIBBIN /github/home/libbin
+        ls /github/home
+
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: ogl_build_${{ matrix.OF.path }}
+        path: ${{github.workspace}}/build
+
+  tests:
+    needs: build-ogl
+    uses: ./.github/workflows/integration-tests.yml

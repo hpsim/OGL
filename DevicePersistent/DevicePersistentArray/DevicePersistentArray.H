@@ -117,7 +117,7 @@ class PersistentArray
 
     T *memory_;
 
-    const label size_;
+    mutable label size_;
 
     const ExecutorHandler &exec_;
 
@@ -246,6 +246,8 @@ public:
 
         host_view = x_view;
     }
+
+    void set_size(const label size) const { size_ = size; }
 
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }

@@ -38,6 +38,7 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+#include <string.h>
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -277,6 +278,25 @@ public:
             auto precond = this->init_preconditioner(
                 dist_A_v, this->get_exec_handler().get_device_exec());)
 
+#ifdef DATA_VALIDATION
+        // TODO improve this
+        if (db_.time().writeTime()) {
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_local_matrix(),
+                "local", db_);
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_non_local_matrix(),
+                "non_local", db_);
+        }
+#endif
+
+
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
@@ -291,9 +311,9 @@ public:
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
-        auto bandwith_copy_back = sizeof(scalar) *
-                                  partition.get_local_device_size() /
-                                  delta_t_copy_x_back / 1000.0;
+        auto bandwidth_copy_back = sizeof(scalar) *
+                                   partition.get_local_device_size() /
+                                   delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -314,8 +334,8 @@ public:
             std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwith ") +
-            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
+            std::string("\n\tRetrieve results bandwidth ") +
+            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;
@@ -338,7 +358,8 @@ public:
                 auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
             return res;
         } else {
-            Info << "Only parallel runs are supported " << endl;
+            FatalErrorInFunction << "Only parallel runs are supported for OGL"
+                                 << exit(FatalError);
         }
 
         return solverPerf;
