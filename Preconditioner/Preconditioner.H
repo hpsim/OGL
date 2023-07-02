@@ -209,7 +209,8 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<
+                    scalar, label, label>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
@@ -233,7 +234,8 @@ public:
                     .on(device_exec);
 
             auto ic_factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<
+                    scalar, label, label>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
