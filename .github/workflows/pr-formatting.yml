@@ -1,0 +1,21 @@
+on:
+  issue_comment:
+    types: [created]
+name: OnCommentPR
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request != '' && github.event.comment.body == 'format!' && (github.event.comment.author_association == 'COLLABORATOR' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'OWNER')
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+      - name: Checkout the latest code (shallow clone)
+        uses: actions/checkout@v3
+      - name: run black and commit changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: cp --preserve .github/format.sh /tmp && /tmp/format.sh

@@ -1,0 +1,35 @@
+case:
+    type: OpenFOAMTutorialCase
+    solver: icoFoam
+    domain: incompressible
+    case: cavity/cavity
+    post_build:
+      - shell: cp -r 0 foo
+      - controlDict:
+           writeFormat: binary
+           libs: [libOGL.so]
+      - fvSolution:
+            set: solvers/p
+            clear: True
+            tolerance: 1e-04
+            relTol: 0
+            maxIter: 5000
+      - blockMesh
+      - decomposePar:
+            method: simple
+            numberOfSubdomains: 2
+            coeffs: [2,1,1]
+variation:
+  - operation: fvSolution
+    schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
+    values:
+      - set: solvers/p
+        preconditioner: none
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}
+      - set: solvers/p
+        solver: PCG
+        preconditioner: none
+        executor: CPU

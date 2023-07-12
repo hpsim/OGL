@@ -36,8 +36,13 @@ namespace Foam {
 
 class GKOCGFactory {
 private:
+    using mtx = gko::matrix::Csr<scalar>;
+    using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
-    using val_array = gko::Array<scalar>;
+
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 
@@ -58,21 +63,7 @@ public:
           sysMatrixName_(sysMatrixName),
           stoppingCriterion_(solverControls){};
 
-    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec,
-                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const label verbose,
-                  const bool export_res,
-                  std::shared_ptr<gko::LinOp> precond) const
-    {
-        stoppingCriterionVec_.push_back(
-            stoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, export_res,
-                get_prev_number_of_iterations()));
-
-        if (precond != NULL) return create_precond(exec, precond);
-        return create_default(exec);
-    };
+    CREATE_SOLVER_METHODS(cg)
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec) const
@@ -99,6 +90,11 @@ public:
 
     scalar get_res_norm() const { return stoppingCriterion_.get_res_norm(); }
 
+    scalar get_res_norm_time() const
+    {
+        return stoppingCriterion_.get_res_norm_time();
+    }
+
     std::shared_ptr<vec> get_res_norms() const
     {
         return stoppingCriterion_.get_res_norms();
@@ -107,12 +103,26 @@ public:
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,
-                             stoppingCriterion_.get_num_iters());
+                             stoppingCriterion_.get_num_iters(),
+                             stoppingCriterion_.get_is_final());
     }
+
+    scalar get_solve_prev_rel_res_cost() const
+    {
+        return ::Foam::get_solve_prev_rel_res_cost(sysMatrixName_, db_);
+    }
+
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
+
 
     label get_prev_number_of_iterations() const
     {
-        return get_solve_prev_iters(sysMatrixName_, db_);
+        return get_solve_prev_iters(sysMatrixName_, db_,
+                                    stoppingCriterion_.get_is_final());
     }
 
     label get_number_of_iterations() const

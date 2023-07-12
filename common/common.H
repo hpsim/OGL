@@ -28,72 +28,109 @@ SourceFiles
 #include "fvCFD.H"
 #include "regIOobject.H"
 
+#ifdef GINKGO_BUILD_CUDA
+#include "nvToolsExt.h"
+#endif
+
 #include <string.h>
 #include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
-using mtx = gko::matrix::Csr<scalar>;
-using vec = gko::matrix::Dense<scalar>;
 
 
 #define __FILENAME__ \
     (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define SIMPLE_LOG(VERBOSE, PRIO, MSG)                                     \
-    if (VERBOSE > PRIO) {                                                  \
-        if (Pstream::parRun()) {                                           \
-            std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "][" \
-                      << __FILENAME__ << ":" << __LINE__ << "] " << MSG    \
-                      << std::endl;                                        \
-        } else {                                                           \
-            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG       \
-                      << std::endl;                                        \
-        }                                                                  \
+#define SIMPLE_LOG(VERBOSE, PRIO, MSG, MASTER_ONLY)                         \
+    if (VERBOSE > PRIO) {                                                   \
+        if (Pstream::parRun()) {                                            \
+            if (MASTER_ONLY == 1) {                                         \
+                if (Pstream::myProcNo() == 0) {                             \
+                    std::cout << "[OGL LOG][" << __FILENAME__ << ":"        \
+                              << __LINE__ << "] " << MSG << std::endl;      \
+                }                                                           \
+            } else {                                                        \
+                std::cout << "[OGL LOG]" << Pstream::myProcNo() << "]["     \
+                          << __FILENAME__ << ":" << __LINE__ << "] " << MSG \
+                          << std::endl;                                     \
+            }                                                               \
+        } else {                                                            \
+            std::cout << "[OGL LOG][" << __FILENAME__ << "] " << MSG        \
+                      << std::endl;                                         \
+        }                                                                   \
     }
 
-#define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG)
-#define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG)
-#define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG)
+#define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 0)
+#define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 0)
+#define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 0)
+#define MLOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 1)
+#define MLOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 1)
+#define MLOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 1)
 
-#define SIMPLE_TIME(VERBOSE, NAME, F)                                         \
+#ifdef GINKGO_BUILD_CUDA
+#define START_ANNOTATE(NAME) nvtxRangePushA(#NAME);
+#else
+#define START_ANNOTATE(NAME)
+#endif
+
+#ifdef GINKGO_BUILD_CUDA
+#define END_ANNOTATE(NAME) nvtxRangePop();
+#else
+#define END_ANNOTATE(NAME)
+#endif
+
+
+#define TIME_WITH_FIELDNAME(VERBOSE, NAME, FIELD, F)                          \
+    START_ANNOTATE(NAME);                                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                     \
     F auto end_##NAME = std::chrono::steady_clock::now();                     \
+    END_ANNOTATE(NAME);                                                       \
+    auto delta_t_##NAME =                                                     \
+        std::chrono::duration_cast<std::chrono::microseconds>(end_##NAME -    \
+                                                              start_##NAME)   \
+            .count();                                                         \
     if (VERBOSE > 0) {                                                        \
         if (Pstream::parRun()) {                                              \
             if (Pstream::myProcNo() == 0 || VERBOSE > 1) {                    \
-                std::cout                                                     \
-                    << "[OGL LOG][Proc: " << Pstream::myProcNo()              \
-                    << "]" #NAME " : "                                        \
-                                                                              \
-                    << std::chrono::duration_cast<std::chrono::microseconds>( \
-                           end_##NAME - start_##NAME)                         \
-                           .count()                                           \
-                    << " mu s\n";                                             \
+                std::cout << "[OGL LOG][Proc: " << Pstream::myProcNo() << "]" \
+                          << FIELD << ": " #NAME ": "                         \
+                          << delta_t_##NAME / 1000.0 << " [ms]\n";            \
             }                                                                 \
         } else {                                                              \
-            std::cout                                                         \
-                << "[OGL LOG] " #NAME " : "                                   \
-                << std::chrono::duration_cast<std::chrono::microseconds>(     \
-                       end_##NAME - start_##NAME)                             \
-                       .count()                                               \
-                << " mu s\n";                                                 \
+            std::cout << "[OGL LOG] " << FIELD << " " #NAME ": "              \
+                      << delta_t_##NAME / 1000.0 << " [ms]\n";                \
         }                                                                     \
     }
+
+#define SIMPLE_TIME(VERBOSE, NAME, F) TIME_WITH_FIELDNAME(VERBOSE, NAME, "", F)
+
 
 std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
-void export_system(const word fieldName, const mtx *A, const vec *x,
-                   const vec *b, const word time);
+void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
+                   const gko::matrix::Dense<scalar> *x,
+                   const gko::matrix::Dense<scalar> *b, const word time);
 
-void export_vec(const word fieldName, const vec *x, const word time);
+void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
+                const word time);
+
+void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
+                const word local, const objectRegistry &db);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
-                          label prev_solve_iters);
+                          label prev_solve_iters, const bool is_final);
 
-label get_solve_prev_iters(const word sys_matrix_name,
-                           const objectRegistry &db);
+label get_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
+                           const bool is_final);
+
+void set_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                 const objectRegistry &db,
+                                 scalar prev_prev_rel_res_cost);
+
+scalar get_solve_prev_rel_res_cost(const word sys_matrix_name,
+                                   const objectRegistry &db);
 
 void set_next_caching(word sys_matrix_name, const objectRegistry &db,
                       label caching);

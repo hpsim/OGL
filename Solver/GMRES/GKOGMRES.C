@@ -30,6 +30,9 @@ defineTypeNameAndDebug(GKOGMRES, 0);
 
 lduMatrix::solver::addsymMatrixConstructorToTable<GKOGMRES>
     addGKOGMRESSymMatrixConstructorToTable_;
+
+lduMatrix::solver::addasymMatrixConstructorToTable<GKOGMRES>
+    addGKOGMRESAsymMatrixConstructorToTable_;
 }  // namespace Foam
 
 

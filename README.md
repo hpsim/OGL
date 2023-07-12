@@ -8,7 +8,7 @@
 
 ---
 
-#OpenFOAM Ginkgo Layer(OGL)
+# PROOF OF CONCEPT for an OpenFOAM Ginkgo Layer (OGL)
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 
@@ -23,9 +23,8 @@ OGL has the following requirements
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-esi.yml/badge.svg)
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build-extend.yml/badge.svg)
-![ESI OpenFOAM](https://github.com/hpsim/OGL/actions/workflows/build.yml/badge.svg)
+![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)
+![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
 
 ## Compilation
 
@@ -41,10 +40,6 @@ Then, make sure that the `system/controlDict` includes the `libOGL.so` or  `libO
 
     libs ("libOGL.so");
 
-### Experimental OGL ginkgo features
-
-Some of OGL features might depend on features which are not already implemented on ginkgo's dev branch. To enable experimental features pass `-DGINKGO_WITH_OGL_EXTENSIONS` as cmake flag.
-
 
 ## Usage
 
@@ -52,17 +47,16 @@ OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to us
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-updateSysMatrix | true | whether to copy the system matrix to device on every solver call
+ranksPerGPU  | 1 | gather from n ranks to GPU
 updateRHS | true | whether to copy the system matrix to device on every solver call
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
 verbose | 0 | print out extra info
-device_id | 0 | on which device to offload
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
-evalFrequency | 1 | evaluate residual norm every n-th iteration
 adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 scaling | 1.0 | Scale the complete system by the scaling factor
+forceHostBuffer  | false | whether to copy to host before MPI calls
 
 ### Supported Solver
 Currently, the following solver are supported
@@ -74,6 +68,14 @@ Currently, the following solver are supported
 * Multigrid (experimental)
 
 additionally, the following preconditioner are available
+
+### Supported Matrix Format
+Currently the following matrix formats can be set by **matrixFormat**
+
+* Coo 
+* Csr
+* Ell (not supported for ranksPerGPU != 1)
+* Hybrid (not supported for ranksPerGPU != 1)
 
 ### Supported Preconditioner
 * BJ, block Jacobi
@@ -93,6 +95,7 @@ SparsityPower | 1 | ISAI
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
+
 
 
 
@@ -126,3 +129,7 @@ Below an animation of a coarse 2D simulation of a karman vortex street performed
 [![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
 
 A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).
+
+# Note
+
+This repo contains mainly proof of concept work. This might change in future if we can acquire some funding and do some proper redesigning. Until then feel free to play around and contact me if anything doesn't work.

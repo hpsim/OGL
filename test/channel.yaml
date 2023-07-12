@@ -1,0 +1,43 @@
+case:
+    type: OpenFOAMTutorialCase
+    solver: pimpleFoam
+    domain: incompressible
+    case: ${{env.CYCLIC_CASE}}
+    post_build:
+      - controlDict:
+           writeFormat: binary
+           libs: ["libOGL.so"]
+           writeInterval: 100
+           endTime: 200
+      - blockMesh
+      - decomposePar:
+            method: simple
+            numberOfSubdomains: 2
+            coeffs: [2,1,1]
+variation:
+  - operation: fvSolution
+    schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
+    values:
+      - set: solvers/p
+        preconditioner: none
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}
+      - set: solvers/p
+        solver: PCG
+        preconditioner: none
+        executor: CPU
+  - operation: fvSolution
+    schema: "linear_solver/momentum-{solver}{preconditioner}{executor}"
+    values:
+      - set: solvers/U
+        preconditioner: BJ
+        solver: GKOBiCGStab
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}
+      - set: solvers/U
+        solver: PBiCGCGStab
+        preconditioner: DILU
+        executor: CPU

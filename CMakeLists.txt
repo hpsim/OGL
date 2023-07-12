@@ -17,12 +17,28 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
-option(GINKGO_BUILD_CUDA "Build ginkgo with cuda backend" FALSE)
-option(GINKGO_BUILD_HIP "Build ginkgo with hip backend" FALSE)
-option(GINKGO_BUILD_OMP "Build ginkgo with omp backend" FALSE)
-option(GINKGO_BUILD_REFERENCE "Build ginkgo with reference backend" TRUE)
+option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
+option(OGL_USE_FOAM_FOUNDATION_VERSION
+       "Build OGL for the OpenFOAM Foundation version" FALSE)
+option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
+option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
+option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
+option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
+option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
+option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
+
+if(NOT OGL_ALLOW_REFERENCE_ONLY)
+    if ((NOT GINKGO_BUILD_CUDA) AND (NOT GINKGO_BUILD_HIP) AND (NOT GINKGO_BUILD_SYCL))
+        message(FATAL_ERROR "No GPU Backend was selected, set either:\n -DGINGKO_BUILD_CUDA=True\n -DGINGKO_BUILD_HIP=True\n -DGINGKO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check")
+    endif()
+endif()
+
+set(GINKGO_CHECKOUT_VERSION
+    "4292ffdee"
+    CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
@@ -40,7 +56,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
   find_package(
     Ginkgo
     CONFIG
-    1.4.0
+    1.5.0
     REQUIRED
     PATHS
     $ENV{FOAM_USER_LIBBIN}/lib/cmake/Ginkgo
@@ -83,9 +99,8 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       "${CMAKE_CXX_FLAGS_DEBUG} \
       --coverage\
       -fprofile-arcs \
-      -fsanitize=address \
-      -ggdb3 \
-      -ftest-coverage")
+      -ggdb3")
+  # -fsanitize=address \ -ftest-coverage \
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -109,12 +124,25 @@ else()
   add_compile_definitions(linux64)
 endif()
 
+# Add a custom command that produces version.cpp, plus a dummy output that's not
+# actually produced, in order to force version.cmake to always be re-run before
+# the build
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
+         ${CMAKE_CURRENT_BINARY_DIR}/_version.C
+  COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake
+          ${GINKGO_CHECKOUT_VERSION})
+
 target_sources(
   OGL
   PRIVATE common/common.C
+          ${CMAKE_CURRENT_BINARY_DIR}/version.C
+          lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
+          DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
+          DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
@@ -124,8 +152,7 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          Solver/IR/GKOIR.C
-          Solver/Multigrid/GKOMultigrid.C
+          # Solver/IR/GKOIR.C Solver/Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
           LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
@@ -133,7 +160,9 @@ target_sources(
          lduLduBase/lduLduBase.H
          HostMatrix/HostMatrix.H
          DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
+         DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.H
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
+         DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
@@ -142,7 +171,7 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-         Solver/Multigrid/GKOMultigrid.H
+         # Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
          LduMatrix/GKOACG/GKOACG.H)
@@ -166,6 +195,18 @@ target_link_libraries(OGL PUBLIC Ginkgo::ginkgo)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
+endif()
+if(${GINKGO_BUILD_CUDA})
+  target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
+  target_link_libraries(OGL PUBLIC nvToolsExt)
+endif()
+
+if(OGL_DATA_VALIDATION)
+  target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
+endif()
+
+if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)
+  target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
 endif()
 
 install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})
