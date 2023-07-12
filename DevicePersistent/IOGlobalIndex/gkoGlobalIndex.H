@@ -34,7 +34,7 @@ SourceFiles
 #include "fvCFD.H"
 #include "labelList.H"
 
-//#include "CompactListList.H"
+// #include "CompactListList.H"
 #include <memory>
 #include "DynamicList.H"
 #include "Pstream.H"
@@ -116,7 +116,7 @@ public:
     /**
      * Initialize from local size.
      *
-     * Gets msgType and worlComm from Pstream and call 4 arguments init
+     * Gets msgType and worldComm from Pstream and call 4 arguments init
      */
     void init(const label localSize);
 

@@ -246,7 +246,7 @@ macro(ginkgo_find_package package_name target_list header_only)
       )
       set(_target_list ${target_list}) # CMake weirdness: target_list is not a
                                        # list anymore
-      # Count the number of elements in the list. Substract by one to iterate
+      # Count the number of elements in the list. Subtract by one to iterate
       # from 0 to the end.
       list(LENGTH _target_list _GKO_len1)
       math(EXPR _GKO_len2 "${_GKO_len1} - 1")

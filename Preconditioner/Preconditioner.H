@@ -41,7 +41,9 @@ class Preconditioner {
     using cg = gko::solver::Cg<scalar>;
     using mg = gko::solver::Multigrid;
     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
-    using ras = gko::preconditioner::Schwarz<scalar, label, label>;
+    using ras =
+        gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
+                                                                label>;
 
 private:
     const word sys_matrix_name_;
@@ -74,12 +76,10 @@ public:
         if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
-                    .with_generated_inner_solvers(
-                        std::vector<std::shared_ptr<const gko::LinOp>>{
-                            gko::share(precond->generate(
-                                gko::as<gko::distributed::Matrix<
-                                    scalar, label, label>>(gkomatrix)
-                                    ->get_local_matrix()))})
+                    .with_generated_inner_solvers(gko::share(precond->generate(
+                        gko::as<gko::experimental::distributed::Matrix<
+                            scalar, label, label>>(gkomatrix)
+                            ->get_local_matrix())))
                     .on(device_exec)
                     ->generate(gkomatrix));
         }
@@ -94,13 +94,11 @@ public:
         std::shared_ptr<Factorization> factorization) const
     {
         if (Pstream::parRun()) {
-            return gko::share(
-                ras::build()
-                    .with_generated_inner_solvers(
-                        std::vector<std::shared_ptr<const gko::LinOp>>{
-                            std::move(precond->generate(factorization))})
-                    .on(device_exec)
-                    ->generate(gkomatrix));
+            return gko::share(ras::build()
+                                  .with_generated_inner_solvers(
+                                      precond->generate(factorization))
+                                  .on(device_exec)
+                                  ->generate(gkomatrix));
         }
         return gko::share(precond->generate(factorization));
     }
@@ -138,8 +136,8 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::distributed::Matrix<scalar, label, label>>(
-                    gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<
+                    scalar, label, label>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
@@ -159,7 +157,7 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
@@ -194,7 +192,7 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
                     ->get_local_matrix()));
 
             // Use incomplete factors to generate ILU preconditioner
@@ -211,7 +209,8 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<
+                    scalar, label, label>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
@@ -235,7 +234,8 @@ public:
                     .on(device_exec);
 
             auto ic_factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<
+                    scalar, label, label>>(gkomatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
@@ -315,10 +315,6 @@ public:
             if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
             if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
             if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
-            if (cycle_name == "kfcg")
-                cycle = gko::solver::multigrid::cycle::kfcg;
-            if (cycle_name == "kgcr")
-                cycle = gko::solver::multigrid::cycle::kgcr;
 
             // Create multigrid factory
             label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
@@ -343,13 +339,20 @@ public:
                         amgx_pgm::build().with_deterministic(true).on(
                             device_exec))
                     .with_coarsest_solver(coarsest_gen)
-                    .with_zero_guess(zeroGuess)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
                     .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
+        if (name == "none") {
+            return {};
+        }
+
+        FatalErrorInFunction
+            << "OGL does not support the preconditioner: " << name
+            << "\nValid Choices: none, BJ, ILU, ISAI, IC, Multigrid"
+            << abort(FatalError);
         return {};
     }
 

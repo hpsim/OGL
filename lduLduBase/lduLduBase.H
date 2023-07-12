@@ -38,6 +38,7 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include <map>
 
+#include <string.h>
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
@@ -111,7 +112,7 @@ public:
             std::string(")\n\tGinkgo commit: ") +
             std::string(ginkgo_git_revision()) +
             std::string("\n\tMPI is GPU aware: ") +
-            std::to_string(gko::mpi::is_gpu_aware()) +
+            std::to_string(gko::experimental::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
             std::string("\n\tCPU ranks per GPU: ") +
@@ -141,10 +142,11 @@ class lduLduBase : public OGL_Info,
                    public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
-    using dist_vec = gko::distributed::Vector<scalar>;
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
     using GlobalIndexType = gko::int64;
-    using part_type = gko::distributed::Partition<label, label>;
+    using part_type = gko::experimental::distributed::Partition<label, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;
@@ -266,29 +268,52 @@ public:
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
                     {scaling}, ref_exec));
 
-            SIMPLE_TIME(verbose_, scale_RHS,
-                        dist_b.get_vector()->scale(dense_scaling.get());)
+            TIME_WITH_FIELDNAME(
+                verbose_, scale_RHS, this->fieldName(),
+                dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        SIMPLE_TIME(verbose_, init_precond,
-                    auto precond = this->init_preconditioner(
-                        dist_A_v, this->get_exec_handler().get_device_exec());)
+        TIME_WITH_FIELDNAME(
+            verbose_, init_precond, this->fieldName(),
+            auto precond = this->init_preconditioner(
+                dist_A_v, this->get_exec_handler().get_device_exec());)
+
+#ifdef DATA_VALIDATION
+        // TODO improve this
+        if (db_.time().writeTime()) {
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_local_matrix(),
+                "local", db_);
+            export_mtx(
+                this->fieldName(),
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(dist_A_v)
+                    ->get_non_local_matrix(),
+                "non_local", db_);
+        }
+#endif
+
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
             dist_b_v, verbose_, dist_A.get_export(), precond);
 
-        SIMPLE_TIME(verbose_, generate_solver,
-                    auto solver = solver_gen->generate(dist_A_v);)
+        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
+                            auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        SIMPLE_TIME(verbose_, solve,
-                    solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
+        TIME_WITH_FIELDNAME(
+            verbose_, solve, this->fieldName(),
+            solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
 
-        SIMPLE_TIME(verbose_, copy_x_back, dist_x.copy_back();)
-        auto bandwith_copy_back = sizeof(scalar) *
-                                  partition.get_local_device_size() /
-                                  delta_t_copy_x_back / 1000.0;
+        TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
+                            dist_x.copy_back();)
+        auto bandwidth_copy_back = sizeof(scalar) *
+                                   partition.get_local_device_size() /
+                                   delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -298,7 +323,7 @@ public:
         auto time_per_iter = delta_t_solve / this->get_number_of_iterations();
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
         this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            &prev_rel_res_cost, 1, 0);
+            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition.get_total_size();
@@ -309,8 +334,8 @@ public:
             std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwith ") +
-            std::to_string(bandwith_copy_back) + std::string(" [GByte/s]");
+            std::string("\n\tRetrieve results bandwidth ") +
+            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;
@@ -328,9 +353,13 @@ public:
 
         // Solve system
         if (Pstream::parRun()) {
-            return solve_multi_gpu_impl(psi, source, solverPerf);
+            TIME_WITH_FIELDNAME(
+                verbose_, solve_multi_gpu, this->fieldName(),
+                auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
+            return res;
         } else {
-            Info << "Only parallel runs are supported " << endl;
+            FatalErrorInFunction << "Only parallel runs are supported for OGL"
+                                 << exit(FatalError);
         }
 
         return solverPerf;

@@ -117,7 +117,7 @@ class PersistentArray
 
     T *memory_;
 
-    const label size_;
+    mutable label size_;
 
     const ExecutorHandler &exec_;
 
@@ -223,7 +223,8 @@ public:
      *
      * TODO store and use *memory
      * */
-    void copy_back(const std::shared_ptr<gko::distributed::Vector<T>> dist_x)
+    void copy_back(
+        const std::shared_ptr<gko::experimental::distributed::Vector<T>> dist_x)
     {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
                                              const_cast<T *>(memory_));
@@ -245,6 +246,8 @@ public:
 
         host_view = x_view;
     }
+
+    void set_size(const label size) const { size_ = size; }
 
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }

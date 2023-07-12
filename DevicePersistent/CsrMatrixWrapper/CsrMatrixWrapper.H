@@ -38,7 +38,8 @@ namespace Foam {
 
 
 struct MatrixInitFunctor {
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const objectRegistry &db_;
 
@@ -62,6 +63,8 @@ struct MatrixInitFunctor {
 
     const label verbose_;
 
+    const word field_name_;
+
     MatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
                       const PersistentPartition &partition,
                       const PersistentArray<label> &col_idxs,
@@ -70,7 +73,8 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &non_local_col_idxs,
                       const PersistentArray<label> &non_local_row_idxs,
                       const PersistentArray<scalar> &non_local_coeffs,
-                      const word matrix_format, const label verbose)
+                      const word matrix_format, const label verbose,
+                      const word field_name)
         : db_(db),
           exec_(exec),
           partition_(partition),
@@ -81,7 +85,8 @@ struct MatrixInitFunctor {
           non_local_row_idxs_(non_local_row_idxs),
           non_local_coeffs_(non_local_coeffs),
           matrix_format_(matrix_format),
-          verbose_(verbose)
+          verbose_(verbose),
+          field_name_(field_name)
     {}
 
     void update(std::shared_ptr<dist_mtx> persistent_device_matrix) const
@@ -147,12 +152,36 @@ struct MatrixInitFunctor {
                 verbose_,
                 false,
                 false};
+            // TODO add field name
+            PersistentArray<label> sorting_idx_pers{
+                "sorting_idx", db_, exec_, 0, verbose_, false, false};
+
+            // TODO add field name
+            PersistentArray<label> send_sizes_pers{
+                "send_sizes", db_, exec_, 0, verbose_, false, false};
+
+            // TODO add field name
+            PersistentArray<label> send_offs_pers{"send_offs", db_,   exec_, 0,
+                                                  verbose_,    false, false};
+
+            // TODO add field name
+            PersistentArray<label> recv_sizes_pers{
+                "recv_sizes", db_, exec_, 0, verbose_, false, false};
+
+            // TODO add field name
+            PersistentArray<label> recv_offs_pers{"recv_offs", db_,   exec_, 0,
+                                                  verbose_,    false, false};
+
 
             auto comm = exec_.get_gko_mpi_host_comm();
-            auto repartitioner = gko::share(
-                gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(), partition_.get_host_partition(),
-                    partition_.get_device_partition()));
+            TIME_WITH_FIELDNAME(
+                verbose_, update_build_repartitioner, field_name_,
+                auto repartitioner = gko::share(
+                    gko::experimental::distributed::repartitioner<
+                        label, label>::create(*comm.get(),
+                                              partition_.get_host_partition(),
+                                              partition_.get_device_partition(),
+                                              false));)
 
             auto local_nnz =
                 local_scatter_map_pers.get_array()->get_num_elems();
@@ -162,12 +191,37 @@ struct MatrixInitFunctor {
             gko::array<scalar> local_values{exec, local_nnz};
             gko::array<scalar> non_local_values{exec, non_local_nnz};
 
-            repartitioner->update_existing(
-                *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-                *coeffs.get(), *non_local_coeffs.get(),
-                *local_scatter_map_pers.get_array().get(),
-                *non_local_scatter_map_pers.get_array().get(), local_values,
-                non_local_values);
+            std::vector<int> send_sizes;
+            std::vector<int> send_offsets;
+            std::vector<int> recv_sizes;
+            std::vector<int> recv_offsets;
+
+            send_sizes.assign(send_sizes_pers.get_array()->get_data(),
+                              send_sizes_pers.get_array()->get_data() +
+                                  send_sizes_pers.get_array()->get_num_elems());
+            send_offsets.assign(
+                send_offs_pers.get_array()->get_data(),
+                send_offs_pers.get_array()->get_data() +
+                    send_offs_pers.get_array()->get_num_elems());
+            recv_sizes.assign(recv_sizes_pers.get_array()->get_data(),
+                              recv_sizes_pers.get_array()->get_data() +
+                                  recv_sizes_pers.get_array()->get_num_elems());
+            recv_offsets.assign(
+                recv_offs_pers.get_array()->get_data(),
+                recv_offs_pers.get_array()->get_data() +
+                    recv_offs_pers.get_array()->get_num_elems());
+
+
+            TIME_WITH_FIELDNAME(
+                verbose_, update_repartitioned_existing, field_name_,
+                repartitioner->update_existing(
+                    *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
+                    *coeffs.get(), *non_local_coeffs.get(),
+                    *sorting_idx_pers.get_array().get(), send_sizes,
+                    send_offsets, recv_sizes, recv_offsets,
+                    *local_scatter_map_pers.get_array().get(),
+                    *non_local_scatter_map_pers.get_array().get(), local_values,
+                    non_local_values);)
 
             auto value_view =
                 val_array::view(device_exec, local_nnz, value_ptr);
@@ -175,11 +229,15 @@ struct MatrixInitFunctor {
             auto non_local_view = val_array::view(device_exec, non_local_nnz,
                                                   non_local_value_ptr);
 
-            local_values.set_executor(device_exec);
-            value_view = local_values;
+            TIME_WITH_FIELDNAME(verbose_, update_offload_local_values,
+                                field_name_,
+                                local_values.set_executor(device_exec);
+                                value_view = local_values;)
 
-            non_local_values.set_executor(device_exec);
-            non_local_view = non_local_values;
+            TIME_WITH_FIELDNAME(verbose_, update_offload_non_local_values,
+                                field_name_,
+                                non_local_values.set_executor(device_exec);
+                                non_local_view = non_local_values;)
         } else {
             gko::array<scalar> device_values{device_exec, *coeffs.get()};
             gko::array<scalar> device_non_local_values{device_exec,
@@ -198,14 +256,15 @@ struct MatrixInitFunctor {
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
-        std::shared_ptr<gko::mpi::communicator> comm) const
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
         if (matrix_format_ == "Csr") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Csr>());
         }
         if (matrix_format_ == "Ell") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Ell>());
         }
         // if (matrix_format_ == "Hybrid") {
@@ -213,7 +272,7 @@ struct MatrixInitFunctor {
         //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
         // }
         if (matrix_format_ == "Coo") {
-            return dist_mtx::create(*comm.get(),
+            return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Coo>());
         }
 
@@ -237,8 +296,13 @@ struct MatrixInitFunctor {
         auto non_local_cols = non_local_col_idxs_.get_array();
         auto non_local_rows = non_local_row_idxs_.get_array();
 
+#ifdef DATA_VALIDATION
+        bool debug = true;
+#else
+        bool debug = false;
+#endif
         // check if sorted
-        if (false) {
+        if (debug) {
             bool is_sorted_rows = true;
             bool is_sorted_cols = true;
             auto rows_data = rows->get_const_data();
@@ -284,27 +348,28 @@ struct MatrixInitFunctor {
 
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto dist_A =
-            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_host_comm());
+        auto dist_A = generate_dist_mtx_with_inner_type(
+            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
         dist_A->read_distributed(A_data, non_local_A_data,
                                  partition_.get_host_partition().get());
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = generate_dist_mtx_with_inner_type(
-                exec_.get_gko_mpi_device_comm());
+                exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
             dist_A->move_to(device_mat.get());
             return device_mat;
         }
 
         // TODO test if this needs to be persistent
-        auto repartitioner =
-            gko::share(gko::distributed::repartitioner<label, label>::create(
+        auto repartitioner = gko::share(
+            gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition()));
-        auto to_mat =
-            gko::share(dist_mtx::create(repartitioner->get_to_communicator()));
+                partition_.get_device_partition(), false));
+        auto to_mat = gko::share(
+            dist_mtx::create(exec, repartitioner->get_to_communicator()));
 
-        auto [local_scatter_map, non_local_scatter_map] =
+        auto [local_scatter_map, non_local_scatter_map, sorting_idx, send_sizes,
+              send_offsets, recv_sizes, recv_offsets] =
             repartitioner->gather(dist_A.get(), to_mat.get());
 
         // TODO add field name
@@ -313,7 +378,7 @@ struct MatrixInitFunctor {
             "local_scatter_map",
             db_,
             exec_,
-            local_scatter_map.get_num_elems(),
+            static_cast<label>(local_scatter_map.get_num_elems()),
             verbose_,
             false,
             false};
@@ -324,13 +389,67 @@ struct MatrixInitFunctor {
             "non_local_scatter_map",
             db_,
             exec_,
-            non_local_scatter_map.get_num_elems(),
+            static_cast<label>(non_local_scatter_map.get_num_elems()),
             verbose_,
             false,
             false};
 
-        auto device_mat =
-            generate_dist_mtx_with_inner_type(exec_.get_gko_mpi_device_comm());
+        // TODO add field name
+        PersistentArray<label> sorting_idx_pers{
+            sorting_idx.get_data(),
+            "sorting_idx",
+            db_,
+            exec_,
+            static_cast<label>(sorting_idx.get_num_elems()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> send_sizes_pers{
+            send_sizes.data(),
+            "send_sizes",
+            db_,
+            exec_,
+            static_cast<label>(send_sizes.size()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> send_offs_pers{
+            send_offsets.data(),
+            "send_offs",
+            db_,
+            exec_,
+            static_cast<label>(send_offsets.size()),
+            verbose_,
+            false,
+            false};
+
+        // TODO add field name
+        PersistentArray<label> recv_sizes_pers{
+            recv_sizes.data(),
+            "recv_sizes",
+            db_,
+            exec_,
+            static_cast<label>(recv_sizes.size()),
+            verbose_,
+            false,
+            false};
+
+        PersistentArray<label> recv_offs_pers{
+            recv_offsets.data(),
+            "recv_offs",
+            db_,
+            exec_,
+            static_cast<label>(recv_offsets.size()),
+            verbose_,
+            false,
+            false};
+
+        auto device_mat = generate_dist_mtx_with_inner_type(
+            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
 
         to_mat->move_to(device_mat.get());
 
@@ -341,7 +460,8 @@ struct MatrixInitFunctor {
 
 class MatrixWrapper {
 private:
-    using dist_mtx = gko::distributed::Matrix<scalar, label, label>;
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
 
 
     const label verbose_;
@@ -372,7 +492,7 @@ public:
                   db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
-                  verbose_),
+                  verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}

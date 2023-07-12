@@ -80,7 +80,7 @@ namespace Foam {
 #endif
 
 
-#define SIMPLE_TIME2(VERBOSE, NAME, FIELD, F)                                 \
+#define TIME_WITH_FIELDNAME(VERBOSE, NAME, FIELD, F)                          \
     START_ANNOTATE(NAME);                                                     \
     auto start_##NAME = std::chrono::steady_clock::now();                     \
     F auto end_##NAME = std::chrono::steady_clock::now();                     \
@@ -102,7 +102,7 @@ namespace Foam {
         }                                                                     \
     }
 
-#define SIMPLE_TIME(VERBOSE, NAME, F) SIMPLE_TIME2(VERBOSE, NAME, "", F)
+#define SIMPLE_TIME(VERBOSE, NAME, F) TIME_WITH_FIELDNAME(VERBOSE, NAME, "", F)
 
 
 std::ostream &operator<<(
@@ -115,6 +115,9 @@ void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
 
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
                 const word time);
+
+void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
+                const word local, const objectRegistry &db);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters, const bool is_final);

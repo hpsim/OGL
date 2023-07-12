@@ -42,7 +42,7 @@ class StoppingCriterion {
     using val_array = gko::array<scalar>;
     using idx_array = gko::array<label>;
 
-    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
 
     class OpenFOAMDistStoppingCriterion
         : public gko::EnablePolymorphicObject<OpenFOAMDistStoppingCriterion,
@@ -113,15 +113,15 @@ class StoppingCriterion {
             auto xAvg = gko::initialize<gko::matrix::Dense<scalar>>(
                 1, {0}, device_exec);
 
-            x->compute_average_unsafe(xAvg.get());
+            x->compute_mean(xAvg.get());
 
 #ifdef GINKGO_WITH_OGL_EXTENSIONS
             gkomatrix->compute_column_vector_sum(res.get());
             res->scale(xAvg.get());
 #else
-            // if column vector sum is not availible use dot product
+            // if column vector sum is not available use dot product
             auto xAvg_vec = gko::share(dist_vec::create(
-                x->get_communicator(), gko::dim<2>{global_size, 1},
+                device_exec, x->get_communicator(), gko::dim<2>{global_size, 1},
                 gko::dim<2>{local_size, 1}));
             xAvg_vec->fill(1.0);
             xAvg_vec->scale(xAvg.get());
@@ -147,8 +147,8 @@ class StoppingCriterion {
             gko::dim<2> local_size = x->get_local_vector()->get_size();
             gko::dim<2> global_size = x->get_size();
 
-            auto Axref =
-                gko::share(dist_vec::create(comm, global_size, local_size));
+            auto Axref = gko::share(
+                dist_vec::create(device_exec, comm, global_size, local_size));
 
             compute_Axref_dist(global_size[0], local_size[0], device_exec,
                                gkomatrix, x, Axref);

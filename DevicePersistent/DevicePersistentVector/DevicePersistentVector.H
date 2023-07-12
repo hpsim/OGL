@@ -42,7 +42,7 @@ namespace Foam {
 template <class T>
 struct VectorInitFunctor {
     using vec = gko::matrix::Dense<scalar>;
-    using dist_vec = gko::distributed::Vector<scalar>;
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
 
     const word name_;
 
@@ -72,8 +72,8 @@ struct VectorInitFunctor {
 
 
     // update persistent array from host memory
-    void update(
-        std::shared_ptr<gko::distributed::Vector<T>> persistent_vector) const
+    void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
+                    persistent_vector) const
     {
         const auto local_size = partition_.get_local_host_size();
         word msg{"updating array " + name_ + " of size " +
@@ -83,7 +83,7 @@ struct VectorInitFunctor {
         init()->move_to(persistent_vector.get());
     }
 
-    std::shared_ptr<gko::distributed::Vector<T>> init() const
+    std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
     {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
@@ -100,7 +100,7 @@ struct VectorInitFunctor {
 
         if (partition_.get_ranks_per_gpu() == 1) {
             return gko::share(dist_vec::create(
-                *exec_.get_gko_mpi_device_comm().get(),
+                exec, *exec_.get_gko_mpi_device_comm().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
                     .get()));
         }
@@ -108,23 +108,23 @@ struct VectorInitFunctor {
         // when having more ranks than GPUs we must first repartition and
         // gather the vector
         auto host_vector = gko::share(dist_vec::create(
-            *exec_.get_gko_mpi_host_comm().get(),
+            exec, *exec_.get_gko_mpi_host_comm().get(),
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
 
         auto target_vector = gko::share(dist_vec::create(
-            *exec_.get_gko_mpi_host_comm().get(),
+            exec, *exec_.get_gko_mpi_host_comm().get(),
             vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
 
         // TODO test if this needs to be persistent
-        auto repartitioner =
-            gko::share(gko::distributed::repartitioner<label, label>::create(
+        auto repartitioner = gko::share(
+            gko::experimental::distributed::repartitioner<label, label>::create(
                 *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition()));
+                partition_.get_device_partition(), true));
 
         repartitioner->gather(host_vector.get(), target_vector.get());
 
         auto device_vec = gko::share(
-            dist_vec::create(*exec_.get_gko_mpi_device_comm().get()));
+            dist_vec::create(exec, *exec_.get_gko_mpi_device_comm().get()));
 
         target_vector->move_to(device_vec.get());
 
@@ -135,8 +135,9 @@ struct VectorInitFunctor {
 
 template <class T>
 class PersistentVector
-    : public PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>> {
-    using dist_vec = gko::distributed::Vector<scalar>;
+    : public PersistentBase<gko::experimental::distributed::Vector<T>,
+                            VectorInitFunctor<T>> {
+    using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using vec = gko::matrix::Dense<scalar>;
 
     const T *memory_;
@@ -169,7 +170,8 @@ public:
                      const ExecutorHandler &exec,
                      const PersistentPartition partition, const label verbose,
                      const bool update, const bool init_on_device)
-        : PersistentBase<gko::distributed::Vector<T>, VectorInitFunctor<T>>(
+        : PersistentBase<gko::experimental::distributed::Vector<T>,
+                         VectorInitFunctor<T>>(
               name, db,
               VectorInitFunctor<T>(exec, name, partition, memory, verbose,
                                    init_on_device),
@@ -197,7 +199,8 @@ public:
     };
 
 
-    std::shared_ptr<gko::distributed::Vector<T>> get_vector() const
+    std::shared_ptr<gko::experimental::distributed::Vector<T>> get_vector()
+        const
     {
         return this->get_persistent_object();
     }
@@ -209,23 +212,24 @@ public:
         auto global_size = partition_.get_total_size();
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto host_device_vector = dist_vec::create(*comm.get());
+        auto host_device_vector =
+            dist_vec::create(exec_.get_ref_exec(), *comm.get());
         host_device_vector->operator=(*get_vector().get());
 
         // TODO why does it need its size
-        // repartitioner size should be suficient
-        auto target_vector =
-            dist_vec::create(*comm.get(), gko::dim<2>{global_size, 1},
-                             gko::dim<2>{local_host_size, 1}, 1);
+        // repartitioner size should be sufficient
+        auto target_vector = dist_vec::create(
+            exec_.get_ref_exec(), *comm.get(), gko::dim<2>{global_size, 1},
+            gko::dim<2>{local_host_size, 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
         if (partition_.get_ranks_per_gpu() != 1) {
             auto repartitioner = gko::share(
-                gko::distributed::repartitioner<label, label>::create(
-                    *comm.get(),
-                    partition_.get_host_partition(),    // from
-                    partition_.get_device_partition())  // to
-            );
+                gko::experimental::distributed::repartitioner<label, label>::
+                    create(*comm.get(),
+                           partition_.get_host_partition(),    // from
+                           partition_.get_device_partition(),  // to
+                           true));
 
             repartitioner->scatter(host_device_vector.get(),
                                    target_vector.get());
