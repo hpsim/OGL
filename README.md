@@ -36,10 +36,21 @@ By default *OGL* will fetch and build ginkgo, to specify which backend should be
 
     cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
 
-Then, make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
+Then, compile and install by
+
+    make -j && make install
+
+### Ninja builds
+
+If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times 
+
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DGINKGO_BUILD_HIP=ON  ../..
+    cmake --build . --config Release
+    cmake --install .
+
+And make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
-
 
 ## Usage
 
