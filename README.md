@@ -8,7 +8,7 @@
 
 ---
 
-# PROOF OF CONCEPT for an OpenFOAM Ginkgo Layer (OGL)
+#PROOF OF CONCEPT for an OpenFOAM Ginkgo Layer(OGL)
 A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 
@@ -141,6 +141,6 @@ Below an animation of a coarse 2D simulation of a karman vortex street performed
 
 A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).
 
-# Note
+#Note
 
 This repo contains mainly proof of concept work. This might change in future if we can acquire some funding and do some proper redesigning. Until then feel free to play around and contact me if anything doesn't work.

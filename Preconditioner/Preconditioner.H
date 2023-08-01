@@ -270,12 +270,12 @@ public:
                        std::to_string(sparsity_power);
             MLOG_0(verbose_, msg)
 
-            auto pre_factory =
-                gko::preconditioner::Isai<gko::preconditioner::isai_type::general,
-                                          scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .with_sparsity_power(sparsity_power)
-                    .on(device_exec);
+            auto pre_factory = gko::preconditioner::Isai<
+                                   gko::preconditioner::isai_type::general,
+                                   scalar, label>::build()
+                                   .with_skip_sorting(skip_sorting)
+                                   .with_sparsity_power(sparsity_power)
+                                   .on(device_exec);
 
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }

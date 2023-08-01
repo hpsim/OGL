@@ -30,8 +30,8 @@ SourceFiles
 #include "fvCFD.H"
 
 #include "DevicePersistent/Array/Array.H"
-#include "DevicePersistent/Partition/Partition.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "DevicePersistent/Partition/Partition.H"
 
 namespace Foam {
 

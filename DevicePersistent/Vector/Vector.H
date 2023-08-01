@@ -32,8 +32,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 
 #include "DevicePersistent/Base/Base.H"
-#include "DevicePersistent/Partition/Partition.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "DevicePersistent/Partition/Partition.H"
 #include "common/common.H"
 
 namespace Foam {

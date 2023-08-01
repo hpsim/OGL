@@ -10,7 +10,7 @@ if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
 endif()
 
-# Configuration options
+#Configuration options
 
 include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
@@ -51,7 +51,7 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
 
-# If ginkgo wasn't found so far look for the third_party installation
+#If ginkgo wasn't found so far look for the third_party installation
 if(NOT ${OGL_USE_EXTERNAL_GINKGO})
   find_package(
     Ginkgo
@@ -63,7 +63,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
-# To interface with ginkgo at least C++ 14 is needed
+#To interface with ginkgo at least C++ 14 is needed
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -89,8 +89,7 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     -Rpass=loop-vectorize \
     -ffast-math \
     "
-      # -Rpass-analysis=loop-vectorize \ -Rpass-missed=loop-vectorize \
-  )
+#- Rpass - analysis = loop - vectorize \ - Rpass - missed = loop - vectorize)
 
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   add_definitions(-DWITH_GNU)
@@ -100,7 +99,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       --coverage\
       -fprofile-arcs \
       -ggdb3")
-  # -fsanitize=address \ -ftest-coverage \
+#- fsanitize = address \ - ftest - coverage \
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -124,9 +123,9 @@ else()
   add_compile_definitions(linux64)
 endif()
 
-# Add a custom command that produces version.cpp, plus a dummy output that's not
-# actually produced, in order to force version.cmake to always be re-run before
-# the build
+#Add a custom command that produces version.cpp, plus a dummy output that's not
+#actually produced, in order to force version.cmake to always be re - run before
+#the build
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
          ${CMAKE_CURRENT_BINARY_DIR}/_version.C
@@ -153,9 +152,9 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          # Solver/IR/GKOIR.C Solver/Multigrid/GKOMultigrid.C
+#Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
-          # LduMatrix/GKOACG/GKOACG.C
+#LduMatrix / GKOACG / GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
@@ -173,10 +172,10 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-         # Solver/Multigrid/GKOMultigrid.H
+#Solver / Multigrid / GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
-         # LduMatrix/GKOACG/GKOACG.H
+#LduMatrix / GKOACG / GKOACG.H
          )
 
 target_include_directories(

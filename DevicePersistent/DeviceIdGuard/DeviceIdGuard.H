@@ -49,20 +49,18 @@ struct DeviceIdGuardInitFunctor {
 
     std::shared_ptr<gko::scoped_device_id_guard> init() const
     {
-        return std::make_shared<gko::scoped_device_id_guard>(std::move(executor_->get_scoped_device_id_guard()));
+        return std::make_shared<gko::scoped_device_id_guard>(
+            std::move(executor_->get_scoped_device_id_guard()));
     }
 };
 
 class DeviceIdGuardHandler : public PersistentBase<gko::scoped_device_id_guard,
-                             DeviceIdGuardInitFunctor > {
+                                                   DeviceIdGuardInitFunctor> {
 public:
-    DeviceIdGuardHandler(const objectRegistry &db ,
-                    const word field_name,
-                    const std::shared_ptr<gko::Executor> executor
-                    )
+    DeviceIdGuardHandler(const objectRegistry &db, const word field_name,
+                         const std::shared_ptr<gko::Executor> executor)
         : PersistentBase<gko::scoped_device_id_guard, DeviceIdGuardInitFunctor>(
-              "scoped_device_id_guard_" + field_name,
-              db,
+              "scoped_device_id_guard_" + field_name, db,
               DeviceIdGuardInitFunctor(executor), true, 0)
     {}
 };

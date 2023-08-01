@@ -92,7 +92,6 @@ struct ExecutorInitFunctor {
                 host_exec));
         }
         if (executor_name_ == "hip") {
-
             if (version.hip_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "HIP Backend was not compiled. Recompile OGL/Ginkgo "

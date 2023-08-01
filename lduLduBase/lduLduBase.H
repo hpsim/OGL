@@ -28,9 +28,9 @@ SourceFiles
 #ifndef OGL_lduLduBase_INCLUDED_H
 #define OGL_lduLduBase_INCLUDED_H
 
-#include "HostMatrix/HostMatrix.H"
 #include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "DevicePersistent/Vector/Vector.H"
+#include "HostMatrix/HostMatrix.H"
 #include "Preconditioner/Preconditioner.H"
 #include "common/common.H"
 
