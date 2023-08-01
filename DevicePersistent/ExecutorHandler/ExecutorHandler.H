@@ -92,6 +92,7 @@ struct ExecutorInitFunctor {
                 host_exec));
         }
         if (executor_name_ == "hip") {
+
             if (version.hip_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "HIP Backend was not compiled. Recompile OGL/Ginkgo "
@@ -99,9 +100,10 @@ struct ExecutorInitFunctor {
                     << abort(FatalError);
             };
 
-            return gko::share(gko::HipExecutor::create(
+            auto ret = gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
                 true));
+            return ret;
         }
         if (executor_name_ == "omp") {
             if (version.omp_version.tag == not_compiled_tag) {

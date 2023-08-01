@@ -143,6 +143,7 @@ target_sources(
           DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.C
           DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
           DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
+          DevicePersistent/PersistentDeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
@@ -164,6 +165,7 @@ target_sources(
          DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
          DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
+         DevicePersistent/PersistentDeviceIdGuard/DeviceIdGuard.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H

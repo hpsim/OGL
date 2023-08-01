@@ -30,7 +30,8 @@ SourceFiles
 
 #include "../../HostMatrix/HostMatrix.H"
 #include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
-#include "../ExecutorHandler/ExecutorHandler.H"
+// #include "../ExecutorHandler/ExecutorHandler.H"
+// #include "../PersistentDeviceIdGuard/DeviceIdGuard.H"
 #include "../Preconditioner/Preconditioner.H"
 
 #include "../common/common.H"
@@ -95,8 +96,6 @@ public:
         auto build_type = std::string("Release");
 #endif
 
-        // auto exec_info =
-        // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
             std::string("Initialising OGL\n\tOGL commit: ") +
             std::string(git_version()) + std::string(" ") +
