@@ -1,3 +1,3 @@
-#include "DevicePersistentVector.H"
+#include "Vector.H"
 
 namespace Foam {}  // namespace Foam

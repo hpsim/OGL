@@ -28,8 +28,9 @@ SourceFiles
 #ifndef GKO_LDUBase_H
 #define GKO_LDUBase_H
 
-#include "../common/common.H"
-#include "../lduLduBase/lduLduBase.H"
+#include "common/common.H"
+#include "lduLduBase/lduLduBase.H"
+
 #include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

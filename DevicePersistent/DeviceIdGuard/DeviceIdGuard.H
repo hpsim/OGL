@@ -28,7 +28,7 @@ SourceFiles
 #ifndef OGL_DeviceIdGuardHandler_INCLUDED_H
 #define OGL_DeviceIdGuardHandler_INCLUDED_H
 
-#include "../DevicePersistentBase/DevicePersistentBase.H"
+#include "DevicePersistent/Base/Base.H"
 #include "fvCFD.H"
 
 #include <ginkgo/ginkgo.hpp>

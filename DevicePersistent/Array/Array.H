@@ -30,10 +30,10 @@ SourceFiles
 #include <functional>
 
 #include <ginkgo/ginkgo.hpp>
-#include "../DevicePersistentBase/DevicePersistentBase.H"
-#include "../ExecutorHandler/ExecutorHandler.H"
 
-#include "../common/common.H"
+#include "DevicePersistent/Base/Base.H"
+#include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "common/common.H"
 
 namespace Foam {
 

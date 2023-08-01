@@ -28,7 +28,7 @@ SourceFiles
 #define OGL_IOPreconditioner_INCLUDED_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "../DevicePersistentBase/DevicePersistentBase.H"
+#include "DevicePersistent/Base/Base.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -255,6 +255,23 @@ public:
 
             auto pre_factory =
                 gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+                                          scalar, label>::build()
+                    .with_skip_sorting(skip_sorting)
+                    .with_sparsity_power(sparsity_power)
+                    .on(device_exec);
+
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+        }
+        if (name == "GISAI") {
+            label sparsity_power(
+                controls.lookupOrDefault("sparsityPower", label(1)));
+
+            word msg = "Generate preconditioner " + name + " SparsityPower " +
+                       std::to_string(sparsity_power);
+            MLOG_0(verbose_, msg)
+
+            auto pre_factory =
+                gko::preconditioner::Isai<gko::preconditioner::isai_type::general,
                                           scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
                     .with_sparsity_power(sparsity_power)

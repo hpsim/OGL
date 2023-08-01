@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOGMRES_H
 #define GKOGMRES_H
 
-#include "../BaseWrapper/lduBase/GKOlduBase.H"
+#include "BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

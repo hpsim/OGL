@@ -30,10 +30,10 @@ SourceFiles
 #include "processorLduInterface.H"
 
 #include <vector>
-#include "../DevicePersistentArray/DevicePersistentArray.H"
-#include "../PersistentDeviceIdGuard/DeviceIdGuard.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
-#include "../common/common.H"
+#include "DevicePersistent/Array/Array.H"
+#include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
+#include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
+#include "common/common.H"
 
 
 namespace Foam {

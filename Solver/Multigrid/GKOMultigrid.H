@@ -28,8 +28,8 @@ SourceFiles
 #ifndef OGL_IOGKOMultigrid_INCLUDED_H
 #define OGL_IOGKOMultigrid_INCLUDED_H
 
-#include "../BaseWrapper/lduBase/GKOlduBase.H"
-#include "../StoppingCriterion/StoppingCriterion.H"
+#include "BaseWrapper/lduBase/GKOlduBase.H"
+#include "StoppingCriterion/StoppingCriterion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

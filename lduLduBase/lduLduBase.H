@@ -28,13 +28,11 @@ SourceFiles
 #ifndef OGL_lduLduBase_INCLUDED_H
 #define OGL_lduLduBase_INCLUDED_H
 
-#include "../../HostMatrix/HostMatrix.H"
-#include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
-// #include "../ExecutorHandler/ExecutorHandler.H"
-// #include "../PersistentDeviceIdGuard/DeviceIdGuard.H"
-#include "../Preconditioner/Preconditioner.H"
-
-#include "../common/common.H"
+#include "HostMatrix/HostMatrix.H"
+#include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
+#include "DevicePersistent/Vector/Vector.H"
+#include "Preconditioner/Preconditioner.H"
+#include "common/common.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>

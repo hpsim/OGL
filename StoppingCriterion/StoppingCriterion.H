@@ -29,7 +29,8 @@ SourceFiles
 #define OGL_STOPPING_CRITERION_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "../common/common.H"
+
+#include "common/common.H"
 
 #include "fvCFD.H"
 

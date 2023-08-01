@@ -28,8 +28,8 @@ SourceFiles
 #ifndef GKOIR_H
 #define GKOIR_H
 
-#include "../BaseWrapper/lduBase/GKOlduBase.H"
-#include "../StoppingCriterion/StoppingCriterion.H"
+#include "BaseWrapper/lduBase/GKOlduBase.H"
+#include "StoppingCriterion/StoppingCriterion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

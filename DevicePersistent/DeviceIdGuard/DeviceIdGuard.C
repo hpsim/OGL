@@ -1,7 +1,7 @@
 #include <ginkgo/ginkgo.hpp>
 #include <type_traits>
 
-#include "ExecutorHandler.H"
+#include "DeviceIdGuard.H"
 
 namespace Foam {
 

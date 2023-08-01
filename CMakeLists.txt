@@ -139,11 +139,11 @@ target_sources(
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
-          DevicePersistent/DevicePersistentBase/DevicePersistentBase.C
-          DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.C
-          DevicePersistent/DevicePersistentArray/DevicePersistentArray.C
-          DevicePersistent/DevicePersistentVector/DevicePersistentVector.C
-          DevicePersistent/PersistentDeviceIdGuard/DeviceIdGuard.C
+          DevicePersistent/Base/Base.C
+          DevicePersistent/Partition/Partition.C
+          DevicePersistent/Array/Array.C
+          DevicePersistent/Vector/Vector.C
+          DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
@@ -155,17 +155,17 @@ target_sources(
           Solver/BiCGStab/GKOBiCGStab.C
           # Solver/IR/GKOIR.C Solver/Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
-          LduMatrix/GKOACG/GKOACG.C
+          # LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
          HostMatrix/HostMatrix.H
-         DevicePersistent/DevicePersistentBase/DevicePersistentBase.H
-         DevicePersistent/DevicePersistentPartition/DevicePersistentPartition.H
-         DevicePersistent/DevicePersistentArray/DevicePersistentArray.H
-         DevicePersistent/DevicePersistentVector/DevicePersistentVector.H
+         DevicePersistent/Base/Base.H
+         DevicePersistent/Partition/Partition.H
+         DevicePersistent/Array/Array.H
+         DevicePersistent/Vector/Vector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
-         DevicePersistent/PersistentDeviceIdGuard/DeviceIdGuard.H
+         DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
@@ -176,7 +176,8 @@ target_sources(
          # Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
-         LduMatrix/GKOACG/GKOACG.H)
+         # LduMatrix/GKOACG/GKOACG.H
+         )
 
 target_include_directories(
   OGL SYSTEM
@@ -184,14 +185,8 @@ target_include_directories(
           $ENV{FOAM_SRC}/meshTools/lnInclude
           $ENV{FOAM_SRC}/OpenFOAM/lnInclude
           $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
-          common/
-          BaseWrapper/lduBase/
-          BaseWrapper/CoupledLduBase/
-          DevicePersistent/DevicePersistentBase/
-          DevicePersistent/ExecutorHandler/
-          DevicePersistent/CsrMatrixWrapper/
-          Preconditioner/
-          DevicePersistent/IOGlobalIndex/)
+          ${CMAKE_CURRENT_SOURCE_DIR}
+          )
 
 target_link_libraries(OGL PUBLIC Ginkgo::ginkgo)
 
