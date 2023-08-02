@@ -77,7 +77,7 @@ Currently, the following solver are supported
 * IR (experimental)
 * Multigrid (experimental)
 
-additionally, the following preconditioner are available
+additionally, the following preconditioners are available
 
 ### Supported Matrix Format (Experimental)
 Currently, the following matrix formats can be set by **matrixFormat**
