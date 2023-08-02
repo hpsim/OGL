@@ -89,7 +89,8 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     -Rpass=loop-vectorize \
     -ffast-math \
     "
-#- Rpass - analysis = loop - vectorize \ - Rpass - missed = loop - vectorize)
+#- Rpass-analysis=loop-vectorize  -Rpass-missed=loop-vectorize
+)
 
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   add_definitions(-DWITH_GNU)
