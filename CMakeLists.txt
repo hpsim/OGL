@@ -124,9 +124,9 @@ else()
   add_compile_definitions(linux64)
 endif()
 
-#Add a custom command that produces version.cpp, plus a dummy output that's not
+# Add a custom command that produces version.cpp, plus a dummy output that's not
 # actually produced, in order to always force re-run version.cmake before
-#the build
+# the build
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
          ${CMAKE_CURRENT_BINARY_DIR}/_version.C
@@ -153,9 +153,10 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-#Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
+          # Solver/IR/GKOIR.C
+          # Solver/ Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
-#LduMatrix / GKOACG / GKOACG.C
+          # LduMatrix/GKOACG/GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
@@ -173,10 +174,10 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-#Solver / Multigrid / GKOMultigrid.H
+         # Solver/Multigrid/GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
-#LduMatrix / GKOACG / GKOACG.H
+         # LduMatrix/GKOACG/GKOACG.H
          )
 
 target_include_directories(
