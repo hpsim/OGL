@@ -109,7 +109,7 @@ ZeroGuess | True | Multigrid
 
 ## Known Limitations
 
-Currently only basic cyclic boundary conditions are supported. Block-coupled matrices are not supported.
+Currently, only basic cyclic boundary conditions are supported. Block-coupled matrices are not supported.
 
 ## Citing
 
