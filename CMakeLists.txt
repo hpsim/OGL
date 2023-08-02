@@ -124,7 +124,7 @@ else()
 endif()
 
 #Add a custom command that produces version.cpp, plus a dummy output that's not
-#actually produced, in order to force version.cmake to always be re - run before
+# actually produced, in order to always force re-run version.cmake before
 #the build
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
