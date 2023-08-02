@@ -27,11 +27,12 @@ SourceFiles
 #ifndef OGL_IOGKOMatrixHandler_INCLUDED_H
 #define OGL_IOGKOMatrixHandler_INCLUDED_H
 
-#include "fvCFD.H"
 
 #include "DevicePersistent/Array/Array.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
+
+#include "fvCFD.H"
 
 namespace Foam {
 
