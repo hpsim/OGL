@@ -51,7 +51,7 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.4.0)
 
 add_subdirectory(third_party)
 
-#If ginkgo wasn't found so far look for the third_party installation
+# If ginkgo is not found at this point, look for the third_party installation
 if(NOT ${OGL_USE_EXTERNAL_GINKGO})
   find_package(
     Ginkgo
