@@ -130,10 +130,3 @@ available through the following reference:
 ## Example
 Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
-
-## Performance
-[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
-
-A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).
-
-This repo contains mainly proof of concept work. This might change in future if we can acquire some funding and do some proper redesigning. Until then feel free to play around and contact me if anything doesn't work.
