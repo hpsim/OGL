@@ -10,7 +10,7 @@ if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
 endif()
 
-#Configuration options
+# Configuration options
 
 include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
