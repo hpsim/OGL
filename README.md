@@ -79,7 +79,7 @@ Currently, the following solver are supported
 
 additionally, the following preconditioners are available
 
-### Supported Matrix Format (Experimental)
+### Supported Matrix Formats (Experimental)
 Currently, the following matrix formats can be set by **matrixFormat**
 
 * Coo 
