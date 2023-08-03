@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOBiCGStab_H
 #define GKOBiCGStab_H
 
-#include "../BaseWrapper/lduBase/GKOlduBase.H"
+#include "BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

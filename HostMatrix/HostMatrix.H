@@ -30,9 +30,10 @@ SourceFiles
 #include "processorLduInterface.H"
 
 #include <vector>
-#include "../DevicePersistentArray/DevicePersistentArray.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
-#include "../common/common.H"
+#include "DevicePersistent/Array/Array.H"
+#include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
+#include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
+#include "common/common.H"
 
 
 namespace Foam {
@@ -96,6 +97,8 @@ private:
     using vec = gko::matrix::Dense<scalar>;
 
     const ExecutorHandler exec_;
+
+    const DeviceIdGuardHandler device_id_guard_;
 
     const label verbose_;
 
@@ -167,6 +170,7 @@ public:
         : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
                              interfaceIntCoeffs, interfaces, solverControls),
           exec_{db, solverControls, fieldName},
+          device_id_guard_{db, fieldName, exec_.get_device_exec()},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),
@@ -240,6 +244,7 @@ public:
                       const dictionary &solverControls, const word &fieldName)
         : MatrixType::solver(fieldName, matrix, solverControls),
           exec_{db, solverControls, fieldName},
+          device_id_guard_{db, fieldName, exec_.get_device_exec()},
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
           nrows_(matrix.diag().size()),

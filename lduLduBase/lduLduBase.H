@@ -28,12 +28,11 @@ SourceFiles
 #ifndef OGL_lduLduBase_INCLUDED_H
 #define OGL_lduLduBase_INCLUDED_H
 
-#include "../../HostMatrix/HostMatrix.H"
-#include "../CsrMatrixWrapper/CsrMatrixWrapper.H"
-#include "../ExecutorHandler/ExecutorHandler.H"
-#include "../Preconditioner/Preconditioner.H"
-
-#include "../common/common.H"
+#include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
+#include "DevicePersistent/Vector/Vector.H"
+#include "HostMatrix/HostMatrix.H"
+#include "Preconditioner/Preconditioner.H"
+#include "common/common.H"
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
@@ -95,8 +94,6 @@ public:
         auto build_type = std::string("Release");
 #endif
 
-        // auto exec_info =
-        // this->get_exec_handler().get_device_exec()->get_exec_info();
         word msg =
             std::string("Initialising OGL\n\tOGL commit: ") +
             std::string(git_version()) + std::string(" ") +

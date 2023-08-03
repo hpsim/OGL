@@ -19,7 +19,7 @@ License
 
 #include "gkoGlobalIndex.H"
 
-#include "../common/common.H"
+#include "common/common.H"
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 namespace Foam {

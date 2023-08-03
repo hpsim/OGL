@@ -27,12 +27,12 @@ SourceFiles
 #ifndef OGL_IOGKOMatrixHandler_INCLUDED_H
 #define OGL_IOGKOMatrixHandler_INCLUDED_H
 
-#include "fvCFD.H"
 
-#include "../DevicePersistentArray/DevicePersistentArray.H"
-#include "../DevicePersistentVector/DevicePersistentVector.H"
-#include "../ExecutorHandler/ExecutorHandler.H"
-#include "../IOGlobalIndex/gkoGlobalIndex.H"
+#include "DevicePersistent/Array/Array.H"
+#include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "DevicePersistent/Partition/Partition.H"
+
+#include "fvCFD.H"
 
 namespace Foam {
 
@@ -40,6 +40,8 @@ namespace Foam {
 struct MatrixInitFunctor {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
+
+    using val_array = gko::array<scalar>;
 
     const objectRegistry &db_;
 

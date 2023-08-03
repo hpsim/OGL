@@ -8,8 +8,7 @@
 
 ---
 
-# PROOF OF CONCEPT for an OpenFOAM Ginkgo Layer (OGL)
-A wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
+OGL is a wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers and preconditioners to provide GPGPU capabilities to OpenFOAM.
 
 
 ## Requirements
@@ -18,7 +17,7 @@ OGL has the following requirements
 
 *   _cmake 3.9+_
 *   _OpenFOAM 6+_ or _v2106_
-*   _Ginkgo 1.4.0+_
+*   _Ginkgo 1.5.0+_ (recommended to install via OGL)
 *   C++14 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
@@ -78,10 +77,10 @@ Currently, the following solver are supported
 * IR (experimental)
 * Multigrid (experimental)
 
-additionally, the following preconditioner are available
+additionally, the following preconditioners are available
 
-### Supported Matrix Format
-Currently the following matrix formats can be set by **matrixFormat**
+### Supported Matrix Formats (Experimental)
+Currently, the following matrix formats can be set by **matrixFormat**
 
 * Coo 
 * Csr
@@ -108,13 +107,9 @@ MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
 
 
-
-
-
-
 ## Known Limitations
 
-Currently cyclic boundary conditions and coupled matrices are not supported.
+Currently, only basic cyclic boundary conditions are supported. Block-coupled matrices are not supported.
 
 ## Citing
 
@@ -135,12 +130,3 @@ available through the following reference:
 ## Example
 Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)
-
-## Performance
-[![Performance](https://img.shields.io/badge/Performance-Data-brightgreen)](https://github.com/greole/OGL_DATA)
-
-A detailed overview of performance data is given in a separate  [data repository](https://github.com/greole/OGL_DATA).
-
-# Note
-
-This repo contains mainly proof of concept work. This might change in future if we can acquire some funding and do some proper redesigning. Until then feel free to play around and contact me if anything doesn't work.

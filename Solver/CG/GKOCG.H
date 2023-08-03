@@ -28,7 +28,7 @@ SourceFiles
 #ifndef GKOCG_H
 #define GKOCG_H
 
-#include "../BaseWrapper/lduBase/GKOlduBase.H"
+#include "BaseWrapper/lduBase/GKOlduBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

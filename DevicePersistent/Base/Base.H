@@ -29,9 +29,9 @@ SourceFiles
 #define OGL_IOPtr_INCLUDED_H
 
 #include <ginkgo/ginkgo.hpp>
-#include "../common/common.H"
 #include "fvCFD.H"
 
+#include "common/common.H"
 
 namespace Foam {
 

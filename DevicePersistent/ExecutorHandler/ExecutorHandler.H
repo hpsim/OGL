@@ -28,7 +28,7 @@ SourceFiles
 #ifndef OGL_ExecutorHandler_INCLUDED_H
 #define OGL_ExecutorHandler_INCLUDED_H
 
-#include "../DevicePersistentBase/DevicePersistentBase.H"
+#include "DevicePersistent/Base/Base.H"
 #include "fvCFD.H"
 
 #include <ginkgo/ginkgo.hpp>
@@ -99,9 +99,10 @@ struct ExecutorInitFunctor {
                     << abort(FatalError);
             };
 
-            return gko::share(gko::HipExecutor::create(
+            auto ret = gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
                 true));
+            return ret;
         }
         if (executor_name_ == "omp") {
             if (version.omp_version.tag == not_compiled_tag) {

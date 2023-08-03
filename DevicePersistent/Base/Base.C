@@ -1,5 +1,5 @@
 
-#include "DevicePersistentBase.H"
+#include "Base.H"
 
 namespace Foam {
 
