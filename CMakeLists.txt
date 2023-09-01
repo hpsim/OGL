@@ -32,7 +32,7 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
 
 if(NOT OGL_ALLOW_REFERENCE_ONLY)
     if ((NOT GINKGO_BUILD_CUDA) AND (NOT GINKGO_BUILD_HIP) AND (NOT GINKGO_BUILD_SYCL))
-        message(FATAL_ERROR "No GPU Backend was selected, set either:\n -DGINGKO_BUILD_CUDA=True\n -DGINGKO_BUILD_HIP=True\n -DGINGKO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check")
+        message(FATAL_ERROR "No GPU Backend was selected, set either:\n -DGINKGO_BUILD_CUDA=True\n -DGINKGO_BUILD_HIP=True\n -DGINKGO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check")
     endif()
 endif()
 
