@@ -80,7 +80,7 @@ jobs:
       run: |
           apt-get update
           apt install -y pip python3.10-venv rename
-          git clone https://github.com/hpsim/OBR.git -b sandbox
+          git clone https://github.com/hpsim/OBR.git -b enh/verify-query
           cd OBR
           python3 -m venv obr-env
           . obr-env/bin/activate
@@ -99,8 +99,9 @@ jobs:
         obr run -o fetchCase
         obr run -o generate
         obr run -o runParallelSolver -t 1
+        obr run -o apply -a --args test/postProcessLogs.py
         obr status
-        obr query -q "{key:'state'}"
+        obr query -q "ContinuityError"
         res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
         # if [ $res -eq 2 ]; then exit 0; else exit 1; fi
 
