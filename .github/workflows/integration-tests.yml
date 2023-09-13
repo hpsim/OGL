@@ -112,7 +112,7 @@ jobs:
 
     - name: Archive integration artifacts
       uses: actions/upload-artifact@v3
-      if: always()
+      if: failure()
       with:
         name: ogl_integration_${{ matrix.OF.path }}
         path: /github/home
