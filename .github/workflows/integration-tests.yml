@@ -102,8 +102,6 @@ jobs:
         obr run -o apply -a --args test/postProcessLogs.py
         obr status
         obr query -q "ContinuityError"
-        res=$(obr query -q "{key:'state'}"|grep completed|wc -l)
-        # if [ $res -eq 2 ]; then exit 0; else exit 1; fi
 
     - name: Rename log files
       if: always()
