@@ -102,7 +102,7 @@ jobs:
         obr status
         obr run -o runParallelSolver -t 1
         find . -name "*Foam*log"
-        obr run -o apply -a --args test/postProcessLogs.py
+        obr run -o apply -t 1 -a --args test/postProcessLogs.py
         obr status
         obr query -q "ContinuityError"
 
