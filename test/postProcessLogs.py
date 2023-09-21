@@ -1,5 +1,4 @@
 import os
-import exasim_plot_helpers as eph
 import sys
 import json
 
