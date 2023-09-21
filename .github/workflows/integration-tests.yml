@@ -97,12 +97,10 @@ jobs:
         mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
-        obr status
         obr run -o runParallelSolver
-        find . -name "*Foam*log"
         obr run -o apply --args /__w/OGL/OGL/test/postProcessLogs.py
         obr status
-        obr query -q "ContinuityError"
+        obr query -q global
 
     - name: Rename log files
       if: always()
