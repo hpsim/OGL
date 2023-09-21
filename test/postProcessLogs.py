@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from subprocess import check_output
 from obr.OpenFOAM.case import OpenFOAMCase
-from obr.core.core import find_logs
+from obr.core.core import find_solver_logs
 from copy import deepcopy
 from Owls.parser.LogFile import LogFile
 

@@ -96,11 +96,9 @@ jobs:
         . /tmp/OBR/obr-env/bin/activate
         mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
-        obr run -o fetchCase
         obr run -o generate
-        ls
         obr status
-        obr run -o runParallelSolver -t 1
+        obr run -o runParallelSolver
         find . -name "*Foam*log"
         obr run -o apply --args /__w/OGL/OGL/test/postProcessLogs.py
         obr status
