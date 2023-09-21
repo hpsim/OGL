@@ -30,10 +30,8 @@ def call(jobs):
         for log, campaign, tags in find_solver_logs(job):
 
             cont_error = [                                                                                                     
-                LogKey(                                                                                                  
-                    "time step continuity errors",                                                                                                
-                    ["ContinuityError " + i for i in ["local", "global", "cumulative"]],                                                    
-                )                                                                                                                           
+                LogKey("time step continuity errors",                                                                   ["ContinuityError " + i for i in ["local", "global", "cumulative"]],                                                    
+                )                     
             ]
 
             log_file_parser = LogFile(log_keys)
