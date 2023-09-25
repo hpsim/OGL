@@ -100,7 +100,7 @@ jobs:
         obr run -o runParallelSolver
         obr run -o apply --args /__w/OGL/OGL/test/postProcessLogs.py
         obr status
-        obr query -q global -q continuityErrors
+        obr query -q global -q continuityErrors -q CourantNumber
 
     - name: Rename log files
       if: always()
