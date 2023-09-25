@@ -19,7 +19,7 @@ case:
             coeffs: [2,1,1]
 variation:
   - operation: fvSolution
-    schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
+    schema: "linear_solver/{solver}{preconditioner}{executor}"
     values:
       - set: solvers/p
         preconditioner: none
