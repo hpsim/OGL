@@ -3,9 +3,9 @@ case:
     solver: pimpleFoam
     domain: incompressible
     case: ${{env.CYCLIC_CASE}}
+    uses:
+      - initialConditions: 0.orig
     post_build:
-      - initialConditions:
-          uses: 0.orig
       - controlDict:
            writeFormat: binary
            libs: ["libOGL.so"]
