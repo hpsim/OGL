@@ -4,9 +4,7 @@ case:
     domain: incompressible
     case: cavity/cavity
     post_build:
-      - shell: cp -r 0 foo
       - controlDict:
-           writeFormat: binary
            libs: [libOGL.so]
       - fvSolution:
             set: solvers/p
@@ -33,3 +31,10 @@ variation:
         solver: PCG
         preconditioner: none
         executor: CPU
+      - set: solvers/U
+        preconditioner: none
+        solver: GKOBiCGStab
+        preconditioner: BJ
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}

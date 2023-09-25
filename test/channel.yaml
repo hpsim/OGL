@@ -4,6 +4,8 @@ case:
     domain: incompressible
     case: ${{env.CYCLIC_CASE}}
     post_build:
+      - initialConditions:
+          uses: 0.orig
       - controlDict:
            writeFormat: binary
            libs: ["libOGL.so"]
