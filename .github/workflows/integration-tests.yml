@@ -108,7 +108,7 @@ jobs:
         . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
         obr status
-        obr query -q global -q continuityErrors -q CourantNumber
+        obr query -q global -q continuityErrors -q CourantNumber --json=${{matrix.Case}}_output.json
 
     - name: Validate state
       working-directory: /github/home/

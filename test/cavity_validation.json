@@ -1,1 +1,51 @@
-{"3477dc1d64c4c141ec826d0eaa2bcd91": [{"global": "completed", "continuityErrors": {"timeStepContErrors_sumLocal": "8.64386e-07", "timeStepContErrors_sumGlobal": "-1.43764e-19", "timeStepContErrors_cumulative": "-2.58788e-17", "timeStepContErrors_count": 1}, "CourantNumber": {"CourantNumber_mean": "0.222156", "CourantNumber_max": "0.852133", "CourantNumber_count": 1}}], "805decf6fbc5a27fd2cfb5b36de7ed0a": [{"global": "completed", "continuityErrors": {"timeStepContErrors_sumLocal": "7.67109e-07", "timeStepContErrors_sumGlobal": "5.55038e-20", "timeStepContErrors_cumulative": "-3.74695e-18", "timeStepContErrors_count": 1}, "CourantNumber": {"CourantNumber_mean": "0.222157", "CourantNumber_max": "0.852133", "CourantNumber_count": 1}}], "e9d7fef44e4d8aede09e1e6a5da77adb": [{"global": "completed", "continuityErrors": null, "CourantNumber": {"CourantNumber_mean": "0", "CourantNumber_max": "0", "CourantNumber_count": 1}}], "209a0949a7e508a7db6b260d566c3e7c": [{"global": "ready"}]}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "Product",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "3477dc1d64c4c141ec826d0eaa2bcd91": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "required": [
+            "timeStepContErrors_cumulative"
+          ]
+        }
+      },
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    },
+    "805decf6fbc5a27fd2cfb5b36de7ed0a": {
+      "type": "object",
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    },
+    "e9d7fef44e4d8aede09e1e6a5da77adb": {
+      "type": "object",
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    }
+  }
+}
