@@ -1,5 +1,5 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
-run-name: Build and integration test on ${{github.ref_name}}
+run-name: Build and integration test on ${{github.head_ref}}
 
 on:
   push:
