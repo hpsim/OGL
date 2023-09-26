@@ -1,5 +1,6 @@
 name: Integration Tests
 on: ["workflow_call"]
+run-name: Integration test on ${{github.ref_name}}
 
 env:
   BUILD_TYPE: Release
@@ -108,14 +109,14 @@ jobs:
         . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
         obr status
-        obr query -q global -q continuityErrors -q CourantNumber --json=${{matrix.Case}}_output.json
+        obr query -q global -q continuityErrors -q CourantNumber --export-to=${{matrix.Case}}_output.json
 
     - name: Validate state
       working-directory: /github/home/
       run: |
         . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
-        obr query -q global -q continuityErrors -q CourantNumber --validate=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
+        obr query -q global -q continuityErrors -q CourantNumber --validate-against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
 
     - name: Rename log files
       if: always()

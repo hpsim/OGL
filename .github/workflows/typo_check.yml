@@ -1,5 +1,6 @@
 name: Test GitHub Action
 on: [pull_request]
+run-name: Spell Check
 
 jobs:
   run:
