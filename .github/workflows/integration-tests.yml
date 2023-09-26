@@ -106,6 +106,7 @@ jobs:
       working-directory: /github/home/
       run: |
         . /tmp/OBR/obr-env/bin/activate
+        cd ${{matrix.Case}}
         obr status
         obr query -q global -q continuityErrors -q CourantNumber
         obr query -q global -q continuityErrors -q CourantNumber --json=${{ matrix.OF.Case}}.json
@@ -114,6 +115,7 @@ jobs:
       working-directory: /github/home/
       run: |
         . /tmp/OBR/obr-env/bin/activate
+        cd ${{matrix.Case}}
         obr query -q global -q continuityErrors -q CourantNumber --validate=${{ matrix.OF.Case}}.json
 
     - name: Rename log files
