@@ -14,11 +14,15 @@
             "completed"
           ]
         },
+        "CourantNumber": {
+            "type": "number",
+            "exclusiveMinimum": 1.0
+        },
         "continuityErrors": {
           "type": "object",
           "properties": {
             "type": "number",
-            "exclusiveMinimum": 0
+            "exclusiveMinimum": 1e-08
           },
           "required": [
             "timeStepContErrors_cumulative"
@@ -33,6 +37,28 @@
     },
     "805decf6fbc5a27fd2cfb5b36de7ed0a": {
       "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "CourantNumber": {
+            "type": "number",
+            "exclusiveMinimum": 1.0
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "type": "number",
+            "exclusiveMinimum": 1e-08
+          },
+          "required": [
+            "timeStepContErrors_cumulative"
+          ]
+        }
+      },
       "required": [
         "global",
         "continuityErrors",
@@ -41,11 +67,34 @@
     },
     "e9d7fef44e4d8aede09e1e6a5da77adb": {
       "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "CourantNumber": {
+            "type": "number",
+            "exclusiveMinimum": 1.0
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "type": "number",
+            "exclusiveMinimum": 1e-08
+          },
+          "required": [
+            "timeStepContErrors_cumulative"
+          ]
+        }
+      },
       "required": [
         "global",
         "continuityErrors",
         "CourantNumber"
       ]
+
     }
   }
 }
