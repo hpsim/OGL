@@ -101,8 +101,18 @@ jobs:
         obr run -o generate
         obr run -o runParallelSolver
         obr run -o apply --args /__w/OGL/OGL/test/postProcessLogs.py
+
+    - name: Get status
+      working-directory: /github/home/
+      run: |
         obr status
         obr query -q global -q continuityErrors -q CourantNumber
+        obr query -q global -q continuityErrors -q CourantNumber --json=${{ matrix.OF.Case}}.json
+
+    - name: Validate state
+      working-directory: /github/home/
+      run: |
+        obr query -q global -q continuityErrors -q CourantNumber --validate=${{ matrix.OF.Case}}.json
 
     - name: Rename log files
       if: always()
