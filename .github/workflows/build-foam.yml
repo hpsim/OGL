@@ -2,6 +2,10 @@ name: Build OpenFOAM (ESI|FOUNDATION)
 run-name: Build and integration test on ${{github.ref_name}}
 
 on:
+  push:
+    branches: 
+      - dev
+      - main
   pull_request:
     types: synchronize
   schedule:
