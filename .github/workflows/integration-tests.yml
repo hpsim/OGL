@@ -115,7 +115,7 @@ jobs:
       run: |
         . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
-        obr query -q global -q continuityErrors -q CourantNumber --validate=${{matrix.Case}}_validation.json
+        obr query -q global -q continuityErrors -q CourantNumber --validate=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
 
     - name: Rename log files
       if: always()
