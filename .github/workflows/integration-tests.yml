@@ -154,7 +154,6 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         ls -la /github/home
         cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
-        cp -r /github/home/OBR /tmp
 
     - name: Execute test cases
       working-directory: /github/home/
@@ -203,7 +202,6 @@ jobs:
     - name: Get status
       working-directory: /github/home/
       run: |
-        . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
         obr status
         obr query -q global -q continuityErrors -q CourantNumber --export-to=${{matrix.Case}}_output.json
@@ -211,7 +209,6 @@ jobs:
     - name: Validate state
       working-directory: /github/home/
       run: |
-        . /tmp/OBR/obr-env/bin/activate
         cd ${{matrix.Case}}
         obr query -q global -q continuityErrors -q CourantNumber --validate-against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
 

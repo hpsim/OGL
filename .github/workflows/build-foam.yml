@@ -117,15 +117,6 @@ jobs:
       run: |
         cmake --install ./build
 
-    - name: Install OBR
-      working-directory: ${{github.workspace}}
-      run: |
-          git clone https://github.com/hpsim/OBR.git -b enh/verify-query
-          cd OBR
-          python3 -m venv obr-env
-          . obr-env/bin/activate
-          pip install .
-
     - name: Copy OGL and OBR to cached folder
       working-directory: ${{github.workspace}}
       run: |
@@ -133,7 +124,6 @@ jobs:
         rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
         cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
         cp -r $FOAM_USER_LIBBIN /github/home/libbin
-        cp -r OBR /github/home/OBR
         ls /github/home
 
     - name: Archive production artifacts
