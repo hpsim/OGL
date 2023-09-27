@@ -102,7 +102,7 @@ jobs:
   run:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: setup_integration_test
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
@@ -167,7 +167,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: run_integration_test
+    needs: run
     strategy:
       fail-fast: false
       matrix:
