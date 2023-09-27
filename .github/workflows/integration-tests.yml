@@ -23,7 +23,7 @@ env:
   MPI_BUFFER_SIZE: 20000000 
 
 jobs:
-  setup_integration_test:
+  setup:
     runs-on: ubuntu-latest
     container: greole/ofbase
     strategy:
@@ -81,8 +81,6 @@ jobs:
     - name: Install OBR
       working-directory: /tmp
       run: |
-          apt-get update
-          apt install -y pip python3.10-venv rename
           git clone https://github.com/hpsim/OBR.git -b enh/verify-query
           cd OBR
           python3 -m venv obr-env
@@ -101,7 +99,7 @@ jobs:
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
 
-  run_integration_test:
+  run:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_integration_test
@@ -156,17 +154,7 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         ls -la /github/home
         cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
-
-    - name: Install OBR
-      working-directory: /tmp
-      run: |
-          apt-get update
-          apt install -y pip python3.10-venv rename
-          git clone https://github.com/hpsim/OBR.git -b enh/verify-query
-          cd OBR
-          python3 -m venv obr-env
-          . obr-env/bin/activate
-          pip install .
+        cp -r /github/home/OBR /tmp
 
     - name: Execute test cases
       working-directory: /github/home/
@@ -176,7 +164,7 @@ jobs:
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
-  validate_integration_test:
+  validate:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: run_integration_test
@@ -206,42 +194,11 @@ jobs:
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
-    - name: Source OF enviroment
-      run: |
-        mkdir -p $FOAM_INST_DIR
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{matrix.OF.path}}" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{matrix.OF.version}}" >> $GITHUB_ENV
-        echo "FOAM_ETC=$FOAM_INST_DIR/${{matrix.OF.path}}/etc" >> $GITHUB_ENV
-        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{matrix.OF.path}}/tutorials" >> $GITHUB_ENV
-        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src" >> $GITHUB_ENV
-        echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
-        echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
-        echo "CYCLIC_CASE=${{matrix.OF.cyclic_case}}" >> $GITHUB_ENV
-        echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
-
     - name: Cache OpenFOAM
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: /home/runner/work/_temp/_github_home
-
-    - name: Copy OGL to cached folder
-      run: |
-        mkdir -p $FOAM_USER_LIBBIN
-        ls -la /github/home
-        cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
-
-    - name: Install OBR
-      working-directory: /tmp
-      run: |
-          apt-get update
-          apt install -y pip python3.10-venv rename
-          git clone https://github.com/hpsim/OBR.git -b enh/verify-query
-          cd OBR
-          python3 -m venv obr-env
-          . obr-env/bin/activate
-          pip install .
 
     - name: Get status
       working-directory: /github/home/
