@@ -101,7 +101,6 @@ jobs:
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
         obr run -o runParallelSolver
-        obr run -o apply --args /__w/OGL/OGL/test/postProcessLogs.py
 
     - name: Get status
       working-directory: /github/home/

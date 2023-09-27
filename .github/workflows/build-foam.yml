@@ -10,6 +10,11 @@ on:
     types: synchronize
   schedule:
     - cron: "* * * * 0"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
   FOAM_INST_DIR: /root/OpenFOAM
