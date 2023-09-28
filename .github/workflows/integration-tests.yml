@@ -78,15 +78,6 @@ jobs:
         ls -la /github/home
         cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
 
-    - name: Install OBR
-      working-directory: /tmp
-      run: |
-          git clone https://github.com/hpsim/OBR.git -b enh/verify-query
-          cd OBR
-          python3 -m venv obr-env
-          . obr-env/bin/activate
-          pip install .
-
     - name: Generate test cases
       working-directory: /github/home/
       run: |
@@ -94,7 +85,6 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
 
-        . /tmp/OBR/obr-env/bin/activate
         mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
