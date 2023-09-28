@@ -56,7 +56,7 @@ jobs:
           {
             version: "5.0",
             fork: "extend",
-            path: "foam-extend-5.0"
+            path: "foam-extend-5.0",
             repo: "git://git.code.sf.net/p/foam-extend/foam-extend-5.0"
             }
         ]
