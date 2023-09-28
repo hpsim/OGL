@@ -146,10 +146,9 @@ jobs:
         cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
 
     - name: Execute test cases
-      working-directory: /github/home/
+      working-directory: /github/home/${{matrix.Case}}
       run: |
-        export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
-        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        source $FOAM_ETC
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
@@ -190,16 +189,14 @@ jobs:
         path: /home/runner/work/_temp/_github_home
 
     - name: Get status
-      working-directory: /github/home/
+      working-directory: /github/home/${{matrix.Case}}
       run: |
-        cd ${{matrix.Case}}
         obr status
         obr query -q global -q continuityErrors -q CourantNumber --export-to=${{matrix.Case}}_output.json
 
     - name: Validate state
-      working-directory: /github/home/
+      working-directory: /github/home/${{matrix.Case}}
       run: |
-        cd ${{matrix.Case}}
         obr query -q global -q continuityErrors -q CourantNumber --validate-against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
 
     - name: Rename log files
