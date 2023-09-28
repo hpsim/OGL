@@ -72,11 +72,11 @@ jobs:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: /home/runner/work/_temp/_github_home
 
-    - name: Copy OGL to cached folder
-      run: |
-        mkdir -p $FOAM_USER_LIBBIN
-        ls -la /github/home
-        cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
+    - name: Cache Workspace
+      uses: actions/cache@v3
+      with:
+        key: ws-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
       working-directory: /github/home/
@@ -138,6 +138,12 @@ jobs:
       with:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: /home/runner/work/_temp/_github_home
+
+    - name: Cache Workspace
+      uses: actions/cache@v3
+      with:
+        key: ws-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Copy OGL to cached folder
       run: |

@@ -1,5 +1,5 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
-run-name: Build and integration test on ${{github.head_ref}}
+run-name: [${{github.head_ref}}] Build and integration
 
 on:
   push:
@@ -52,7 +52,14 @@ jobs:
             fork: "Foundation",
             path: "OpenFOAM-10",
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-            }]
+            },
+          {
+            version: "5.0",
+            fork: "extend",
+            path: "foam-extend-5.0"
+            repo: "git://git.code.sf.net/p/foam-extend/foam-extend-5.0"
+            }
+        ]
 
     steps:
     - uses: actions/checkout@v2
