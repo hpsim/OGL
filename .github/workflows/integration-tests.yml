@@ -153,6 +153,7 @@ jobs:
 
     - name: Execute test cases
       working-directory: /github/home/${{matrix.Case}}
+      shell: bash
       run: |
         source $FOAM_ETC
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
