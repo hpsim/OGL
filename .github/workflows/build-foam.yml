@@ -47,7 +47,7 @@ jobs:
        run: echo "matrix=$(jq -c . < ./test_matrix.json)" >> $GITHUB_OUTPUT
 
 
-  build-ogl:
+  build_ogl:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_test_matrix
