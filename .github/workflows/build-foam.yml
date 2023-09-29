@@ -34,27 +34,26 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 
 jobs:
+
+  setup_test_matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+     - name: Checkout to repository
+       uses: actions/checkout@v3
+     - name: Set matrix data
+       id: set-matrix
+       run: echo "matrix=$(jq -c . < ./test_matrix.json)" >> $GITHUB_OUTPUT
+
+
   build-ogl:
     runs-on: ubuntu-latest
     container: greole/ofbase
+    needs: setup_test_matrix
     strategy:
       fail-fast: false
-      matrix:
-        OF: [
-          {
-            version: "v2212",
-            fork: "ESI",
-            path: "openfoam",
-            repo: "https://develop.openfoam.com/Development/openfoam.git",
-            cyclic_case: "LES/periodicPlaneChannel" 
-            },
-          {
-            version: "10",
-            fork: "Foundation",
-            path: "OpenFOAM-10",
-            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-            cyclic_case: "LES/channel395" 
-            }
+      matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
 #           ,
 #         {
 #           version: "5.0",
@@ -62,7 +61,6 @@ jobs:
 #           path: "foam-extend-5.0",
 #           repo: "git://git.code.sf.net/p/foam-extend/foam-extend-5.0"
 #           }
-        ]
 
     steps:
     - uses: actions/checkout@v4
@@ -135,6 +133,11 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
+  call_integration_testsl:
+    needs: [build_ogl, setup_test_matrix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
     - name: Call integration tests
       uses: ./.github/workflows/integration-tests.yml
       with:
