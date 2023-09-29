@@ -137,7 +137,7 @@ jobs:
 
   call_integration_tests:
     needs: [build_ogl, setup_test_matrix]
+    uses: ./.github/workflows/integration-tests.yml
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
-    uses: ./.github/workflows/integration-tests.yml
