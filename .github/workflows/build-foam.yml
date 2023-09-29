@@ -133,11 +133,13 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-  call_integration_testsl:
+  call_integration_tests:
     needs: [build_ogl, setup_test_matrix]
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
+
+    steps:
     - name: Call integration tests
       uses: ./.github/workflows/integration-tests.yml
       with:
