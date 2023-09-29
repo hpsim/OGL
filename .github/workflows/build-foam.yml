@@ -46,12 +46,14 @@ jobs:
             fork: "ESI",
             path: "openfoam",
             repo: "https://develop.openfoam.com/Development/openfoam.git",
+            cyclic_case: "LES/periodicPlaneChannel" 
             },
           {
             version: "10",
             fork: "Foundation",
             path: "OpenFOAM-10",
             repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
+            cyclic_case: "LES/channel395" 
             }
 #           ,
 #         {
@@ -63,7 +65,7 @@ jobs:
         ]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Get Ginkgo checkout version
       shell: bash
@@ -96,10 +98,10 @@ jobs:
         mkdir -p $FOAM_USER_LIBBIN
         mkdir build
         cd build
-        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        [ -f "/github/home/libbin/libginkgo.so" ] && cp -r /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/cmake" ] && cp -r /github/home/libbin/cmake $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/pkgconfig" ] && cp -r /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
+        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
+        [ -f "/github/home/libbin/libginkgo.so" ] && cp -rp /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
+        [ -d "/github/home/libbin/cmake" ] && cp -rp /github/home/libbin/cmake $FOAM_USER_LIBBIN
+        [ -d "/github/home/libbin/pkgconfig" ] && cp -rp /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DOGL_ALLOW_REFERENCE_ONLY=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
@@ -133,7 +135,9 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-
-  tests:
-    needs: build-ogl
-    uses: ./.github/workflows/integration-tests.yml
+    - name: Call integration tests
+      uses: ./.github/workflows/integration-tests.yml
+      with:
+        path: ${{matrix.path}}
+        version: ${{matrix.version}}
+        cyclic_case: ${{matrix.cyclic_case}}
