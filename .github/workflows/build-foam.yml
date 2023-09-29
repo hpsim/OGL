@@ -139,7 +139,7 @@ jobs:
     needs: [build_ogl, setup_test_matrix]
     uses: ./.github/workflows/integration-tests.yml
     with:
-      inputs: ${{ matrix }}
+      inputs: ${{ matrix.OF }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
