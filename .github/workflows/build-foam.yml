@@ -141,6 +141,7 @@ jobs:
     with:
       path: ${{ matrix.OF.path }}
       version: ${{ matrix.OF.version }}
+      cyclic_case: ${{ matrix.OF.cyclic_case }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
