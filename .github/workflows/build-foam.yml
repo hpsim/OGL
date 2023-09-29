@@ -137,16 +137,7 @@ jobs:
 
   call_integration_tests:
     needs: [build_ogl, setup_test_matrix]
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
-
-    steps:
-     - uses: actions/checkout@v4
-     - name: Call integration tests
-       uses: ./.github/workflows/integration-tests.yml
-       with:
-         path: ${{matrix.path}}
-         version: ${{matrix.version}}
-         cyclic_case: ${{matrix.cyclic_case}}
+    uses: ./.github/workflows/integration-tests.yml
