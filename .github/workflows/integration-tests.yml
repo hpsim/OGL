@@ -96,6 +96,7 @@ jobs:
     needs: setup
     strategy:
       fail-fast: false
+      matrix:
         Case: ["cavity", "channel"]
 
     steps:
