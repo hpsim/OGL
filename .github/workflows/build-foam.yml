@@ -143,9 +143,12 @@ jobs:
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
 
     steps:
-    - name: Call integration tests
-      uses: ./.github/workflows/integration-tests.yml
-      with:
-        path: ${{matrix.path}}
-        version: ${{matrix.version}}
-        cyclic_case: ${{matrix.cyclic_case}}
+     - name: Checkout to repository
+       uses: actions/checkout@v3
+
+     - name: Call integration tests
+       uses: ./.github/workflows/integration-tests.yml
+       with:
+         path: ${{matrix.path}}
+         version: ${{matrix.version}}
+         cyclic_case: ${{matrix.cyclic_case}}
