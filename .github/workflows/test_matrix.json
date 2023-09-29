@@ -1,0 +1,18 @@
+{
+"OF": [
+  {
+   "version": "v2212",
+   "fork": "ESI",
+   "path": "openfoam",
+   "repo": "https://develop.openfoam.com/Development/openfoam.git",
+   "cyclic_case": "LES/periodicPlaneChannel" 
+    },
+  {
+   "version": "10",
+   "fork": "Foundation",
+   "path": "OpenFOAM-10",
+   "repo": "https://github.com/OpenFOAM/OpenFOAM-10.git",
+   "cyclic_case": "LES/channel395" 
+    }
+]
+}
