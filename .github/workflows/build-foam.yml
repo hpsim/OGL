@@ -135,6 +135,7 @@ jobs:
 
   call_integration_tests:
     needs: [build_ogl, setup_test_matrix]
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
