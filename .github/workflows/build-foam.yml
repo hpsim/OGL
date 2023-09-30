@@ -53,6 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_build_matrix
+    name: build-${{matrix.OF.version}}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
@@ -83,7 +84,7 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
 
-    - name: Cache OpenFOAM
+    - name: Cache build
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
