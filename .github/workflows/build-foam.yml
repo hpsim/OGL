@@ -49,10 +49,10 @@ jobs:
          echo "matrix=$(jq -c . < .github/workflows/test_matrix.json)" >> $GITHUB_OUTPUT
 
 
-  build_ogl:
+  build:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: setup_test_matrix
+    needs: setup_build_matrix
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
@@ -136,7 +136,7 @@ jobs:
         path: ${{github.workspace}}/build
 
   call_integration_tests:
-    needs: [build_ogl, setup_test_matrix]
+    needs: [build, setup_build_matrix]
     uses: ./.github/workflows/integration-tests.yml
     with:
       path: ${{ matrix.OF.path }}
