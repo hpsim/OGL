@@ -55,7 +55,7 @@ jobs:
     needs: setup_build_matrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
 #           ,
 #         {
 #           version: "5.0",
