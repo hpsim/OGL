@@ -160,7 +160,6 @@ jobs:
         obr run -o runParallelSolver
 
     - name: Update workspace cache
-      uses: actions/cache@v3
       run: |
         STATE_CACHE_KEY="ws"
         echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
