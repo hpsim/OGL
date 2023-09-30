@@ -41,11 +41,12 @@ jobs:
       steps:
       - id: set-matrix
         run: |
-          echo "::set-output name=matrix::[\"cavity\", \"channel\"]"
+          echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
 
   setup:
     runs-on: ubuntu-latest
     container: greole/ofbase
+    needs: setup_integration_matrix
     strategy:
       fail-fast: false
       matrix: 
@@ -102,7 +103,7 @@ jobs:
   run:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: setup
+    needs: [setup_integration_matrix, setup]
     strategy:
       fail-fast: false
       matrix: 
@@ -167,7 +168,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: run
+    needs: [setup_integration_matrix, setup, run]
     strategy:
       fail-fast: false
       matrix: 
