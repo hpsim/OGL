@@ -35,7 +35,7 @@ env:
 
 jobs:
 
-  setup_test_matrix:
+  setup_build_matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -87,7 +87,7 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: /home/runner/work/_temp/_github_home
+        path: /home/runner/work/_temp/_github_home/build
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -99,9 +99,9 @@ jobs:
         mkdir build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        [ -f "/github/home/libbin/libginkgo.so" ] && cp -rp /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/cmake" ] && cp -rp /github/home/libbin/cmake $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/pkgconfig" ] && cp -rp /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
+        #[ -f "/github/home/libbin/libginkgo.so" ] && cp -rp /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
+        #[ -d "/github/home/libbin/cmake" ] && cp -rp /github/home/libbin/cmake $FOAM_USER_LIBBIN
+        #[ -d "/github/home/libbin/pkgconfig" ] && cp -rp /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DOGL_ALLOW_REFERENCE_ONLY=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
@@ -119,14 +119,14 @@ jobs:
       run: |
         cmake --install ./build
 
-    - name: Copy OGL and OBR to cached folder
-      working-directory: ${{github.workspace}}
-      run: |
-        rm -rf /github/home/libbin
-        rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
-        cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
-        cp -r $FOAM_USER_LIBBIN /github/home/libbin
-        ls /github/home
+        # - name: Copy OGL and OBR to cached folder
+        #   working-directory: ${{github.workspace}}
+        #   run: |
+        #     rm -rf /github/home/libbin
+        #     rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
+        #     cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
+        #     cp -r $FOAM_USER_LIBBIN /github/home/libbin
+        #     ls /github/home
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
