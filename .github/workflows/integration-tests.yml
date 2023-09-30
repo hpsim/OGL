@@ -34,13 +34,22 @@ env:
   MPI_BUFFER_SIZE: 20000000 
 
 jobs:
+  setup_integration_matrix:
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+      - id: set-matrix
+        run: |
+          echo "::set-output name=matrix::[\"cavity\", \"channel\"]"
+
   setup:
     runs-on: ubuntu-latest
     container: greole/ofbase
     strategy:
       fail-fast: false
-      matrix:
-        Case: ["cavity", "channel"]
+      matrix: 
+        - Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
     - uses: actions/checkout@v4
@@ -75,7 +84,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{ github.run_id }}-${{ github.run_attempt }}
+        key: ws-${{ hashFiles(/__w/OGL/OGL/test/${{matrix.Case}}.yaml) }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
@@ -96,8 +105,8 @@ jobs:
     needs: setup
     strategy:
       fail-fast: false
-      matrix:
-        Case: ["cavity", "channel"]
+      matrix: 
+        - Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
     - uses: actions/checkout@v4
@@ -132,7 +141,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{ github.run_id }}-${{ github.run_attempt }}
+        key: ws-${{ hashFiles(/__w/OGL/OGL/test/${{matrix.Case}}.yaml) }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Copy OGL from cached folder
@@ -150,14 +159,20 @@ jobs:
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
+    - name: Update workspace cache
+      uses: actions/cache@v3
+      run: |
+        STATE_CACHE_KEY="ws"
+        echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
+
   validate:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: run
     strategy:
       fail-fast: false
-      matrix:
-        Case: ["cavity", "channel"]
+      matrix: 
+        - Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
     - uses: actions/checkout@v4
@@ -165,7 +180,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{ github.run_id }}-${{ github.run_attempt }}
+        key: ws-${{ hashFiles(/__w/OGL/OGL/test/${{matrix.Case}}.yaml) }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Get Ginkgo checkout version
