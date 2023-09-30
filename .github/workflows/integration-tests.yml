@@ -84,7 +84,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{ hashFiles(/github/home/cavity.yaml) }}
+        key: ws-${{ hashFiles('/github/home/cavity.yaml') }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
