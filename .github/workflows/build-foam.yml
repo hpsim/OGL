@@ -144,4 +144,4 @@ jobs:
       cyclic_case: ${{ matrix.OF.cyclic_case }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.setup_test_matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
