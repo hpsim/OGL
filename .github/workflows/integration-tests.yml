@@ -130,7 +130,7 @@ jobs:
     - name: Cache build
       uses: actions/cache@v3
       with:
-        key: ${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
           $FOAM_USER_LIBBIN
