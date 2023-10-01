@@ -16,13 +16,14 @@
         },
         "CourantNumber": {
             "type": "number",
-            "exclusiveMinimum": 1.0
+            "exclusiveMinimum": 0.0,
+            "Maximum": 1.0
         },
         "continuityErrors": {
           "type": "object",
           "properties": {
             "type": "number",
-            "exclusiveMinimum": 1e-08
+            "exclusiveMaximum": 1e-08
           },
           "required": [
             "timeStepContErrors_cumulative"
@@ -46,13 +47,14 @@
         },
         "CourantNumber": {
             "type": "number",
-            "exclusiveMinimum": 1.0
+            "exclusiveMinimum": 0.0,
+            "Maximum": 1.0
         },
         "continuityErrors": {
           "type": "object",
           "properties": {
             "type": "number",
-            "exclusiveMinimum": 1e-08
+            "exclusiveMaximum": 1e-08
           },
           "required": [
             "timeStepContErrors_cumulative"
@@ -76,13 +78,14 @@
         },
         "CourantNumber": {
             "type": "number",
-            "exclusiveMinimum": 1.0
+            "exclusiveMinimum": 0.0,
+            "Maximum": 1.0
         },
         "continuityErrors": {
           "type": "object",
           "properties": {
             "type": "number",
-            "exclusiveMinimum": 1e-08
+            "exclusiveMaximum": 1e-08
           },
           "required": [
             "timeStepContErrors_cumulative"
