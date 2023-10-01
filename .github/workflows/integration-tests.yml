@@ -133,7 +133,7 @@ jobs:
         key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
-          $FOAM_USER_LIBBIN
+          ${{env.FOAM_USER_LIBBIN}}
 
     - name: Check folders
       run: |

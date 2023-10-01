@@ -90,7 +90,7 @@ jobs:
         key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
-          $FOAM_USER_LIBBIN
+          ${{env.FOAM_USER_LIBBIN}}
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -130,6 +130,12 @@ jobs:
         #     cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
         #     cp -r $FOAM_USER_LIBBIN /github/home/libbin
         #     ls /github/home
+        #
+
+    - name: Check folders
+      run: |
+          ls ${{github.workspace}}/build
+          ls ${{env.FOAM_USER_LIBBIN}}
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
