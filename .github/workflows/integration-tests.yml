@@ -76,14 +76,6 @@ jobs:
         echo "CYCLIC_CASE=${{inputs.cyclic_case}}" >> $GITHUB_ENV
         echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
 
-    - name: Cache build
-      uses: actions/cache@v3
-      with:
-        key: ${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: |
-          ${{github.workspace}}/build
-          $FOAM_USER_LIBBIN
-
     - name: Cache workspace
       uses: actions/cache@v3
       with:
@@ -142,6 +134,12 @@ jobs:
         path: |
           ${{github.workspace}}/build
           $FOAM_USER_LIBBIN
+
+    - name: Check folders
+      run: |
+        ls -la $FOAM_USER_LIBBIN
+        ls -la  ${{github.workspace}}/build
+          
 
     - name: Cache Workspace
       uses: actions/cache@v3
