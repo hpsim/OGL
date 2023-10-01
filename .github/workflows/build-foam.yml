@@ -133,8 +133,9 @@ jobs:
         #
 
     - name: Check folders
+      working-directory: ${{github.workspace}
       run: |
-          ls ${{github.workspace}}/build
+          ls ./build
           ls ${{env.FOAM_USER_LIBBIN}}
 
     - name: Archive production artifacts
