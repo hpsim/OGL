@@ -99,7 +99,7 @@ jobs:
       shell: bash
       run: |
         mkdir -p $FOAM_USER_LIBBIN
-        mkdir build
+        mkdir -p build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
         #[ -f "/github/home/libbin/libginkgo.so" ] && cp -rp /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
