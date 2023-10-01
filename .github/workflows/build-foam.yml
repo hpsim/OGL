@@ -88,7 +88,9 @@ jobs:
       uses: actions/cache@v3
       with:
         key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: /home/runner/work/_temp/_github_home/build
+        path: |
+          ${{github.workspace}}/build
+          $FOAM_USER_LIBBIN
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
