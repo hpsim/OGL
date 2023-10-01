@@ -164,10 +164,10 @@ jobs:
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
-    - name: Update workspace cache
-      run: |
-        STATE_CACHE_KEY="ws"
-        echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
+        #   - name: Update workspace cache
+        #     run: |
+        #       STATE_CACHE_KEY="ws"
+        #       echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
 
     - name: Validate state
       working-directory: /github/home/${{matrix.Case}}
