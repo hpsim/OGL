@@ -135,7 +135,7 @@ jobs:
         echo "CYCLIC_CASE=${{inputs.cyclic_case}}" >> $GITHUB_ENV
         echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
 
-    - name: Cache OpenFOAM
+    - name: Cache build
       uses: actions/cache@v3
       with:
         key: ${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
