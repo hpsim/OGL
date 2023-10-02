@@ -133,6 +133,10 @@ public:
     }
 };
 
+/**
+ * Base class for all solver
+ *
+ */
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public OGL_Info,
                    public SolverFactory,
@@ -181,7 +185,10 @@ public:
     {}
 
 
-    //- Construct from matrix components and solver controls
+    /**
+     * Constructor from matrix components and solver controls
+     *
+     */
     lduLduBase(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
