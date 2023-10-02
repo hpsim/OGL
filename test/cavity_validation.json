@@ -32,12 +32,7 @@
               "exclusiveMaximum": 1e-08
             }
           }
-        },
-        "required": [
-          "global",
-          "continuityErrors",
-          "CourantNumber"
-        ]
+        }
       }
     }
   }
