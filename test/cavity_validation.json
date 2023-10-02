@@ -22,8 +22,11 @@
         "continuityErrors": {
           "type": "object",
           "properties": {
-            "type": "number",
-            "exclusiveMaximum": 1e-08
+            "timeStepContErrors_sumLocal":
+	    {
+		    "type": "number",
+		    "exclusiveMaximum": 1e-08
+	    }
           },
           "required": [
             "timeStepContErrors_cumulative"
