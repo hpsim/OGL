@@ -21,7 +21,7 @@ variation:
     schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
     values:
       - set: solvers/p
-        preconditioner: none
+        preconditioner: BJ
         solver: GKOCG
         forceHostBuffer: 1
         verbose: 1
