@@ -26,7 +26,3 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         executor: ${{env.GINKGO_EXECUTOR}}
-      - set: solvers/p
-        solver: PCG
-        preconditioner: none
-        executor: CPU
