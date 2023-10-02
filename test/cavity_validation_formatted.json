@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "Product",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "3477dc1d64c4c141ec826d0eaa2bcd91": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "CourantNumber": {
+          "type": "object",
+          "properties": {
+            "CourantNumber_max": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "Maximum": 1
+            }
+          }
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "timeStepContErrors_sumLocal": {
+              "type": "number",
+              "exclusiveMaximum": 1e-08
+            }
+        }
+      },
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    }
+  }
+}
