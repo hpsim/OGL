@@ -35,69 +35,6 @@
         "continuityErrors",
         "CourantNumber"
       ]
-    },
-    "805decf6fbc5a27fd2cfb5b36de7ed0a": {
-      "type": "object",
-      "properties": {
-        "global": {
-          "type": "string",
-          "enum": [
-            "completed"
-          ]
-        },
-        "CourantNumber": {
-            "type": "number",
-            "exclusiveMinimum": 0.0,
-            "Maximum": 1.0
-        },
-        "continuityErrors": {
-          "type": "object",
-          "properties": {
-            "type": "number",
-            "exclusiveMaximum": 1e-08
-          },
-          "required": [
-            "timeStepContErrors_cumulative"
-          ]
-        }
-      },
-      "required": [
-        "global",
-        "continuityErrors",
-        "CourantNumber"
-      ]
-    },
-    "e9d7fef44e4d8aede09e1e6a5da77adb": {
-      "type": "object",
-      "properties": {
-        "global": {
-          "type": "string",
-          "enum": [
-            "completed"
-          ]
-        },
-        "CourantNumber": {
-            "type": "number",
-            "exclusiveMinimum": 0.0,
-            "Maximum": 1.0
-        },
-        "continuityErrors": {
-          "type": "object",
-          "properties": {
-            "type": "number",
-            "exclusiveMaximum": 1e-08
-          },
-          "required": [
-            "timeStepContErrors_cumulative"
-          ]
-        }
-      },
-      "required": [
-        "global",
-        "continuityErrors",
-        "CourantNumber"
-      ]
-
     }
   }
 }
