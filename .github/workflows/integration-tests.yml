@@ -138,7 +138,6 @@ jobs:
     - name: Check folders
       run: |
         ls -la $FOAM_USER_LIBBIN
-        ls -la  ${{github.workspace}}/build
           
 
     - name: Cache Workspace
