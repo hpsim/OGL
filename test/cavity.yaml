@@ -6,12 +6,6 @@ case:
     post_build:
       - controlDict:
            libs: [libOGL.so]
-      - fvSolution:
-            set: solvers/p
-            clear: True
-            tolerance: 1e-04
-            relTol: 0
-            maxIter: 5000
       - blockMesh
       - decomposePar:
             method: simple
