@@ -79,7 +79,7 @@ jobs:
     - name: Cache workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.run_attempt }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
@@ -90,7 +90,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
 
-        mkdir ${{matrix.Case}} && cd ${{matrix.Case}}
+        mkdir -p ${{matrix.Case}} && cd ${{matrix.Case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
 
@@ -143,7 +143,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.run_attempt }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
               #   - name: Copy OGL from cached folder
