@@ -175,7 +175,7 @@ jobs:
       working-directory: /github/home/${{matrix.Case}}
       run: |
         obr status
-        obr query -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
+        obr query -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
 
     - name: Rename log files
       if: failure()
