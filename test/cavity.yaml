@@ -21,3 +21,9 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         executor: ${{env.GINKGO_EXECUTOR}}
+      - set: solvers/U
+        preconditioner: BJ
+        solver: BiCGStab
+        forceHostBuffer: 1
+        verbose: 1
+        executor: ${{env.GINKGO_EXECUTOR}}
