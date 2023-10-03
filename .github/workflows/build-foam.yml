@@ -1,10 +1,20 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
+run-name: 'Build and integration'
+
 on:
   push:
+    branches: 
+      - dev
+      - main
   pull_request:
     types: synchronize
   schedule:
-    - cron: "* * * * 0"
+    - cron: "* 0 * * 0"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
   FOAM_INST_DIR: /root/OpenFOAM
@@ -24,36 +34,39 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 
 jobs:
-  build-ogl:
+
+  setup_build_matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+     - name: Checkout to repository
+       uses: actions/checkout@v3
+     - name: Set matrix data
+       id: set-matrix
+       run: |
+         pwd 
+         echo "matrix=$(jq -c . < .github/workflows/test_matrix.json)" >> $GITHUB_OUTPUT
+
+
+  build:
     runs-on: ubuntu-latest
     container: greole/ofbase
+    needs: setup_build_matrix
+    name: build-${{matrix.OF.version}}
     strategy:
       fail-fast: false
-      matrix:
-        OF: [
-          {
-            version: "v2212",
-            fork: "ESI",
-            path: "openfoam",
-            repo: "https://develop.openfoam.com/Development/openfoam.git",
-            },
-          {
-            version: "10",
-            fork: "Foundation",
-            path: "OpenFOAM-10",
-            repo: "https://github.com/OpenFOAM/OpenFOAM-10.git",
-            }]
+      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
+#           ,
+#         {
+#           version: "5.0",
+#           fork: "extend",
+#           path: "foam-extend-5.0",
+#           repo: "git://git.code.sf.net/p/foam-extend/foam-extend-5.0"
+#           }
 
     steps:
-    - uses: actions/checkout@v2
-
-    - name: Install ninja-build tool
-      # You may pin to the exact commit or the version.
-      # uses: seanmiddleditch/gha-setup-ninja@16b940825621068d98711680b6c3ff92201f8fc0
-      uses: seanmiddleditch/gha-setup-ninja@v3
-      with:
-        # Version of ninja-build to install
-        version: 1.10.0 # default is 1.10.0
+    - uses: actions/checkout@v4
 
     - name: Get Ginkgo checkout version
       shell: bash
@@ -71,11 +84,13 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
 
-    - name: Cache OpenFOAM
+    - name: Cache build
       uses: actions/cache@v3
       with:
-        key: ${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: /home/runner/work/_temp/_github_home
+        key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        path: |
+          ${{github.workspace}}/build
+          ${{env.FOAM_USER_LIBBIN}}
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -84,12 +99,12 @@ jobs:
       shell: bash
       run: |
         mkdir -p $FOAM_USER_LIBBIN
-        mkdir build
+        mkdir -p build
         cd build
-        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -r /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        [ -f "/github/home/libbin/libginkgo.so" ] && cp -r /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/cmake" ] && cp -r /github/home/libbin/cmake $FOAM_USER_LIBBIN
-        [ -d "/github/home/libbin/pkgconfig" ] && cp -r /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
+        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
+        #[ -f "/github/home/libbin/libginkgo.so" ] && cp -rp /github/home/libbin/libginkgo* $FOAM_USER_LIBBIN
+        #[ -d "/github/home/libbin/cmake" ] && cp -rp /github/home/libbin/cmake $FOAM_USER_LIBBIN
+        #[ -d "/github/home/libbin/pkgconfig" ] && cp -rp /github/home/libbin/pkgconfig $FOAM_USER_LIBBIN
         cmake -G Ninja -DOGL_DATA_VALIDATION=On -DOGL_ALLOW_REFERENCE_ONLY=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
@@ -107,14 +122,21 @@ jobs:
       run: |
         cmake --install ./build
 
-    - name: Copy OGL to cached folder
+        # - name: Copy OGL and OBR to cached folder
+        #   working-directory: ${{github.workspace}}
+        #   run: |
+        #     rm -rf /github/home/libbin
+        #     rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
+        #     cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
+        #     cp -r $FOAM_USER_LIBBIN /github/home/libbin
+        #     ls /github/home
+        #
+
+    - name: Check folders
       working-directory: ${{github.workspace}}
       run: |
-        rm -rf /github/home/libbin
-        rm -rf /github/home/$GINKGO_CHECKOUT_VERSION
-        cp -r build/third_party /github/home/$GINKGO_CHECKOUT_VERSION
-        cp -r $FOAM_USER_LIBBIN /github/home/libbin
-        ls /github/home
+          ls ./build
+          ls ${{env.FOAM_USER_LIBBIN}}
 
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
@@ -123,6 +145,13 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-  tests:
-    needs: build-ogl
+  integration_tests:
+    needs: [build, setup_build_matrix]
     uses: ./.github/workflows/integration-tests.yml
+    with:
+      path: ${{ matrix.OF.path }}
+      version: ${{ matrix.OF.version }}
+      cyclic_case: ${{ matrix.OF.cyclic_case }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}

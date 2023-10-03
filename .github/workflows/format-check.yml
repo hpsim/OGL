@@ -1,4 +1,6 @@
 name: Check Formatting
+run-name: Check Formatting
+
 on: push
 jobs:
   formatting-check:

@@ -3,6 +3,8 @@ case:
     solver: pimpleFoam
     domain: incompressible
     case: ${{env.CYCLIC_CASE}}
+    uses:
+      - initialConditions: 0.orig
     post_build:
       - controlDict:
            writeFormat: binary
@@ -19,25 +21,8 @@ variation:
     schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
     values:
       - set: solvers/p
-        preconditioner: none
+        preconditioner: BJ
         solver: GKOCG
         forceHostBuffer: 1
         verbose: 1
         executor: ${{env.GINKGO_EXECUTOR}}
-      - set: solvers/p
-        solver: PCG
-        preconditioner: none
-        executor: CPU
-  - operation: fvSolution
-    schema: "linear_solver/momentum-{solver}{preconditioner}{executor}"
-    values:
-      - set: solvers/U
-        preconditioner: BJ
-        solver: GKOBiCGStab
-        forceHostBuffer: 1
-        verbose: 1
-        executor: ${{env.GINKGO_EXECUTOR}}
-      - set: solvers/U
-        solver: PBiCGCGStab
-        preconditioner: DILU
-        executor: CPU

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "Product",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "3f36e266dfe170f0ac7f590d85ad5ef9": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "CourantNumber": {
+            "type": "number",
+            "exclusiveMinimum": 1.0
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "type": "number",
+            "exclusiveMinimum": 1e-08
+          },
+          "required": [
+            "timeStepContErrors_cumulative"
+          ]
+        }
+      },
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    },
+    "fd9fb773d994f8e867698db9d36eb43d": {
+      "type": "object",
+      "properties": {
+        "global": {
+          "type": "string",
+          "enum": [
+            "completed"
+          ]
+        },
+        "CourantNumber": {
+            "type": "number",
+            "exclusiveMinimum": 1.0
+        },
+        "continuityErrors": {
+          "type": "object",
+          "properties": {
+            "type": "number",
+            "exclusiveMinimum": 1e-08
+          },
+          "required": [
+            "timeStepContErrors_cumulative"
+          ]
+        }
+      },
+      "required": [
+        "global",
+        "continuityErrors",
+        "CourantNumber"
+      ]
+    }
+  }
+}
