@@ -48,6 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_integration_matrix
+    name: setup-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
       matrix: 
@@ -99,6 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: [setup_integration_matrix, setup]
+    name: run-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
       matrix: 
