@@ -4,38 +4,8 @@
   "title": "Product",
   "description": "",
   "type": "object",
-  "properties": {
-    "08075a76d8b96cebc72093bd8112308b": {
-      "type": "object",
-      "properties": {
-        "global": {
-          "type": "string",
-          "enum": [
-            "completed"
-          ]
-        },
-        "CourantNumber": {
-          "type": "object",
-          "properties": {
-            "CourantNumber_max": {
-              "type": "number",
-              "exclusiveMinimum": 0,
-              "Maximum": 1
-            }
-          }
-        },
-        "continuityErrors": {
-          "type": "object",
-          "properties": {
-            "timeStepContErrors_sumLocal": {
-              "type": "number",
-              "exclusiveMaximum": 1e-08
-            }
-          }
-        }
-      }
-    },
-    "44a3d2658c63bf8a1934b1283c649cea": {
+  "patternProperties": {
+    "[a-z0-9]+": {
       "type": "object",
       "properties": {
         "global": {
@@ -65,5 +35,6 @@
         }
       }
     }
-  }
+  },
+  "minProperties": 3
 }
