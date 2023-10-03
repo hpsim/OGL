@@ -109,6 +109,7 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
+
         grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
@@ -154,6 +155,7 @@ jobs:
 
     - name: Execute test cases
       working-directory: /github/home/${{matrix.Case}}
+      timeout-minutes: 10
       shell: bash
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
