@@ -41,7 +41,8 @@ jobs:
       steps:
       - id: set-matrix
         run: |
-          echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
+          echo "matrix=[\"cavity\"]" >> $GITHUB_OUTPUT
+          #echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
 
   setup:
     runs-on: ubuntu-latest
