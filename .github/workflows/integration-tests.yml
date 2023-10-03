@@ -87,6 +87,7 @@ jobs:
           pip install .
 
     - name: Run test case
+      timeout-minutes: 10
       working-directory: /github/home/
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
