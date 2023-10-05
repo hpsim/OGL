@@ -64,7 +64,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
 endif()
 
 # C++ 14 standard or later is required to interface with ginkgo 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
