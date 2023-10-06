@@ -268,7 +268,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
-    bool is_symmetric{this->matrix().upper() == this->matrix().lower()};
+    bool is_symmetric{this->matrix().symmetric()};
 
     auto lower_local = idx_array::view(
         exec_.get_ref_exec(), upper_nnz_ - local_interface_nnz_,
@@ -440,8 +440,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto lower = this->matrix().lower();
     auto diag = this->matrix().diag();
     label diag_nnz = diag.size();
-
-    bool is_symmetric{upper == lower};
+    bool is_symmetric{this->matrix().symmetric()};
 
     label contiguous_size =
         (is_symmetric) ? nrows_ + upper_nnz_ : local_matrix_nnz_;
