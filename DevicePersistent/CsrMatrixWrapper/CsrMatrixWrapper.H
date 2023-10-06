@@ -63,6 +63,8 @@ struct MatrixInitFunctor {
 
     const word matrix_format_;
 
+    const bool regenerate_;
+
     const label verbose_;
 
     const word field_name_;
@@ -75,8 +77,8 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &non_local_col_idxs,
                       const PersistentArray<label> &non_local_row_idxs,
                       const PersistentArray<scalar> &non_local_coeffs,
-                      const word matrix_format, const label verbose,
-                      const word field_name)
+                      const word matrix_format, const bool regenerate,
+                      const label verbose, const word field_name)
         : db_(db),
           exec_(exec),
           partition_(partition),
@@ -87,12 +89,20 @@ struct MatrixInitFunctor {
           non_local_row_idxs_(non_local_row_idxs),
           non_local_coeffs_(non_local_coeffs),
           matrix_format_(matrix_format),
+          regenerate_(regenerate),
           verbose_(verbose),
           field_name_(field_name)
     {}
 
     void update(std::shared_ptr<dist_mtx> persistent_device_matrix) const
     {
+        if (regenerate_) {
+            TIME_WITH_FIELDNAME(
+                verbose_, regenerate_distributed_matrix, field_name_,
+                persistent_device_matrix = generate_dist_mtx_with_inner_type(
+                    exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());)
+            return;
+        }
         auto coeffs = coeffs_.get_array();
         auto non_local_coeffs = non_local_coeffs_.get_array();
 
@@ -494,6 +504,7 @@ public:
                   db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
                   controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
+                  controlDict.lookupOrDefault<Switch>("regenerate", false),
                   verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
