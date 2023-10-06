@@ -26,5 +26,5 @@ variation:
         solver: GKOBiCGStab
         forceHostBuffer: 1
         verbose: 1
-        regenerate: on
+        regenerate: true
         executor: ${{env.GINKGO_EXECUTOR}}
