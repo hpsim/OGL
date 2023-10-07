@@ -99,8 +99,8 @@ struct MatrixInitFunctor {
         if (regenerate_) {
             TIME_WITH_FIELDNAME(
                 verbose_, regenerate_distributed_matrix, field_name_,
-                persistent_device_matrix = generate_dist_mtx_with_inner_type(
-                    exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());)
+                auto reinit = init();)
+                persistent_device_matrix->copy_from(reinit.get());
             return;
         }
         auto coeffs = coeffs_.get_array();
