@@ -1,13 +1,18 @@
 import os
 import sys
 
-def test_matrix_presence(workspace: str):
-    """This function checks for the pressence of matrix files"""
+def find_mtx_files(workspace: str) -> tuple:
     mtx_files = []
     for root, folder, files in os.walk(workspace):
         for file in files:
             if file.endswith(".mtx"):
-                mtx_files.append(f"{root}/{file}")
+                time = root.split("/")[-1]
+                mtx_files.append((time, f"{root}/{file}"))
+    return mtx_files
+
+def test_matrix_presence(workspace: str):
+    """This function checks for the pressence of matrix files"""
+    mtx_files = find_mtx_files(workspace)
     if not mtx_files:
         raise ValueError("no .mtx files found")
         sys.exit(1)

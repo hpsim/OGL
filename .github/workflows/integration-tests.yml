@@ -174,7 +174,7 @@ jobs:
       working-directory: /github/home/${{matrix.Case}}
       shell: bash
       run: |
-        python /__w/OGL/OGL/test/data_validation.py workspace
+        python3 /__w/OGL/OGL/test/data_validation.py workspace
 
     - name: Validate state
       working-directory: /github/home/${{matrix.Case}}
