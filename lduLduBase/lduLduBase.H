@@ -284,6 +284,7 @@ public:
 
         bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
         if (debug && db_.time().writeTime()) {
+            LOG_0(verbose_, "Export system")
             export_mtx(
                 this->fieldName(),
                 gko::as<gko::experimental::distributed::Matrix<scalar, label,
