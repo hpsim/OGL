@@ -282,9 +282,7 @@ public:
             auto precond = this->init_preconditioner(
                 dist_A_v, this->get_exec_handler().get_device_exec());)
 
-#ifdef DATA_VALIDATION
-        // TODO improve this
-        if (db_.time().writeTime()) {
+        if (debug_ && db_.time().writeTime()) {
             export_mtx(
                 this->fieldName(),
                 gko::as<gko::experimental::distributed::Matrix<scalar, label,
@@ -298,7 +296,6 @@ public:
                     ->get_non_local_matrix(),
                 "non_local", db_);
         }
-#endif
 
 
         LOG_1(verbose_, "create solver")

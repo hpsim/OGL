@@ -21,6 +21,7 @@ variation:
         solver: GKOCG
         forceHostBuffer: 1
         verbose: 1
+        debug: 1
         executor: ${{env.GINKGO_EXECUTOR}}
       - set: solvers/U
         preconditioner: BJ
@@ -28,4 +29,5 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         regenerate: 1
+        debug: 1
         executor: ${{env.GINKGO_EXECUTOR}}
