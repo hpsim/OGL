@@ -28,6 +28,7 @@ SourceFiles
 #include <type_traits>
 
 #include "common.H"
+#include <filesystem>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -59,18 +60,12 @@ void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
                 const word local, const objectRegistry &db)
 {
     auto time_name = db.time().timeName();
-    std::cout << "time name \n;";
     auto folder =
         "processor" + Foam::name(Pstream::myProcNo()) + "/" + time_name + "/";
-    std::cout << "folder \n;";
-    system("mkdir -p " + folder);
-    std::cout << "mkdir -p \n;";
+    std::filesystem::create_directories(folder);
     std::string fn{folder + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "fn\n";
     std::ofstream stream{fn};
-    std::cout << "ofstream\n";
     gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
-    std::cout << "write\n";
 }
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
