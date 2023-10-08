@@ -97,10 +97,9 @@ struct MatrixInitFunctor {
     void update(std::shared_ptr<dist_mtx> persistent_device_matrix) const
     {
         if (regenerate_) {
-            TIME_WITH_FIELDNAME(
-                verbose_, regenerate_distributed_matrix, field_name_,
-                auto reinit = init();)
-                persistent_device_matrix->copy_from(reinit.get());
+            TIME_WITH_FIELDNAME(verbose_, regenerate_distributed_matrix,
+                                field_name_, auto reinit = init();)
+            persistent_device_matrix->copy_from(reinit.get());
             return;
         }
         auto coeffs = coeffs_.get_array();
