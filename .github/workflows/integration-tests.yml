@@ -140,7 +140,7 @@ jobs:
     - name: Cache FOAM_USER_LIBBIN
       uses: actions/cache@v3
       with:
-        key: FOAM_USER_LIBBIN-${{ matrix.Case }}-${{ github.sha }}
+        key: FOAM_USER_LIBBIN-${{ matrix.version }}-${{ github.sha }}
         path: |
           ${{env.FOAM_USER_LIBBIN}}
 
