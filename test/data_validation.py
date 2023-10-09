@@ -13,6 +13,7 @@ def find_mtx_files(workspace: str) -> tuple:
             if file.endswith(".mtx"):
                 time = root.split("/")[-1]
                 proc = root.split("/")[-2]
+                uid = root.split("/")[-4]
                 field_name = file.split("_")[0]
                 file_path = f"{root}/{file}"
                 md5sum = check_output(["md5sum", file_path], text=True).split()[0]
@@ -24,6 +25,7 @@ def find_mtx_files(workspace: str) -> tuple:
                         "field": field_name,
                         "path": file_path,
                         "md5sum": md5sum,
+                        "uid": uid,
                     }
                 )
     return mtx_files
@@ -43,7 +45,7 @@ def test_if_matrices_are_unique(workspace):
     """This function checks if matrices are different for different timesteps"""
     mtx_files = find_mtx_files(workspace)
     md5sums = [
-        (record["field"], record["proc"], record["md5sum"])
+        (record["field"], record["proc"], record["md5sum"], record["uid"])
         for record in mtx_files
         if (record["time"] == "0.05") or (record["time"] == "0.5")
     ]
