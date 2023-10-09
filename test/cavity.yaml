@@ -22,13 +22,11 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         debug: 1
-        regenerate: 1
         executor: ${{env.GINKGO_EXECUTOR}}
       - set: solvers/U
         preconditioner: BJ
         solver: GKOBiCGStab
         forceHostBuffer: 1
         verbose: 1
-        regenerate: 1
         debug: 1
         executor: ${{env.GINKGO_EXECUTOR}}

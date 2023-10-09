@@ -25,6 +25,7 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 #include <map>
+#include <iomanip>
 #include <type_traits>
 
 #include <filesystem>
@@ -63,6 +64,7 @@ void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
     std::filesystem::create_directories(folder);
     std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
     std::ofstream stream{fn};
+    stream << std::setprecision(15);
     gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
 }
 
