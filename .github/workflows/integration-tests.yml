@@ -81,7 +81,7 @@ jobs:
     - name: Cache workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
