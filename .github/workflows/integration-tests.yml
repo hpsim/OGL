@@ -136,7 +136,14 @@ jobs:
         key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
+
+    - name: Cache FOAM_USER_LIBBIN
+      uses: actions/cache@v3
+      with:
+        key: FOAM_USER_LIBBIN-${{ matrix.OF.path }}-${{ github.sha }}
+        path: |
           ${{env.FOAM_USER_LIBBIN}}
+
 
     - name: Check folders
       run: |
@@ -146,7 +153,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
               #   - name: Copy OGL from cached folder

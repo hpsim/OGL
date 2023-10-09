@@ -84,12 +84,18 @@ jobs:
         echo "FOAM_SRC=$FOAM_INST_DIR/${{matrix.OF.path}}/src"     >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{matrix.OF.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
 
-    - name: Cache build
+    - name: Cache build folder
       uses: actions/cache@v3
       with:
         key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
+
+    - name: Cache FOAM_USER_LIBBIN
+      uses: actions/cache@v3
+      with:
+        key: FOAM_USER_LIBBIN-${{ matrix.OF.path }}-${{ github.sha }}
+        path: |
           ${{env.FOAM_USER_LIBBIN}}
 
     - name: Configure CMake
