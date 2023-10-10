@@ -315,7 +315,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     for (label row = 0; row < nrows_; row++) {
         // add lower elements
         // for now just scan till current upper ctr
-        for (const auto [stored_upper_ctr, col] : lower_stack[row]) {
+        for (const auto &[stored_upper_ctr, col] : lower_stack[row]) {
             rows[element_ctr] = row;
             cols[element_ctr] = col;
             permute[element_ctr] = stored_upper_ctr;
