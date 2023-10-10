@@ -293,8 +293,6 @@ struct MatrixInitFunctor {
 
     std::shared_ptr<dist_mtx> init() const
     {
-        using coo_mtx = gko::matrix::Coo<scalar>;
-
         label nCells = partition_.get_local_host_size();
         word msg{"init global csr matrix of size " + std::to_string(nCells)};
         LOG_1(verbose_, msg)

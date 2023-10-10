@@ -447,6 +447,9 @@ public:
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
                                                        generated_precond);
 
+        // use get_ptr(() to avoid unused variable warning
+        po->get_ptr();
+
         return generated_precond;
     };
 };
