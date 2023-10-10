@@ -38,10 +38,10 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
 {
     label ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
 
         bool count = (proc_interfaces)
                          ? !!isA<processorLduInterface>(iface->interface())
@@ -66,10 +66,10 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
 
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
         auto coeffs{interfaceBouCoeffs[i]};
 
         bool collect = (local)
@@ -102,11 +102,11 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
 
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
 
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
@@ -151,11 +151,11 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
 
     label startOfRequests = Pstream::nRequests();
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
 
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
         const auto &face_cells{iface->interface().faceCells()};
 
         if (isA<processorLduInterface>(iface->interface())) {
@@ -176,11 +176,11 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
 
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
 
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 
@@ -234,11 +234,11 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
 
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
 
-        const auto &iface{interfaces.operator()(i)};
+        const auto &iface{interfaces.get(i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 
@@ -375,9 +375,8 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
         // iterate local interfaces i
         // insert all coeffs for row < interface[i].row
         // find local_interface with lowes row, column
-        for (int i = 0; i < local_interfaces.size(); i++) {
-            auto [interface_idx, interface_row, interface_col] =
-                local_interfaces[i];
+	for (auto const& interface : local_interfaces){
+            auto [interface_idx, interface_row, interface_col] = interface;
 
             // copy from existing matrix coefficients
             while ([&]() {
@@ -441,9 +440,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto diag = this->matrix().diag();
     label diag_nnz = diag.size();
     bool is_symmetric{this->matrix().symmetric()};
-
-    label contiguous_size =
-        (is_symmetric) ? nrows_ + upper_nnz_ : local_matrix_nnz_;
 
     auto dense_vec = vec::create(
         ref_exec,
@@ -551,10 +547,10 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
 
     label interface_ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interfaces.operator()(i) == nullptr) {
+        if (interfaces.get(i) == nullptr) {
             continue;
         }
-        const auto iface{interfaces.operator()(i)};
+        const auto iface{interfaces.get(i)};
         const label patch_size = iface->interface().faceCells().size();
 
         if (!isA<processorLduInterface>(iface->interface())) {
