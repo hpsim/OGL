@@ -104,6 +104,7 @@ namespace Foam {
 
 #define SIMPLE_TIME(VERBOSE, NAME, F) TIME_WITH_FIELDNAME(VERBOSE, NAME, "", F)
 
+#define UNUSED(x) (void)(x)
 
 std::ostream &operator<<(
     std::ostream &os,
