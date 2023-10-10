@@ -40,7 +40,7 @@ class Preconditioner {
     using ir = gko::solver::Ir<scalar>;
     using cg = gko::solver::Cg<scalar>;
     using mg = gko::solver::Multigrid;
-    using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+    using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
