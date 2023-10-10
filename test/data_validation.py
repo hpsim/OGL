@@ -32,7 +32,7 @@ def find_mtx_files(workspace: str) -> tuple:
 
 
 def test_matrix_presence(workspace: str):
-    """This function checks for the pressence of matrix files"""
+    """This function checks for the presence of matrix files"""
     print("check if matrix files exist")
     mtx_files = find_mtx_files(workspace)
     if not mtx_files:
