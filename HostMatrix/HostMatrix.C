@@ -31,13 +31,13 @@ SourceFiles
 
 namespace Foam {
 
-const lduInterfaceField* interface_getter(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const label i){
+const lduInterfaceField *interface_getter(
+    const lduInterfaceFieldPtrsList &interfaces, const label i)
+{
 #ifdef WITH_ESI_VERSION
-        return interfaces.get(i);
+    return interfaces.get(i);
 #else
-        return interfaces.operator()(i);
+    return interfaces.operator()(i);
 #endif
 };
 
@@ -47,10 +47,10 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
 {
     label ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
 
         bool count = (proc_interfaces)
                          ? !!isA<processorLduInterface>(iface->interface())
@@ -75,10 +75,10 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
 
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
         auto coeffs{interfaceBouCoeffs[i]};
 
         bool collect = (local)
@@ -111,11 +111,11 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
 
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
 
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
@@ -160,11 +160,11 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
 
     label startOfRequests = Pstream::nRequests();
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
 
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
 
         if (isA<processorLduInterface>(iface->interface())) {
@@ -185,11 +185,11 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
 
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
 
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 
@@ -243,11 +243,11 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
 
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
 
-        const auto &iface{interface_getter(interfaces,i)};
+        const auto &iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 
@@ -384,7 +384,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
         // iterate local interfaces i
         // insert all coeffs for row < interface[i].row
         // find local_interface with lowes row, column
-	for (auto const& interface : local_interfaces){
+        for (auto const &interface : local_interfaces) {
             auto [interface_idx, interface_row, interface_col] = interface;
 
             // copy from existing matrix coefficients
@@ -556,10 +556,10 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
 
     label interface_ctr{0};
     for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces,i) == nullptr) {
+        if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
-        const auto iface{interface_getter(interfaces,i)};
+        const auto iface{interface_getter(interfaces, i)};
         const label patch_size = iface->interface().faceCells().size();
 
         if (!isA<processorLduInterface>(iface->interface())) {

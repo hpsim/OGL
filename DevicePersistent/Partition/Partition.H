@@ -66,7 +66,9 @@ struct PartitionInitFunctor {
     void update(
         std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
             persistent_partition) const
-    {UNUSED(persistent_partition);}
+    {
+        UNUSED(persistent_partition);
+    }
 
     std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
     init() const

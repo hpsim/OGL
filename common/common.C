@@ -24,8 +24,8 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 
 #include <ginkgo/ginkgo.hpp>
-#include <map>
 #include <iomanip>
+#include <map>
 #include <type_traits>
 
 #include <filesystem>
