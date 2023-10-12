@@ -81,7 +81,7 @@ jobs:
     - name: Cache workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Generate test cases
@@ -112,7 +112,6 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-
         grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
@@ -137,7 +136,14 @@ jobs:
         key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
+
+    - name: Cache FOAM_USER_LIBBIN
+      uses: actions/cache@v3
+      with:
+        key: FOAM_USER_LIBBIN-${{ inputs.version }}-${{ github.sha }}
+        path: |
           ${{env.FOAM_USER_LIBBIN}}
+
 
     - name: Check folders
       run: |
@@ -147,7 +153,7 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}-${{ hashFiles(format('/__w/OGL/OGL/test/{0}.yaml', matrix.Case)) }}
+        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
               #   - name: Copy OGL from cached folder
@@ -170,6 +176,13 @@ jobs:
         #     run: |
         #       STATE_CACHE_KEY="ws"
         #       echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
+
+    - name: Validation of exported mtx files
+      working-directory: /github/home/${{matrix.Case}}
+      shell: bash
+      run: |
+        python3 /__w/OGL/OGL/test/data_validation.py workspace
+        ls -la workspace/*/case/processor0/*
 
     - name: Validate state
       working-directory: /github/home/${{matrix.Case}}

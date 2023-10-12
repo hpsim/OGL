@@ -29,7 +29,7 @@
           "properties": {
             "timeStepContErrors_sumLocal": {
               "type": "number",
-              "exclusiveMaximum": 1e-08
+              "exclusiveMaximum": 1e-07
             }
           }
         }

@@ -24,9 +24,11 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 
 #include <ginkgo/ginkgo.hpp>
+#include <iomanip>
 #include <map>
 #include <type_traits>
 
+#include <filesystem>
 #include "common.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -58,12 +60,11 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
 void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
                 const word local, const objectRegistry &db)
 {
-    auto time_name = db.time().timeName();
-    auto folder =
-        "processor" + Foam::name(Pstream::myProcNo()) + "/" + time_name + "/";
-    system("mkdir -p " + folder);
-    std::string fn{folder + fieldName + "_A_" + local + ".mtx"};
+    std::string folder{db.time().timePath()};
+    std::filesystem::create_directories(folder);
+    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
     std::ofstream stream{fn};
+    stream << std::setprecision(15);
     gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
 }
 
