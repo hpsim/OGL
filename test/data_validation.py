@@ -12,7 +12,8 @@ from logging import info
 
 
 def find_mtx_files(workspace: str) -> list[dict]:
-    """Given a workspace path this function searches for .mtx files and returns a dictionary of with basic properties of the mtx file
+    """Given a workspace path this function searches for .mtx files and returns
+    a dictionary of with basic properties of the mtx file
 
     Returns:
         a dictionary containing:
@@ -48,8 +49,9 @@ def find_mtx_files(workspace: str) -> list[dict]:
 
 
 def test_matrix_presence(workspace: str):
-    """This function checks for the presence of matrix files. If no matrix files where found
-    it raises a ValueError"""
+    """This function checks for the presence of matrix files. If no matrix
+    files where found it raises a ValueError
+    """
     print("check if matrix files exist")
     mtx_files = find_mtx_files(workspace)
     if not mtx_files:
@@ -59,7 +61,10 @@ def test_matrix_presence(workspace: str):
 
 
 def test_if_matrices_are_unique(workspace):
-    """This function checks if matrices are different for different timesteps. If matrices are constant it would indicate that the matrix update is not working"""
+    """This function checks if matrices are different for different timesteps.
+    If matrices are constant it would indicate that the matrix update is not
+    working
+    """
     mtx_files = find_mtx_files(workspace)
     md5sums = [
         (record["field"], record["proc"], record["md5sum"], record["uid"])
@@ -82,7 +87,9 @@ def test_if_matrices_are_unique(workspace):
 
 
 def verify_local_matrix(lines, file_path):
-    """This function checks if matrix coefficients are within reasonable bounds for the lidDrivenCavity case"""
+    """This function checks if matrix coefficients are within reasonable bounds
+    for the lidDrivenCavity case
+    """
     for line in lines:
         row, col, val = line.split(" ")
         val = float(val)
