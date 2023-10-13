@@ -23,7 +23,7 @@ OGL has the following requirements
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
 ![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)
-![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
+![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10%2C5.0-green)
 ![Documentation](https://codedocs.xyz/hpsim/OGL/)
 
 ## Compilation
