@@ -88,9 +88,15 @@ void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
 {
     const word solvPropsDict = sys_matrix_name + "_gkoSolverProperties";
     if (db.foundObject<regIOobject>(solvPropsDict)) {
+#ifdef WITH_EXTEND_VERSION
+        const_cast<objectRegistry &>(db)
+            .lookupObject<IOdictionary>(solvPropsDict)
+            .set<label>(key, value);
+#else
         const_cast<objectRegistry &>(db)
             .lookupObjectRef<IOdictionary>(solvPropsDict)
             .set<label>(key, value);
+#endif
     } else {
         auto gkoSolverProperties =
             new IOdictionary(IOobject(solvPropsDict, fileName("None"), db,
