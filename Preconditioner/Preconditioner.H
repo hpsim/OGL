@@ -417,13 +417,26 @@ public:
                 cache = cache - 1;
 
                 set_next_caching(sys_matrix_name_, db_, cache--);
+#ifdef WITH_EXTEND_VERSION
+                return db_
+                    .template lookupObject<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name)
+                    .get_ptr();
+#else
                 return db_
                     .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
                         precond_store_name)
                     .get_ptr();
+#endif
             } else {
+#ifdef WITH_EXTEND_VERSION
+                auto prev_precond =
+                    db_.template lookupObject<DevicePersistentBase<gko::LinOp>>(
+                        precond_store_name);
+#else
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
+#endif
                 const label caching_period =
                     controls.lookupOrDefault<label>("caching", 0);
                 set_next_caching(sys_matrix_name_, db_, caching_period);
