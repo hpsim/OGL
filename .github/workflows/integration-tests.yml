@@ -188,7 +188,7 @@ jobs:
       working-directory: /github/home/${{matrix.Case}}
       run: |
         obr status
-        obr query --filter!=none -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
+        obr query --filter preconditioner!=none -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
 
     - name: Validate matrix formats
       working-directory: /github/home/${{matrix.Case}}
