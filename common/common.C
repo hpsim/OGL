@@ -65,17 +65,15 @@ void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
     std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
     std::ofstream stream{fn};
     stream << std::setprecision(15);
-    switch (matrixFormat){
-        case "Coo":
+        if (matrixFormat == "Coo") {
             gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
-            break;
-        case "Csr":
+        }
+        if (matrixFormat == "Csr") {
             gko::write(stream, (const gko::matrix::Csr<scalar> *)A.get());
-            break;
-        case "Ell":
+        }
+        if (matrixFormat == "Ell") {
             gko::write(stream, (const gko::matrix::Ell<scalar> *)A.get());
-            break;
-    }
+        }
 }
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
