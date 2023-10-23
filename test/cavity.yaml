@@ -49,6 +49,7 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         debug: 1
+        regenerate: 1
         matrixFormat: Ell
         executor: reference
   - operation: fvSolution
