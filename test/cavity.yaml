@@ -63,7 +63,7 @@ variation:
         debug: 1
         executor: reference
       - set: solvers/p
-        preconditioner: ISAI
+        preconditioner: GISAI
         solver: GKOCG
         forceHostBuffer: 1
         verbose: 1
