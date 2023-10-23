@@ -70,13 +70,6 @@ variation:
         debug: 1
         executor: reference
       - set: solvers/p
-        preconditioner: IC
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
-        executor: reference
-      - set: solvers/p
         preconditioner: ILU
         solver: GKOCG
         forceHostBuffer: 1
