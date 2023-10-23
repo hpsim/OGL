@@ -42,7 +42,6 @@ jobs:
       - id: set-matrix
         run: |
           echo "matrix=[\"cavity\"]" >> $GITHUB_OUTPUT
-          #echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
 
   setup:
     runs-on: ubuntu-latest
@@ -171,11 +170,6 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
-
-        #   - name: Update workspace cache
-        #     run: |
-        #       STATE_CACHE_KEY="ws"
-        #       echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
 
     - name: Validation of exported mtx files
       working-directory: /github/home/${{matrix.Case}}
