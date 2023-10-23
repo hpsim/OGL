@@ -14,7 +14,7 @@ case:
             coeffs: [2,1,1]
 variation:
   - operation: fvSolution
-    schema: "linear_solver/{solver}{preconditioner}{executor}"
+    schema: "linearSolver/{solver}{preconditioner}{executor}"
     values:
       - set: solvers/p
         preconditioner: none
@@ -22,11 +22,63 @@ variation:
         forceHostBuffer: 1
         verbose: 1
         debug: 1
-        executor: ${{env.GINKGO_EXECUTOR}}
+        executor: reference
+        matrixFormat: Coo
       - set: solvers/U
         preconditioner: BJ
         solver: GKOBiCGStab
         forceHostBuffer: 1
         verbose: 1
         debug: 1
-        executor: ${{env.GINKGO_EXECUTOR}}
+        executor: reference
+        matrixFormat: Coo
+  - operation: fvSolution
+    schema: "matrixFormat/{matrixFormat}"
+    values:
+      - set: solvers/p
+        preconditioner: none
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        matrixFormat: Csr
+        executor: reference
+      - set: solvers/p
+        preconditioner: none
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        matrixFormat: Ell
+        executor: reference
+  - operation: fvSolution
+    schema: "preconditioner/{preconditioner}"
+    values:
+      - set: solvers/p
+        preconditioner: BJ
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
+      - set: solvers/p
+        preconditioner: ISAI
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
+      - set: solvers/p
+        preconditioner: IC
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
+      - set: solvers/p
+        preconditioner: ILU
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
