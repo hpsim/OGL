@@ -285,7 +285,7 @@ public:
         bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
         if (debug && db_.time().writeTime()) {
             word matrix_format(
-              solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
+                solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
             LOG_0(verbose_, "Export system")
             export_mtx(
                 this->fieldName(),
