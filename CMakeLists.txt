@@ -37,7 +37,7 @@ if(NOT OGL_ALLOW_REFERENCE_ONLY)
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "4292ffdee"
+    "sparse-communicator"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
