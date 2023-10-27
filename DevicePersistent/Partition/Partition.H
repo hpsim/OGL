@@ -40,7 +40,7 @@ namespace Foam {
 
 struct PartitionInitFunctor {
     using part_type =
-        gko::experimental::distributed::localized_partition<label, label>;
+        gko::experimental::distributed::localized_partition;
 
     const ExecutorHandler &exec_;
 
@@ -126,7 +126,7 @@ struct PartitionInitFunctor {
  * */
 class PersistentPartition
     : public PersistentBase<
-          gko::experimental::distributed::Partition<label, label>,
+          gko::experimental::distributed::localized_partition,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
@@ -139,7 +139,7 @@ class PersistentPartition
 
 public:
     using part_type =
-        gko::experimental::distributed::localized_partition<label, label>;
+        gko::experimental::distributed::localized_partition;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage
