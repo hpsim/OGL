@@ -312,7 +312,7 @@ public:
         LOG_1(verbose_, "solve solver done")
         TIME_WITH_FIELDNAME(
             verbose_, solve, this->fieldName(),
-            solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
+            solver->apply(dist_b_v, dist_x_v);)
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)

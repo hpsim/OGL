@@ -102,33 +102,33 @@ struct VectorInitFunctor {
             return gko::share(dist_vec::create(
                 exec, *exec_.get_gko_mpi_device_comm().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
-                    .get()));
+                    ));
         }
 
         // when having more ranks than GPUs we must first repartition and
         // gather the vector
-        auto host_vector = gko::share(dist_vec::create(
-            exec, *exec_.get_gko_mpi_host_comm().get(),
-            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
-
-        auto target_vector = gko::share(dist_vec::create(
-            exec, *exec_.get_gko_mpi_host_comm().get(),
-            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
-
-        // TODO test if this needs to be persistent
-        auto repartitioner = gko::share(
-            gko::experimental::distributed::repartitioner<label, label>::create(
-                *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(), true));
-
-        repartitioner->gather(host_vector.get(), target_vector.get());
-
-        auto device_vec = gko::share(
-            dist_vec::create(exec, *exec_.get_gko_mpi_device_comm().get()));
-
-        target_vector->move_to(device_vec.get());
-
-        return device_vec;
+        // auto host_vector = gko::share(dist_vec::create(
+        //     exec, *exec_.get_gko_mpi_host_comm().get(),
+        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
+        //
+        // auto target_vector = gko::share(dist_vec::create(
+        //     exec, *exec_.get_gko_mpi_host_comm().get(),
+        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
+        //
+        // // TODO test if this needs to be persistent
+        // auto repartitioner = gko::share(
+        //     gko::experimental::distributed::repartitioner<label, label>::create(
+        //         *comm.get(), partition_.get_host_partition(),
+        //         partition_.get_device_partition(), true));
+        //
+        // repartitioner->gather(host_vector.get(), target_vector.get());
+        //
+        // auto device_vec = gko::share(
+        //     dist_vec::create(exec, *exec_.get_gko_mpi_device_comm().get()));
+        //
+        // target_vector->move_to(device_vec.get());
+        //
+        // return device_vec;
     }
 };
 
@@ -223,18 +223,18 @@ public:
             gko::dim<2>{local_host_size, 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
-        if (partition_.get_ranks_per_gpu() != 1) {
-            auto repartitioner = gko::share(
-                gko::experimental::distributed::repartitioner<label, label>::
-                    create(*comm.get(),
-                           partition_.get_host_partition(),    // from
-                           partition_.get_device_partition(),  // to
-                           true));
-
-            repartitioner->scatter(host_device_vector.get(),
-                                   target_vector.get());
-            host_buffer = target_vector->get_local_values();
-        }
+        // if (partition_.get_ranks_per_gpu() != 1) {
+        //     auto repartitioner = gko::share(
+        //         gko::experimental::distributed::repartitioner<label, label>::
+        //             create(*comm.get(),
+        //                    partition_.get_host_partition(),    // from
+        //                    partition_.get_device_partition(),  // to
+        //                    true));
+        //
+        //     repartitioner->scatter(host_device_vector.get(),
+        //                            target_vector.get());
+        //     host_buffer = target_vector->get_local_values();
+        // }
 
         auto host_buffer_view = gko::array<T>::view(
             exec_.get_ref_exec(), local_host_size, host_buffer);
