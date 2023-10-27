@@ -185,14 +185,14 @@ struct MatrixInitFunctor {
 
 
             auto comm = exec_.get_gko_mpi_host_comm();
-            TIME_WITH_FIELDNAME(
-                verbose_, update_build_repartitioner, field_name_,
-                auto repartitioner = gko::share(
-                    gko::experimental::distributed::repartitioner<
-                        label, label>::create(*comm.get(),
-                                              partition_.get_host_partition(),
-                                              partition_.get_device_partition(),
-                                              false));)
+            // TIME_WITH_FIELDNAME(
+            //     verbose_, update_build_repartitioner, field_name_,
+            //     auto repartitioner = gko::share(
+            //         gko::experimental::distributed::repartitioner<
+            //             label, label>::create(*comm.get(),
+            //                                   partition_.get_host_partition(),
+            //                                   partition_.get_device_partition(),
+            //                                   false));)
 
             auto local_nnz =
                 local_scatter_map_pers.get_array()->get_num_elems();
@@ -223,16 +223,16 @@ struct MatrixInitFunctor {
                     recv_offs_pers.get_array()->get_num_elems());
 
 
-            TIME_WITH_FIELDNAME(
-                verbose_, update_repartitioned_existing, field_name_,
-                repartitioner->update_existing(
-                    *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-                    *coeffs.get(), *non_local_coeffs.get(),
-                    *sorting_idx_pers.get_array().get(), send_sizes,
-                    send_offsets, recv_sizes, recv_offsets,
-                    *local_scatter_map_pers.get_array().get(),
-                    *non_local_scatter_map_pers.get_array().get(), local_values,
-                    non_local_values);)
+            // TIME_WITH_FIELDNAME(
+            //     verbose_, update_repartitioned_existing, field_name_,
+            //     repartitioner->update_existing(
+            //         *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
+            //         *coeffs.get(), *non_local_coeffs.get(),
+            //         *sorting_idx_pers.get_array().get(), send_sizes,
+            //         send_offsets, recv_sizes, recv_offsets,
+            //         *local_scatter_map_pers.get_array().get(),
+            //         *non_local_scatter_map_pers.get_array().get(), local_values,
+            //         non_local_values);)
 
             auto value_view =
                 val_array::view(device_exec, local_nnz, value_ptr);
@@ -359,8 +359,9 @@ struct MatrixInitFunctor {
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = generate_dist_mtx_with_inner_type(
             exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
-        dist_A->read_distributed(A_data, non_local_A_data,
-                                 partition_.get_host_partition().get());
+        // TODO FIXME implement me
+        // dist_A->read_distributed(A_data, non_local_A_data,
+        //                          partition_.get_host_partition().get());
 
         if (partition_.get_ranks_per_gpu() == 1) {
             auto device_mat = generate_dist_mtx_with_inner_type(
@@ -370,99 +371,99 @@ struct MatrixInitFunctor {
         }
 
         // TODO test if this needs to be persistent
-        auto repartitioner = gko::share(
-            gko::experimental::distributed::repartitioner<label, label>::create(
-                *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(), false));
-        auto to_mat = gko::share(
-            dist_mtx::create(exec, repartitioner->get_to_communicator()));
-
-        auto [local_scatter_map, non_local_scatter_map, sorting_idx, send_sizes,
-              send_offsets, recv_sizes, recv_offsets] =
-            repartitioner->gather(dist_A.get(), to_mat.get());
-
-        // TODO add field name
-        PersistentArray<label> local_scatter_map_pers{
-            local_scatter_map.get_data(),
-            "local_scatter_map",
-            db_,
-            exec_,
-            static_cast<label>(local_scatter_map.get_num_elems()),
-            verbose_,
-            false,
-            false};
-
-        // TODO add field name
-        PersistentArray<label> non_local_scatter_map_pers{
-            non_local_scatter_map.get_data(),
-            "non_local_scatter_map",
-            db_,
-            exec_,
-            static_cast<label>(non_local_scatter_map.get_num_elems()),
-            verbose_,
-            false,
-            false};
-
-        // TODO add field name
-        PersistentArray<label> sorting_idx_pers{
-            sorting_idx.get_data(),
-            "sorting_idx",
-            db_,
-            exec_,
-            static_cast<label>(sorting_idx.get_num_elems()),
-            verbose_,
-            false,
-            false};
-
-        // TODO add field name
-        PersistentArray<label> send_sizes_pers{
-            send_sizes.data(),
-            "send_sizes",
-            db_,
-            exec_,
-            static_cast<label>(send_sizes.size()),
-            verbose_,
-            false,
-            false};
-
-        // TODO add field name
-        PersistentArray<label> send_offs_pers{
-            send_offsets.data(),
-            "send_offs",
-            db_,
-            exec_,
-            static_cast<label>(send_offsets.size()),
-            verbose_,
-            false,
-            false};
-
-        // TODO add field name
-        PersistentArray<label> recv_sizes_pers{
-            recv_sizes.data(),
-            "recv_sizes",
-            db_,
-            exec_,
-            static_cast<label>(recv_sizes.size()),
-            verbose_,
-            false,
-            false};
-
-        PersistentArray<label> recv_offs_pers{
-            recv_offsets.data(),
-            "recv_offs",
-            db_,
-            exec_,
-            static_cast<label>(recv_offsets.size()),
-            verbose_,
-            false,
-            false};
-
-        auto device_mat = generate_dist_mtx_with_inner_type(
-            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
-
-        to_mat->move_to(device_mat.get());
-
-        return device_mat;
+        // auto repartitioner = gko::share(
+        //     gko::experimental::distributed::repartitioner<label, label>::create(
+        //         *comm.get(), partition_.get_host_partition(),
+        //         partition_.get_device_partition(), false));
+        // auto to_mat = gko::share(
+        //     dist_mtx::create(exec, repartitioner->get_to_communicator()));
+        //
+        // auto [local_scatter_map, non_local_scatter_map, sorting_idx, send_sizes,
+        //       send_offsets, recv_sizes, recv_offsets] =
+        //     repartitioner->gather(dist_A.get(), to_mat.get());
+        //
+        // // TODO add field name
+        // PersistentArray<label> local_scatter_map_pers{
+        //     local_scatter_map.get_data(),
+        //     "local_scatter_map",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(local_scatter_map.get_num_elems()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // // TODO add field name
+        // PersistentArray<label> non_local_scatter_map_pers{
+        //     non_local_scatter_map.get_data(),
+        //     "non_local_scatter_map",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(non_local_scatter_map.get_num_elems()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // // TODO add field name
+        // PersistentArray<label> sorting_idx_pers{
+        //     sorting_idx.get_data(),
+        //     "sorting_idx",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(sorting_idx.get_num_elems()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // // TODO add field name
+        // PersistentArray<label> send_sizes_pers{
+        //     send_sizes.data(),
+        //     "send_sizes",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(send_sizes.size()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // // TODO add field name
+        // PersistentArray<label> send_offs_pers{
+        //     send_offsets.data(),
+        //     "send_offs",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(send_offsets.size()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // // TODO add field name
+        // PersistentArray<label> recv_sizes_pers{
+        //     recv_sizes.data(),
+        //     "recv_sizes",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(recv_sizes.size()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // PersistentArray<label> recv_offs_pers{
+        //     recv_offsets.data(),
+        //     "recv_offs",
+        //     db_,
+        //     exec_,
+        //     static_cast<label>(recv_offsets.size()),
+        //     verbose_,
+        //     false,
+        //     false};
+        //
+        // auto device_mat = generate_dist_mtx_with_inner_type(
+        //     exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
+        //
+        // to_mat->move_to(device_mat.get());
+        //
+        // return device_mat;
     }
 };
 

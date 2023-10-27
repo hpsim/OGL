@@ -70,7 +70,9 @@ public:
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
         auto gmres =
-            gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
+            gmres::build()
+            // .with_criteria(stoppingCriterionVec_)
+            .on(exec);
         return gmres;
     };
 
@@ -79,7 +81,7 @@ public:
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto gmres = gmres::build()
-                         .with_criteria(stoppingCriterionVec_)
+                         // .with_criteria(stoppingCriterionVec_)
                          .with_generated_preconditioner(precond)
                          .on(exec);
         return gmres;
