@@ -147,7 +147,6 @@ private:
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
     using GlobalIndexType = gko::int64;
-    using part_type = gko::experimental::distributed::Partition<label, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;
