@@ -42,7 +42,6 @@ jobs:
       - id: set-matrix
         run: |
           echo "matrix=[\"cavity\"]" >> $GITHUB_OUTPUT
-          #echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
 
   setup:
     runs-on: ubuntu-latest
@@ -172,11 +171,6 @@ jobs:
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
-        #   - name: Update workspace cache
-        #     run: |
-        #       STATE_CACHE_KEY="ws"
-        #       echo "STATE_CACHE_KEY=${STATE_CACHE_KEY}" >> $GITHUB_ENV 
-
     - name: Validation of exported mtx files
       working-directory: /github/home/${{matrix.Case}}
       shell: bash
@@ -184,11 +178,24 @@ jobs:
         python3 /__w/OGL/OGL/test/data_validation.py workspace
         ls -la workspace/*/case/processor0/*
 
-    - name: Validate state
+    - name: Validate unpreconditioned state
       working-directory: /github/home/${{matrix.Case}}
       run: |
         obr status
-        obr query -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
+        obr query --filter preconditioner==none --filter matrixFormat==Coo -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
+
+    - name: Validate preconditioned state
+      working-directory: /github/home/${{matrix.Case}}
+      run: |
+        obr status
+        obr query --filter preconditioner!=none -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
+
+    - name: Validate matrix formats
+      working-directory: /github/home/${{matrix.Case}}
+      run: |
+        obr status
+        obr query --filter matrixFormat!=Coo -q global -q continuityErrors -q CourantNumber --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json --filter global==completed
+
 
     - name: Rename log files
       if: failure()

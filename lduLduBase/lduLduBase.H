@@ -284,19 +284,21 @@ public:
 
         bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
         if (debug && db_.time().writeTime()) {
+            word matrix_format(
+                solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
             LOG_0(verbose_, "Export system")
             export_mtx(
                 this->fieldName(),
                 gko::as<gko::experimental::distributed::Matrix<scalar, label,
                                                                label>>(dist_A_v)
                     ->get_local_matrix(),
-                "local", db_);
+                "local", db_, matrix_format);
             export_mtx(
                 this->fieldName(),
                 gko::as<gko::experimental::distributed::Matrix<scalar, label,
                                                                label>>(dist_A_v)
                     ->get_non_local_matrix(),
-                "non_local", db_);
+                "non_local", db_, matrix_format);
         }
 
 
