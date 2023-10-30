@@ -22,7 +22,7 @@ env:
 
 defaults:
  run:
-  shell: bash −i {0}
+  shell: bash
 
 jobs:
 
