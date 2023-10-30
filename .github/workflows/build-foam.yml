@@ -1,6 +1,10 @@
 name: Build OpenFOAM (ESI|FOUNDATION)
 run-name: 'Build and integration'
 
+defaults:
+ run:
+  shell: bash -l {0}
+
 on:
   push:
     branches: 
@@ -20,9 +24,6 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
 
-defaults:
- run:
-  shell: bash
 
 jobs:
 
