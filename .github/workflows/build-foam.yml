@@ -3,7 +3,7 @@ run-name: 'Build and integration'
 
 defaults:
  run:
-  shell: bash -i {0}
+  shell: bash -o pipefail -i {0}
 
 on:
   push:
@@ -84,8 +84,8 @@ jobs:
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
-      shell: bash
       run: |
+        source ${{matrix.OF.path}}/etc/bashrc
         mkdir -p ${{matrix.OF.foam_user_libbin}}
         mkdir -p build
         cd build
@@ -95,7 +95,6 @@ jobs:
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
       run: |
-        source ${{matrix.OF.path}}/etc/bashrc
         cmake --build . --config $BUILD_TYPE
 
     - name: Test OGL
