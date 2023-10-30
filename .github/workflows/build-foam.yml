@@ -85,7 +85,7 @@ jobs:
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
       run: |
-        source ${{matrix.OF.path}}/etc/bashrc
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         mkdir -p ${{matrix.OF.foam_user_libbin}}
         mkdir -p build
         cd build
