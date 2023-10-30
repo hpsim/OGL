@@ -3,7 +3,7 @@ run-name: 'Build and integration'
 
 defaults:
  run:
-  shell: bash -l {0}
+  shell: bash -i {0}
 
 on:
   push:
