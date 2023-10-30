@@ -22,7 +22,7 @@ env:
 
 defaults:
  run:
-  shell: bash −o pipefail −i {0}
+  shell: bash −i {0}
 
 jobs:
 
