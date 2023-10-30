@@ -1,4 +1,9 @@
 name: Integration Tests
+
+defaults:
+ run:
+  shell: bash -o pipefail -i {0}
+
 on: 
   workflow_call:
     inputs:
@@ -15,20 +20,6 @@ run-name: Integration test on ${{github.ref_name}}
 
 env:
   BUILD_TYPE: Release
-  FOAM_INST_DIR: /root/OpenFOAM
-  WM_PROJECT: OpenFOAM
-  WM_OPTIONS: linux64GccDPInt32Opt
-  WM_COMPILER_TYPE: system
-  WM_COMPILER: Gcc
-  WM_PRECISION_OPTION: DP
-  WM_LABEL_SIZE: 32
-  WM_COMPILE_OPTION: Opt
-  WM_OSTYPE: POSIX
-  WM_ARCH: linux64
-  WM_ARCH_OPTION: 64
-  WM_LINK_LANGUAGE: c++
-  WM_LABEL_OPTION:  Int32
-  WM_MPLIB: SYSTEMOPENMPI
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   MPI_BUFFER_SIZE: 20000000 
@@ -65,13 +56,6 @@ jobs:
 
     - name: Source OF enviroment
       run: |
-        mkdir -p $FOAM_INST_DIR
-        echo "FOAM_ETC=$FOAM_INST_DIR/${{inputs.path}}/etc" >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{inputs.path}}" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{inputs.version}}" >> $GITHUB_ENV
-        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{inputs.path}}/tutorials" >> $GITHUB_ENV
-        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{inputs.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "FOAM_SRC=$FOAM_INST_DIR/${{inputs.path}}/src" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{inputs.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
         echo "CYCLIC_CASE=${{inputs.cyclic_case}}" >> $GITHUB_ENV
@@ -87,8 +71,7 @@ jobs:
       working-directory: /github/home/
       shell: bash
       run: |
-        export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
-        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
 
         mkdir -p ${{matrix.Case}} && cd ${{matrix.Case}}
@@ -117,16 +100,8 @@ jobs:
 
     - name: Source OF enviroment
       run: |
-        mkdir -p $FOAM_INST_DIR
-        echo "FOAM_ETC=$FOAM_INST_DIR/${{inputs.path}}/etc" >> $GITHUB_ENV
-        echo "WM_PROJECT_DIR=$FOAM_INST_DIR/${{inputs.path}}" >> $GITHUB_ENV
-        echo "FOAM_USER_PATH=$FOAM_INST_DIR/root-${{inputs.version}}" >> $GITHUB_ENV
-        echo "FOAM_TUTORIALS=$FOAM_INST_DIR/${{inputs.path}}/tutorials" >> $GITHUB_ENV
-        echo "FOAM_USER_LIBBIN=$FOAM_INST_DIR/root-${{inputs.version}}/platforms/linux64GccDPInt32Opt/lib" >> $GITHUB_ENV
-        echo "FOAM_SRC=$FOAM_INST_DIR/${{inputs.path}}/src" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{env.FOAM_INST_DIR}}/root-${{inputs.version}}/platforms/linux64GccDPInt32Opt/lib/cmake/Ginkgo" >> $GITHUB_ENV
         echo "GINKGO_EXECUTOR=reference" >> $GITHUB_ENV
-        echo "CYCLIC_CASE=${{inputs.cyclic_case}}" >> $GITHUB_ENV
         echo "OMPI_MCA_btl_vader_single_copy_mechanism=none" >> $GITHUB_ENV
 
     - name: Cache build
@@ -155,19 +130,12 @@ jobs:
         key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
-              #   - name: Copy OGL from cached folder
-              #     run: |
-              #       mkdir -p $FOAM_USER_LIBBIN
-              #       ls -la /github/home
-              #       cp -r /github/home/libbin/* $FOAM_USER_LIBBIN
-
     - name: Execute test cases
       working-directory: /github/home/${{matrix.Case}}
       timeout-minutes: 10
       shell: bash
       run: |
-        export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
-        export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
