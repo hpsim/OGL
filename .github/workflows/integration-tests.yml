@@ -71,7 +71,7 @@ jobs:
       working-directory: /github/home/
       shell: bash
       run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
+        source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
 
         mkdir -p ${{matrix.Case}} && cd ${{matrix.Case}}
@@ -135,7 +135,7 @@ jobs:
       timeout-minutes: 10
       shell: bash
       run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
+        source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
         export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         obr run -o runParallelSolver
 
