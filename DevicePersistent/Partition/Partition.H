@@ -39,8 +39,7 @@ namespace Foam {
 
 
 struct PartitionInitFunctor {
-    using part_type =
-        gko::experimental::distributed::localized_partition;
+    using part_type = gko::experimental::distributed::localized_partition<>;
 
     const ExecutorHandler &exec_;
 
@@ -52,15 +51,25 @@ struct PartitionInitFunctor {
 
     const int ranks_per_gpu_;
 
+    // Array storing the ranks of the neighbouring processors
+    const gko::array<label> target_ids_;
+
+    // Array storing the ranks of the neighbouring processors
+    const gko::array<label> target_sizes_;
+
 
     PartitionInitFunctor(const ExecutorHandler &exec, const label rows_start,
                          const label rows_end, const label verbose,
-                         const int ranks_per_gpu)
+                         const int ranks_per_gpu,
+                         const gko::array<label> &target_ids,
+                         const gko::array<label> target_sizes)
         : exec_(exec),
           rows_end_(rows_end),
           rows_start_(rows_start),
           verbose_(verbose),
-          ranks_per_gpu_(ranks_per_gpu)
+          ranks_per_gpu_(ranks_per_gpu),
+          target_ids_(target_ids),
+          target_sizes_(target_sizes)
     {}
 
     void update(std::shared_ptr<part_type> persistent_partition) const
@@ -78,14 +87,11 @@ struct PartitionInitFunctor {
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
 
-        std::vector<std::pair<index_set<index_type>, comm_index_type>>
-            send_idxs;
-        std::vector<std::pair<index_set<index_type>, comm_index_type>>
-            recv_idxs;
+        std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
 
         auto host_partition = gko::experimental::distributed::
-            localized_partition::build_from_blocked_recv(
-                exec, rows_end_ - rows_start_, send_idxs, recv_idxs);
+            localized_partition<>::build_from_blocked_recv(
+                exec, local_size, send_idxs, target_ids_, target_sizes_);
 
         if (ranks_per_gpu_ == 1) return host_partition;
 
@@ -126,7 +132,7 @@ struct PartitionInitFunctor {
  * */
 class PersistentPartition
     : public PersistentBase<
-          gko::experimental::distributed::localized_partition,
+          gko::experimental::distributed::localized_partition<>,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
@@ -138,8 +144,7 @@ class PersistentPartition
 
 
 public:
-    using part_type =
-        gko::experimental::distributed::localized_partition;
+    using part_type = gko::experimental::distributed::localized_partition<>;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage
@@ -151,11 +156,13 @@ public:
      */
     PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
                         const label verbose, const int ranks_per_gpu,
-                        const label offset, const label elements)
+                        const label offset, const label elements,
+                         const gko::array<label> &target_ids,
+                         const gko::array<label> target_sizes)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
               PartitionInitFunctor(exec, offset, offset + elements, verbose,
-                                   ranks_per_gpu),
+                                   ranks_per_gpu, target_ids, target_sizes),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           offset_(offset),
@@ -170,17 +177,20 @@ public:
 
     std::shared_ptr<const part_type> get_host_partition() const
     {
-        auto comm = exec_.get_gko_mpi_host_comm();
-        const label local_size = rows_end_ - rows_start_;
-        std::vector<std::pair<index_set<index_type>, comm_index_type>>
-            send_idxs;
-        std::vector<std::pair<index_set<index_type>, comm_index_type>>
-            recv_idxs;
-        return gko::experimental::distributed::localized_partition::
-            build_from_blocked_recv(
-                exec, rows_end_ - rows_start_, send_idxs, recv_idxs
-
-            );
+        // TODO FIXME can this be avoided? Why do we have this twice?
+        // auto comm = exec_.get_gko_mpi_host_comm();
+        // auto exec = exec_.get_ref_exec();
+        // const label local_size = rows_end_ - rows_start_;
+        // std::vector<std::pair<gko::index_set<label>, label>>
+        //     send_idxs;
+        // gko::array<label> target_ids;
+        // gko::array<label> target_sizes;
+        return {};
+        // gko::experimental::distributed::localized_partition<>::
+        //     build_from_blocked_recv(
+        //         exec, rows_end_ - rows_start_, send_idxs, recv_idxs
+        //
+        //     );
     }
 
     // number of elements on this rank on the host
@@ -189,14 +199,18 @@ public:
     // number of elements on this rank on the device
     label get_local_device_size() const
     {
-        auto comm = exec_.get_gko_mpi_device_comm();
-        return this->get_persistent_object()->get_part_size(comm->rank());
+        // TODO FIXME can this be avoided? Why do we have this twice?
+        // auto comm = exec_.get_gko_mpi_device_comm();
+        // return this->get_persistent_object()->get_part_size(comm->rank());
+        return 0;
     }
 
 
     label get_total_size() const
     {
-        return this->get_persistent_object()->get_size();
+        // TODO FIXME can this be avoided? Why do we have this twice?
+        // return this->get_persistent_object()->get_size();
+        return 0;
     }
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }

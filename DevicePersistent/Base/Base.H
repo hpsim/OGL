@@ -86,6 +86,8 @@ private:
 
     const label verbose_;
 
+    const InitFunctor init_functor_;
+
     // This needs to be a pointer so that it can be assigned
     // during the constructor, since regIOobject needs arguments
     // to be constructed
@@ -99,7 +101,8 @@ public:
         : name_(name),
           db_(db),
           from_registry_{db.foundObject<regIOobject>(name_)},
-          verbose_(verbose)
+          verbose_(verbose),
+          init_functor_(f)
     {
         if (from_registry_) {
             word msg = "reading " + name_ + " from registry";
@@ -148,6 +151,8 @@ public:
     bool get_verbose() const { return verbose_; }
 
     word get_name() const { return name_; }
+
+    const InitFunctor &get_init_functor() const { return init_functor_; }
 
     const objectRegistry &get_db() const { return db_; }
 

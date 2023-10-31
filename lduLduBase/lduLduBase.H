@@ -216,13 +216,16 @@ public:
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
+        const auto& [target_ids, target_sizes] = this->get_proc_target_id_and_sizes();
         PersistentPartition partition{
             db_,
             this->get_exec_handler(),
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
-            psi.size()  // number of elements
+            psi.size(),  // number of elements
+            target_ids,
+            target_sizes
         };
 
         // TODO this is now the local matrix part for dist_A

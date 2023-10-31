@@ -39,7 +39,7 @@ const lduInterfaceField *interface_getter(
 #else
     return interfaces.operator()(i);
 #endif
-};
+}
 
 template <class MatrixType>
 label HostMatrixWrapper<MatrixType>::count_interface_nnz(
@@ -147,6 +147,59 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
         }
     }
     return local_interface_idxs;
+}
+
+template <class MatrixType>
+std::pair<gko::array<label>, gko::array<label>> HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
+    const lduInterfaceFieldPtrsList &interfaces) const
+{
+    // temp vector to store neighbour proc number and number of cells to send
+    std::vector<std::pair<label, label>> neighbour_procs{};
+    // TODO FIXME use a lambda to avoid repeating
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+
+        const auto &iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (isA<processorLduInterface>(iface->interface())) {
+            const processorLduInterface &pldui =
+                refCast<const processorLduInterface>(iface->interface());
+            const label neighbProcNo = pldui.neighbProcNo();
+
+            neighbour_procs.push_back(
+                std::pair<label, label>{neighbProcNo, interface_size});
+        }
+    }
+
+    // reduce vector
+    label n_procs = 0;
+    std::map<label, label> reduce_map{};
+    for (auto [proc, n_faces] : neighbour_procs) {
+        auto search = reduce_map.find(proc);
+        if (search == reduce_map.end()) {
+            n_procs+=1;
+            reduce_map.insert(proc, n_faces);
+        } else {
+            reduce_map[proc] = reduce_map[proc] + n_faces;
+        }
+    }
+
+    // convert to gko::array
+    gko::array<label> target_ids {exec_.get_ref_exec(), n_procs};
+    gko::array<label> target_sizes {exec_.get_ref_exec(), n_procs};
+
+    label iter = 0;
+    for (const auto& [proc, size] : reduce_map) {
+        target_ids.get_data()[iter] = proc;
+        target_sizes.get_data()[iter] = size;
+        iter++;
+    }
+
+    return std::pair(target_ids, target_sizes);
 }
 
 template <class MatrixType>
