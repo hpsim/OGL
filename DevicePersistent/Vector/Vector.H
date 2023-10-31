@@ -101,23 +101,25 @@ struct VectorInitFunctor {
         if (partition_.get_ranks_per_gpu() == 1) {
             return gko::share(dist_vec::create(
                 exec, *exec_.get_gko_mpi_device_comm().get(),
-                vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
-                    ));
+                vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
         }
 
         // when having more ranks than GPUs we must first repartition and
         // gather the vector
         // auto host_vector = gko::share(dist_vec::create(
         //     exec, *exec_.get_gko_mpi_host_comm().get(),
-        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
+        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view,
+        //     1).get()));
         //
         // auto target_vector = gko::share(dist_vec::create(
         //     exec, *exec_.get_gko_mpi_host_comm().get(),
-        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
+        //     vec::create(exec, gko::dim<2>{local_size, 1}, host_view,
+        //     1).get()));
         //
         // // TODO test if this needs to be persistent
         // auto repartitioner = gko::share(
-        //     gko::experimental::distributed::repartitioner<label, label>::create(
+        //     gko::experimental::distributed::repartitioner<label,
+        //     label>::create(
         //         *comm.get(), partition_.get_host_partition(),
         //         partition_.get_device_partition(), true));
         //
