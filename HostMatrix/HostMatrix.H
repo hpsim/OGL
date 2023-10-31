@@ -340,8 +340,8 @@ public:
     /* Getter for proc_id and sizes arrays
      *
      */
-    const std::pair<gko::array<label>, gko::array<label>> &
-    get_proc_target_id_and_sizes() const
+    const std::pair<gko::array<label>, gko::array<label>>
+        &get_proc_target_id_and_sizes() const
     {
         return proc_target_id_and_sizes_;
     };

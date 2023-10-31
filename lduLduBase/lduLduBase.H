@@ -216,7 +216,8 @@ public:
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
-        const auto& [target_ids, target_sizes] = this->get_proc_target_id_and_sizes();
+        const auto &[target_ids, target_sizes] =
+            this->get_proc_target_id_and_sizes();
         PersistentPartition partition{
             db_,
             this->get_exec_handler(),
@@ -225,8 +226,7 @@ public:
             this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
             psi.size(),  // number of elements
             target_ids,
-            target_sizes
-        };
+            target_sizes};
 
         // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
@@ -312,9 +312,8 @@ public:
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        TIME_WITH_FIELDNAME(
-            verbose_, solve, this->fieldName(),
-            solver->apply(dist_b_v, dist_x_v);)
+        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+                            solver->apply(dist_b_v, dist_x_v);)
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)

@@ -157,8 +157,8 @@ public:
     PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
                         const label verbose, const int ranks_per_gpu,
                         const label offset, const label elements,
-                         const gko::array<label> &target_ids,
-                         const gko::array<label> target_sizes)
+                        const gko::array<label> &target_ids,
+                        const gko::array<label> target_sizes)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
               PartitionInitFunctor(exec, offset, offset + elements, verbose,

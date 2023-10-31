@@ -150,7 +150,8 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
 }
 
 template <class MatrixType>
-std::pair<gko::array<label>, gko::array<label>> HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
+std::pair<gko::array<label>, gko::array<label>>
+HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // temp vector to store neighbour proc number and number of cells to send
@@ -181,7 +182,7 @@ std::pair<gko::array<label>, gko::array<label>> HostMatrixWrapper<MatrixType>::a
     for (auto [proc, n_faces] : neighbour_procs) {
         auto search = reduce_map.find(proc);
         if (search == reduce_map.end()) {
-            n_procs+=1;
+            n_procs += 1;
             reduce_map.insert(proc, n_faces);
         } else {
             reduce_map[proc] = reduce_map[proc] + n_faces;
@@ -189,11 +190,11 @@ std::pair<gko::array<label>, gko::array<label>> HostMatrixWrapper<MatrixType>::a
     }
 
     // convert to gko::array
-    gko::array<label> target_ids {exec_.get_ref_exec(), n_procs};
-    gko::array<label> target_sizes {exec_.get_ref_exec(), n_procs};
+    gko::array<label> target_ids{exec_.get_ref_exec(), n_procs};
+    gko::array<label> target_sizes{exec_.get_ref_exec(), n_procs};
 
     label iter = 0;
-    for (const auto& [proc, size] : reduce_map) {
+    for (const auto &[proc, size] : reduce_map) {
         target_ids.get_data()[iter] = proc;
         target_sizes.get_data()[iter] = size;
         iter++;

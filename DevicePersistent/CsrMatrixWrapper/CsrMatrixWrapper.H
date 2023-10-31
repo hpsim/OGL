@@ -231,8 +231,8 @@ struct MatrixInitFunctor {
             //         *sorting_idx_pers.get_array().get(), send_sizes,
             //         send_offsets, recv_sizes, recv_offsets,
             //         *local_scatter_map_pers.get_array().get(),
-            //         *non_local_scatter_map_pers.get_array().get(), local_values,
-            //         non_local_values);)
+            //         *non_local_scatter_map_pers.get_array().get(),
+            //         local_values, non_local_values);)
 
             auto value_view =
                 val_array::view(device_exec, local_nnz, value_ptr);
@@ -372,13 +372,15 @@ struct MatrixInitFunctor {
 
         // TODO test if this needs to be persistent
         // auto repartitioner = gko::share(
-        //     gko::experimental::distributed::repartitioner<label, label>::create(
+        //     gko::experimental::distributed::repartitioner<label,
+        //     label>::create(
         //         *comm.get(), partition_.get_host_partition(),
         //         partition_.get_device_partition(), false));
         // auto to_mat = gko::share(
         //     dist_mtx::create(exec, repartitioner->get_to_communicator()));
         //
-        // auto [local_scatter_map, non_local_scatter_map, sorting_idx, send_sizes,
+        // auto [local_scatter_map, non_local_scatter_map, sorting_idx,
+        // send_sizes,
         //       send_offsets, recv_sizes, recv_offsets] =
         //     repartitioner->gather(dist_A.get(), to_mat.get());
         //
