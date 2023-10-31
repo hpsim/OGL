@@ -14,3 +14,8 @@ jobs:
         clang-format-version: '13'
         check-path: '.'
         fallback-style: 'Mozilla' # optional
+    - name: check for todo fixme note
+      run: |
+        NTODOS="$(grep -r 'TODO FIXME' | wc -l)"
+        echo "Found $NTODOS TODO FIXME notes" 
+        ! grep -q -r "TODO FIXME"  
