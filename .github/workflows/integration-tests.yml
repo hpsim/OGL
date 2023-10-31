@@ -119,14 +119,12 @@ jobs:
     - name: Execute test cases
       working-directory: /github/home/${{matrix.Case}}
       timeout-minutes: 10
-      shell: bash
       run: |
         source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
         obr run -o runParallelSolver
 
     - name: Validation of exported mtx files
       working-directory: /github/home/${{matrix.Case}}
-      shell: bash
       run: |
         python3 /__w/OGL/OGL/test/data_validation.py workspace
         ls -la workspace/*/case/processor0/*
