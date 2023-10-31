@@ -138,6 +138,10 @@ private:
     // non-local indices
     const label non_local_matrix_nnz_;
 
+    // Array storing the ranks of the neighbouring processors
+    const std::pair<gko::array<label>, gko::array<label>>
+        proc_target_id_and_sizes_;
+
     mutable PersistentSparsityPattern non_local_sparsity_;
 
     mutable PersistentArray<scalar> non_local_coeffs_;
@@ -196,6 +200,7 @@ public:
                      // matrix it will be put on the device
           },
           non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
+          proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
               non_local_matrix_nnz_,    verbose_,
@@ -269,6 +274,7 @@ public:
                      // matrix it will be put on the device
           },
           non_local_matrix_nnz_(),
+          // proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
               non_local_matrix_nnz_,    verbose_,
@@ -322,6 +328,24 @@ public:
     */
     label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
+
+    /* Iterates all interfaces and counts the number of unique neighbour
+     *processors and number of interfaces in total for this processor
+     **
+     ** @param interfaces The list of interfaces for the search
+     */
+    std::pair<gko::array<label>, gko::array<label>> assemble_proc_id_and_sizes(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /* Getter for proc_id and sizes arrays
+     *
+     */
+    const std::pair<gko::array<label>, gko::array<label>> &
+    get_proc_target_id_and_sizes() const
+    {
+        return proc_target_id_and_sizes_;
+    };
+
 
     /* Iterates all interfaces and collects non-local global column indices
     **
