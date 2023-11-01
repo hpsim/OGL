@@ -106,6 +106,8 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
+#define OGL_NOT_IMPLEMENTED GKO_NOT_IMPLEMENTED
+
 std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
