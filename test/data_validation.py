@@ -106,6 +106,54 @@ def verify_local_matrix(lines, file_path):
                 )
                 sys.exit(1)
 
+def verify_matrix_is_in_row_major_order(lines, file_path):
+    """This function checks if matrix is sorted in row major order
+    """
+    from scipy.io import mmread
+
+    # bool is_sorted_rows = true;
+    # bool is_sorted_cols = true;
+    # auto rows_data = rows->get_const_data();
+    # auto cols_data = cols->get_const_data();
+    # for (size_t i = 1; i < cols->get_num_elems(); i++) {
+    #     if (rows_data[i] < rows_data[i - 1]) {
+    #         is_sorted_rows = false;
+    #         Info << "rows sorting error element " << i << " row[i] "
+    #              << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+    #              << endl;
+    #     }
+    #     // same row but subsequent column is smaller
+    #     if (cols_data[i] < cols_data[i - 1] &&
+    #         rows_data[i] == rows_data[i - 1]) {
+    #         is_sorted_cols = false;
+    #         Info << "cols sorting error element " << i << " row[i] "
+    #              << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+    #              << " col[i] " << cols_data[i] << " col[i-1] "
+    #              << cols_data[i - 1] << endl;
+    #     }
+    # }
+    # bool is_sorted_rows = true;
+    # bool is_sorted_cols = true;
+    # auto rows_data = rows->get_const_data();
+    # auto cols_data = cols->get_const_data();
+    # for (size_t i = 1; i < cols->get_num_elems(); i++) {
+    #     if (rows_data[i] < rows_data[i - 1]) {
+    #         is_sorted_rows = false;
+    #         Info << "rows sorting error element " << i << " row[i] "
+    #              << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+    #              << endl;
+    #     }
+    #     // same row but subsequent column is smaller
+    #     if (cols_data[i] < cols_data[i - 1] &&
+    #         rows_data[i] == rows_data[i - 1]) {
+    #         is_sorted_cols = false;
+    #         Info << "cols sorting error element " << i << " row[i] "
+    #              << rows_data[i] << " row[i-1] " << rows_data[i - 1]
+    #              << " col[i] " << cols_data[i] << " col[i-1] "
+    #              << cols_data[i - 1] << endl;
+    #     }
+    # }
+
 
 def test_matrix_value_bounds(workspace):
     """This function checks if matrices are coeffs are within bounds"""

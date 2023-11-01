@@ -47,6 +47,8 @@ struct PartitionInitFunctor {
 
     const label rows_start_;
 
+    const label local_size_;
+
     const label verbose_;
 
     const int ranks_per_gpu_;
@@ -66,11 +68,13 @@ struct PartitionInitFunctor {
         : exec_(exec),
           rows_end_(rows_end),
           rows_start_(rows_start),
+          local_size_(rows_end_ - rows_start_),
           verbose_(verbose),
           ranks_per_gpu_(ranks_per_gpu),
           target_ids_(target_ids),
           target_sizes_(target_sizes)
-    {}
+    {
+    }
 
     void update(std::shared_ptr<part_type> persistent_partition) const
     {
@@ -82,40 +86,17 @@ struct PartitionInitFunctor {
         auto exec = exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
 
-        const label local_size = rows_end_ - rows_start_;
         word msg{"initialising partition of size " +
-                 std::to_string(local_size)};
+                 std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
         std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
 
         auto host_partition = gko::experimental::distributed::
             localized_partition<>::build_from_blocked_recv(
-                exec, local_size, send_idxs, target_ids_, target_sizes_);
+                exec, local_size_, send_idxs, target_ids_, target_sizes_);
 
         if (ranks_per_gpu_ == 1) return host_partition;
-
-        // TODO FIXME
-        // auto local_rank = comm->rank();
-        // auto local_owning_rank = ranks_per_gpu_ * (local_rank /
-        // ranks_per_gpu_); auto next_owning_rank = ranks_per_gpu_ +
-        // local_owning_rank;
-
-        // // The new partition ranges up to next owning rank elements
-        // auto target_rows_end =
-        //     host_partition->get_range_bounds()[next_owning_rank];
-
-        // // if we are not on an owning rank start rows are set to be the end
-        // // row else the rows start are unchanged
-        // auto target_rows_start =
-        //     (local_rank % ranks_per_gpu_ != 0) ? target_rows_end :
-        //     rows_start_;
-
-        // return gko::share(
-        //     gko::experimental::distributed::build_partition_from_local_range<
-        //         label, label>(exec, *comm.get(),
-        //                       gko::span(target_rows_start,
-        //                       target_rows_end)));
     }
 };
 
@@ -138,7 +119,9 @@ class PersistentPartition
 
     const label offset_;
 
-    const label elements_;
+    const label local_elements_;
+
+    mutable label global_elements_;
 
     const ExecutorHandler &exec_;
 
@@ -166,51 +149,26 @@ public:
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           offset_(offset),
-          elements_(elements),
+          local_elements_(elements),
           exec_(exec)
-    {}
+    {
+        auto comm = exec.get_gko_mpi_host_comm();
+        label local_elements = local_elements_;
+        comm->all_reduce(exec.get_ref_exec(), &local_elements, 1, MPI_SUM);
+        global_elements_ = local_elements;
+          }
 
-    std::shared_ptr<part_type> get_device_partition() const
+    std::shared_ptr<part_type> get_localized_partition() const
     {
         return this->get_persistent_object();
     }
 
-    std::shared_ptr<const part_type> get_host_partition() const
-    {
-        // TODO FIXME can this be avoided? Why do we have this twice?
-        // auto comm = exec_.get_gko_mpi_host_comm();
-        // auto exec = exec_.get_ref_exec();
-        // const label local_size = rows_end_ - rows_start_;
-        // std::vector<std::pair<gko::index_set<label>, label>>
-        //     send_idxs;
-        // gko::array<label> target_ids;
-        // gko::array<label> target_sizes;
-        return {};
-        // gko::experimental::distributed::localized_partition<>::
-        //     build_from_blocked_recv(
-        //         exec, rows_end_ - rows_start_, send_idxs, recv_idxs
-        //
-        //     );
-    }
-
     // number of elements on this rank on the host
-    label get_local_host_size() const { return elements_; }
-
-    // number of elements on this rank on the device
-    label get_local_device_size() const
-    {
-        // TODO FIXME can this be avoided? Why do we have this twice?
-        // auto comm = exec_.get_gko_mpi_device_comm();
-        // return this->get_persistent_object()->get_part_size(comm->rank());
-        return 0;
-    }
-
+    label get_local_size() const { return local_elements_; }
 
     label get_total_size() const
     {
-        // TODO FIXME can this be avoided? Why do we have this twice?
-        // return this->get_persistent_object()->get_size();
-        return 0;
+        return global_elements_;
     }
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
