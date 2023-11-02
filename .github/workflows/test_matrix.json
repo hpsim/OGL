@@ -13,6 +13,13 @@
    "path": "OpenFOAM-10",
    "repo": "https://github.com/OpenFOAM/OpenFOAM-10.git",
    "cyclic_case": "LES/channel395" 
-    }
+    },
+  {
+   "version": "5.0",
+   "fork": "extend",
+   "path": "foam-extend-5.0",
+   "repo": "git://git.code.sf.net/p/foam-extend/foam-extend-5.0",
+   "cyclic_case": "LES/channel395" 
+  }
 ]
 }

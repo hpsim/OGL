@@ -105,6 +105,18 @@ public:
             word msg = "reading " + name_ + " from registry";
             MLOG_1(verbose_, msg)
 
+#ifdef WITH_EXTEND_VERSION
+            if (update) {
+                persistent_object_ =
+                    db_.lookupObject<DevicePersistentBase<T>>(name_).get_ptr();
+
+                TIME_WITH_FIELDNAME(verbose_, call_update, name_,
+                                    f.update(persistent_object_);)
+            } else {
+                persistent_object_ =
+                    db_.lookupObject<DevicePersistentBase<T>>(name_).get_ptr();
+            }
+#else
             if (update) {
                 persistent_object_ =
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
@@ -117,6 +129,7 @@ public:
                     db_.lookupObjectRef<DevicePersistentBase<T>>(name_)
                         .get_ptr();
             }
+#endif
 
         } else {
             word msg = "initialising " + name_;

@@ -25,15 +25,21 @@ option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_ALLOW_REFERENCE_ONLY
+       "Enable builds of Ginkgo with reference backend only" FALSE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
 if(NOT OGL_ALLOW_REFERENCE_ONLY)
-    if ((NOT GINKGO_BUILD_CUDA) AND (NOT GINKGO_BUILD_HIP) AND (NOT GINKGO_BUILD_SYCL))
-        message(FATAL_ERROR "No GPU Backend was selected, set either:\n -DGINKGO_BUILD_CUDA=True\n -DGINKGO_BUILD_HIP=True\n -DGINKGO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check")
-    endif()
+  if((NOT GINKGO_BUILD_CUDA)
+     AND (NOT GINKGO_BUILD_HIP)
+     AND (NOT GINKGO_BUILD_SYCL))
+    message(
+      FATAL_ERROR
+        "No GPU Backend was selected, set either:\n -DGINKGO_BUILD_CUDA=True\n -DGINKGO_BUILD_HIP=True\n -DGINKGO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check"
+    )
+  endif()
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
@@ -63,7 +69,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
-# C++ 14 standard or later is required to interface with ginkgo 
+# C++ 14 standard or later is required to interface with ginkgo
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -89,8 +95,8 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     -Rpass=loop-vectorize \
     -ffast-math \
     "
-#- Rpass-analysis=loop-vectorize  -Rpass-missed=loop-vectorize
-)
+      # * Rpass-analysis=loop-vectorize  -Rpass-missed=loop-vectorize
+  )
 
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   add_definitions(-DWITH_GNU)
@@ -100,7 +106,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       --coverage\
       -fprofile-arcs \
       -ggdb3")
-#- fsanitize = address \ - ftest - coverage \
+  # * fsanitize = address \ - ftest - coverage \
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -124,9 +130,9 @@ else()
   add_compile_definitions(linux64)
 endif()
 
-#Add a custom command that produces version.cpp, plus a dummy output that's not
-# actually produced, in order to always force re-run version.cmake before
-#the build
+# Add a custom command that produces version.cpp, plus a dummy output that's not
+# actually produced, in order to always force re-run version.cmake before the
+# build
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
          ${CMAKE_CURRENT_BINARY_DIR}/_version.C
@@ -153,9 +159,9 @@ target_sources(
           HostMatrix/HostMatrix.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-#Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
+          # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
-#LduMatrix / GKOACG / GKOACG.C
+  # LduMatrix / GKOACG / GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
@@ -173,20 +179,17 @@ target_sources(
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-#Solver / Multigrid / GKOMultigrid.H
+         # Solver / Multigrid / GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
-#LduMatrix / GKOACG / GKOACG.H
-         )
+  # LduMatrix / GKOACG / GKOACG.H
+)
 
 target_include_directories(
   OGL SYSTEM
   PRIVATE $ENV{FOAM_SRC}/finiteVolume/lnInclude
-          $ENV{FOAM_SRC}/meshTools/lnInclude
-          $ENV{FOAM_SRC}/OpenFOAM/lnInclude
-          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude
-          ${CMAKE_CURRENT_SOURCE_DIR}
-          )
+          $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
+          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(OGL PUBLIC Ginkgo::ginkgo)
 
@@ -204,6 +207,11 @@ endif()
 
 if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)
   target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
+endif()
+
+if(EXISTS $ENV{WM_PROJECT_DIR}/src/foam)
+  target_compile_definitions(OGL PRIVATE WITH_EXTEND_VERSION=1)
+  target_include_directories(OGL SYSTEM PRIVATE $ENV{FOAM_SRC}/foam/lnInclude)
 endif()
 
 install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})

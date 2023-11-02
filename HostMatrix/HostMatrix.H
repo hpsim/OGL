@@ -213,11 +213,19 @@ public:
           permutation_matrix_name_{"PermutationMatrix"},
           permutation_stored_{
               db.template foundObject<regIOobject>(permutation_matrix_name_)},
+#ifdef WITH_EXTEND_VERSION
+          P_{(permutation_stored_)
+                 ? db.template lookupObject<DevicePersistentBase<gko::LinOp>>(
+                         permutation_matrix_name_)
+                       .get_ptr()
+                 : nullptr}
+#else
           P_{(permutation_stored_) ? db.template lookupObjectRef<
                                            DevicePersistentBase<gko::LinOp>>(
                                            permutation_matrix_name_)
                                          .get_ptr()
                                    : nullptr}
+#endif
     {
         if (!local_sparsity_.col_idxs_.get_stored() ||
             local_sparsity_.col_idxs_.get_update()) {
@@ -286,11 +294,19 @@ public:
           permutation_matrix_name_{"PermutationMatrix"},
           permutation_stored_{
               db.template foundObject<regIOobject>(permutation_matrix_name_)},
+#ifdef WITH_EXTEND_VERSION
+          P_{(permutation_stored_)
+                 ? db.template lookupObject<DevicePersistentBase<gko::LinOp>>(
+                         permutation_matrix_name_)
+                       .get_ptr()
+                 : nullptr}
+#else
           P_{(permutation_stored_) ? db.template lookupObjectRef<
                                            DevicePersistentBase<gko::LinOp>>(
                                            permutation_matrix_name_)
                                          .get_ptr()
                                    : nullptr}
+#endif
     {
         // TODO reimplement this
     }

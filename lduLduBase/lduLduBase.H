@@ -369,7 +369,7 @@ public:
         }
 
         return solverPerf;
-    };
+    }
 };
 }  // namespace Foam
 
