@@ -68,9 +68,10 @@ public:
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
-        // TODO FIXME
-        // auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
-        auto cg = cg::build().on(exec);
+        auto cg = cg::build().with_criteria(
+              gko::stop::Iteration::build().with_max_iters(20u)
+                // stoppingCriterionVec_
+                ).on(exec);
         return cg;
     };
 
@@ -79,8 +80,11 @@ public:
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto cg = cg::build()
-                      // TODO FIXME
-                      // .with_criteria(stoppingCriterionVec_)
+                      .with_criteria(
+                              gko::stop::Iteration::build().with_max_iters(20u)
+                              //
+                              // stoppingCriterionVec_
+                              )
                       .with_generated_preconditioner(precond)
                       .on(exec);
         return cg;

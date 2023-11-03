@@ -307,13 +307,13 @@ struct MatrixInitFunctor {
 
         auto exec = exec_.get_ref_exec();
 
-        auto num_rows = partition_.get_total_size();
+        auto num_rows = partition_.get_local_size();
         gko::device_matrix_data<scalar, label> A_data(
             exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
             *coeffs.get());
 
         gko::device_matrix_data<scalar, label> non_local_A_data(
-            exec, gko::dim<2>(num_rows, num_rows), *non_local_rows.get(),
+            exec, gko::dim<2>(num_rows, non_local_cols->get_num_elems()), *non_local_rows.get(),
             *non_local_cols.get(), *non_local_coeffs.get());
 
 
