@@ -349,6 +349,7 @@ public:
 
     /* Iterates all interfaces and collects non-local global column indices
     **
+    ** TODO FIXME this is not uptodate
     ** Non-local global column indices are computed from the global cell-id
     ** (row) on the other side of an interface
     **

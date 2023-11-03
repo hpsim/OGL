@@ -183,7 +183,7 @@ HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
         auto search = reduce_map.find(proc);
         if (search == reduce_map.end()) {
             n_procs += 1;
-            reduce_map.insert(proc, n_faces);
+            reduce_map.insert(std::pair<label,label>{proc, n_faces});
         } else {
             reduce_map[proc] = reduce_map[proc] + n_faces;
         }
@@ -203,6 +203,11 @@ HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
     return std::pair(target_ids, target_sizes);
 }
 
+template
+std::pair<gko::array<label>, gko::array<label>>
+HostMatrixWrapper<lduMatrix>::assemble_proc_id_and_sizes(
+    const lduInterfaceFieldPtrsList &interfaces) const;
+
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
@@ -211,31 +216,6 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
     // vector of local cell ids on other side
     std::vector<std::tuple<label, label, label>> non_local_idxs{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
-
-    label startOfRequests = Pstream::nRequests();
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-
-        const auto iface{interface_getter(interfaces, i)};
-        const auto &face_cells{iface->interface().faceCells()};
-
-        if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg = "send face cells interface " + std::to_string(i) +
-                       " from proc " + std::to_string(Pstream::myProcNo()) +
-                       " to neighbour proc " + std::to_string(neighbProcNo);
-
-            LOG_2(verbose_, msg)
-            pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
-        }
-    }
-    Pstream::waitRequests(startOfRequests);
-    LOG_2(verbose_, "send face cells done")
 
     label interface_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
@@ -248,23 +228,9 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
         const label interface_size = face_cells.size();
 
         if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            word msg_2 = "receive face cells interface " + std::to_string(i) +
-                         " from proc " + std::to_string(neighbProcNo);
-            LOG_2(verbose_, msg_2)
-
-            auto otherSide_tmp = pldui.receive<label>(
-                Pstream::commsTypes::nonBlocking, interface_size);
-            LOG_2(verbose_, "receive face cells done")
-
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto global_row = global_row_index_.toGlobal(
-                    neighbProcNo, otherSide_tmp()[cellI]);
                 non_local_idxs.push_back(
-                    {interface_ctr, face_cells[cellI], global_row});
+                    {interface_ctr, face_cells[cellI], interface_ctr});
                 interface_ctr += 1;
             }
         }
