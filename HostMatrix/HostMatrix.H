@@ -105,7 +105,7 @@ struct CommunicationPattern {
  * It mainly generates:
  * - sparsity pattern/device_matrix_data of the local_matrix and
  * - non_local_matrix (with global columns)
- * - CommuncationPattern
+ * - CommunicationPattern
  * */
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
