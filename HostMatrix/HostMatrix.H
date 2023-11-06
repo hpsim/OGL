@@ -104,7 +104,8 @@ struct CommunicationPattern {
  *
  * It mainly generates:
  * - sparsity pattern/device_matrix_data of the local_matrix and
- * non_local_matrix (with global columns)
+ * - non_local_matrix (with global columns)
+ * - CommuncationPattern
  * */
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
@@ -143,8 +144,6 @@ private:
 
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
-
-    const gkoGlobalIndex global_row_index_;
 
     mutable PersistentSparsityPattern local_sparsity_;
 
@@ -248,78 +247,7 @@ public:
         // pointers to interfaces can be used to access concrete
         // functions such as transferring indices, patch neighbours etc
         const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls, const word &fieldName)
-        : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
-                             interfaceIntCoeffs, interfaces, solverControls),
-          exec_{db, solverControls, fieldName},
-          device_id_guard_{db, fieldName, exec_.get_device_exec()},
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          nrows_(matrix.diag().size()),
-          local_interface_nnz_(count_interface_nnz(interfaces, false)),
-          upper_nnz_(matrix.lduAddr().upperAddr().size()),
-          non_diag_nnz_(2 * upper_nnz_),
-          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
-                                         local_interface_nnz_),
-          global_row_index_{nrows_},
-          local_sparsity_{
-              fieldName + "_local",           db,       exec_,
-              local_matrix_w_interfaces_nnz_, verbose_,
-          },
-          local_coeffs_{
-              fieldName + "_local_coeffs",
-              db,
-              exec_,
-              local_matrix_w_interfaces_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
-          communication_pattern_(create_communication_pattern(interfaces)),
-          non_local_sparsity_{
-              fieldName + "_non_local", db,       exec_,
-              non_local_matrix_nnz_,    verbose_,
-          },
-          non_local_coeffs_{
-              fieldName + "_non_local_coeffs",
-              db,
-              exec_,
-              non_local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          permutation_matrix_name_{"PermutationMatrix"},
-          permutation_stored_{
-              db.template foundObject<regIOobject>(permutation_matrix_name_)},
-          P_{(permutation_stored_) ? db.template lookupObjectRef<
-                                           DevicePersistentBase<gko::LinOp>>(
-                                           permutation_matrix_name_)
-                                         .get_ptr()
-                                   : nullptr}
-    {
-        if (!local_sparsity_.col_idxs_.get_stored() ||
-            local_sparsity_.col_idxs_.get_update()) {
-            TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
-                                this->fieldName(),
-                                init_local_sparsity_pattern(interfaces);)
-            TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
-                                this->fieldName(),
-                                init_non_local_sparsity_pattern(interfaces);)
-        }
-        if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
-            TIME_WITH_FIELDNAME(
-                verbose_, update_local_matrix_data, this->fieldName(),
-                update_local_matrix_data(interfaces, interfaceBouCoeffs);)
-            TIME_WITH_FIELDNAME(
-                verbose_, update_non_local_matrix_data, this->fieldName(),
-                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
-        }
-    }
+        const dictionary &solverControls, const word &fieldName);
 
     // TODO reimplement this at some point
     // coupled  wrapper constructor
@@ -337,7 +265,6 @@ public:
           local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
           local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
                                          local_interface_nnz_),
-          global_row_index_{nrows_},
           local_sparsity_{
               fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
           },
@@ -406,14 +333,7 @@ public:
 
     label get_local_nrows() const { return nrows_; }
 
-    label get_global_nrows() const { return global_row_index_.size(); }
-
     const ExecutorHandler &get_exec_handler() const { return exec_; }
-
-    const gkoGlobalIndex &get_global_row_index() const
-    {
-        return global_row_index_;
-    }
 
     PersistentArray<scalar> &get_local_coeffs() const  //
     {
