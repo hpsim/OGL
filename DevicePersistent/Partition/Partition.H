@@ -58,8 +58,8 @@ struct PartitionInitFunctor {
     const std::vector<std::pair<gko::index_set<label>, label>> send_idxs_;
 
     PartitionInitFunctor(
-        const ExecutorHandler &exec, const label local_size
-        , const label verbose, const int ranks_per_gpu,
+        const ExecutorHandler &exec, const label local_size,
+        const label verbose, const int ranks_per_gpu,
         const gko::array<label> &target_ids,
         const gko::array<label> &target_sizes,
         const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
@@ -127,15 +127,14 @@ public:
      */
     PersistentPartition(
         const objectRegistry &db, const ExecutorHandler &exec,
-        const label verbose, const int ranks_per_gpu,
-        const label elements, const gko::array<label> &target_ids,
+        const label verbose, const int ranks_per_gpu, const label elements,
+        const gko::array<label> &target_ids,
         const gko::array<label> &target_sizes,
         const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
-              PartitionInitFunctor(exec, elements, verbose,
-                                   ranks_per_gpu, target_ids, target_sizes,
-                                   send_idxs),
+              PartitionInitFunctor(exec, elements, verbose, ranks_per_gpu,
+                                   target_ids, target_sizes, send_idxs),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           local_elements_(elements),

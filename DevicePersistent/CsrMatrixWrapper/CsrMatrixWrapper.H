@@ -225,22 +225,22 @@ struct MatrixInitFunctor {
         auto send_sizes = sparse_comm->get_send_sizes();
         auto send_offs = sparse_comm->get_send_offsets();
 
-        if (Pstream::master() ) {
-        for (auto e: recv_sizes) {
-            std::cout << "recv_size: " << e << std::endl;
-        }
+        if (Pstream::master()) {
+            for (auto e : recv_sizes) {
+                std::cout << "recv_size: " << e << std::endl;
+            }
 
-        for (auto e: recv_offs) {
-            std::cout << "recv_offs: " << e << std::endl;
-        }
+            for (auto e : recv_offs) {
+                std::cout << "recv_offs: " << e << std::endl;
+            }
 
-        for (auto e: send_sizes) {
-            std::cout << "send_sizes: " << e << std::endl;
-        }
+            for (auto e : send_sizes) {
+                std::cout << "send_sizes: " << e << std::endl;
+            }
 
-        for (auto e: send_offs) {
-            std::cout << "send_offs: " << e << std::endl;
-        }
+            for (auto e : send_offs) {
+                std::cout << "send_offs: " << e << std::endl;
+            }
         }
 
 

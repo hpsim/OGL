@@ -191,16 +191,16 @@ public:
 
         // TODO why does it need its size
         // repartitioner size should be sufficient
-        auto target_vector = dist_vec::create(
-            exec_.get_ref_exec(), *comm.get(), gko::dim<2>{global_size, 1},
-            gko::dim<2>{local_size, 1}, 1);
+        auto target_vector = dist_vec::create(exec_.get_ref_exec(), *comm.get(),
+                                              gko::dim<2>{global_size, 1},
+                                              gko::dim<2>{local_size, 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
-        auto host_buffer_view = gko::array<T>::view(
-            exec_.get_ref_exec(), local_size, host_buffer);
+        auto host_buffer_view =
+            gko::array<T>::view(exec_.get_ref_exec(), local_size, host_buffer);
 
-        auto to_view = gko::array<T>::view(
-            exec_.get_ref_exec(), local_size, const_cast<T *>(memory_));
+        auto to_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
+                                           const_cast<T *>(memory_));
         to_view = host_buffer_view;
     }
 
