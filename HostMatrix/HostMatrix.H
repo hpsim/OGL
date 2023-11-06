@@ -39,7 +39,7 @@ SourceFiles
 namespace Foam {
 
 
-    // TODO Move this somewhere else
+// TODO Move this somewhere else
 struct PersistentSparsityPattern {
     PersistentSparsityPattern(
       const word &fieldName,
@@ -181,16 +181,17 @@ private:
     ** @param interfaces The list of interfaces for the search
     ** @param proc_interfaces Count only elements on (true)
     *processorLduInterfaces or exclude processorLduInterfaces (false)
-     ** TODO make private and no discard
+    ** TODO make private and no discard
     */
     label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
 
-     /** Iterates all local interfaces and returns the relative order and
-     **corresponding row and column indices
-     **
-     ** @return vector of tuples containing the interface number, the local row, the local column
-     **/
+    /** Iterates all local interfaces and returns the relative order and
+    **corresponding row and column indices
+    **
+    ** @return vector of tuples containing the interface number, the local row,
+    *the local column
+    **/
     std::vector<std::tuple<label, label, label>>
     collect_local_interface_indices(
         const lduInterfaceFieldPtrsList &interfaces_) const;
@@ -318,8 +319,7 @@ public:
         const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
-    public:
-
+public:
     bool get_verbose() const { return verbose_; }
 
     /** Getter for the CommunicationPattern

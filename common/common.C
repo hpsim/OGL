@@ -62,9 +62,9 @@ void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
                 const word matrixFormat)
 {
     std::string folder{db.time().timePath()};
-    //std::filesystem::create_directories(folder);
+    // std::filesystem::create_directories(folder);
     std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout  << "exporting " << fn <<  std::endl;
+    std::cout << "exporting " << fn << std::endl;
     std::ofstream stream{fn};
     stream << std::setprecision(15);
     if (matrixFormat == "Coo") {
