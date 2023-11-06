@@ -187,8 +187,6 @@ class StoppingCriterion {
                 *(parameters_.iter) += 1;
                 return false;
             }
-            // TODO FIXME
-            std::cout << "iteration\n ";
 
             const auto exec = this->get_executor();
 

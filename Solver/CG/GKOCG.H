@@ -69,8 +69,7 @@ public:
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
         auto cg = cg::build().with_criteria(
-              gko::stop::Iteration::build().with_max_iters(20u)
-                // stoppingCriterionVec_
+                stoppingCriterionVec_
                 ).on(exec);
         return cg;
     };
@@ -81,9 +80,7 @@ public:
     {
         auto cg = cg::build()
                       .with_criteria(
-                              gko::stop::Iteration::build().with_max_iters(20u)
-                              //
-                              // stoppingCriterionVec_
+                              stoppingCriterionVec_
                               )
                       .with_generated_preconditioner(precond)
                       .on(exec);
