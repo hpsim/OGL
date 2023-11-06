@@ -62,8 +62,89 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     return ctr;
 }
 
-template label HostMatrixWrapper<lduMatrix>::count_interface_nnz(
-    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const;
+
+template <class MatrixType>
+HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
+        const objectRegistry &db, const MatrixType &matrix,
+        // coeffs for cells on boundaries
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        // coeffs for internal cells
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        // pointers to interfaces can be used to access concrete
+        // functions such as transferring indices, patch neighbours etc
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls, const word &fieldName)
+        : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
+                             interfaceIntCoeffs, interfaces, solverControls),
+          exec_{db, solverControls, fieldName},
+          device_id_guard_{db, fieldName, exec_.get_device_exec()},
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
+          nrows_(matrix.diag().size()),
+          local_interface_nnz_(count_interface_nnz(interfaces, false)),
+          upper_nnz_(matrix.lduAddr().upperAddr().size()),
+          non_diag_nnz_(2 * upper_nnz_),
+          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
+          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
+                                         local_interface_nnz_),
+          global_row_index_{nrows_},
+          local_sparsity_{
+              fieldName + "_local",           db,       exec_,
+              local_matrix_w_interfaces_nnz_, verbose_,
+          },
+          local_coeffs_{
+              fieldName + "_local_coeffs",
+              db,
+              exec_,
+              local_matrix_w_interfaces_nnz_,
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
+          },
+          non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
+          communication_pattern_(create_communication_pattern(interfaces)),
+          non_local_sparsity_{
+              fieldName + "_non_local", db,       exec_,
+              non_local_matrix_nnz_,    verbose_,
+          },
+          non_local_coeffs_{
+              fieldName + "_non_local_coeffs",
+              db,
+              exec_,
+              non_local_matrix_nnz_,
+              verbose_,
+              true,  // needs to be updated
+              false  // leave it on host once it is turned into a distributed
+                     // matrix it will be put on the device
+          },
+          permutation_matrix_name_{"PermutationMatrix"},
+          permutation_stored_{
+              db.template foundObject<regIOobject>(permutation_matrix_name_)},
+          P_{(permutation_stored_) ? db.template lookupObjectRef<
+                                           DevicePersistentBase<gko::LinOp>>(
+                                           permutation_matrix_name_)
+                                         .get_ptr()
+                                   : nullptr}
+    {
+        if (!local_sparsity_.col_idxs_.get_stored() ||
+            local_sparsity_.col_idxs_.get_update()) {
+            TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
+                                this->fieldName(),
+                                init_local_sparsity_pattern(interfaces);)
+            TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
+                                this->fieldName(),
+                                init_non_local_sparsity_pattern(interfaces);)
+        }
+        if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
+            TIME_WITH_FIELDNAME(
+                verbose_, update_local_matrix_data, this->fieldName(),
+                update_local_matrix_data(interfaces, interfaceBouCoeffs);)
+            TIME_WITH_FIELDNAME(
+                verbose_, update_non_local_matrix_data, this->fieldName(),
+                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
+        }
+    }
 
 
 template <class MatrixType>
@@ -95,12 +176,6 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
 
     return ret;
 }
-
-
-template std::vector<scalar>
-HostMatrixWrapper<lduMatrix>::collect_interface_coeffs(
-    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &,
-    const bool) const;
 
 
 template <class MatrixType>
@@ -193,10 +268,6 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     return CommunicationPattern{target_ids, target_sizes, send_idxs};
 }
 
-template CommunicationPattern
-HostMatrixWrapper<lduMatrix>::create_communication_pattern(
-    const lduInterfaceFieldPtrsList &interfaces) const;
-
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
@@ -278,10 +349,6 @@ HostMatrixWrapper<MatrixType>::collect_non_local_col_indices(
     return non_local_idxs;
 }
 
-template std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper<lduMatrix>::collect_non_local_col_indices(
-    const lduInterfaceFieldPtrsList &interfaces) const;
-
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
@@ -325,9 +392,6 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         }
     }
 }
-
-template void HostMatrixWrapper<lduMatrix>::init_non_local_sparsity_pattern(
-    const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
@@ -492,9 +556,6 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     LOG_1(verbose_, "done init host matrix")
 }
 
-template void HostMatrixWrapper<lduMatrix>::init_local_sparsity_pattern(
-    const lduInterfaceFieldPtrsList &interfaces) const;
-
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
@@ -590,10 +651,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     }
 }
 
-template void HostMatrixWrapper<lduMatrix>::update_local_matrix_data(
-    const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const;
-
 
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
@@ -636,6 +693,16 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     i_device_view = tmp_contiguous_iface;
 }
 
-template void HostMatrixWrapper<lduMatrix>::update_non_local_matrix_data(
-    const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &) const;
+template 
+HostMatrixWrapper<lduMatrix>::HostMatrixWrapper(
+        const objectRegistry &db, const lduMatrix &matrix,
+        // coeffs for cells on boundaries
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        // coeffs for internal cells
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        // pointers to interfaces can be used to access concrete
+        // functions such as transferring indices, patch neighbours etc
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls, const word &fieldName);
+
 }  // namespace Foam
