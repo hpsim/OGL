@@ -43,10 +43,6 @@ struct PartitionInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const label rows_end_;
-
-    const label rows_start_;
-
     const label local_size_;
 
     const label verbose_;
@@ -62,15 +58,13 @@ struct PartitionInitFunctor {
     const std::vector<std::pair<gko::index_set<label>, label>> send_idxs_;
 
     PartitionInitFunctor(
-        const ExecutorHandler &exec, const label rows_start,
-        const label rows_end, const label verbose, const int ranks_per_gpu,
+        const ExecutorHandler &exec, const label local_size
+        , const label verbose, const int ranks_per_gpu,
         const gko::array<label> &target_ids,
         const gko::array<label> &target_sizes,
         const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
         : exec_(exec),
-          rows_end_(rows_end),
-          rows_start_(rows_start),
-          local_size_(rows_end_ - rows_start_),
+          local_size_(local_size),
           verbose_(verbose),
           ranks_per_gpu_(ranks_per_gpu),
           target_ids_(target_ids),
@@ -107,9 +101,6 @@ struct PartitionInitFunctor {
  * Here device partitioning refers to the partitioning as used on for the Ginkgo
  * data structures and can also reside on the host if the executor is either
  * reference or omp.
- *
- *
- *
  * */
 class PersistentPartition
     : public PersistentBase<
@@ -117,14 +108,11 @@ class PersistentPartition
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
-    const label offset_;
-
     const label local_elements_;
 
     mutable label global_elements_;
 
     const ExecutorHandler &exec_;
-
 
 public:
     using part_type = gko::experimental::distributed::localized_partition<>;
@@ -139,18 +127,17 @@ public:
      */
     PersistentPartition(
         const objectRegistry &db, const ExecutorHandler &exec,
-        const label verbose, const int ranks_per_gpu, const label offset,
+        const label verbose, const int ranks_per_gpu,
         const label elements, const gko::array<label> &target_ids,
         const gko::array<label> &target_sizes,
         const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
-              PartitionInitFunctor(exec, offset, offset + elements, verbose,
+              PartitionInitFunctor(exec, elements, verbose,
                                    ranks_per_gpu, target_ids, target_sizes,
                                    send_idxs),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
-          offset_(offset),
           local_elements_(elements),
           exec_(exec)
     {

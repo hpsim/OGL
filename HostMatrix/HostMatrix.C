@@ -87,7 +87,6 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
           local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
                                          local_interface_nnz_),
-          global_row_index_{nrows_},
           local_sparsity_{
               fieldName + "_local",           db,       exec_,
               local_matrix_w_interfaces_nnz_, verbose_,

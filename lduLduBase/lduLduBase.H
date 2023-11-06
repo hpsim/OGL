@@ -224,7 +224,6 @@ public:
             this->get_exec_handler(),
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-            this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
             psi.size(),  // number of elements
             communication_pattern.target_ids,
             communication_pattern.target_sizes,
