@@ -123,7 +123,8 @@ public:
             int rank;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             word fn = "/tmp/mpi_debug_" + std::to_string(rank) + ".pid";
-            word msg = "writing pid to" + fn;
+            word msg =
+                "writing pid to" + fn + " waiting 20s for debugger to attach";
             LOG_0(verbose_, msg)
             std::ofstream os(fn);
             os << getpid() << std::endl;
@@ -216,8 +217,8 @@ public:
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
-        const auto &[target_ids, target_sizes] =
-            this->get_proc_target_id_and_sizes();
+        const auto communication_pattern = this->get_communication_pattern();
+
         PersistentPartition partition{
             db_,
             this->get_exec_handler(),
@@ -225,8 +226,9 @@ public:
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
             psi.size(),  // number of elements
-            target_ids,
-            target_sizes};
+            communication_pattern.target_ids,
+            communication_pattern.target_sizes,
+            communication_pattern.send_idxs};
 
         // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
@@ -317,33 +319,32 @@ public:
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
-        auto bandwidth_copy_back = sizeof(scalar) *
-                                   partition.get_local_size() /
+        auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
                                    delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
-        this->store_number_of_iterations();
-        auto time_for_res_norm_eval = this->get_res_norm_time();
-        auto time_per_iter =
-            delta_t_solve / max(this->get_number_of_iterations(), 1);
-        scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
-        this->set_prev_rel_res_cost(prev_rel_res_cost);
-        auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition.get_total_size();
-        word msg =
-            "\nStatistics:\n\tTime per iteration: " +
-            std::to_string(time_per_iter) +
-            std::string(" [mu s]\n\tTime per residual norm calculation: ") +
-            std::to_string(time_for_res_norm_eval) +
-            std::string(" [mu s]\n\tTime per iteration and DOF: ") +
-            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwidth ") +
-            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
-        MLOG_0(verbose_, msg)
+        // this->store_number_of_iterations();
+        // auto time_for_res_norm_eval = this->get_res_norm_time();
+        // auto time_per_iter =
+        //     delta_t_solve / max(this->get_number_of_iterations(), 1);
+        // scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
+        // this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
+        //     this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        // this->set_prev_rel_res_cost(prev_rel_res_cost);
+        // auto time_per_iter_and_dof =
+        //     time_per_iter * 1000.0 / partition.get_total_size();
+        // word msg =
+        //     "\nStatistics:\n\tTime per iteration: " +
+        //     std::to_string(time_per_iter) +
+        //     std::string(" [mu s]\n\tTime per residual norm calculation: ") +
+        //     std::to_string(time_for_res_norm_eval) +
+        //     std::string(" [mu s]\n\tTime per iteration and DOF: ") +
+        //     std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
+        //     std::string("\n\tRetrieve results bandwidth ") +
+        //     std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
+        // MLOG_0(verbose_, msg)
 
         return solverPerf;
     }
