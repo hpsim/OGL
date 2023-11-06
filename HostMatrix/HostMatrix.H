@@ -159,12 +159,77 @@ private:
 
     mutable PersistentArray<scalar> non_local_coeffs_;
 
+    // FIXME TODO unused
     const word permutation_matrix_name_;
 
     const bool permutation_stored_;
 
     mutable std::shared_ptr<gko::LinOp> P_;
 
+
+    /* Iterates all interfaces and collects the coefficients into a vector
+    **
+    ** @param local whether local or non local coefficients should be collected
+    */
+    std::vector<scalar> collect_interface_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces_,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const bool local) const;
+
+
+    /* Iterates all interfaces and counts the number of elements
+    **
+    ** @param interfaces The list of interfaces for the search
+    ** @param proc_interfaces Count only elements on (true)
+    *processorLduInterfaces or exclude processorLduInterfaces (false)
+     ** TODO make private and no discard
+    */
+    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
+                              bool proc_interfaces) const;
+
+     /** Iterates all local interfaces and returns the relative order and
+     **corresponding row and column indices
+     **
+     ** @return vector of tuples containing the interface number, the local row, the local column
+     **/
+    std::vector<std::tuple<label, label, label>>
+    collect_local_interface_indices(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+
+    /** Iterates all interfaces and counts the number of unique neighbour
+     **processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank
+     **
+     ** @param interfaces The list of interfaces for the search
+     ** @return the CommunicationPattern
+     ** TODO make private and no discard
+     */
+    CommunicationPattern create_communication_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /* Iterates all interfaces and collects non-local global column indices
+    **
+    ** TODO FIXME this is not uptodate
+    ** Non-local global column indices are computed from the global cell-id
+    ** (row) on the other side of an interface
+    **
+    ** @return vector off size nnz_non_local, with sections for each interface
+    ** ret = [(1,2,3),(10,20,30), ...]
+    **         i0      i1,       i...
+    */
+    std::vector<std::tuple<label, label, label>> collect_non_local_col_indices(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /* Based on OpenFOAMs ldu matrix format this function computes two
+     *consecutive index arrays in row major ordering and scattering indices
+     **
+     */
+    void init_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    void init_non_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
 
 public:
     // segregated wrapper constructor
@@ -314,81 +379,6 @@ public:
         // TODO reimplement this
     }
 
-    /* Iterates all interfaces and collects the coefficients into a vector
-    **
-    ** @param local whether local or non local coefficients should be collected
-    */
-    std::vector<scalar> collect_interface_coeffs(
-        const lduInterfaceFieldPtrsList &interfaces_,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        const bool local) const;
-
-
-    /* Iterates all interfaces and counts the number of elements
-    **
-    ** @param interfaces The list of interfaces for the search
-    ** @param proc_interfaces Count only elements on (true)
-    *processorLduInterfaces or exclude processorLduInterfaces (false)
-     ** TODO make private and no discard
-    */
-    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
-                              bool proc_interfaces) const;
-
-     /** Iterates all local interfaces and returns the relative order and
-     **corresponding row and column indices
-     **
-     ** @return vector of tuples containing the interface number, the local row, the local column
-     **/
-    std::vector<std::tuple<label, label, label>>
-    collect_local_interface_indices(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
-
-
-    /** Iterates all interfaces and counts the number of unique neighbour
-     **processors and number of interfaces in total for this processor
-     ** and collects all interface cells of this rank
-     **
-     ** @param interfaces The list of interfaces for the search
-     ** @return the CommunicationPattern 
-     ** TODO make private and no discard
-     */
-    CommunicationPattern create_communication_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-    /** Getter for the CommunicationPattern
-     **
-     ** @return the CommunicationPattern 
-     **/
-    const CommunicationPattern &get_communication_pattern() const
-    {
-        return communication_pattern_;
-    };
-
-    /* Iterates all interfaces and collects non-local global column indices
-    **
-    ** TODO FIXME this is not uptodate
-    ** Non-local global column indices are computed from the global cell-id
-    ** (row) on the other side of an interface
-    **
-    ** @return vector off size nnz_non_local, with sections for each interface
-    ** ret = [(1,2,3),(10,20,30), ...]
-    **         i0      i1,       i...
-    */
-    std::vector<std::tuple<label, label, label>> collect_non_local_col_indices(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-    /* Based on OpenFOAMs ldu matrix format this function computes two
-     *consecutive index arrays in row major ordering and scattering indices
-     **
-     */
-    void init_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-    void init_non_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-
-    bool get_verbose() const { return verbose_; }
 
     // updater
 
@@ -401,6 +391,18 @@ public:
         const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
+    public:
+
+    bool get_verbose() const { return verbose_; }
+
+    /** Getter for the CommunicationPattern
+     **
+     ** @return the CommunicationPattern
+     **/
+    const CommunicationPattern &get_communication_pattern() const
+    {
+        return communication_pattern_;
+    };
 
     label get_local_nrows() const { return nrows_; }
 
@@ -412,7 +414,6 @@ public:
     {
         return global_row_index_;
     }
-
 
     PersistentArray<scalar> &get_local_coeffs() const  //
     {
