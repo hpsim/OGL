@@ -39,6 +39,7 @@ SourceFiles
 namespace Foam {
 
 
+    // TODO Move this somewhere else
 struct PersistentSparsityPattern {
     PersistentSparsityPattern(
       const word &fieldName,
@@ -83,6 +84,20 @@ struct PersistentSparsityPattern {
     // unsorted_(consecutive_ldu_)_position
     mutable PersistentArray<label> ldu_mapping_;
 };
+
+struct CommunicationPattern {
+    // an array storing to which rank to communicate
+    gko::array<label> target_ids;
+
+    // an array storing how many elements to communicate
+    // to the corresponding target_id
+    gko::array<label> target_sizes;
+
+    // send_idx stores the index_set ie which cells
+    // are owned by the interface and the corresponding target rank
+    std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
+};
+
 
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
  * format into Ginkgo array data structures
@@ -138,9 +153,7 @@ private:
     // non-local indices
     const label non_local_matrix_nnz_;
 
-    // Array storing the ranks of the neighbouring processors
-    const std::pair<gko::array<label>, gko::array<label>>
-        proc_target_id_and_sizes_;
+    const CommunicationPattern communication_pattern_;
 
     mutable PersistentSparsityPattern non_local_sparsity_;
 
@@ -200,7 +213,7 @@ public:
                      // matrix it will be put on the device
           },
           non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
-          proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
+          communication_pattern_(create_communication_pattern(interfaces)),
           non_local_sparsity_{
               fieldName + "_non_local", db,       exec_,
               non_local_matrix_nnz_,    verbose_,
@@ -311,41 +324,45 @@ public:
         const bool local) const;
 
 
-    /* Iterates all local interfaces and returns the relative order and
-     *corresponding row and column indices
-     **
-     */
-    std::vector<std::tuple<label, label, label>>
-    collect_local_interface_indices(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
-
-
     /* Iterates all interfaces and counts the number of elements
     **
     ** @param interfaces The list of interfaces for the search
     ** @param proc_interfaces Count only elements on (true)
     *processorLduInterfaces or exclude processorLduInterfaces (false)
+     ** TODO make private and no discard
     */
     label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
 
-    /* Iterates all interfaces and counts the number of unique neighbour
-     *processors and number of interfaces in total for this processor
+     /** Iterates all local interfaces and returns the relative order and
+     **corresponding row and column indices
+     **
+     ** @return vector of tuples containing the interface number, the local row, the local column
+     **/
+    std::vector<std::tuple<label, label, label>>
+    collect_local_interface_indices(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+
+    /** Iterates all interfaces and counts the number of unique neighbour
+     **processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank
      **
      ** @param interfaces The list of interfaces for the search
+     ** @return the CommunicationPattern 
+     ** TODO make private and no discard
      */
-    std::pair<gko::array<label>, gko::array<label>> assemble_proc_id_and_sizes(
+    CommunicationPattern create_communication_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
-    /* Getter for proc_id and sizes arrays
-     *
-     */
-    const std::pair<gko::array<label>, gko::array<label>>
-        &get_proc_target_id_and_sizes() const
+    /** Getter for the CommunicationPattern
+     **
+     ** @return the CommunicationPattern 
+     **/
+    const CommunicationPattern &get_communication_pattern() const
     {
-        return proc_target_id_and_sizes_;
+        return communication_pattern_;
     };
-
 
     /* Iterates all interfaces and collects non-local global column indices
     **

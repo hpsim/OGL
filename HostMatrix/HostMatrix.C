@@ -102,6 +102,102 @@ HostMatrixWrapper<lduMatrix>::collect_interface_coeffs(
     const lduInterfaceFieldPtrsList &, const FieldField<Field, scalar> &,
     const bool) const;
 
+
+template <class MatrixType>
+CommunicationPattern
+HostMatrixWrapper<MatrixType>::create_communication_pattern(
+    const lduInterfaceFieldPtrsList &interfaces) const
+{
+    // temp vector to store neighbour proc number and number of cells to send
+    std::vector<std::pair<label, label>> neighbour_procs{};
+
+    // temp map, mapping from neighbour rank interface cells
+    std::map<label, std::vector<label>> interface_cell_map{};
+
+    // TODO FIXME use a lambda to avoid repeating
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+
+        const auto &iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (isA<processorLduInterface>(iface->interface())) {
+            const processorLduInterface &pldui =
+                refCast<const processorLduInterface>(iface->interface());
+            const label neighbProcNo = pldui.neighbProcNo();
+
+            neighbour_procs.push_back(
+                std::pair<label, label>{neighbProcNo, interface_size});
+
+            //
+            auto search = interface_cell_map.find(neighbProcNo);
+            if (search == interface_cell_map.end()) {
+                interface_cell_map.insert(std::pair{
+                    neighbProcNo,
+                    std::vector<label>(face_cells.begin(), face_cells.end())});
+            } else {
+                // TODO FIXME reserve size
+                auto cur_face_cells = interface_cell_map[neighbProcNo];
+                for (auto face_cell : face_cells) {
+                    cur_face_cells.push_back(face_cell);
+                }
+                interface_cell_map[neighbProcNo] = cur_face_cells;
+            }
+        }
+    }
+
+    // reduce vector of sizes
+    // this assumes that a rank can be connected to the same neighbour through
+    // different interfaces this migth not be necessary
+    label n_procs = 0;
+    std::map<label, label> reduce_map{};
+    for (auto [proc, n_faces] : neighbour_procs) {
+        auto search = reduce_map.find(proc);
+        if (search == reduce_map.end()) {
+            n_procs += 1;
+            reduce_map.insert(std::pair<label, label>{proc, n_faces});
+        } else {
+            reduce_map[proc] = reduce_map[proc] + n_faces;
+        }
+    }
+
+    // create index_sets
+    // currently this assumes that there is only one interface to a given
+    // neighbour rank
+    std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
+    for (auto [proc, interface_cells] : interface_cell_map) {
+        label interface_size = interface_cells.size();
+        auto exec = exec_.get_ref_exec();
+        send_idxs.push_back(std::pair<gko::index_set<label>, label>(
+            gko::index_set(
+                exec, interface_size,
+                gko::array<label>::view(exec, interface_size, interface_cells.data()),
+                true),
+            proc));
+    }
+
+    // convert to gko::array
+    gko::array<label> target_ids{exec_.get_ref_exec(), n_procs};
+    gko::array<label> target_sizes{exec_.get_ref_exec(), n_procs};
+
+    label iter = 0;
+    for (const auto &[proc, size] : reduce_map) {
+        target_ids.get_data()[iter] = proc;
+        target_sizes.get_data()[iter] = size;
+        iter++;
+    }
+
+    return CommunicationPattern{target_ids, target_sizes, send_idxs};
+}
+
+template CommunicationPattern
+HostMatrixWrapper<lduMatrix>::create_communication_pattern(
+    const lduInterfaceFieldPtrsList &interfaces) const;
+
+
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
@@ -148,65 +244,6 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     }
     return local_interface_idxs;
 }
-
-template <class MatrixType>
-std::pair<gko::array<label>, gko::array<label>>
-HostMatrixWrapper<MatrixType>::assemble_proc_id_and_sizes(
-    const lduInterfaceFieldPtrsList &interfaces) const
-{
-    // temp vector to store neighbour proc number and number of cells to send
-    std::vector<std::pair<label, label>> neighbour_procs{};
-    // TODO FIXME use a lambda to avoid repeating
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-
-        const auto &iface{interface_getter(interfaces, i)};
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-
-        if (isA<processorLduInterface>(iface->interface())) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
-
-            neighbour_procs.push_back(
-                std::pair<label, label>{neighbProcNo, interface_size});
-        }
-    }
-
-    // reduce vector
-    label n_procs = 0;
-    std::map<label, label> reduce_map{};
-    for (auto [proc, n_faces] : neighbour_procs) {
-        auto search = reduce_map.find(proc);
-        if (search == reduce_map.end()) {
-            n_procs += 1;
-            reduce_map.insert(std::pair<label,label>{proc, n_faces});
-        } else {
-            reduce_map[proc] = reduce_map[proc] + n_faces;
-        }
-    }
-
-    // convert to gko::array
-    gko::array<label> target_ids{exec_.get_ref_exec(), n_procs};
-    gko::array<label> target_sizes{exec_.get_ref_exec(), n_procs};
-
-    label iter = 0;
-    for (const auto &[proc, size] : reduce_map) {
-        target_ids.get_data()[iter] = proc;
-        target_sizes.get_data()[iter] = size;
-        iter++;
-    }
-
-    return std::pair(target_ids, target_sizes);
-}
-
-template
-std::pair<gko::array<label>, gko::array<label>>
-HostMatrixWrapper<lduMatrix>::assemble_proc_id_and_sizes(
-    const lduInterfaceFieldPtrsList &interfaces) const;
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>

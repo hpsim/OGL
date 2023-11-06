@@ -143,127 +143,19 @@ struct MatrixInitFunctor {
             non_local_value_ptr = non_local_coo_ptr->get_values();
         }
 
-        if (partition_.get_ranks_per_gpu() != 1) {
-            // TODO add field name
-            PersistentArray<label> local_scatter_map_pers{
-                "local_scatter_map",  //
-                db_,
-                exec_,
-                0,
-                verbose_,
-                false,
-                false};
+        gko::array<scalar> device_values{device_exec, *coeffs.get()};
+        gko::array<scalar> device_non_local_values{device_exec,
+                                                   *non_local_coeffs.get()};
 
-            // TODO add field name
-            PersistentArray<label> non_local_scatter_map_pers{
-                "non_local_scatter_map",  //
-                db_,
-                exec_,
-                0,
-                verbose_,
-                false,
-                false};
-            // TODO add field name
-            PersistentArray<label> sorting_idx_pers{
-                "sorting_idx", db_, exec_, 0, verbose_, false, false};
+        auto value_view = val_array::view(
+            device_exec, device_values.get_num_elems(), value_ptr);
 
-            // TODO add field name
-            PersistentArray<label> send_sizes_pers{
-                "send_sizes", db_, exec_, 0, verbose_, false, false};
+        auto non_local_view = val_array::view(
+            device_exec, device_non_local_values.get_num_elems(),
+            non_local_value_ptr);
 
-            // TODO add field name
-            PersistentArray<label> send_offs_pers{"send_offs", db_,   exec_, 0,
-                                                  verbose_,    false, false};
-
-            // TODO add field name
-            PersistentArray<label> recv_sizes_pers{
-                "recv_sizes", db_, exec_, 0, verbose_, false, false};
-
-            // TODO add field name
-            PersistentArray<label> recv_offs_pers{"recv_offs", db_,   exec_, 0,
-                                                  verbose_,    false, false};
-
-
-            auto comm = exec_.get_gko_mpi_host_comm();
-            // TIME_WITH_FIELDNAME(
-            //     verbose_, update_build_repartitioner, field_name_,
-            //     auto repartitioner = gko::share(
-            //         gko::experimental::distributed::repartitioner<
-            //             label, label>::create(*comm.get(),
-            //                                   partition_.get_host_partition(),
-            //                                   partition_.get_device_partition(),
-            //                                   false));)
-
-            auto local_nnz =
-                local_scatter_map_pers.get_array()->get_num_elems();
-            auto non_local_nnz =
-                non_local_scatter_map_pers.get_array()->get_num_elems();
-
-            gko::array<scalar> local_values{exec, local_nnz};
-            gko::array<scalar> non_local_values{exec, non_local_nnz};
-
-            std::vector<int> send_sizes;
-            std::vector<int> send_offsets;
-            std::vector<int> recv_sizes;
-            std::vector<int> recv_offsets;
-
-            send_sizes.assign(send_sizes_pers.get_array()->get_data(),
-                              send_sizes_pers.get_array()->get_data() +
-                                  send_sizes_pers.get_array()->get_num_elems());
-            send_offsets.assign(
-                send_offs_pers.get_array()->get_data(),
-                send_offs_pers.get_array()->get_data() +
-                    send_offs_pers.get_array()->get_num_elems());
-            recv_sizes.assign(recv_sizes_pers.get_array()->get_data(),
-                              recv_sizes_pers.get_array()->get_data() +
-                                  recv_sizes_pers.get_array()->get_num_elems());
-            recv_offsets.assign(
-                recv_offs_pers.get_array()->get_data(),
-                recv_offs_pers.get_array()->get_data() +
-                    recv_offs_pers.get_array()->get_num_elems());
-
-
-            // TIME_WITH_FIELDNAME(
-            //     verbose_, update_repartitioned_existing, field_name_,
-            //     repartitioner->update_existing(
-            //         *row_idxs_.get_array(), *non_local_row_idxs_.get_array(),
-            //         *coeffs.get(), *non_local_coeffs.get(),
-            //         *sorting_idx_pers.get_array().get(), send_sizes,
-            //         send_offsets, recv_sizes, recv_offsets,
-            //         *local_scatter_map_pers.get_array().get(),
-            //         *non_local_scatter_map_pers.get_array().get(),
-            //         local_values, non_local_values);)
-
-            auto value_view =
-                val_array::view(device_exec, local_nnz, value_ptr);
-
-            auto non_local_view = val_array::view(device_exec, non_local_nnz,
-                                                  non_local_value_ptr);
-
-            TIME_WITH_FIELDNAME(verbose_, update_offload_local_values,
-                                field_name_,
-                                local_values.set_executor(device_exec);
-                                value_view = local_values;)
-
-            TIME_WITH_FIELDNAME(verbose_, update_offload_non_local_values,
-                                field_name_,
-                                non_local_values.set_executor(device_exec);
-                                non_local_view = non_local_values;)
-        } else {
-            gko::array<scalar> device_values{device_exec, *coeffs.get()};
-            gko::array<scalar> device_non_local_values{device_exec,
-                                                       *non_local_coeffs.get()};
-
-            auto value_view = val_array::view(
-                device_exec, device_values.get_num_elems(), value_ptr);
-
-            auto non_local_view = val_array::view(
-                device_exec, device_non_local_values.get_num_elems(),
-                non_local_value_ptr);
-
-            value_view = device_values;
-            non_local_view = device_non_local_values;
-        }
+        value_view = device_values;
+        non_local_view = device_non_local_values;
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
@@ -294,7 +186,8 @@ struct MatrixInitFunctor {
     std::shared_ptr<dist_mtx> init() const
     {
         const label local_size = partition_.get_local_size();
-        word msg{"init global csr matrix of size " + std::to_string(local_size)};
+        word msg{"init global csr matrix of size " +
+                 std::to_string(local_size)};
         LOG_1(verbose_, msg)
 
         auto coeffs = coeffs_.get_array();
@@ -313,26 +206,50 @@ struct MatrixInitFunctor {
             *coeffs.get());
 
         gko::device_matrix_data<scalar, label> non_local_A_data(
-            exec, gko::dim<2>(num_rows, non_local_cols->get_num_elems()), *non_local_rows.get(),
-            *non_local_cols.get(), *non_local_coeffs.get());
+            exec, gko::dim<2>(num_rows, non_local_cols->get_num_elems()),
+            *non_local_rows.get(), *non_local_cols.get(),
+            *non_local_coeffs.get());
 
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = generate_dist_mtx_with_inner_type(
             exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
-        dist_A->read_distributed(A_data, non_local_A_data,
-                gko::experimental::distributed::sparse_communicator::create(
-                    *comm.get(),
-                                 partition_.get_localized_partition()
-                                 ));
 
-        if (partition_.get_ranks_per_gpu() == 1) {
-            auto device_mat = generate_dist_mtx_with_inner_type(
-                exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
-            dist_A->move_to(device_mat.get());
-            return device_mat;
+        auto sparse_comm =
+            gko::experimental::distributed::sparse_communicator::create(
+                *comm.get(), partition_.get_localized_partition());
+
+        // TODO FIXME
+        auto recv_sizes = sparse_comm->get_recv_sizes();
+        auto recv_offs = sparse_comm->get_recv_offsets();
+        auto send_sizes = sparse_comm->get_send_sizes();
+        auto send_offs = sparse_comm->get_send_offsets();
+
+        if (Pstream::master() ) {
+        for (auto e: recv_sizes) {
+            std::cout << "recv_size: " << e << std::endl;
         }
 
+        for (auto e: recv_offs) {
+            std::cout << "recv_offs: " << e << std::endl;
+        }
+
+        for (auto e: send_sizes) {
+            std::cout << "send_sizes: " << e << std::endl;
+        }
+
+        for (auto e: send_offs) {
+            std::cout << "send_offs: " << e << std::endl;
+        }
+        }
+
+
+        dist_A->read_distributed(A_data, non_local_A_data, sparse_comm);
+
+        auto device_mat = generate_dist_mtx_with_inner_type(
+            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
+        dist_A->move_to(device_mat.get());
+        return device_mat;
     }
 };
 

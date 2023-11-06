@@ -59,12 +59,14 @@ struct PartitionInitFunctor {
     // Array storing the ranks of the neighbouring processors
     const gko::array<label> target_sizes_;
 
+    const std::vector<std::pair<gko::index_set<label>, label>> send_idxs_;
 
-    PartitionInitFunctor(const ExecutorHandler &exec, const label rows_start,
-                         const label rows_end, const label verbose,
-                         const int ranks_per_gpu,
-                         const gko::array<label> &target_ids,
-                         const gko::array<label> target_sizes)
+    PartitionInitFunctor(
+        const ExecutorHandler &exec, const label rows_start,
+        const label rows_end, const label verbose, const int ranks_per_gpu,
+        const gko::array<label> &target_ids,
+        const gko::array<label> &target_sizes,
+        const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
         : exec_(exec),
           rows_end_(rows_end),
           rows_start_(rows_start),
@@ -72,9 +74,9 @@ struct PartitionInitFunctor {
           verbose_(verbose),
           ranks_per_gpu_(ranks_per_gpu),
           target_ids_(target_ids),
-          target_sizes_(target_sizes)
-    {
-    }
+          target_sizes_(target_sizes),
+          send_idxs_(send_idxs)
+    {}
 
     void update(std::shared_ptr<part_type> persistent_partition) const
     {
@@ -90,11 +92,9 @@ struct PartitionInitFunctor {
                  std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
-
         auto host_partition = gko::experimental::distributed::
             localized_partition<>::build_from_blocked_recv(
-                exec, local_size_, send_idxs, target_ids_, target_sizes_);
+                exec, local_size_, send_idxs_, target_ids_, target_sizes_);
 
         if (ranks_per_gpu_ == 1) return host_partition;
     }
@@ -137,15 +137,17 @@ public:
      * @param offset
      * @param elements
      */
-    PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
-                        const label verbose, const int ranks_per_gpu,
-                        const label offset, const label elements,
-                        const gko::array<label> &target_ids,
-                        const gko::array<label> target_sizes)
+    PersistentPartition(
+        const objectRegistry &db, const ExecutorHandler &exec,
+        const label verbose, const int ranks_per_gpu, const label offset,
+        const label elements, const gko::array<label> &target_ids,
+        const gko::array<label> &target_sizes,
+        const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
               PartitionInitFunctor(exec, offset, offset + elements, verbose,
-                                   ranks_per_gpu, target_ids, target_sizes),
+                                   ranks_per_gpu, target_ids, target_sizes,
+                                   send_idxs),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           offset_(offset),
@@ -156,7 +158,7 @@ public:
         label local_elements = local_elements_;
         comm->all_reduce(exec.get_ref_exec(), &local_elements, 1, MPI_SUM);
         global_elements_ = local_elements;
-          }
+    }
 
     std::shared_ptr<part_type> get_localized_partition() const
     {
@@ -166,10 +168,7 @@ public:
     // number of elements on this rank on the host
     label get_local_size() const { return local_elements_; }
 
-    label get_total_size() const
-    {
-        return global_elements_;
-    }
+    label get_total_size() const { return global_elements_; }
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 };
