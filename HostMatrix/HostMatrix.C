@@ -223,7 +223,7 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
 
     // reduce vector of sizes
     // this assumes that a rank can be connected to the same neighbour through
-    // different interfaces this migth not be necessary
+    // different interfaces this might not be necessary
     label n_procs = 0;
     std::map<label, label> reduce_map{};
     for (auto [proc, n_faces] : neighbour_procs) {
