@@ -197,10 +197,8 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
                    .get_ptr()
              : nullptr}
 {
-        FatalErrorInFunction
-           << "This constructor is currently not implemented" 
-           << abort(FatalError);
-
+    FatalErrorInFunction << "This constructor is currently not implemented"
+                         << abort(FatalError);
 }
 
 
@@ -245,9 +243,10 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
         const auto iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
+        const Sel &patch = refCast<const Sel>(iface->interface());
 
         if (isA<Sel>(iface->interface())) {
-            func(element_ctr, interface_size, iface);
+            func(element_ctr, interface_size, patch, iface);
         }
     }
 }
@@ -267,11 +266,10 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     //
     interface_iterator<processorFvPatch>(
         interfaces,
-        [&](label, const label interface_size, const lduInterfaceField *iface) {
+        [&](label, const label interface_size, const processorFvPatch &patch,
+            const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const label neighbProcNo = pldui.neighbProcNo();
+            const label neighbProcNo = patch.neighbProcNo();
 
             neighbour_procs.push_back(
                 std::pair<label, label>{neighbProcNo, interface_size});
@@ -333,12 +331,6 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
         iter++;
     }
 
-    for (int n = 0; n < n_procs; n++) {
-        std::cout << Pstream::myProcNo()
-                  << "target_ids:" << target_ids.get_data()[n] << "target_size "
-                  << target_sizes.get_data()[n] << std::endl;
-    }
-
     return CommunicationPattern{target_ids, target_sizes, send_idxs};
 }
 
@@ -352,17 +344,16 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
 
-    interface_iterator<cyclicLduInterface>(
-        interfaces, [&](label &element_ctr, label interface_size,
-                        const lduInterfaceField *iface) {
+    interface_iterator<cyclicFvPatch>(
+        interfaces,
+        [&](label &element_ctr, label interface_size,
+            const cyclicFvPatch &patch, const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
-            const cyclicLduInterface &pldui =
-                refCast<const cyclicLduInterface>(iface->interface());
 
 #ifdef WITH_ESI_VERSION
-            const label neighbPatchId = pldui.neighbPatchID();
+            const label neighbPatchId = patch.neighbPatchID();
 #else
-            const label neighbPatchId = pldui.nbrPatchID();
+            const label neighbPatchId = patch.nbrPatchID();
 #endif
             const labelUList &cols =
                 this->matrix().lduAddr().patchAddr(neighbPatchId);
@@ -384,9 +375,10 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     std::vector<std::tuple<label, label>> non_local_idxs{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
-    interface_iterator<processorLduInterface>(
-        interfaces, [&](label &element_ctr, const label interface_size,
-                        const lduInterfaceField *iface) {
+    interface_iterator<processorFvPatch>(
+        interfaces,
+        [&](label &element_ctr, const label interface_size,
+            const processorFvPatch &, const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 non_local_idxs.push_back({element_ctr, face_cells[cellI]});
@@ -417,9 +409,9 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
                          std::tie(row_b, interface_idx_b);
               });
 
-    interface_iterator<processorLduInterface>(
+    interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
-                        const lduInterfaceField *) {
+                        const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 auto [interface_idx, row] = non_local_row_indices[element_ctr];
                 rows[element_ctr] = row;
@@ -699,9 +691,9 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         gko::array<scalar>(ref_exec, non_local_matrix_nnz_);
     auto contiguous_iface = tmp_contiguous_iface.get_data();
 
-    interface_iterator<processorLduInterface>(
+    interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
-                        const lduInterfaceField *) {
+                        const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 contiguous_iface[element_ctr] =
                     -interface_coeffs[permute[element_ctr]];
