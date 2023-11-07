@@ -39,7 +39,6 @@ SourceFiles
 namespace Foam {
 
 
-// TODO Move this somewhere else
 struct PersistentSparsityPattern {
     PersistentSparsityPattern(
       const word &fieldName,
@@ -181,7 +180,6 @@ private:
     ** @param interfaces The list of interfaces for the search
     ** @param proc_interfaces Count only elements on (true)
     *processorLduInterfaces or exclude processorLduInterfaces (false)
-    ** TODO make private and no discard
     */
     label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
@@ -203,22 +201,18 @@ private:
      **
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
-     ** TODO make private and no discard
      */
     CommunicationPattern create_communication_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
-    /* Iterates all interfaces and collects non-local global column indices
-    **
-    ** TODO FIXME this is not uptodate
-    ** Non-local global column indices are computed from the global cell-id
-    ** (row) on the other side of an interface
-    **
+    /** Iterates all interfaces and collect the corresponding cell id (row)
+    ** and a unique counter
+    ** 
     ** @return vector off size nnz_non_local, with sections for each interface
-    ** ret = [(1,2,3),(10,20,30), ...]
-    **         i0      i1,       i...
+    ** ret = [(1,2),(2,20), ...]
+    **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label, label>> collect_non_local_col_indices(
+    std::vector<std::tuple<label, label>> collect_cells_on_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /* Based on OpenFOAMs ldu matrix format this function computes two
@@ -253,60 +247,7 @@ public:
     // TODO reimplement this at some point
     // coupled  wrapper constructor
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      const dictionary &solverControls, const word &fieldName)
-        : MatrixType::solver(fieldName, matrix, solverControls),
-          exec_{db, solverControls, fieldName},
-          device_id_guard_{db, fieldName, exec_.get_device_exec()},
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          nrows_(matrix.diag().size()),
-          local_interface_nnz_(0),
-          upper_nnz_(matrix.lduAddr().upperAddr().size()),
-          non_diag_nnz_(2 * upper_nnz_),
-          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
-                                         local_interface_nnz_),
-          local_sparsity_{
-              fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
-          },
-          local_coeffs_{
-              fieldName + "_coeffs",
-              db,
-              exec_,
-              local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          non_local_matrix_nnz_(),
-          // proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
-          non_local_sparsity_{
-              fieldName + "_non_local", db,       exec_,
-              non_local_matrix_nnz_,    verbose_,
-          },
-          non_local_coeffs_{
-              fieldName + "_non_local_coeffs",
-              db,
-              exec_,
-              non_local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          permutation_matrix_name_{"PermutationMatrix"},
-          permutation_stored_{
-              db.template foundObject<regIOobject>(permutation_matrix_name_)},
-          P_{(permutation_stored_) ? db.template lookupObjectRef<
-                                           DevicePersistentBase<gko::LinOp>>(
-                                           permutation_matrix_name_)
-                                         .get_ptr()
-                                   : nullptr}
-    {
-        // TODO reimplement this
-    }
-
+                      const dictionary &solverControls, const word &fieldName);
 
     // updater
 
@@ -319,13 +260,10 @@ public:
         const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
+
 public:
     bool get_verbose() const { return verbose_; }
 
-    /** Getter for the CommunicationPattern
-     **
-     ** @return the CommunicationPattern
-     **/
     const CommunicationPattern &get_communication_pattern() const
     {
         return communication_pattern_;
@@ -335,10 +273,7 @@ public:
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
-    PersistentArray<scalar> &get_local_coeffs() const  //
-    {
-        return local_coeffs_;
-    };
+    PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
 
     PersistentArray<label> &get_local_col_idxs() const
     {
