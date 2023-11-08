@@ -73,7 +73,7 @@ public:
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
         auto bicgstab = gko::solver::Bicgstab<scalar>::build()
-                            // .with_criteria(stoppingCriterionVec_)
+                            .with_criteria(stoppingCriterionVec_)
                             .on(exec);
         return bicgstab;
     };
@@ -83,7 +83,7 @@ public:
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto bicgstab = bicgstab::build()
-                            // .with_criteria(stoppingCriterionVec_)
+                            .with_criteria(stoppingCriterionVec_)
                             .with_generated_preconditioner(precond)
                             .on(exec);
         return bicgstab;
