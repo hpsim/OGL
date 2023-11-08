@@ -225,25 +225,6 @@ struct MatrixInitFunctor {
         auto send_sizes = sparse_comm->get_send_sizes();
         auto send_offs = sparse_comm->get_send_offsets();
 
-        if (Pstream::master()) {
-            for (auto e : recv_sizes) {
-                std::cout << "recv_size: " << e << std::endl;
-            }
-
-            for (auto e : recv_offs) {
-                std::cout << "recv_offs: " << e << std::endl;
-            }
-
-            for (auto e : send_sizes) {
-                std::cout << "send_sizes: " << e << std::endl;
-            }
-
-            for (auto e : send_offs) {
-                std::cout << "send_offs: " << e << std::endl;
-            }
-        }
-
-
         dist_A->read_distributed(A_data, non_local_A_data, sparse_comm);
 
         auto device_mat = generate_dist_mtx_with_inner_type(
