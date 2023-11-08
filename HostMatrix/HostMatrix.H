@@ -207,7 +207,7 @@ private:
 
     /** Iterates all interfaces and collect the corresponding cell id (row)
     ** and a unique counter
-    ** 
+    **
     ** @return vector off size nnz_non_local, with sections for each interface
     ** ret = [(1,2),(2,20), ...]
     **         i0   i1,   i...
