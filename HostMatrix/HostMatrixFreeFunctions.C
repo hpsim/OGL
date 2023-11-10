@@ -24,10 +24,10 @@ void symmetric_update(const label total_nnz, const label upper_nnz,
     }
 }
 
-void symmetric_update_w_interface(const label total_nnz, const label diag_nnz, const label upper_nnz,
-                                  const label *permute, const scalar scale,
-                                  const scalar *diag, const scalar *upper,
-                                  const scalar *lower,
+void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
+                                  const label upper_nnz, const label *permute,
+                                  const scalar scale, const scalar *diag,
+                                  const scalar *upper, const scalar *lower,
                                   const scalar *couple_coeffs, scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
@@ -50,9 +50,10 @@ void symmetric_update_w_interface(const label total_nnz, const label diag_nnz, c
 }
 
 void non_symmetric_update_w_interface(
-    const label total_nnz,const label diag_nnz, const label upper_nnz, const label *permute,
-    const scalar scale, const scalar *diag, const scalar *upper,
-    const scalar *lower, const scalar *couple_coeffs, scalar *dense)
+    const label total_nnz, const label diag_nnz, const label upper_nnz,
+    const label *permute, const scalar scale, const scalar *diag,
+    const scalar *upper, const scalar *lower, const scalar *couple_coeffs,
+    scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
         const label pos{permute[i]};
