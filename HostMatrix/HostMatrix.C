@@ -32,38 +32,6 @@ SourceFiles
 
 namespace Foam {
 
-const lduInterfaceField *interface_getter(
-    const lduInterfaceFieldPtrsList &interfaces, const label i)
-{
-#ifdef WITH_ESI_VERSION
-    return interfaces.get(i);
-#else
-    return interfaces.operator()(i);
-#endif
-}
-
-template <class MatrixType>
-label HostMatrixWrapper<MatrixType>::count_interface_nnz(
-    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
-{
-    label ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-        const auto iface{interface_getter(interfaces, i)};
-
-        bool count = (proc_interfaces)
-                         ? !!isA<processorLduInterface>(iface->interface())
-                         : !isA<processorLduInterface>(iface->interface());
-        if (count) {
-            ctr += iface->interface().faceCells().size();
-        }
-    }
-    return ctr;
-}
-
-
 template <class MatrixType>
 HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
     const objectRegistry &db, const MatrixType &matrix,
@@ -80,6 +48,8 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       exec_{db, solverControls, fieldName},
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+      reorder_on_copy_(
+          solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(matrix.diag().size()),
       local_interface_nnz_(count_interface_nnz(interfaces, false)),
@@ -153,6 +123,8 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       exec_{db, solverControls, fieldName},
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+      reorder_on_copy_(
+          solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(matrix.diag().size()),
       local_interface_nnz_(0),
@@ -308,21 +280,20 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     // create index_sets
     // currently this assumes that there is only one interface to a given
     // neighbour rank
-    std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
+    std::vector<std::pair<gko::array<label>, label>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
-        label interface_size = interface_cells.size();
         auto exec = exec_.get_ref_exec();
-        send_idxs.push_back(std::pair<gko::index_set<label>, label>(
-            gko::index_set(exec, interface_size,
-                           gko::array<label>::view(exec, interface_size,
-                                                   interface_cells.data()),
-                           true),
+        send_idxs.push_back(std::pair<gko::array<label>, label>(
+            gko::array<label>(exec, interface_cells.begin(),
+                              interface_cells.end()),
             proc));
     }
 
     // convert to gko::array
-    gko::array<label> target_ids{exec_.get_ref_exec(), n_procs};
-    gko::array<label> target_sizes{exec_.get_ref_exec(), n_procs};
+    gko::array<label> target_ids{exec_.get_ref_exec(),
+                                 static_cast<size_t>(n_procs)};
+    gko::array<label> target_sizes{exec_.get_ref_exec(),
+                                   static_cast<size_t>(n_procs)};
 
     label iter = 0;
     for (const auto &[proc, size] : reduce_map) {
@@ -386,7 +357,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
             }
         });
 
-    word msg = "done collecting neighbouring processor cell id";
+    word msg = "done collecting neighbouring processor cell ids";
 
     LOG_2(verbose_, msg)
     return non_local_idxs;
@@ -584,6 +555,19 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     LOG_1(verbose_, "done init host matrix")
 }
 
+
+void symmetric_update(const label total_nnz, const label upper_nnz,
+                      const label *permute, const scalar scale,
+                      const scalar *diag, const scalar *upper, scalar *dense)
+{
+    for (label i = 0; i < total_nnz; ++i) {
+        const label pos{permute[i]};
+        dense[i] =
+            scale * (pos >= upper_nnz) ? diag[pos - upper_nnz] : upper[pos];
+    }
+}
+
+
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
@@ -611,66 +595,25 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto couple_coeffs =
             collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
         if (is_symmetric) {
-            for (label i = 0; i < local_matrix_w_interfaces_nnz_; ++i) {
-                // where the element is stored in a combined array
-                const label pos{permute[i]};
-                scalar value;
-                // all values up to upper_nnz_ are upper_nnz_ values
-                if (pos < upper_nnz_) {
-                    value = upper[pos];
-                }
-                // all values up to upper_nnz_ are upper_nnz_ values
-                if (pos >= upper_nnz_ && pos < upper_nnz_ + diag_nnz) {
-                    value = diag[pos - upper_nnz_];
-                }
-                if (pos >= upper_nnz_ + diag_nnz) {
-                    value = -couple_coeffs[pos - upper_nnz_ - diag_nnz];
-                }
-
-                dense[i] = scaling_ * value;
-            }
+            symmetric_update_w_interface(
+                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute, scaling_,
+                diag.data(), upper.data(), lower.data(), couple_coeffs.data(),
+                dense);
         } else {
-            for (label i = 0; i < local_matrix_w_interfaces_nnz_; ++i) {
-                const label pos{permute[i]};
-                scalar value;
-                if (pos < upper_nnz_) {
-                    value = upper[pos];
-                }
-                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                    value = lower[pos - upper_nnz_];
-                }
-                if (pos >= 2 * upper_nnz_ && pos < 2 * upper_nnz_ + diag_nnz) {
-                    value = diag[pos - 2 * upper_nnz_];
-                }
-                if (pos >= 2 * upper_nnz_ + diag_nnz) {
-                    value = -couple_coeffs[pos - 2 * upper_nnz_ - diag_nnz];
-                }
-                dense[i] = scaling_ * value;
-            }
+            non_symmetric_update_w_interface(
+                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute, scaling_,
+                diag.data(), upper.data(), lower.data(), couple_coeffs.data(),
+                dense);
         }
     } else {
-        // TODO move this to a function fill_non_interfaces
         if (is_symmetric) {
-            for (label i = 0; i < local_matrix_nnz_; ++i) {
-                const label pos{permute[i]};
-                dense[i] = scaling_ * (pos >= upper_nnz_)
-                               ? diag[pos - upper_nnz_]
-                               : upper[pos];
-            }
-            return;
+            symmetric_update(local_matrix_nnz_, upper_nnz_,
+                                          permute, scaling_, diag.data(),
+                                          upper.data(), dense);
         } else {
-            for (label i = 0; i < local_matrix_nnz_; ++i) {
-                const label pos{permute[i]};
-                if (pos < upper_nnz_) {
-                    dense[i] = scaling_ * upper[pos];
-                    continue;
-                }
-                if (pos >= upper_nnz_ && pos < 2 * upper_nnz_) {
-                    dense[i] = scaling_ * lower[pos - upper_nnz_];
-                    continue;
-                }
-                dense[i] = scaling_ * diag[pos - 2 * upper_nnz_];
-            }
+            non_symmetric_update(local_matrix_nnz_, upper_nnz_,
+                                          permute, scaling_, diag.data(),
+                                          upper.data(), lower.data(), dense);
         }
     }
 }

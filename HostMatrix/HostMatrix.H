@@ -94,8 +94,38 @@ struct CommunicationPattern {
 
     // send_idx stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::index_set<label>, label>> send_idxs;
+    std::vector<std::pair<gko::array<label>, label>> send_idxs;
 };
+
+
+// Free functions
+const lduInterfaceField *interface_getter(
+    const lduInterfaceFieldPtrsList &interfaces, const label i);
+
+
+void symmetric_update(const label total_nnz, const label upper_nnz,
+                      const label *permute, const scalar scale,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower, scalar *dense);
+
+
+void symmetric_update_w_interface(const label total_nnz, const label diag_nnz, const label upper_nnz,
+                                  const label *permute, const scalar scale,
+                                  const scalar *diag, const scalar *upper,
+                                  const scalar *lower,
+                                  const scalar *couple_coeffs, scalar *dense);
+
+
+void non_symmetric_update(const label total_nnz, const label upper_nnz,
+                          const label *permute, const scalar scale,
+                          const scalar *diag, const scalar *upper,
+                          const scalar *lower, scalar *dense);
+
+
+void non_symmetric_update_w_interface(
+    const label total_nnz,const label diag_nnz, const label upper_nnz, const label *permute,
+    const scalar scale, const scalar *diag, const scalar *upper,
+    const scalar *lower, const scalar *couple_coeffs, scalar *dense);
 
 
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
@@ -116,6 +146,11 @@ private:
     const DeviceIdGuardHandler device_id_guard_;
 
     const label verbose_;
+
+    // Whether the matrix coefficients should be reordered
+    // during copy or on device
+    // NOTE Not implemented
+    const bool reorder_on_copy_;
 
     // multiply the complete system by this factor, ie sAx=sb
     // NOTE this could be also achieved by just fliping the sign
@@ -215,15 +250,40 @@ private:
     std::vector<std::tuple<label, label>> collect_cells_on_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
-    /* Based on OpenFOAMs ldu matrix format this function computes two
-     *consecutive index arrays in row major ordering and scattering indices
-     **
-     */
+    /** Based on OpenFOAMs ldu matrix format this function computes two
+     ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
+     ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
+     ** which are required to create to a ginkgo matrix
+     **/
     void init_local_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
+    /** Based on OpenFOAMs interfaces this function computes two
+     ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
+     ** row *major ordering and the permutation index
+     ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
+     ** matrix
+     **/
     void init_non_local_sparsity_pattern(
         const lduInterfaceFieldPtrsList &interfaces) const;
+
+    // updater
+
+    /** Copies the LDU matrix coefficients to local_coeffs without changing or
+     ** reinstantiating the sparsity pattern.
+     ** This uses the local_sparsity_.ldu_mapping to permute the data already
+     ** on the host to be in row major order
+     **/
+    void update_local_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+
+    /** Copies the interface matrix coefficients to non_local_coeffs without
+    ** changing or reinstantiating the sparsity pattern.
+    **/
+    void update_non_local_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
 public:
     // segregated wrapper constructor
@@ -245,19 +305,10 @@ public:
         const dictionary &solverControls, const word &fieldName);
 
     // TODO reimplement this at some point
-    // coupled  wrapper constructor
+    // coupled wrapper constructor
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
                       const dictionary &solverControls, const word &fieldName);
 
-    // updater
-
-    void update_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
-
-    void update_non_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
 

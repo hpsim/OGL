@@ -217,17 +217,14 @@ public:
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
-        const auto communication_pattern = this->get_communication_pattern();
-
         PersistentPartition partition{
             db_,
             this->get_exec_handler(),
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             psi.size(),  // number of elements
-            communication_pattern.target_ids,
-            communication_pattern.target_sizes,
-            communication_pattern.send_idxs};
+            this->get_communication_pattern()
+        };
 
         // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
