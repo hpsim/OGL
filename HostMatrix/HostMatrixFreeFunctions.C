@@ -15,11 +15,11 @@ const lduInterfaceField *interface_getter(
 void symmetric_update(const label total_nnz, const label upper_nnz,
                       const label *permute, const scalar scale,
                       const scalar *diag, const scalar *upper,
-                      const scalar *lower, scalar *dense)
+                      scalar *out)
 {
     for (label i = 0; i < total_nnz; ++i) {
         const label pos{permute[i]};
-        dense[i] =
+        out[i] =
             scale * (pos >= upper_nnz) ? diag[pos - upper_nnz] : upper[pos];
     }
 }
@@ -27,8 +27,8 @@ void symmetric_update(const label total_nnz, const label upper_nnz,
 void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
                                   const label upper_nnz, const label *permute,
                                   const scalar scale, const scalar *diag,
-                                  const scalar *upper, const scalar *lower,
-                                  const scalar *couple_coeffs, scalar *dense)
+                                  const scalar *upper, 
+                                  const scalar *interface, scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
         // where the element is stored in a combined array
@@ -43,7 +43,7 @@ void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
             value = diag[pos - upper_nnz];
         }
         if (pos >= upper_nnz + diag_nnz) {
-            value = -couple_coeffs[pos - upper_nnz - diag_nnz];
+            value = -interface[pos - upper_nnz - diag_nnz];
         }
         dense[i] = scale * value;
     }
@@ -52,7 +52,7 @@ void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
 void non_symmetric_update_w_interface(
     const label total_nnz, const label diag_nnz, const label upper_nnz,
     const label *permute, const scalar scale, const scalar *diag,
-    const scalar *upper, const scalar *lower, const scalar *couple_coeffs,
+    const scalar *upper, const scalar *lower, const scalar *interface,
     scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
@@ -68,7 +68,7 @@ void non_symmetric_update_w_interface(
             value = diag[pos - 2 * upper_nnz];
         }
         if (pos >= 2 * upper_nnz + diag_nnz) {
-            value = -couple_coeffs[pos - 2 * upper_nnz - diag_nnz];
+            value = -interface[pos - 2 * upper_nnz - diag_nnz];
         }
         dense[i] = scale * value;
     }
@@ -95,24 +95,3 @@ void non_symmetric_update(const label total_nnz, const label upper_nnz,
 }
 
 
-template <class MatrixType>
-label HostMatrixWrapper<MatrixType>::count_interface_nnz(
-    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
-{
-    label ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-        const auto iface{interface_getter(interfaces, i)};
-
-        bool count = (proc_interfaces)
-                         ? !!isA<processorLduInterface>(iface->interface())
-                         : !isA<processorLduInterface>(iface->interface());
-        if (count) {
-            ctr += iface->interface().faceCells().size();
-        }
-    }
-
-    return ctr;
-}

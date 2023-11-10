@@ -173,6 +173,27 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
                          << abort(FatalError);
 }
 
+template <class MatrixType>
+label HostMatrixWrapper<MatrixType>::count_interface_nnz(
+    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
+{
+    label ctr{0};
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+        const auto iface{interface_getter(interfaces, i)};
+
+        bool count = (proc_interfaces)
+                         ? !!isA<processorLduInterface>(iface->interface())
+                         : !isA<processorLduInterface>(iface->interface());
+        if (count) {
+            ctr += iface->interface().faceCells().size();
+        }
+    }
+
+    return ctr;
+}
 
 template <class MatrixType>
 std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
@@ -595,25 +616,24 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto couple_coeffs =
             collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
         if (is_symmetric) {
-            symmetric_update_w_interface(
-                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute, scaling_,
-                diag.data(), upper.data(), lower.data(), couple_coeffs.data(),
-                dense);
+            symmetric_update_w_interface(local_matrix_w_interfaces_nnz_,
+                                         diag_nnz, upper_nnz_, permute,
+                                         scaling_, diag.data(), upper.data(),
+                                         couple_coeffs.data(), dense);
         } else {
             non_symmetric_update_w_interface(
-                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute, scaling_,
-                diag.data(), upper.data(), lower.data(), couple_coeffs.data(),
-                dense);
+                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute,
+                scaling_, diag.data(), upper.data(), lower.data(),
+                couple_coeffs.data(), dense);
         }
     } else {
         if (is_symmetric) {
-            symmetric_update(local_matrix_nnz_, upper_nnz_,
-                                          permute, scaling_, diag.data(),
-                                          upper.data(), dense);
+            symmetric_update(local_matrix_nnz_, upper_nnz_, permute, scaling_,
+                             diag.data(), upper.data(), dense);
         } else {
-            non_symmetric_update(local_matrix_nnz_, upper_nnz_,
-                                          permute, scaling_, diag.data(),
-                                          upper.data(), lower.data(), dense);
+            non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
+                                 scaling_, diag.data(), upper.data(),
+                                 lower.data(), dense);
         }
     }
 }
