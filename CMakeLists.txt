@@ -151,6 +151,7 @@ target_sources(
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           HostMatrix/HostMatrix.C
+          HostMatrix/HostMatrixFreeFunctions.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
 #Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C

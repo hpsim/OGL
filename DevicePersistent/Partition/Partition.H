@@ -31,6 +31,7 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 
+#include "HostMatrix/HostMatrix.H"
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "common/common.H"
@@ -55,21 +56,20 @@ struct PartitionInitFunctor {
     // Array storing the ranks of the neighbouring processors
     const gko::array<label> target_sizes_;
 
-    const std::vector<std::pair<gko::index_set<label>, label>> send_idxs_;
+    const std::vector<std::pair<gko::array<label>, label>> send_idxs_;
 
     PartitionInitFunctor(
         const ExecutorHandler &exec, const label local_size,
         const label verbose, const int ranks_per_gpu,
-        const gko::array<label> &target_ids,
-        const gko::array<label> &target_sizes,
-        const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
+        const CommunicationPattern& communication_pattern
+        )
         : exec_(exec),
           local_size_(local_size),
           verbose_(verbose),
           ranks_per_gpu_(ranks_per_gpu),
-          target_ids_(target_ids),
-          target_sizes_(target_sizes),
-          send_idxs_(send_idxs)
+          target_ids_(communication_pattern.target_ids),
+          target_sizes_(communication_pattern.target_sizes),
+          send_idxs_(communication_pattern.send_idxs)
     {}
 
     void update(std::shared_ptr<part_type> persistent_partition) const
@@ -128,13 +128,12 @@ public:
     PersistentPartition(
         const objectRegistry &db, const ExecutorHandler &exec,
         const label verbose, const int ranks_per_gpu, const label elements,
-        const gko::array<label> &target_ids,
-        const gko::array<label> &target_sizes,
-        const std::vector<std::pair<gko::index_set<label>, label>> send_idxs)
+        const CommunicationPattern &communication_pattern
+        )
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
               PartitionInitFunctor(exec, elements, verbose, ranks_per_gpu,
-                                   target_ids, target_sizes, send_idxs),
+                                   communication_pattern),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           local_elements_(elements),
