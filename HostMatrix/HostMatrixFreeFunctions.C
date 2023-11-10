@@ -14,8 +14,7 @@ const lduInterfaceField *interface_getter(
 // free functions - for unit testing
 void symmetric_update(const label total_nnz, const label upper_nnz,
                       const label *permute, const scalar scale,
-                      const scalar *diag, const scalar *upper,
-                      scalar *out)
+                      const scalar *diag, const scalar *upper, scalar *out)
 {
     for (label i = 0; i < total_nnz; ++i) {
         const label pos{permute[i]};
@@ -27,8 +26,8 @@ void symmetric_update(const label total_nnz, const label upper_nnz,
 void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
                                   const label upper_nnz, const label *permute,
                                   const scalar scale, const scalar *diag,
-                                  const scalar *upper, 
-                                  const scalar *interface, scalar *dense)
+                                  const scalar *upper, const scalar *interface,
+                                  scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
         // where the element is stored in a combined array
@@ -49,11 +48,13 @@ void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
     }
 }
 
-void non_symmetric_update_w_interface(
-    const label total_nnz, const label diag_nnz, const label upper_nnz,
-    const label *permute, const scalar scale, const scalar *diag,
-    const scalar *upper, const scalar *lower, const scalar *interface,
-    scalar *dense)
+void non_symmetric_update_w_interface(const label total_nnz,
+                                      const label diag_nnz,
+                                      const label upper_nnz,
+                                      const label *permute, const scalar scale,
+                                      const scalar *diag, const scalar *upper,
+                                      const scalar *lower,
+                                      const scalar *interface, scalar *dense)
 {
     for (label i = 0; i < total_nnz; ++i) {
         const label pos{permute[i]};
@@ -93,5 +94,3 @@ void non_symmetric_update(const label total_nnz, const label upper_nnz,
         dense[i] = scale * diag[pos - 2 * upper_nnz];
     }
 }
-
-
