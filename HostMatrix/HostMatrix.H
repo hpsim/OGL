@@ -103,29 +103,110 @@ const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
 
 
+/** Perform update of the coefficients array in row major order from a symmetric
+ *ldu matrix
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ *upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param out pointer to data of output matrix
+ **/
 void symmetric_update(const label total_nnz, const label upper_nnz,
                       const label *permute, const scalar scale,
-                      const scalar *diag, const scalar *upper,
-                      const scalar *lower, scalar *dense);
+                      const scalar *diag, const scalar *upper, scalar *out);
 
 
-void symmetric_update_w_interface(const label total_nnz, const label diag_nnz, const label upper_nnz,
-                                  const label *permute, const scalar scale,
-                                  const scalar *diag, const scalar *upper,
-                                  const scalar *lower,
-                                  const scalar *couple_coeffs, scalar *dense);
-
-
+/** Perform update of the coefficients array in row major order from a
+ *non-symmetric ldu matrix
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ *upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for lower entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param lower pointer to lower triangular entries of the original ldu matrix
+ ** @param out pointer to data of output matrix
+ **/
 void non_symmetric_update(const label total_nnz, const label upper_nnz,
                           const label *permute, const scalar scale,
                           const scalar *diag, const scalar *upper,
                           const scalar *lower, scalar *dense);
 
 
+/** Perform update of the coefficients array in row major order from a
+ ** symmetric ldu matrix including local interface data.
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ ** upper
+ **
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for interface entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param interface pointer to interface entries
+ ** @param out pointer to data of output matrix
+ **/
+void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
+                                  const label upper_nnz, const label *permute,
+                                  const scalar scale, const scalar *diag,
+                                  const scalar *upper, const scalar *interface,
+                                  scalar *dense);
+
+
+/** Perform update of the coefficients array in row major order from a
+ ** non-symmetric ldu matrix including local interface data.
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ ** upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for lower entries
+ **        2*upper_nnz + diag_nnz <= permute for interface entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param lower pointer to lower triangular entries of the original ldu matrix
+ ** @param interface pointer to interface entries
+ ** @param out pointer to data of output matrix
+ **/
 void non_symmetric_update_w_interface(
-    const label total_nnz,const label diag_nnz, const label upper_nnz, const label *permute,
-    const scalar scale, const scalar *diag, const scalar *upper,
-    const scalar *lower, const scalar *couple_coeffs, scalar *dense);
+    const label total_nnz, const label diag_nnz, const label upper_nnz,
+    const label *permute, const scalar scale, const scalar *diag,
+    const scalar *upper, const scalar *lower, const scalar *couple_coeffs,
+    scalar *dense);
 
 
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
