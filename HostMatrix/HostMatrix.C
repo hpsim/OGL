@@ -577,18 +577,6 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 }
 
 
-void symmetric_update(const label total_nnz, const label upper_nnz,
-                      const label *permute, const scalar scale,
-                      const scalar *diag, const scalar *upper, scalar *dense)
-{
-    for (label i = 0; i < total_nnz; ++i) {
-        const label pos{permute[i]};
-        dense[i] =
-            scale * (pos >= upper_nnz) ? diag[pos - upper_nnz] : upper[pos];
-    }
-}
-
-
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,

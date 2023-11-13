@@ -1,5 +1,7 @@
 #include "HostMatrix.H"
 
+namespace Foam {
+
 const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i)
 {
@@ -94,3 +96,5 @@ void non_symmetric_update(const label total_nnz, const label upper_nnz,
         dense[i] = scale * diag[pos - 2 * upper_nnz];
     }
 }
+
+}  // namespace Foam
