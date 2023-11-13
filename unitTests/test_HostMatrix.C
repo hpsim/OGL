@@ -1,7 +1,7 @@
 #include "HostMatrix/HostMatrix.H"
 #include "gtest/gtest.h"
 
-TEST(HelloWord, symmetric_update)
+TEST(HostMatrixConversion, symmetric_update)
 {
     /* test a 5x5 symmetric matrix
      * A =
@@ -13,13 +13,14 @@ TEST(HelloWord, symmetric_update)
      */
 
     std::vector<scalar> d{1., 1., 1., 1., 1.};
-    std::vector<scalar> u{1., 2., 1., 2., 1.};
-    std::vector<label> p{6, 0, 1, 7, 2, 3, 8, 4, 9};
+    std::vector<scalar> u{1., 2., 1., 2., 1., 1.};
+    std::vector<label> p{6, 0, 1, 0, 7, 2, 3, 2, 8, 4, 1, 4, 9, 5, 3, 5, 10};
 
-    label total_nnz{15};
-    label upper_nnz{5};
+    label total_nnz{17};
+    label upper_nnz{6};
 
-    std::vector<scalar> res{15, 0.0};
+    std::vector<scalar> res{0., 0., 0., 0., 0., 0., 0., 0., 0.,
+                            0., 0., 0., 0., 0., 0., 0., 0.};
     std::vector<scalar> exp{1., 1., 2., 1., 1., 1., 2., 1., 1.,
                             1., 2., 1., 1., 1., 2., 1., 1.};
 

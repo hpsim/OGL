@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2023 NeoFOAM authors
+option(INSTALL_GTEST "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" OFF)
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -12,21 +13,32 @@ include_directories(
 )
 
 add_executable(
-  core_test
-  "test_hello_world.cpp"
+   matrixConversion
+   "test_HostMatrix.C"
 )
 
 # Your-external "mylib", add GLOBAL if the imported library is located in directories above the current.
-add_library( OpenFOAM SHARED IMPORTED )
-# You can define two import-locations: one for debug and one for release.
-set_target_properties( OpenFOAM PROPERTIES IMPORTED_LOCATION $ENV{FOAM_LIBBIN}/libOpenFOAM.so)
+add_library( libOpenFOAM SHARED IMPORTED )
 
+# You can define two import-locations: one for debug and one for release.
+set_target_properties(libOpenFOAM
+    PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libOpenFOAM.so
+    )
+
+add_library(libfiniteVolume SHARED IMPORTED )
+set_target_properties(libfiniteVolume
+    PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libfiniteVolume.so
+    )
 
 target_link_libraries(
-  core_test
-  GTest::gtest_main OGL OpenFOAM
+    matrixConversion
+  PUBLIC
+      GTest::gtest_main 
+      OGL
+      libOpenFOAM
+      libfiniteVolume
 )
 
-include(GoogleTest)
-gtest_discover_tests(core_test)
 
+include(GoogleTest)
+gtest_discover_tests(matrixConversion)
