@@ -31,9 +31,9 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 
-#include "HostMatrix/HostMatrix.H"
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "HostMatrix/HostMatrix.H"
 #include "common/common.H"
 
 namespace Foam {
@@ -58,11 +58,9 @@ struct PartitionInitFunctor {
 
     const std::vector<std::pair<gko::array<label>, label>> send_idxs_;
 
-    PartitionInitFunctor(
-        const ExecutorHandler &exec, const label local_size,
-        const label verbose, const int ranks_per_gpu,
-        const CommunicationPattern& communication_pattern
-        )
+    PartitionInitFunctor(const ExecutorHandler &exec, const label local_size,
+                         const label verbose, const int ranks_per_gpu,
+                         const CommunicationPattern &communication_pattern)
         : exec_(exec),
           local_size_(local_size),
           verbose_(verbose),
@@ -125,11 +123,10 @@ public:
      * @param offset
      * @param elements
      */
-    PersistentPartition(
-        const objectRegistry &db, const ExecutorHandler &exec,
-        const label verbose, const int ranks_per_gpu, const label elements,
-        const CommunicationPattern &communication_pattern
-        )
+    PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
+                        const label verbose, const int ranks_per_gpu,
+                        const label elements,
+                        const CommunicationPattern &communication_pattern)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
               PartitionInitFunctor(exec, elements, verbose, ranks_per_gpu,
