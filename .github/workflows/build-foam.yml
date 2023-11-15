@@ -95,11 +95,6 @@ jobs:
       run: |
         cmake --build . --config $BUILD_TYPE
 
-    - name: Test OGL
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: ctest -C $BUILD_TYPE
-
     - name: Install OGL
       working-directory: ${{github.workspace}}
       run: |
@@ -117,9 +112,12 @@ jobs:
       with:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
+  unit_tests:
+    needs: [build, setup_build_matrix]
+    uses: ./.github/workflows/unit-tests.yml
 
   integration_tests:
-    needs: [build, setup_build_matrix]
+    needs: [build, unit_tests, setup_build_matrix]
     uses: ./.github/workflows/integration-tests.yml
     with:
       path: ${{ matrix.OF.path }}

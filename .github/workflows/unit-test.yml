@@ -1,0 +1,53 @@
+name: Integration Tests
+
+defaults:
+ run:
+  shell: bash -o pipefail -i {0}
+
+on: 
+  workflow_call:
+    inputs:
+      path:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      cyclic_case:
+        required: true
+        type: string
+      foam_user_libbin:
+        required: true
+        type: string
+run-name: Integration test on ${{github.ref_name}}
+
+env:
+  BUILD_TYPE: Release
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  OMPI_MCA_btl_vader_single_copy_mechanism: none
+  OBR_RUN_CMD: "mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
+  MPI_BUFFER_SIZE: 20000000
+  GINKGO_EXECUTOR: reference
+
+jobs:
+    - uses: actions/checkout@v4
+
+    - name: Get Ginkgo checkout version
+      shell: bash
+      run: |
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
+        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
+    - name: Cache build folder
+      uses: actions/cache@v3
+      with:
+        key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        path: |
+          ${{github.workspace}}/build
+
+    - name: Test OGL
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: ./unitTests/matrixConversion
