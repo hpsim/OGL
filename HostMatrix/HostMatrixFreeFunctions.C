@@ -97,16 +97,11 @@ void non_symmetric_update(const label total_nnz, const label upper_nnz,
     }
 }
 
-void init_local_sparsity(
-        const label nrows,
-        const label upper_nnz,
-        const bool is_symmetric,
-        const label* upper,
-        const label* lower,
-        label *rows,
-        label *cols,
-        label *permute
-        ){
+void init_local_sparsity(const label nrows, const label upper_nnz,
+                         const bool is_symmetric, const label *upper,
+                         const label *lower, label *rows, label *cols,
+                         label *permute)
+{
     label after_neighbours = (is_symmetric) ? upper_nnz : 2 * upper_nnz;
     label element_ctr = 0;
     label upper_ctr = 0;
