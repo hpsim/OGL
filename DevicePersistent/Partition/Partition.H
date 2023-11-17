@@ -31,6 +31,7 @@ SourceFiles
 
 #include <ginkgo/ginkgo.hpp>
 
+#include "HostMatrix/HostMatrix.H"
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "HostMatrix/HostMatrix.H"
