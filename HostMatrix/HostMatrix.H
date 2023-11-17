@@ -102,6 +102,23 @@ struct CommunicationPattern {
 const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
 
+/** Write contiguous row and col indices from OpenFOAM lower and upper indices
+ **
+ **
+ ** @param nrows number of rows
+ ** @param upper_nnz number of non zeros in the upper triangular matrix
+ ** @param is_symmetric whether matrix is symmetric, in the symmetric case
+ ** the lower elements indices in the permute array are computed differently
+ ** @param upper pointer to array of
+ ** @param lower pointer to rows array
+ ** @param rows pointer to rows array
+ ** @param cols pointer to columns array
+ ** @param permute pointer to permuter array
+ */
+void init_local_sparsity(const label nrows, const label upper_nnz,
+                         const bool is_symmetric, const label *upper,
+                         const label *lower, label *rows, label *cols,
+                         label *permute);
 
 /** Perform update of the coefficients array in row major order from a symmetric
  *ldu matrix

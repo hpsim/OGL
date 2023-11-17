@@ -431,18 +431,11 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
     // row of upper, col of lower
     const auto lower = lower_local.get_const_data();
-
     // col of upper, row of lower
     const auto upper = upper_local.get_const_data();
 
     auto rows = local_sparsity_.row_idxs_.get_data();
     auto cols = local_sparsity_.col_idxs_.get_data();
-
-    label element_ctr = 0;
-    label upper_ctr = 0;
-
-    std::vector<std::vector<std::pair<label, label>>> lower_stack(upper_nnz_);
-
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
 
     // Scan through given rows and insert row and column indices into array
@@ -454,42 +447,8 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     //  local_sparsity to size of nrows_w_interfaces, if interfaces exist
     //  local_sparsity is only valid till nrows_
     label after_neighbours = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
-    for (label row = 0; row < nrows_; row++) {
-        // add lower elements
-        // for now just scan till current upper ctr
-        for (const auto &[stored_upper_ctr, col] : lower_stack[row]) {
-            rows[element_ctr] = row;
-            cols[element_ctr] = col;
-            permute[element_ctr] = stored_upper_ctr;
-            element_ctr++;
-        }
-
-        // add diagonal elements
-        rows[element_ctr] = row;
-        cols[element_ctr] = row;
-        permute[element_ctr] = after_neighbours + row;
-        element_ctr++;
-
-        // add upper elements
-        // these are the transpose of the lower elements which are stored in
-        // row major order.
-        label row_upper = lower[upper_ctr];
-        while (upper_ctr < upper_nnz_ && row_upper == row) {
-            const label col_upper = upper[upper_ctr];
-
-            rows[element_ctr] = row_upper;
-            cols[element_ctr] = col_upper;
-
-            // insert into lower_stack
-            lower_stack[col_upper].emplace_back(
-                (is_symmetric) ? upper_ctr : upper_ctr + upper_nnz_, row_upper);
-            permute[element_ctr] = upper_ctr;
-
-            element_ctr++;
-            upper_ctr++;
-            row_upper = lower[upper_ctr];
-        }
-    }
+    init_local_sparsity(nrows_, upper_nnz_, is_symmetric, upper, lower, rows,
+                        cols, permute);
 
     // if no local interfaces are present we are done here
     // otherwise we need to add local interfaces in order
@@ -574,18 +533,6 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     }
 
     LOG_1(verbose_, "done init host matrix")
-}
-
-
-void symmetric_update(const label total_nnz, const label upper_nnz,
-                      const label *permute, const scalar scale,
-                      const scalar *diag, const scalar *upper, scalar *dense)
-{
-    for (label i = 0; i < total_nnz; ++i) {
-        const label pos{permute[i]};
-        dense[i] =
-            scale * (pos >= upper_nnz) ? diag[pos - upper_nnz] : upper[pos];
-    }
 }
 
 

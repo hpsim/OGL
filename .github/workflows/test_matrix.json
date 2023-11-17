@@ -5,14 +5,17 @@
    "fork": "ESI",
    "path": "openfoam",
    "repo": "https://develop.openfoam.com/Development/openfoam.git",
-   "cyclic_case": "LES/periodicPlaneChannel" 
+   "cyclic_case": "LES/periodicPlaneChannel" ,
+   "foam_user_libbin": "/root/OpenFOAM/root-v2306/platforms/linux64GccDPInt32Opt/lib"
     },
   {
    "version": "10",
    "fork": "Foundation",
    "path": "OpenFOAM-10",
    "repo": "https://github.com/OpenFOAM/OpenFOAM-10.git",
-   "cyclic_case": "LES/channel395" 
+   "cyclic_case": "LES/channel395" ,
+   "cyclic_case": "LES/periodicPlaneChannel" ,
+   "foam_user_libbin": "/root/OpenFOAM/root-10/platforms/linux64GccDPInt32Opt/lib"
     }
 ]
 }

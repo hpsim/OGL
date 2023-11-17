@@ -15,10 +15,10 @@ OGL is a wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers 
 
 OGL has the following requirements
 
-*   _cmake 3.9+_
+*   _cmake 3.13+_
 *   _OpenFOAM 6+_ or _v2106_
 *   _Ginkgo 1.5.0+_ (recommended to install via OGL)
-*   C++14 compliant compiler (gcc or clang)
+*   C++17 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 

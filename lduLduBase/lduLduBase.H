@@ -223,8 +223,7 @@ public:
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             psi.size(),  // number of elements
-            this->get_communication_pattern()
-        };
+            this->get_communication_pattern()};
 
         // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
