@@ -33,7 +33,7 @@ jobs:
     - name: Cache build folder
       uses: actions/cache@v3
       with:
-        key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
 
