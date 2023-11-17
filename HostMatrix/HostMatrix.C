@@ -359,12 +359,13 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
 }
 
 template <class MatrixType>
-std::vector<std::tuple<label, label>>
+std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
-    // vector of local cell ids on other side
-    std::vector<std::tuple<label, label>> non_local_idxs{};
+    // vector of local cell idx connected to interface
+    std::vector<std::tuple<label, label, label>> non_local_idxs{};
+    std::map<label, label> unique_index {};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
     interface_iterator<processorFvPatch>(
@@ -372,8 +373,20 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
         [&](label &element_ctr, const label interface_size,
             const processorFvPatch &, const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
+            label uniqueIdCtr {0};
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                non_local_idxs.push_back({element_ctr, face_cells[cellI]});
+                const label cellId = face_cells[cellI];
+                label uniqueId = uniqueIdCtr;
+                auto search = unique_index.find(cellId);
+                // cellId is new and unique
+                if (search == unique_index.end()) {
+                    uniqueId = uniqueIdCtr;
+                    unique_index[cellId] = uniqueIdCtr;
+                    uniqueIdCtr++;
+                } else {
+                    uniqueId = unique_index[cellId]; 
+                }
+                non_local_idxs.push_back({element_ctr, cellId, uniqueId});
                 element_ctr += 1;
             }
         });
@@ -393,10 +406,12 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
+    // TODO check if sorting is actually needed since interfaces should
+    // be sorted already
     std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
               [&](const auto &a, const auto &b) {
-                  auto [interface_idx_a, row_a] = a;
-                  auto [interface_idx_b, row_b] = b;
+                  auto [interface_idx_a, row_a, unique_col_a] = a;
+                  auto [interface_idx_b, row_b, unique_col_b] = b;
                   return std::tie(row_a, interface_idx_a) <
                          std::tie(row_b, interface_idx_b);
               });
@@ -405,9 +420,9 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto [interface_idx, row] = non_local_row_indices[element_ctr];
+                auto [interface_idx, row, unique_col] = non_local_row_indices[element_ctr];
                 rows[element_ctr] = row;
-                cols[element_ctr] = interface_idx;
+                cols[element_ctr] = unique_col;
                 permute[element_ctr] = interface_idx;
                 element_ctr += 1;
             }
