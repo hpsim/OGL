@@ -219,7 +219,6 @@ struct MatrixInitFunctor {
             gko::experimental::distributed::sparse_communicator::create(
                 *comm.get(), partition_.get_localized_partition());
 
-        // TODO FIXME
         auto recv_sizes = sparse_comm->get_recv_sizes();
         auto recv_offs = sparse_comm->get_recv_offsets();
         auto send_sizes = sparse_comm->get_send_sizes();
