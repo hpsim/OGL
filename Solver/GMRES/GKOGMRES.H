@@ -69,9 +69,8 @@ public:
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
-        auto gmres = gmres::build()
-                         .with_criteria(stoppingCriterionVec_)
-                         .on(exec);
+        auto gmres =
+            gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
         return gmres;
     };
 
