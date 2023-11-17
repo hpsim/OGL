@@ -1,10 +1,8 @@
-name: Integration Tests
+name: Unit Tests
 
 defaults:
  run:
   shell: bash -o pipefail -i {0}
-
-run-name: Unit tests on ${{github.ref_name}}
 
 on: 
   workflow_call:
@@ -13,8 +11,7 @@ on:
         required: true
         type: string
 
-env:
-  BUILD_TYPE: Release
+run-name: Unit tests on ${{github.ref_name}}
 
 jobs:
   unit_test:
