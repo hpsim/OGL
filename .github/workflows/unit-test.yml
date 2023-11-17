@@ -6,10 +6,18 @@ defaults:
 
 run-name: Unit tests on ${{github.ref_name}}
 
+on: 
+  workflow_call:
+    inputs:
+      path:
+        required: true
+        type: string
+
 env:
   BUILD_TYPE: Release
 
 jobs:
+  unit_test:
     - uses: actions/checkout@v4
 
     - name: Get Ginkgo checkout version

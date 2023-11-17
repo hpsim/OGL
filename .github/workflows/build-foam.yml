@@ -115,6 +115,8 @@ jobs:
   unit_tests:
     needs: [build, setup_build_matrix]
     uses: ./.github/workflows/unit-test.yml
+    with:
+      path: ${{ matrix.OF.path }}
 
   integration_tests:
     needs: [build, unit_tests, setup_build_matrix]
