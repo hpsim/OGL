@@ -108,7 +108,7 @@ const lduInterfaceField *interface_getter(
  ** @param nrows number of rows
  ** @param upper_nnz number of non zeros in the upper triangular matrix
  ** @param is_symmetric whether matrix is symmetric, in the symmetric case
- ** the lower elemnts indices in the permute array are computed differently
+ ** the lower elements indices in the permute array are computed differently
  ** @param upper pointer to array of
  ** @param lower pointer to rows array
  ** @param rows pointer to rows array
