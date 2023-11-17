@@ -277,6 +277,9 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
+    // provides mapping between local and global indexing
+    const gkoGlobalIndex global_row_index_;
+
     mutable PersistentSparsityPattern local_sparsity_;
 
     mutable PersistentArray<scalar> local_coeffs_;

@@ -57,6 +57,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
+      global_row_index_{nrows_},
       local_sparsity_{
           fieldName + "_local",           db,       exec_,
           local_matrix_w_interfaces_nnz_, verbose_,
@@ -132,6 +133,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
+      global_row_index_{nrows_},
       local_sparsity_{
           fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
       },
@@ -363,35 +365,106 @@ std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
-    // vector of local cell idx connected to interface
+    // vector of neighbour cell idx connected to interface
     std::vector<std::tuple<label, label, label>> non_local_idxs{};
+
     std::map<label, label> unique_index {};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
-    interface_iterator<processorFvPatch>(
-        interfaces,
-        [&](label &element_ctr, const label interface_size,
-            const processorFvPatch &, const lduInterfaceField *iface) {
-            const auto &face_cells{iface->interface().faceCells()};
-            label uniqueIdCtr {0};
+    label startOfRequests = Pstream::nRequests();
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+
+        const auto iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+
+        if (isA<processorLduInterface>(iface->interface())) {
+            const processorLduInterface &pldui =
+                refCast<const processorLduInterface>(iface->interface());
+            const label neighbProcNo = pldui.neighbProcNo();
+
+            word msg = "send face cells interface " + std::to_string(i) +
+                       " from proc " + std::to_string(Pstream::myProcNo()) +
+                       " to neighbour proc " + std::to_string(neighbProcNo);
+
+            LOG_2(verbose_, msg)
+            pldui.send(Pstream::commsTypes::nonBlocking, face_cells);
+        }
+    }
+    Pstream::waitRequests(startOfRequests);
+    LOG_2(verbose_, "send face cells done")
+
+
+    label interface_ctr = 0;
+    label uniqueIdCtr = 0;
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+
+        const auto iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (isA<processorLduInterface>(iface->interface())) {
+            const processorLduInterface &pldui =
+                refCast<const processorLduInterface>(iface->interface());
+            const label neighbProcNo = pldui.neighbProcNo();
+
+            word msg_2 = "receive face cells interface " + std::to_string(i) +
+                         " from proc " + std::to_string(neighbProcNo);
+            LOG_2(verbose_, msg_2)
+
+            auto otherSide_tmp = pldui.receive<label>(
+                Pstream::commsTypes::nonBlocking, interface_size);
+            LOG_2(verbose_, "receive face cells done")
+
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                const label cellId = face_cells[cellI];
+                auto global_row = global_row_index_.toGlobal(
+                    neighbProcNo, otherSide_tmp()[cellI]);
+                auto search = unique_index.find(global_row);
+                // global_row is new and unique
                 label uniqueId = uniqueIdCtr;
-                auto search = unique_index.find(cellId);
-                // cellId is new and unique
                 if (search == unique_index.end()) {
                     uniqueId = uniqueIdCtr;
-                    unique_index[cellId] = uniqueIdCtr;
+                    unique_index[global_row] = uniqueIdCtr;
                     uniqueIdCtr++;
                 } else {
-                    uniqueId = unique_index[cellId]; 
+                    uniqueId = unique_index[global_row]; 
                 }
-                non_local_idxs.push_back({element_ctr, cellId, uniqueId});
-                element_ctr += 1;
+                non_local_idxs.push_back(
+                    {interface_ctr, face_cells[cellI], uniqueId});
+                interface_ctr += 1;
             }
-        });
+        }
+    }
+    word msg = "done collecting neighbouring processor cell id";
 
-    word msg = "done collecting neighbouring processor cell ids";
+    // interface_iterator<processorFvPatch>(
+    //     interfaces,
+    //     [&](label &element_ctr, const label interface_size,
+    //         const processorFvPatch &, const lduInterfaceField *iface) {
+    //         const auto &face_cells{iface->interface().faceCells()};
+    //         for (label cellI = 0; cellI < interface_size; cellI++) {
+    //             const label cellId = face_cells[cellI];
+    //             label uniqueId = uniqueIdCtr;
+    //             auto search = unique_index.find(cellId);
+    //             // cellId is new and unique
+    //             if (search == unique_index.end()) {
+    //                 uniqueId = uniqueIdCtr;
+    //                 unique_index[cellId] = uniqueIdCtr;
+    //                 uniqueIdCtr++;
+    //             } else {
+    //                 uniqueId = unique_index[cellId]; 
+    //             }
+    //             non_local_idxs.push_back({element_ctr, cellId, uniqueId});
+    //             element_ctr += 1;
+    //         }
+    //     });
+    //
+    // word msg = "done collecting neighbouring processor cell ids";
 
     LOG_2(verbose_, msg)
     return non_local_idxs;
