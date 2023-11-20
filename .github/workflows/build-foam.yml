@@ -93,6 +93,7 @@ jobs:
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
       run: |
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake --build . --config $BUILD_TYPE
 
     - name: Install OGL
