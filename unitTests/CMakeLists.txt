@@ -11,8 +11,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-include_directories(${googletest_SOURCE_DIR}/googletest/include)
-
 add_executable(matrixConversion "test_HostMatrix.C")
 
 target_link_libraries(

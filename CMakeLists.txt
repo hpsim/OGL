@@ -213,8 +213,8 @@ if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)
 endif()
 
 if(${OGL_BUILD_UNITTEST})
-  add_subdirectory(unitTests)
   enable_testing()
+  add_subdirectory(unitTests)
 endif()
 
 add_custom_target(
