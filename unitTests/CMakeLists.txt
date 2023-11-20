@@ -17,20 +17,21 @@ add_executable(
    "test_HostMatrix.C"
 )
 
-# Your-external "mylib", add GLOBAL if the imported library is located in directories above the current.
-add_library( libOpenFOAM SHARED IMPORTED )
-
+add_library(libOSspecific SHARED IMPORTED )
 set_target_properties(libOSspecific)
     PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libOSspecific.o
     )
-./platforms/linux64GccDPInt32Opt/lib/libOSspecific.o
+
 # You can define two import-locations: one for debug and one for release.
+add_library(libPstream SHARED IMPORTED )
 set_target_properties(libPstream
     PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/dummy/libPstream.so
     )
 
 
-# You can define two import-locations: one for debug and one for release.
+# Your-external "mylib", add GLOBAL if the imported library is located in directories above the current.
+add_library( libOpenFOAM SHARED IMPORTED )
+
 set_target_properties(libOpenFOAM
     PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libOpenFOAM.so
     )
