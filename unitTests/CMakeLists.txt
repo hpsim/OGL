@@ -21,6 +21,12 @@ add_executable(
 add_library( libOpenFOAM SHARED IMPORTED )
 
 # You can define two import-locations: one for debug and one for release.
+set_target_properties(libPstream
+    PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/dummy/libPstream.so
+    )
+
+
+# You can define two import-locations: one for debug and one for release.
 set_target_properties(libOpenFOAM
     PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libOpenFOAM.so
     )
@@ -37,6 +43,7 @@ target_link_libraries(
       OGL
       libOpenFOAM
       libfiniteVolume
+      libPstream
 )
 
 
