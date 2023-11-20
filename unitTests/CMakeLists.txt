@@ -18,7 +18,7 @@ add_executable(
 )
 
 add_library(libOSspecific SHARED IMPORTED )
-set_target_properties(libOSspecific)
+set_target_properties(libOSspecific
     PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/libOSspecific.o
     )
 
