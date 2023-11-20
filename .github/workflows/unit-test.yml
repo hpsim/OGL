@@ -36,5 +36,6 @@ jobs:
 
     - name: Test OGL
       working-directory: ${{github.workspace}}/build
-      shell: bash
-      run: ./unitTests/matrixConversion
+      run:
+        source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
+        ./unitTests/matrixConversion
