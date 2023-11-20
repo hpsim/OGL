@@ -368,7 +368,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     // vector of neighbour cell idx connected to interface
     std::vector<std::tuple<label, label, label>> non_local_idxs{};
 
-    std::map<label, label> unique_index {};
+    std::map<label, label> unique_index{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
     label startOfRequests = Pstream::nRequests();
@@ -432,7 +432,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
                     unique_index[global_row] = uniqueIdCtr;
                     uniqueIdCtr++;
                 } else {
-                    uniqueId = unique_index[global_row]; 
+                    uniqueId = unique_index[global_row];
                 }
                 non_local_idxs.push_back(
                     {interface_ctr, face_cells[cellI], uniqueId});
@@ -457,7 +457,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     //                 unique_index[cellId] = uniqueIdCtr;
     //                 uniqueIdCtr++;
     //             } else {
-    //                 uniqueId = unique_index[cellId]; 
+    //                 uniqueId = unique_index[cellId];
     //             }
     //             non_local_idxs.push_back({element_ctr, cellId, uniqueId});
     //             element_ctr += 1;
@@ -493,7 +493,8 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto [interface_idx, row, unique_col] = non_local_row_indices[element_ctr];
+                auto [interface_idx, row, unique_col] =
+                    non_local_row_indices[element_ctr];
                 rows[element_ctr] = row;
                 cols[element_ctr] = unique_col;
                 permute[element_ctr] = interface_idx;

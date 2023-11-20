@@ -344,7 +344,7 @@ private:
     /** Iterates all interfaces and collect the corresponding cell id (row)
     ** and a unique counter
     **
-    ** @return vector of size nnz_non_local, with a running index, row 
+    ** @return vector of size nnz_non_local, with a running index, row
     ** index, and a unique compressed column index
     ** sections for each interface
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
