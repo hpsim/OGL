@@ -25,7 +25,7 @@ set_target_properties(libOSspecific
 # You can define two import-locations: one for debug and one for release.
 add_library(libPstream SHARED IMPORTED )
 set_target_properties(libPstream
-    PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/dummy/libPstream.so
+    PROPERTIES IMPORTED_LOCATION_RELEASE $ENV{FOAM_LIBBIN}/sys-openmpi/libPstream.so
     )
 
 
