@@ -50,6 +50,7 @@ target_link_libraries(
       libfiniteVolume
       libPstream
       libOSspecific
+      ${CMAKE_DL_LIBS}
 )
 
 
