@@ -63,7 +63,6 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
-find_package(CUDAToolkit REQUIRED)
 
 # C++ 14 standard or later is required to interface with ginkgo 
 set(CMAKE_CXX_STANDARD 17)
