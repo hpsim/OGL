@@ -189,7 +189,7 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}
           )
 
-target_link_libraries(OGL PUBLIC Ginkgo::ginkgo)
+target_link_libraries(OGL PUBLIC Ginkgo::ginkgo stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
