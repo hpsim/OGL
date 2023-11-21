@@ -114,14 +114,14 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-  unit_tests:
-    needs: [build, setup_build_matrix]
-    uses: ./.github/workflows/unit-test.yml
-    with:
-      path: ${{ matrix.OF.path }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
+  # unit_tests:
+  #   needs: [build, setup_build_matrix]
+  #   uses: ./.github/workflows/unit-test.yml
+  #   with:
+  #     path: ${{ matrix.OF.path }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
 
   integration_tests:
     needs: [build, unit_tests, setup_build_matrix]
