@@ -124,7 +124,7 @@ jobs:
   #     matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
 
   integration_tests:
-    needs: [build, unit_tests, setup_build_matrix]
+    needs: [build, setup_build_matrix]
     uses: ./.github/workflows/integration-tests.yml
     with:
       path: ${{ matrix.OF.path }}
