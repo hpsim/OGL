@@ -15,64 +15,58 @@ case:
 variation:
   - operation: fvSolution
     schema: "linearSolver/{solver}{preconditioner}{executor}"
-    values:
-      - set: solvers/p
-        preconditioner: none
-        solver: GKOCG
+    common:
         forceHostBuffer: 1
         verbose: 1
         debug: 1
         executor: reference
         matrixFormat: Coo
+    values:
+      - set: solvers/p
+        preconditioner: none
+        solver: GKOCG
       - set: solvers/U
         preconditioner: BJ
         solver: GKOBiCGStab
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
-        executor: reference
-        matrixFormat: Coo
+    variation:
+      - operation: decomposePar
+        schema: "decomposition/{method}-{numberOfSubdomains}"
+        values:
+          - method: simple
+            numberOfSubdomains: 2
+            coeffs: [2,1,1]
+          - method: simple
+            numberOfSubdomains: 8
+            coeffs: [4,2,1]
+          - method: scotch
+            numberOfSubdomains: 8
   - operation: fvSolution
     schema: "matrixFormat/{matrixFormat}"
+    common:
+        preconditioner: none
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
     values:
       - set: solvers/p
-        preconditioner: none
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
         matrixFormat: Csr
-        executor: reference
       - set: solvers/p
-        preconditioner: none
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
         regenerate: 1
         matrixFormat: Ell
-        executor: reference
   - operation: fvSolution
     schema: "preconditioner/{preconditioner}"
+    common:
+        solver: GKOCG
+        forceHostBuffer: 1
+        verbose: 1
+        debug: 1
+        executor: reference
     values:
       - set: solvers/p
         preconditioner: BJ
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
-        executor: reference
       - set: solvers/p
         preconditioner: GISAI
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
-        executor: reference
       - set: solvers/p
         preconditioner: ILU
-        solver: GKOCG
-        forceHostBuffer: 1
-        verbose: 1
-        debug: 1
-        executor: reference

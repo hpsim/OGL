@@ -277,6 +277,9 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
+    // provides mapping between local and global indexing
+    const gkoGlobalIndex global_row_index_;
+
     mutable PersistentSparsityPattern local_sparsity_;
 
     mutable PersistentArray<scalar> local_coeffs_;
@@ -341,11 +344,13 @@ private:
     /** Iterates all interfaces and collect the corresponding cell id (row)
     ** and a unique counter
     **
-    ** @return vector off size nnz_non_local, with sections for each interface
-    ** ret = [(1,2),(2,20), ...]
+    ** @return vector of size nnz_non_local, with a running index, row
+    ** index, and a unique compressed column index
+    ** sections for each interface
+    ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label>> collect_cells_on_interface(
+    std::vector<std::tuple<label, label, label>> collect_cells_on_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /** Based on OpenFOAMs ldu matrix format this function computes two

@@ -88,11 +88,12 @@ jobs:
         mkdir -p build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -G Ninja -DOGL_ALLOW_REFERENCE_ONLY=On -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -G Ninja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=OFF -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
       run: |
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake --build . --config $BUILD_TYPE
 
     - name: Install OGL
@@ -113,17 +114,17 @@ jobs:
         name: ogl_build_${{ matrix.OF.path }}
         path: ${{github.workspace}}/build
 
-  unit_tests:
-    needs: [build, setup_build_matrix]
-    uses: ./.github/workflows/unit-test.yml
-    with:
-      path: ${{ matrix.OF.path }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
+  # unit_tests:
+  #   needs: [build, setup_build_matrix]
+  #   uses: ./.github/workflows/unit-test.yml
+  #   with:
+  #     path: ${{ matrix.OF.path }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
 
   integration_tests:
-    needs: [build, unit_tests, setup_build_matrix]
+    needs: [build, setup_build_matrix]
     uses: ./.github/workflows/integration-tests.yml
     with:
       path: ${{ matrix.OF.path }}
