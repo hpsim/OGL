@@ -123,7 +123,8 @@ public:
             int rank;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             word fn = "/tmp/mpi_debug_" + std::to_string(rank) + ".pid";
-            word msg = "writing pid to" + fn;
+            word msg =
+                "writing pid to" + fn + " waiting 20s for debugger to attach";
             LOG_0(verbose_, msg)
             std::ofstream os(fn);
             os << getpid() << std::endl;
@@ -147,7 +148,6 @@ private:
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
     using GlobalIndexType = gko::int64;
-    using part_type = gko::experimental::distributed::Partition<label, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;
@@ -222,9 +222,8 @@ public:
             this->get_exec_handler(),
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-            this->get_global_row_index().offset(Pstream::myProcNo()),  // offset
-            psi.size()  // number of elements
-        };
+            psi.size(),  // number of elements
+            this->get_communication_pattern()};
 
         // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
@@ -310,14 +309,12 @@ public:
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        TIME_WITH_FIELDNAME(
-            verbose_, solve, this->fieldName(),
-            solver->apply(gko::lend(dist_b_v), gko::lend(dist_x_v));)
+        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+                            solver->apply(dist_b_v, dist_x_v);)
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
-        auto bandwidth_copy_back = sizeof(scalar) *
-                                   partition.get_local_device_size() /
+        auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
                                    delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();

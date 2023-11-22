@@ -33,77 +33,62 @@ SourceFiles
 
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
+#include "HostMatrix/HostMatrix.H"
 #include "common/common.H"
 
 namespace Foam {
 
 
 struct PartitionInitFunctor {
-    using vec = gko::matrix::Dense<scalar>;
-    using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using part_type = gko::experimental::distributed::localized_partition<>;
 
     const ExecutorHandler &exec_;
 
-    const label rows_end_;
-
-    const label rows_start_;
+    const label local_size_;
 
     const label verbose_;
 
     const int ranks_per_gpu_;
 
+    // Array storing the ranks of the neighbouring processors
+    const gko::array<label> target_ids_;
 
-    PartitionInitFunctor(const ExecutorHandler &exec, const label rows_start,
-                         const label rows_end, const label verbose,
-                         const int ranks_per_gpu)
+    // Array storing the ranks of the neighbouring processors
+    const gko::array<label> target_sizes_;
+
+    const std::vector<std::pair<gko::array<label>, label>> send_idxs_;
+
+    PartitionInitFunctor(const ExecutorHandler &exec, const label local_size,
+                         const label verbose, const int ranks_per_gpu,
+                         const CommunicationPattern &communication_pattern)
         : exec_(exec),
-          rows_end_(rows_end),
-          rows_start_(rows_start),
+          local_size_(local_size),
           verbose_(verbose),
-          ranks_per_gpu_(ranks_per_gpu)
+          ranks_per_gpu_(ranks_per_gpu),
+          target_ids_(communication_pattern.target_ids),
+          target_sizes_(communication_pattern.target_sizes),
+          send_idxs_(communication_pattern.send_idxs)
     {}
 
-    void update(
-        std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
-            persistent_partition) const
+    void update(std::shared_ptr<part_type> persistent_partition) const
     {
         UNUSED(persistent_partition);
     }
 
-    std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
-    init() const
+    std::shared_ptr<part_type> init() const
     {
         auto exec = exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
 
         word msg{"initialising partition of size " +
-                 std::to_string(rows_end_ - rows_start_)};
+                 std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        auto host_partition = gko::share(
-            gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec, *comm.get(),
-                              gko::span(rows_start_, rows_end_)));
+        auto host_partition = gko::experimental::distributed::
+            localized_partition<>::build_from_blocked_recv(
+                exec, local_size_, send_idxs_, target_ids_, target_sizes_);
 
         if (ranks_per_gpu_ == 1) return host_partition;
-
-        auto local_rank = comm->rank();
-        auto local_owning_rank = ranks_per_gpu_ * (local_rank / ranks_per_gpu_);
-        auto next_owning_rank = ranks_per_gpu_ + local_owning_rank;
-
-        // The new partition ranges up to next owning rank elements
-        auto target_rows_end =
-            host_partition->get_range_bounds()[next_owning_rank];
-
-        // if we are not on an owning rank start rows are set to be the end
-        // row else the rows start are unchanged
-        auto target_rows_start =
-            (local_rank % ranks_per_gpu_ != 0) ? target_rows_end : rows_start_;
-
-        return gko::share(
-            gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec, *comm.get(),
-                              gko::span(target_rows_start, target_rows_end)));
     }
 };
 
@@ -114,24 +99,21 @@ struct PartitionInitFunctor {
  * Here device partitioning refers to the partitioning as used on for the Ginkgo
  * data structures and can also reside on the host if the executor is either
  * reference or omp.
- *
- *
- *
  * */
 class PersistentPartition
     : public PersistentBase<
-          gko::experimental::distributed::Partition<label, label>,
+          gko::experimental::distributed::localized_partition<>,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
-    const label offset_;
+    const label local_elements_;
 
-    const label elements_;
+    mutable label global_elements_;
 
     const ExecutorHandler &exec_;
 
-
 public:
+    using part_type = gko::experimental::distributed::localized_partition<>;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage
@@ -143,52 +125,32 @@ public:
      */
     PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
                         const label verbose, const int ranks_per_gpu,
-                        const label offset, const label elements)
-        : PersistentBase<
-              gko::experimental::distributed::Partition<label, label>,
-              PartitionInitFunctor>(
+                        const label elements,
+                        const CommunicationPattern &communication_pattern)
+        : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
-              PartitionInitFunctor(exec, offset, offset + elements, verbose,
-                                   ranks_per_gpu),
+              PartitionInitFunctor(exec, elements, verbose, ranks_per_gpu,
+                                   communication_pattern),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
-          offset_(offset),
-          elements_(elements),
+          local_elements_(elements),
           exec_(exec)
-    {}
+    {
+        auto comm = exec.get_gko_mpi_host_comm();
+        label local_elements = local_elements_;
+        comm->all_reduce(exec.get_ref_exec(), &local_elements, 1, MPI_SUM);
+        global_elements_ = local_elements;
+    }
 
-    std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
-    get_device_partition() const
+    std::shared_ptr<part_type> get_localized_partition() const
     {
         return this->get_persistent_object();
     }
 
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-    get_host_partition() const
-    {
-        auto comm = exec_.get_gko_mpi_host_comm();
-        return gko::share(
-            gko::experimental::distributed::build_partition_from_local_range<
-                label, label>(exec_.get_ref_exec(), *comm.get(),
-                              gko::span(offset_, offset_ + elements_)));
-    }
-
     // number of elements on this rank on the host
-    label get_local_host_size() const { return elements_; }
+    label get_local_size() const { return local_elements_; }
 
-    // number of elements on this rank on the device
-    label get_local_device_size() const
-    {
-        auto comm = exec_.get_gko_mpi_device_comm();
-        return this->get_persistent_object()->get_part_size(comm->rank());
-    }
-
-
-    label get_total_size() const
-    {
-        return this->get_persistent_object()->get_size();
-    }
+    label get_total_size() const { return global_elements_; }
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 };

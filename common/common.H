@@ -60,6 +60,11 @@ namespace Foam {
         }                                                                   \
     }
 
+
+#define IN_USE_DO_NOT_REMOVE(FUNC)                                 \
+    std::cout << FUNC << " in " << __FILENAME__ << ":" << __LINE__ \
+              << " is in use do not remove" << std::endl
+
 #define LOG_0(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 0, MSG, 0)
 #define LOG_1(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 1, MSG, 0)
 #define LOG_2(VERBOSE, MSG) SIMPLE_LOG(VERBOSE, 2, MSG, 0)
@@ -105,6 +110,8 @@ namespace Foam {
 #define SIMPLE_TIME(VERBOSE, NAME, F) TIME_WITH_FIELDNAME(VERBOSE, NAME, "", F)
 
 #define UNUSED(x) (void)(x)
+
+#define OGL_NOT_IMPLEMENTED GKO_NOT_IMPLEMENTED
 
 std::ostream &operator<<(
     std::ostream &os,

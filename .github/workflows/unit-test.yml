@@ -1,0 +1,41 @@
+name: Unit Tests
+
+defaults:
+ run:
+  shell: bash -o pipefail -i {0}
+
+on: 
+  workflow_call:
+    inputs:
+      path:
+        required: true
+        type: string
+
+run-name: Unit tests on ${{github.ref_name}}
+
+jobs:
+  unit_test:
+    runs-on: ubuntu-latest
+    container: greole/ofbase
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Get Ginkgo checkout version
+      shell: bash
+      run: |
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
+        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
+    - name: Cache build folder
+      uses: actions/cache@v3
+      with:
+        key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
+        path: |
+          ${{github.workspace}}/build
+
+    - name: Test OGL
+      working-directory: ${{github.workspace}}/build
+      run:
+        source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
+        ./unitTests/matrixConversion

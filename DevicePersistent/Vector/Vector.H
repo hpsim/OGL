@@ -75,7 +75,7 @@ struct VectorInitFunctor {
     void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
                     persistent_vector) const
     {
-        const auto local_size = partition_.get_local_host_size();
+        const auto local_size = partition_.get_local_size();
         word msg{"updating array " + name_ + " of size " +
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
@@ -89,7 +89,7 @@ struct VectorInitFunctor {
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
 
-        const auto local_size = partition_.get_local_host_size();
+        const auto local_size = partition_.get_local_size();
         word msg{"initialising vector " + name_ + " of size " +
                  std::to_string(local_size)};
         msg += (on_device_) ? " on device" : " on host";
@@ -101,34 +101,8 @@ struct VectorInitFunctor {
         if (partition_.get_ranks_per_gpu() == 1) {
             return gko::share(dist_vec::create(
                 exec, *exec_.get_gko_mpi_device_comm().get(),
-                vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)
-                    .get()));
+                vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
         }
-
-        // when having more ranks than GPUs we must first repartition and
-        // gather the vector
-        auto host_vector = gko::share(dist_vec::create(
-            exec, *exec_.get_gko_mpi_host_comm().get(),
-            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
-
-        auto target_vector = gko::share(dist_vec::create(
-            exec, *exec_.get_gko_mpi_host_comm().get(),
-            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1).get()));
-
-        // TODO test if this needs to be persistent
-        auto repartitioner = gko::share(
-            gko::experimental::distributed::repartitioner<label, label>::create(
-                *comm.get(), partition_.get_host_partition(),
-                partition_.get_device_partition(), true));
-
-        repartitioner->gather(host_vector.get(), target_vector.get());
-
-        auto device_vec = gko::share(
-            dist_vec::create(exec, *exec_.get_gko_mpi_device_comm().get()));
-
-        target_vector->move_to(device_vec.get());
-
-        return device_vec;
     }
 };
 
@@ -207,8 +181,7 @@ public:
 
     void copy_back()
     {
-        const auto local_host_size = partition_.get_local_host_size();
-        const auto local_device_size = partition_.get_local_device_size();
+        const auto local_size = partition_.get_local_size();
         auto global_size = partition_.get_total_size();
 
         auto comm = exec_.get_gko_mpi_host_comm();
@@ -218,29 +191,16 @@ public:
 
         // TODO why does it need its size
         // repartitioner size should be sufficient
-        auto target_vector = dist_vec::create(
-            exec_.get_ref_exec(), *comm.get(), gko::dim<2>{global_size, 1},
-            gko::dim<2>{local_host_size, 1}, 1);
+        auto target_vector = dist_vec::create(exec_.get_ref_exec(), *comm.get(),
+                                              gko::dim<2>{global_size, 1},
+                                              gko::dim<2>{local_size, 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
-        if (partition_.get_ranks_per_gpu() != 1) {
-            auto repartitioner = gko::share(
-                gko::experimental::distributed::repartitioner<label, label>::
-                    create(*comm.get(),
-                           partition_.get_host_partition(),    // from
-                           partition_.get_device_partition(),  // to
-                           true));
+        auto host_buffer_view =
+            gko::array<T>::view(exec_.get_ref_exec(), local_size, host_buffer);
 
-            repartitioner->scatter(host_device_vector.get(),
-                                   target_vector.get());
-            host_buffer = target_vector->get_local_values();
-        }
-
-        auto host_buffer_view = gko::array<T>::view(
-            exec_.get_ref_exec(), local_host_size, host_buffer);
-
-        auto to_view = gko::array<T>::view(
-            exec_.get_ref_exec(), local_host_size, const_cast<T *>(memory_));
+        auto to_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
+                                           const_cast<T *>(memory_));
         to_view = host_buffer_view;
     }
 

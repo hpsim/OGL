@@ -84,12 +84,155 @@ struct PersistentSparsityPattern {
     mutable PersistentArray<label> ldu_mapping_;
 };
 
+struct CommunicationPattern {
+    // an array storing to which rank to communicate
+    gko::array<label> target_ids;
+
+    // an array storing how many elements to communicate
+    // to the corresponding target_id
+    gko::array<label> target_sizes;
+
+    // send_idx stores the index_set ie which cells
+    // are owned by the interface and the corresponding target rank
+    std::vector<std::pair<gko::array<label>, label>> send_idxs;
+};
+
+
+// Free functions
+const lduInterfaceField *interface_getter(
+    const lduInterfaceFieldPtrsList &interfaces, const label i);
+
+/** Write contiguous row and col indices from OpenFOAM lower and upper indices
+ **
+ **
+ ** @param nrows number of rows
+ ** @param upper_nnz number of non zeros in the upper triangular matrix
+ ** @param is_symmetric whether matrix is symmetric, in the symmetric case
+ ** the lower elements indices in the permute array are computed differently
+ ** @param upper pointer to array of
+ ** @param lower pointer to rows array
+ ** @param rows pointer to rows array
+ ** @param cols pointer to columns array
+ ** @param permute pointer to permuter array
+ */
+void init_local_sparsity(const label nrows, const label upper_nnz,
+                         const bool is_symmetric, const label *upper,
+                         const label *lower, label *rows, label *cols,
+                         label *permute);
+
+/** Perform update of the coefficients array in row major order from a symmetric
+ *ldu matrix
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ *upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param out pointer to data of output matrix
+ **/
+void symmetric_update(const label total_nnz, const label upper_nnz,
+                      const label *permute, const scalar scale,
+                      const scalar *diag, const scalar *upper, scalar *out);
+
+
+/** Perform update of the coefficients array in row major order from a
+ *non-symmetric ldu matrix
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ *upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for lower entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param lower pointer to lower triangular entries of the original ldu matrix
+ ** @param out pointer to data of output matrix
+ **/
+void non_symmetric_update(const label total_nnz, const label upper_nnz,
+                          const label *permute, const scalar scale,
+                          const scalar *diag, const scalar *upper,
+                          const scalar *lower, scalar *dense);
+
+
+/** Perform update of the coefficients array in row major order from a
+ ** symmetric ldu matrix including local interface data.
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ ** upper
+ **
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for interface entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param interface pointer to interface entries
+ ** @param out pointer to data of output matrix
+ **/
+void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
+                                  const label upper_nnz, const label *permute,
+                                  const scalar scale, const scalar *diag,
+                                  const scalar *upper, const scalar *interface,
+                                  scalar *dense);
+
+
+/** Perform update of the coefficients array in row major order from a
+ ** non-symmetric ldu matrix including local interface data.
+ **
+ ** @note this assumes out to be on the host
+ ** @note performs contiguous writes into out and random access of diag and
+ ** upper
+ ** @param total_nnz number of non zeros entries in the matrix
+ ** @param upper_nnz number of non zeros entries in the upper triangular matrix
+ ** @param permute mapping between the original position in the ldu input data
+ **        and the position in the row major ordered output data
+ **        ie. permute[i] maps out[i] to original position in diag or upper
+ **        with
+ **        upper_nnz <= permute < upper_nnz + diag_nnz for diag entries
+ **        upper_nnz + diag_nnz <= permute for lower entries
+ **        2*upper_nnz + diag_nnz <= permute for interface entries
+ ** @param scale scaling factor to scale the matrix entries
+ ** @param diag pointer to diagonal entries of the original ldu matrix
+ ** @param upper pointer to upper triangular entries of the original ldu matrix
+ ** @param lower pointer to lower triangular entries of the original ldu matrix
+ ** @param interface pointer to interface entries
+ ** @param out pointer to data of output matrix
+ **/
+void non_symmetric_update_w_interface(
+    const label total_nnz, const label diag_nnz, const label upper_nnz,
+    const label *permute, const scalar scale, const scalar *diag,
+    const scalar *upper, const scalar *lower, const scalar *couple_coeffs,
+    scalar *dense);
+
+
 /* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
  * format into Ginkgo array data structures
  *
  * It mainly generates:
  * - sparsity pattern/device_matrix_data of the local_matrix and
- * non_local_matrix (with global columns)
+ * - non_local_matrix (with global columns)
+ * - CommunicationPattern
  * */
 template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
@@ -101,6 +244,11 @@ private:
     const DeviceIdGuardHandler device_id_guard_;
 
     const label verbose_;
+
+    // Whether the matrix coefficients should be reordered
+    // during copy or on device
+    // NOTE Not implemented
+    const bool reorder_on_copy_;
 
     // multiply the complete system by this factor, ie sAx=sb
     // NOTE this could be also achieved by just fliping the sign
@@ -129,6 +277,7 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
+    // provides mapping between local and global indexing
     const gkoGlobalIndex global_row_index_;
 
     mutable PersistentSparsityPattern local_sparsity_;
@@ -138,16 +287,106 @@ private:
     // non-local indices
     const label non_local_matrix_nnz_;
 
+    const CommunicationPattern communication_pattern_;
+
     mutable PersistentSparsityPattern non_local_sparsity_;
 
     mutable PersistentArray<scalar> non_local_coeffs_;
 
+    // FIXME TODO unused
     const word permutation_matrix_name_;
 
     const bool permutation_stored_;
 
     mutable std::shared_ptr<gko::LinOp> P_;
 
+
+    /* Iterates all interfaces and collects the coefficients into a vector
+    **
+    ** @param local whether local or non local coefficients should be collected
+    */
+    std::vector<scalar> collect_interface_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces_,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const bool local) const;
+
+
+    /* Iterates all interfaces and counts the number of elements
+    **
+    ** @param interfaces The list of interfaces for the search
+    ** @param proc_interfaces Count only elements on (true)
+    *processorLduInterfaces or exclude processorLduInterfaces (false)
+    */
+    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
+                              bool proc_interfaces) const;
+
+    /** Iterates all local interfaces and returns the relative order and
+    **corresponding row and column indices
+    **
+    ** @return vector of tuples containing the interface number, the local row,
+    *the local column
+    **/
+    std::vector<std::tuple<label, label, label>>
+    collect_local_interface_indices(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+
+    /** Iterates all interfaces and counts the number of unique neighbour
+     **processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank
+     **
+     ** @param interfaces The list of interfaces for the search
+     ** @return the CommunicationPattern
+     */
+    CommunicationPattern create_communication_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /** Iterates all interfaces and collect the corresponding cell id (row)
+    ** and a unique counter
+    **
+    ** @return vector of size nnz_non_local, with a running index, row
+    ** index, and a unique compressed column index
+    ** sections for each interface
+    ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
+    **         i0   i1,   i...
+    */
+    std::vector<std::tuple<label, label, label>> collect_cells_on_interface(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /** Based on OpenFOAMs ldu matrix format this function computes two
+     ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
+     ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
+     ** which are required to create to a ginkgo matrix
+     **/
+    void init_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /** Based on OpenFOAMs interfaces this function computes two
+     ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
+     ** row *major ordering and the permutation index
+     ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
+     ** matrix
+     **/
+    void init_non_local_sparsity_pattern(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    // updater
+
+    /** Copies the LDU matrix coefficients to local_coeffs without changing or
+     ** reinstantiating the sparsity pattern.
+     ** This uses the local_sparsity_.ldu_mapping to permute the data already
+     ** on the host to be in row major order
+     **/
+    void update_local_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+
+    /** Copies the interface matrix coefficients to non_local_coeffs without
+    ** changing or reinstantiating the sparsity pattern.
+    **/
+    void update_non_local_matrix_data(
+        const lduInterfaceFieldPtrsList &interfaces,
+        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
 public:
     // segregated wrapper constructor
@@ -166,216 +405,29 @@ public:
         // pointers to interfaces can be used to access concrete
         // functions such as transferring indices, patch neighbours etc
         const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls, const word &fieldName)
-        : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
-                             interfaceIntCoeffs, interfaces, solverControls),
-          exec_{db, solverControls, fieldName},
-          device_id_guard_{db, fieldName, exec_.get_device_exec()},
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          nrows_(matrix.diag().size()),
-          local_interface_nnz_(count_interface_nnz(interfaces, false)),
-          upper_nnz_(matrix.lduAddr().upperAddr().size()),
-          non_diag_nnz_(2 * upper_nnz_),
-          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
-                                         local_interface_nnz_),
-          global_row_index_{nrows_},
-          local_sparsity_{
-              fieldName + "_local",           db,       exec_,
-              local_matrix_w_interfaces_nnz_, verbose_,
-          },
-          local_coeffs_{
-              fieldName + "_local_coeffs",
-              db,
-              exec_,
-              local_matrix_w_interfaces_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
-          non_local_sparsity_{
-              fieldName + "_non_local", db,       exec_,
-              non_local_matrix_nnz_,    verbose_,
-          },
-          non_local_coeffs_{
-              fieldName + "_non_local_coeffs",
-              db,
-              exec_,
-              non_local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          permutation_matrix_name_{"PermutationMatrix"},
-          permutation_stored_{
-              db.template foundObject<regIOobject>(permutation_matrix_name_)},
-          P_{(permutation_stored_) ? db.template lookupObjectRef<
-                                           DevicePersistentBase<gko::LinOp>>(
-                                           permutation_matrix_name_)
-                                         .get_ptr()
-                                   : nullptr}
-    {
-        if (!local_sparsity_.col_idxs_.get_stored() ||
-            local_sparsity_.col_idxs_.get_update()) {
-            TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
-                                this->fieldName(),
-                                init_local_sparsity_pattern(interfaces);)
-            TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
-                                this->fieldName(),
-                                init_non_local_sparsity_pattern(interfaces);)
-        }
-        if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
-            TIME_WITH_FIELDNAME(
-                verbose_, update_local_matrix_data, this->fieldName(),
-                update_local_matrix_data(interfaces, interfaceBouCoeffs);)
-            TIME_WITH_FIELDNAME(
-                verbose_, update_non_local_matrix_data, this->fieldName(),
-                update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
-        }
-    }
+        const dictionary &solverControls, const word &fieldName);
 
     // TODO reimplement this at some point
-    // coupled  wrapper constructor
+    // coupled wrapper constructor
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      const dictionary &solverControls, const word &fieldName)
-        : MatrixType::solver(fieldName, matrix, solverControls),
-          exec_{db, solverControls, fieldName},
-          device_id_guard_{db, fieldName, exec_.get_device_exec()},
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-          nrows_(matrix.diag().size()),
-          local_interface_nnz_(0),
-          upper_nnz_(matrix.lduAddr().upperAddr().size()),
-          non_diag_nnz_(2 * upper_nnz_),
-          local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-          local_matrix_w_interfaces_nnz_(local_matrix_nnz_ +
-                                         local_interface_nnz_),
-          global_row_index_{nrows_},
-          local_sparsity_{
-              fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
-          },
-          local_coeffs_{
-              fieldName + "_coeffs",
-              db,
-              exec_,
-              local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          non_local_matrix_nnz_(),
-          non_local_sparsity_{
-              fieldName + "_non_local", db,       exec_,
-              non_local_matrix_nnz_,    verbose_,
-          },
-          non_local_coeffs_{
-              fieldName + "_non_local_coeffs",
-              db,
-              exec_,
-              non_local_matrix_nnz_,
-              verbose_,
-              true,  // needs to be updated
-              false  // leave it on host once it is turned into a distributed
-                     // matrix it will be put on the device
-          },
-          permutation_matrix_name_{"PermutationMatrix"},
-          permutation_stored_{
-              db.template foundObject<regIOobject>(permutation_matrix_name_)},
-          P_{(permutation_stored_) ? db.template lookupObjectRef<
-                                           DevicePersistentBase<gko::LinOp>>(
-                                           permutation_matrix_name_)
-                                         .get_ptr()
-                                   : nullptr}
-    {
-        // TODO reimplement this
-    }
+                      const dictionary &solverControls, const word &fieldName);
 
-    /* Iterates all interfaces and collects the coefficients into a vector
-    **
-    ** @param local whether local or non local coefficients should be collected
-    */
-    std::vector<scalar> collect_interface_coeffs(
-        const lduInterfaceFieldPtrsList &interfaces_,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        const bool local) const;
-
-
-    /* Iterates all local interfaces and returns the relative order and
-     *corresponding row and column indices
-     **
-     */
-    std::vector<std::tuple<label, label, label>>
-    collect_local_interface_indices(
-        const lduInterfaceFieldPtrsList &interfaces_) const;
-
-
-    /* Iterates all interfaces and counts the number of elements
-    **
-    ** @param interfaces The list of interfaces for the search
-    ** @param proc_interfaces Count only elements on (true)
-    *processorLduInterfaces or exclude processorLduInterfaces (false)
-    */
-    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
-                              bool proc_interfaces) const;
-
-    /* Iterates all interfaces and collects non-local global column indices
-    **
-    ** Non-local global column indices are computed from the global cell-id
-    ** (row) on the other side of an interface
-    **
-    ** @return vector off size nnz_non_local, with sections for each interface
-    ** ret = [(1,2,3),(10,20,30), ...]
-    **         i0      i1,       i...
-    */
-    std::vector<std::tuple<label, label, label>> collect_non_local_col_indices(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-    /* Based on OpenFOAMs ldu matrix format this function computes two
-     *consecutive index arrays in row major ordering and scattering indices
-     **
-     */
-    void init_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-    void init_non_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
-
-    bool get_verbose() const { return verbose_; }
-
-    // updater
-
-    void update_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
-
-    void update_non_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
     // getter
 
-    label get_local_nrows() const { return nrows_; }
+public:
+    bool get_verbose() const { return verbose_; }
 
-    label get_global_nrows() const { return global_row_index_.size(); }
+    const CommunicationPattern &get_communication_pattern() const
+    {
+        return communication_pattern_;
+    };
+
+    label get_local_nrows() const { return nrows_; }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
-    const gkoGlobalIndex &get_global_row_index() const
-    {
-        return global_row_index_;
-    }
-
-
-    PersistentArray<scalar> &get_local_coeffs() const  //
-    {
-        return local_coeffs_;
-    };
+    PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
 
     PersistentArray<label> &get_local_col_idxs() const
     {

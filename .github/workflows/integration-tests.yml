@@ -53,14 +53,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Get Ginkgo checkout version
-      shell: bash
-      run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
-        export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
-        echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
-        echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV
-
     - name: Cache workspace
       uses: actions/cache@v3
       with:
@@ -91,7 +83,7 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV

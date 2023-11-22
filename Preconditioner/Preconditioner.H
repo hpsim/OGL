@@ -76,7 +76,7 @@ public:
         if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
-                    .with_generated_inner_solvers(gko::share(precond->generate(
+                    .with_generated_local_solver(gko::share(precond->generate(
                         gko::as<gko::experimental::distributed::Matrix<
                             scalar, label, label>>(gkomatrix)
                             ->get_local_matrix())))
@@ -95,7 +95,7 @@ public:
     {
         if (Pstream::parRun()) {
             return gko::share(ras::build()
-                                  .with_generated_inner_solvers(
+                                  .with_generated_local_solver(
                                       precond->generate(factorization))
                                   .on(device_exec)
                                   ->generate(gkomatrix));
