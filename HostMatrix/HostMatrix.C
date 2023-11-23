@@ -616,29 +616,90 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
 
-    if (local_interface_nnz_) {
-        auto couple_coeffs =
-            collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
-        if (is_symmetric) {
-            symmetric_update_w_interface(local_matrix_w_interfaces_nnz_,
-                                         diag_nnz, upper_nnz_, permute,
-                                         scaling_, diag.data(), upper.data(),
-                                         couple_coeffs.data(), dense);
+    if (!permutation_stored_) {
+        P_ = gko::share(gko::matrix::Permutation<label>::create(
+            ref_exec,
+            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_},
+            *sorting_idxs.get()));
+        const fileName path = permutation_matrix_name_;
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
+    }
+
+    if (reorder_on_copy_) {
+        if (local_interface_nnz_) {
+            auto couple_coeffs =
+                collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
+            if (is_symmetric) {
+                symmetric_update_w_interface(
+                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
+                    permute, scaling_, diag.data(), upper.data(),
+                    couple_coeffs.data(), dense);
+            } else {
+                non_symmetric_update_w_interface(
+                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
+                    permute, scaling_, diag.data(), upper.data(), lower.data(),
+                    couple_coeffs.data(), dense);
+            }
         } else {
-            non_symmetric_update_w_interface(
-                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute,
-                scaling_, diag.data(), upper.data(), lower.data(),
-                couple_coeffs.data(), dense);
+            if (is_symmetric) {
+                symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
+                                 scaling_, diag.data(), upper.data(), dense);
+            } else {
+                non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
+                                     scaling_, diag.data(), upper.data(),
+                                     lower.data(), dense);
+            }
         }
     } else {
-        if (is_symmetric) {
-            symmetric_update(local_matrix_nnz_, upper_nnz_, permute, scaling_,
-                             diag.data(), upper.data(), dense);
+        // TODO DONT MERGE this needs a new implementation
+        // copy upper
+        auto upper = this->matrix().upper();
+        auto u_host_view =
+            gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
+        auto u_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
+                                                      contiguos->get_values());
+        u_device_view = u_host_view;
+
+        // copy lower
+        auto lower = this->matrix().lower();
+        auto l_device_view = gko::array<scalar>::view(
+            ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
+        if (lower == upper) {
+            // symmetric case reuse data already on the device
+            l_device_view = u_device_view;
+
         } else {
-            non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                 scaling_, diag.data(), upper.data(),
-                                 lower.data(), dense);
+            // non-symmetric case copy data to the device
+            auto l_host_view =
+                gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
+            l_device_view = l_host_view;
         }
+
+        // copy diag
+        auto diag = this->matrix().diag();
+        auto diag_host_view =
+            gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
+        auto diag_contiguous_view = gko::array<scalar>::view(
+            ref_exec, nrows_, &contiguos->get_values()[2 * upper_nnz_]);
+        diag_contiguous_view = diag_host_view;
+
+        auto dense_vec = vec::create(
+            ref_exec,
+            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1});
+
+        // NOTE apply changes the underlying pointer of dense_vec
+        // thus copy_from is used to move the ptr to the underlying
+        // device persistent array
+        P_->apply(contiguos.get(), dense_vec.get());
+
+        auto dense_vec_after = vec::create(
+            ref_exec,
+            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
+            gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
+                                     local_coeffs_.get_data()),
+            1);
+
+        dense_vec_after->copy_from(dense_vec.get());
     }
 }
 
