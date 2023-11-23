@@ -652,19 +652,23 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         }
     } else {
         // TODO DONT MERGE this needs a new implementation
+        auto contiguos = vec::create(
+            ref_exec,
+            gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
+
 
         // copy upper
         auto upper = this->matrix().upper();
         auto u_host_view =
             gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
         auto u_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
-                                                      contiguos->get_values());
+                                                      contiguous->get_values());
         u_device_view = u_host_view;
 
         // copy lower
         auto lower = this->matrix().lower();
         auto l_device_view = gko::array<scalar>::view(
-            ref_exec, upper_nnz_, &contiguos->get_values()[upper_nnz_]);
+            ref_exec, upper_nnz_, &contiguous->get_values()[upper_nnz_]);
         if (lower == upper) {
             // symmetric case reuse data already on the device
             l_device_view = u_device_view;
@@ -681,7 +685,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto diag_host_view =
             gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
         auto diag_contiguous_view = gko::array<scalar>::view(
-            ref_exec, nrows_, &contiguos->get_values()[2 * upper_nnz_]);
+            ref_exec, nrows_, &contiguous->get_values()[2 * upper_nnz_]);
         diag_contiguous_view = diag_host_view;
 
         auto dense_vec = vec::create(
@@ -691,7 +695,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         // NOTE apply changes the underlying pointer of dense_vec
         // thus copy_from is used to move the ptr to the underlying
         // device persistent array
-        P_->apply(contiguos.get(), dense_vec.get());
+        P_->apply(contiguous.get(), dense_vec.get());
 
         auto dense_vec_after = vec::create(
             ref_exec,
