@@ -652,7 +652,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         }
     } else {
         // TODO DONT MERGE this needs a new implementation
-        auto contiguos = vec::create(
+        auto contiguous = vec::create(
             ref_exec,
             gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
 
