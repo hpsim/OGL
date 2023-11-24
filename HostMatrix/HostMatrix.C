@@ -647,9 +647,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         // TODO DONT MERGE this needs a new implementation
         if (!permutation_stored_) {
             P_ = gko::share(gko::matrix::Permutation<label>::create(
-                ref_exec,
-                gko::dim<2>{local_matrix_w_interfaces_nnz_},
-                permute);
+                ref_exec, gko::dim<2>{local_matrix_w_interfaces_nnz_},
+                permute));
             const fileName path = permutation_matrix_name_;
             // this leaks po to create a persistent object
             auto po =
