@@ -602,6 +602,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto ref_exec = exec_.get_ref_exec();
     auto upper = this->matrix().upper();
     auto lower = this->matrix().lower();
+    auto diag = this->matrix().diag();
 
     label diag_nnz = diag.size();
     bool is_symmetric{this->matrix().symmetric()};
