@@ -109,7 +109,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
     if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
         TIME_WITH_FIELDNAME(
             verbose_, update_local_matrix_data, this->fieldName(),
-            update_local_matrix_data(interfaces, interfaceBouCoeffs);)
+            update_local_matrix_data(interfaces, interfaceBouCoeffs, db);)
         TIME_WITH_FIELDNAME(
             verbose_, update_non_local_matrix_data, this->fieldName(),
             update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
@@ -596,12 +596,13 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+    const FieldField<Field, scalar> &interfaceBouCoeffs,
+    const objectRegistry &db) const
 {
     auto ref_exec = exec_.get_ref_exec();
     auto upper = this->matrix().upper();
     auto lower = this->matrix().lower();
-    auto diag = this->matrix().diag();
+
     label diag_nnz = diag.size();
     bool is_symmetric{this->matrix().symmetric()};
 
@@ -615,15 +616,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     // TODO this does not work for Ell
     const auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
-
-    if (!permutation_stored_) {
-        P_ = gko::share(gko::matrix::Permutation<label>::create(
-            ref_exec,
-            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_},
-            *sorting_idxs.get()));
-        const fileName path = permutation_matrix_name_;
-        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
-    }
 
     if (reorder_on_copy_) {
         if (local_interface_nnz_) {
@@ -652,9 +644,18 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         }
     } else {
         // TODO DONT MERGE this needs a new implementation
+        if (!permutation_stored_) {
+            P_ = gko::share(gko::matrix::Permutation<label>::create(
+                ref_exec,
+                gko::dim<2>{local_matrix_w_interfaces_nnz_},
+                permute);
+            const fileName path = permutation_matrix_name_;
+            // this leaks po to create a persistent object
+            auto po =
+                new DevicePersistentBase<gko::LinOp>(IOobject(path, db), P_);
+        }
         auto contiguous = vec::create(
-            ref_exec,
-            gko::dim<2>((gko::dim<2>::dimension_type)nnz_local_matrix_, 1));
+            ref_exec, gko::dim<2>(local_matrix_w_interfaces_nnz_, 1));
 
 
         // copy upper
@@ -689,8 +690,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         diag_contiguous_view = diag_host_view;
 
         auto dense_vec = vec::create(
-            ref_exec,
-            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1});
+            ref_exec, gko::dim<2>{local_matrix_w_interfaces_nnz_, 1});
 
         // NOTE apply changes the underlying pointer of dense_vec
         // thus copy_from is used to move the ptr to the underlying
@@ -698,9 +698,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         P_->apply(contiguous.get(), dense_vec.get());
 
         auto dense_vec_after = vec::create(
-            ref_exec,
-            gko::dim<2>{(gko::dim<2>::dimension_type)nnz_local_matrix_, 1},
-            gko::array<scalar>::view(ref_exec, nnz_local_matrix_,
+            ref_exec, gko::dim<2>{local_matrix_w_interfaces_nnz_, 1},
+            gko::array<scalar>::view(ref_exec, local_matrix_w_interfaces_nnz_,
                                      local_coeffs_.get_data()),
             1);
 

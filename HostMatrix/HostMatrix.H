@@ -375,11 +375,12 @@ private:
     /** Copies the LDU matrix coefficients to local_coeffs without changing or
      ** reinstantiating the sparsity pattern.
      ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host to be in row major order
+     ** on the host or device to be in row major order.
      **/
     void update_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const objectRegistry &db) const;
 
     /** Copies the interface matrix coefficients to non_local_coeffs without
     ** changing or reinstantiating the sparsity pattern.
