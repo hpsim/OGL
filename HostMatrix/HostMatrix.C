@@ -615,7 +615,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         1);
 
     // TODO this does not work for Ell
-    const auto permute = local_sparsity_.ldu_mapping_.get_data();
+    auto permute = local_sparsity_.ldu_mapping_.get_data();
     auto dense = dense_vec->get_values();
 
     if (reorder_on_copy_) {
@@ -646,9 +646,9 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     } else {
         // TODO DONT MERGE this needs a new implementation
         if (!permutation_stored_) {
+            const auto permute_array = local_sparsity_.ldu_mapping_.get_array();
             P_ = gko::share(gko::matrix::Permutation<label>::create(
-                ref_exec, gko::dim<2>{local_matrix_w_interfaces_nnz_},
-                permute));
+                ref_exec, gko::array<label>(*permute_array.get())));
             const fileName path = permutation_matrix_name_;
             // this leaks po to create a persistent object
             auto po =
