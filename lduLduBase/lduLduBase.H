@@ -285,7 +285,7 @@ public:
         if (debug && db_.time().writeTime()) {
             LOG_0(verbose_, "Export system")
             dist_A.write();
-            export_vec(this->fieldName(), dist_b_v->get_local_vector(), db_);
+	    dist_b.write();
         }
 
 
