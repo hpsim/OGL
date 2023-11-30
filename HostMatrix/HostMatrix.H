@@ -53,7 +53,8 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,  // For now we assume columns and rows to be constant
-        false   // same as for values, leave on device
+        false   // we don't init on device since the indices are written using the pointer
+		// to the data
     },
     row_idxs_{
         fieldName + "_rows",
@@ -62,7 +63,7 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,  // For now we assume columns and rows to be constant
-        false   // same as for values, leave on device
+        false   // same as for cols don't init on device
     },
     ldu_mapping_{
         fieldName + "_ldu_map",
@@ -71,7 +72,7 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,
-        false
+        false // same as for rows and cols dont init on device
     }
     {}
 
@@ -282,6 +283,7 @@ private:
 
     mutable PersistentSparsityPattern local_sparsity_;
 
+    // matrix coefficiens
     mutable PersistentArray<scalar> local_coeffs_;
 
     // non-local indices

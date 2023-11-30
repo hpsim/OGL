@@ -69,9 +69,10 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           exec_,
           local_matrix_w_interfaces_nnz_,
           verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
+          true,              // needs to be updated
+          !reorder_on_copy_  // whether to init on device
+                             // if reoderOnHost is selected, the array needs
+                             // to be initialized on the host
       },
       non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
       communication_pattern_(create_communication_pattern(interfaces)),
@@ -144,9 +145,10 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           exec_,
           local_matrix_nnz_,
           verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
+          true,              // needs to be updated
+          !reorder_on_copy_  // whether to init on device
+                             // if reoderOnHost is selected, the array needs
+                             // to be initialized on the host
       },
       non_local_matrix_nnz_(),
       // proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
@@ -509,85 +511,85 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
     // if no local interfaces are present we are done here
     // otherwise we need to add local interfaces in order
-    // if (local_interface_nnz_) {
-    //     auto local_interfaces = collect_local_interface_indices(interfaces);
-    //     // // sort local interfaces to be in row major order
-    //     // // and keep original indices
-    //     std::sort(local_interfaces.begin(), local_interfaces.end(),
-    //               [&](const auto &a, const auto &b) {
-    //                   auto [interface_idx_a, row_a, col_a] = a;
-    //                   auto [interface_idx_b, row_b, col_b] = b;
-    //                   return std::tie(row_a, col_a) < std::tie(row_b, col_b);
-    //               });
-    //
-    //     // copy current rows and columns to tmp array
-    //     // TODO this has full length but is only valid till nrows_
-    //     auto rows_copy_a = gko::array<label>(
-    //         *local_sparsity_.row_idxs_.get_persistent_object().get());
-    //     auto cols_copy_a = gko::array<label>(
-    //         *local_sparsity_.col_idxs_.get_persistent_object().get());
-    //     auto permute_copy_a = gko::array<label>(
-    //         *local_sparsity_.ldu_mapping_.get_persistent_object().get());
-    //
-    //     auto rows_copy = rows_copy_a.get_data();
-    //     auto cols_copy = cols_copy_a.get_data();
-    //     auto permute_copy = permute_copy_a.get_data();
-    //
-    //     auto rows = local_sparsity_.row_idxs_.get_data();
-    //     auto cols = local_sparsity_.col_idxs_.get_data();
-    //     auto permute = local_sparsity_.ldu_mapping_.get_data();
-    //
-    //     label current_idx_ctr = 0;
-    //     label total_ctr = 0;
-    //     // iterate local interfaces i
-    //     // insert all coeffs for row < interface[i].row
-    //     // find local_interface with lowes row, column
-    //     for (auto const &interface : local_interfaces) {
-    //         auto [interface_idx, interface_row, interface_col] = interface;
-    //
-    //         // copy from existing matrix coefficients
-    //         while ([&]() {
-    //             // check for length
-    //             if (current_idx_ctr == local_matrix_nnz_) {
-    //                 return false;
-    //             }
-    //
-    //             if (rows_copy[current_idx_ctr] > interface_row) {
-    //                 return false;
-    //             }
-    //
-    //             // the copy rows are or equal
-    //             // in that case we need to check if the
-    //             // copy columns are lower
-    //             if (rows_copy[current_idx_ctr] == interface_row &&
-    //                 cols_copy[current_idx_ctr] > interface_col) {
-    //                 return false;
-    //             }
-    //             return true;
-    //         }()) {
-    //             // insert coeffs
-    //             rows[total_ctr] = rows_copy[current_idx_ctr];
-    //             cols[total_ctr] = cols_copy[current_idx_ctr];
-    //             permute[total_ctr] = permute_copy[current_idx_ctr];
-    //             current_idx_ctr++;
-    //             total_ctr++;
-    //         }
-    //         rows[total_ctr] = interface_row;
-    //         cols[total_ctr] = interface_col;
-    //         // store the original position of the contiguous interfaces
-    //         permute[total_ctr] = after_neighbours + nrows_ + interface_idx;
-    //         total_ctr++;
-    //     }
-    //
-    //     // post insert if local interfaces were consumed but stuff remains
-    //     // in rows_copy and cols_copy
-    //     for (int i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
-    //         rows[i] = rows_copy[current_idx_ctr];
-    //         cols[i] = cols_copy[current_idx_ctr];
-    //         permute[i] = permute_copy[current_idx_ctr];
-    //         current_idx_ctr++;
-    //     }
-    // }
+    if (local_interface_nnz_) {
+        auto local_interfaces = collect_local_interface_indices(interfaces);
+        // // sort local interfaces to be in row major order
+        // // and keep original indices
+        std::sort(local_interfaces.begin(), local_interfaces.end(),
+                  [&](const auto &a, const auto &b) {
+                      auto [interface_idx_a, row_a, col_a] = a;
+                      auto [interface_idx_b, row_b, col_b] = b;
+                      return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+                  });
+
+        // copy current rows and columns to tmp array
+        // TODO this has full length but is only valid till nrows_
+        auto rows_copy_a = gko::array<label>(
+            *local_sparsity_.row_idxs_.get_persistent_object().get());
+        auto cols_copy_a = gko::array<label>(
+            *local_sparsity_.col_idxs_.get_persistent_object().get());
+        auto permute_copy_a = gko::array<label>(
+            *local_sparsity_.ldu_mapping_.get_persistent_object().get());
+
+        auto rows_copy = rows_copy_a.get_data();
+        auto cols_copy = cols_copy_a.get_data();
+        auto permute_copy = permute_copy_a.get_data();
+
+        auto rows = local_sparsity_.row_idxs_.get_data();
+        auto cols = local_sparsity_.col_idxs_.get_data();
+        auto permute = local_sparsity_.ldu_mapping_.get_data();
+
+        label current_idx_ctr = 0;
+        label total_ctr = 0;
+        // iterate local interfaces i
+        // insert all coeffs for row < interface[i].row
+        // find local_interface with lowes row, column
+        for (auto const &interface : local_interfaces) {
+            auto [interface_idx, interface_row, interface_col] = interface;
+
+            // copy from existing matrix coefficients
+            while ([&]() {
+                // check for length
+                if (current_idx_ctr == local_matrix_nnz_) {
+                    return false;
+                }
+
+                if (rows_copy[current_idx_ctr] > interface_row) {
+                    return false;
+                }
+
+                // the copy rows are or equal
+                // in that case we need to check if the
+                // copy columns are lower
+                if (rows_copy[current_idx_ctr] == interface_row &&
+                    cols_copy[current_idx_ctr] > interface_col) {
+                    return false;
+                }
+                return true;
+            }()) {
+                // insert coeffs
+                rows[total_ctr] = rows_copy[current_idx_ctr];
+                cols[total_ctr] = cols_copy[current_idx_ctr];
+                permute[total_ctr] = permute_copy[current_idx_ctr];
+                current_idx_ctr++;
+                total_ctr++;
+            }
+            rows[total_ctr] = interface_row;
+            cols[total_ctr] = interface_col;
+            // store the original position of the contiguous interfaces
+            permute[total_ctr] = after_neighbours + nrows_ + interface_idx;
+            total_ctr++;
+        }
+
+        // post insert if local interfaces were consumed but stuff remains
+        // in rows_copy and cols_copy
+        for (int i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
+            rows[i] = rows_copy[current_idx_ctr];
+            cols[i] = cols_copy[current_idx_ctr];
+            permute[i] = permute_copy[current_idx_ctr];
+            current_idx_ctr++;
+        }
+    }
 
     LOG_1(verbose_, "done init host matrix")
 }
@@ -607,19 +609,11 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     label diag_nnz = diag.size();
     bool is_symmetric{this->matrix().symmetric()};
 
-    // TODO
-    auto dense_vec = vec::create(
-        ref_exec,
-        gko::dim<2>{(gko::dim<2>::dimension_type)local_matrix_nnz_, 1},
-        gko::array<scalar>::view(ref_exec, local_matrix_nnz_,
-                                 local_coeffs_.get_data()),
-        1);
-
     // TODO this does not work for Ell
     auto permute = local_sparsity_.ldu_mapping_.get_data();
-    auto dense = dense_vec->get_values();
 
     if (reorder_on_copy_) {
+        auto dense = local_coeffs_.get_data();
         if (local_interface_nnz_) {
             auto couple_coeffs =
                 collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
@@ -649,29 +643,25 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         // - this should be moved to separate function to avoid making this
         // too long
 
+        auto target_exec =
+            (reorder_on_copy_) ? ref_exec : exec_.get_device_exec();
+
         // copy upper
         auto upper = this->matrix().upper();
         auto u_host_view =
             gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
-        auto u_device_view = gko::array<scalar>::view(ref_exec, upper_nnz_,
-                                                      dense_vec->get_values());
+        auto u_device_view = gko::array<scalar>::view(
+            target_exec, upper_nnz_, local_coeffs_.get_data());
         u_device_view = u_host_view;
 
-        // copy lower
-        auto lower = this->matrix().lower();
-        auto l_device_view = gko::array<scalar>::view(
-            ref_exec, upper_nnz_, &dense_vec->get_values()[upper_nnz_]);
-
-	label diag_start = 0;
-        if (is_symmetric) {
-            // symmetric case reuse data already on the device
-            // l_device_view = u_device_view;
-	    diag_start = upper_nnz_;
-        } else {
-            // non-symmetric case copy data to the device
-	    diag_start = 2*upper_nnz_;
+        // for the non-symmetric case copy lower to the device
+        if (!is_symmetric) {
+            auto lower = this->matrix().lower();
             auto l_host_view =
                 gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
+            auto l_device_view = gko::array<scalar>::view(
+                target_exec, upper_nnz_,
+                &local_coeffs_.get_data()[upper_nnz_]);
             l_device_view = l_host_view;
         }
 
@@ -679,21 +669,25 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto diag = this->matrix().diag();
         auto diag_host_view =
             gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
+        const label diag_start = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
+        auto diag_device_view = gko::array<scalar>::view(
+            target_exec, nrows_, &local_coeffs_.get_data()[diag_start]);
+        diag_device_view = diag_host_view;
 
-        auto diag_contiguous_view = gko::array<scalar>::view(
-            ref_exec, nrows_, &dense_vec->get_values()[diag_start]);
-        diag_contiguous_view = diag_host_view;
-
+        // permute and update local_coeffs
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            ref_exec, gko::dim<2>{local_matrix_nnz_, 1}));
+            target_exec, gko::dim<2>{local_matrix_nnz_, 1}));
+
+        auto dense_vec = vec::create(
+            target_exec,
+            gko::dim<2>{local_matrix_nnz_, 1},
+            gko::array<scalar>::view(target_exec, local_matrix_nnz_,
+                                     local_coeffs_.get_data()),
+            1);
+
+        // TODO this needs to copy ldu_mapping to the device
         dense_vec->row_gather(local_sparsity_.ldu_mapping_.get_array().get(),
                               row_collection.get());
-
-        // auto permuted_dense = dense_vec->permute(
-        //     gko::matrix::Permutation<label>::create_const(
-        //         ref_exec,
-        //         >as_const_view()),
-        //     gko::matrix::permute_mode::symmetric);
 
         dense_vec->copy_from(row_collection);
     }
