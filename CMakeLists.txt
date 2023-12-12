@@ -196,7 +196,14 @@ target_include_directories(
          $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(OGL PUBLIC Ginkgo::ginkgo stdc++fs)
+target_link_libraries(OGL
+    PUBLIC
+        # $ENV{FOAM_LIBBIN}/libOpenFOAM.so
+        # $ENV{FOAM_LIBBIN}/libfiniteVolume.so
+        # $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
+        # $ENV{FOAM_LIBBIN}/libOSspecific.o
+        Ginkgo::ginkgo
+        stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
