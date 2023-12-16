@@ -201,7 +201,7 @@ public:
               controlDict.lookupOrDefault<Switch>("adaptMinIter", true)),
           normalised_res_norms_(gko::share(vec::create(
               gko::ReferenceExecutor::create(),
-              gko::dim<2>{(gko::dim<2>::dimension_type)maxIter_, 1}))),
+              gko::dim<2>{maxIter_, 1}))),
           init_normalised_res_norm_(0),
           normalised_res_norm_(0),
           iter_(0),
