@@ -54,7 +54,7 @@ struct PersistentSparsityPattern {
         verbose,
         false,  // For now we assume columns and rows to be constant
         false   // we don't init on device since the indices are written using the pointer
-		// to the data
+                // to the data
     },
     row_idxs_{
         fieldName + "_rows",
@@ -104,14 +104,18 @@ const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
 
 /** Write contiguous row and col indices from OpenFOAM lower and upper indices
- **
+ ** For details on the lower triangular based indexing see
+ ** https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOA
+ ** Note that the order of the indices are depicted wrong on the wiki
+ ** In general the upper triangular matrix is traversed in row major
+ ** and the lower triangular matrix in column major order.
  **
  ** @param nrows number of rows
  ** @param upper_nnz number of non zeros in the upper triangular matrix
  ** @param is_symmetric whether matrix is symmetric, in the symmetric case
  ** the lower elements indices in the permute array are computed differently
- ** @param upper pointer to array of
- ** @param lower pointer to rows array
+ ** @param upper pointer to OFs rows array
+ ** @param lower pointer to OFs cols array
  ** @param rows pointer to rows array
  ** @param cols pointer to columns array
  ** @param permute pointer to permuter array
@@ -334,8 +338,8 @@ private:
 
 
     /** Iterates all interfaces and counts the number of unique neighbour
-     **processors and number of interfaces in total for this processor
-     ** and collects all interface cells of this rank
+     ** processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank.
      **
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
