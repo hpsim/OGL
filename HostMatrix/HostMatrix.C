@@ -387,33 +387,34 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
 
     label interface_ctr = 0;
     label uniqueIdCtr = 0;
-    interface_iterator<processorLduInterface>(
-        interfaces, [&](label, const label interface_size,
-                        const processorLduInterface &patch,
-                        const lduInterfaceField *iface) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const auto &face_cells{iface->interface().faceCells()};
-            const label neighbProcNo = pldui.neighbProcNo();
+    interface_iterator<
+        processorLduInterface>(interfaces, [&](label,
+                                               const label interface_size,
+                                               const processorLduInterface
+                                                   &patch,
+                                               const lduInterfaceField *iface) {
+        const processorLduInterface &pldui =
+            refCast<const processorLduInterface>(iface->interface());
+        const auto &face_cells{iface->interface().faceCells()};
+        const label neighbProcNo = pldui.neighbProcNo();
 
-            word msg_2 = "receive face cells interface from proc " +
-                         std::to_string(neighbProcNo);
-            LOG_2(verbose_, msg_2)
+        word msg_2 = "receive face cells interface from proc " +
+                     std::to_string(neighbProcNo);
+        LOG_2(verbose_, msg_2)
 
-            auto otherSide_tmp = pldui.receive<label>(
-                Pstream::commsTypes::nonBlocking, interface_size);
-            LOG_2(verbose_, "receive face cells done")
+        auto otherSide_tmp = pldui.receive<label>(
+            Pstream::commsTypes::nonBlocking, interface_size);
+        LOG_2(verbose_, "receive face cells done")
 
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto local_row = face_cells[cellI];
-                auto global_row = global_row_index_.toGlobal(
-                    neighbProcNo, otherSide_tmp()[cellI]);
-                non_local_idxs.push_back(
-                    {interface_ctr, local_row, uniqueIdCtr});
-                uniqueIdCtr++;
-                interface_ctr += 1;
-            }
-        });
+        for (label cellI = 0; cellI < interface_size; cellI++) {
+            auto local_row = face_cells[cellI];
+            auto global_row = global_row_index_.toGlobal(
+                neighbProcNo, otherSide_tmp()[cellI]);
+            non_local_idxs.push_back({interface_ctr, local_row, uniqueIdCtr});
+            uniqueIdCtr++;
+            interface_ctr += 1;
+        }
+    });
 
     word msg = "done collecting neighbouring processor cell id";
 
@@ -631,8 +632,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto upper = this->matrix().upper();
         auto u_host_view =
             gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
-        auto u_device_view = gko::array<scalar>::view(
-            target_exec, upper_nnz_, local_coeffs_.get_data());
+        auto u_device_view = gko::array<scalar>::view(target_exec, upper_nnz_,
+                                                      local_coeffs_.get_data());
         u_device_view = u_host_view;
 
         // for the non-symmetric case copy lower to the device
@@ -641,8 +642,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
             auto l_host_view =
                 gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
             auto l_device_view = gko::array<scalar>::view(
-                target_exec, upper_nnz_,
-                &local_coeffs_.get_data()[upper_nnz_]);
+                target_exec, upper_nnz_, &local_coeffs_.get_data()[upper_nnz_]);
             l_device_view = l_host_view;
         }
 
@@ -659,12 +659,11 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             target_exec, gko::dim<2>{local_matrix_nnz_, 1}));
 
-        auto dense_vec = vec::create(
-            target_exec,
-            gko::dim<2>{local_matrix_nnz_, 1},
-            gko::array<scalar>::view(target_exec, local_matrix_nnz_,
-                                     local_coeffs_.get_data()),
-            1);
+        auto dense_vec =
+            vec::create(target_exec, gko::dim<2>{local_matrix_nnz_, 1},
+                        gko::array<scalar>::view(target_exec, local_matrix_nnz_,
+                                                 local_coeffs_.get_data()),
+                        1);
 
         // TODO this needs to copy ldu_mapping to the device
         dense_vec->row_gather(local_sparsity_.ldu_mapping_.get_array().get(),
@@ -694,9 +693,10 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                // flip the sign because openfoam lduInterfaceFieldTemplates subtracts these values
+                // flip the sign because openfoam lduInterfaceFieldTemplates
+                // subtracts these values
                 contiguous_iface[element_ctr] =
-                    - interface_coeffs[permute[element_ctr]];
+                    -interface_coeffs[permute[element_ctr]];
                 element_ctr++;
             }
         });

@@ -36,9 +36,9 @@ void StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_Axref_dist(
     auto xAvg_host = gko::initialize<gko::matrix::Dense<scalar>>(
         1, {0}, device_exec->get_master());
     xAvg->move_to(xAvg_host);
-    auto xAvg_vec = gko::share(
-        dist_vec::create(device_exec, x->get_communicator(),
-                         gko::dim<2>{global_size,1}, gko::dim<2>{local_size,1}));
+    auto xAvg_vec = gko::share(dist_vec::create(
+        device_exec, x->get_communicator(), gko::dim<2>{global_size, 1},
+        gko::dim<2>{local_size, 1}));
     xAvg_vec->fill(xAvg_host->at(0));
 
     gkomatrix->apply(xAvg_vec.get(), res.get());
