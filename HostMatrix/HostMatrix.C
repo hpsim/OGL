@@ -263,6 +263,7 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     std::map<label, std::vector<label>> interface_cell_map{};
 
     //
+    label n_procs = 0;
     interface_iterator<processorFvPatch>(
         interfaces,
         [&](label, const label interface_size, const processorFvPatch &patch,
@@ -273,8 +274,11 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             neighbour_procs.push_back(
                 std::pair<label, label>{neighbProcNo, interface_size});
 
+            // TODO DONT MERGE For now this can be simplified since
+            // we dont have multiple interfaces between one processor
             auto search = interface_cell_map.find(neighbProcNo);
             if (search == interface_cell_map.end()) {
+                n_procs++;
                 interface_cell_map.insert(std::pair{
                     neighbProcNo,
                     std::vector<label>(face_cells.begin(), face_cells.end())});
