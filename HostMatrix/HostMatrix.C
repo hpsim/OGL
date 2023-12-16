@@ -213,6 +213,7 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
             continue;
         }
         const auto iface{interface_getter(interfaces, i)};
+        // TODO check if copy is needed
         auto coeffs{interfaceBouCoeffs[i]};
 
         bool collect = (local)
@@ -279,6 +280,7 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
                     std::vector<label>(face_cells.begin(), face_cells.end())});
             } else {
                 auto cur_face_cells = interface_cell_map[neighbProcNo];
+                // TODO reserve current size + interface_size
                 cur_face_cells.reserve(interface_size);
                 for (auto face_cell : face_cells) {
                     cur_face_cells.push_back(face_cell);
@@ -286,21 +288,6 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
                 interface_cell_map[neighbProcNo] = cur_face_cells;
             }
         });
-
-    // reduce vector of sizes
-    // this assumes that a rank can be connected to the same neighbour through
-    // different interfaces this might not be necessary
-    label n_procs = 0;
-    std::map<label, label> reduce_map{};
-    for (auto [proc, n_faces] : neighbour_procs) {
-        auto search = reduce_map.find(proc);
-        if (search == reduce_map.end()) {
-            n_procs += 1;
-            reduce_map.insert(std::pair<label, label>{proc, n_faces});
-        } else {
-            reduce_map[proc] = reduce_map[proc] + n_faces;
-        }
-    }
 
 
     // create index_sets
@@ -322,11 +309,12 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
                                    static_cast<size_t>(n_procs)};
 
     label iter = 0;
-    for (const auto &[proc, size] : reduce_map) {
+    for (const auto &[proc, size] : neighbour_procs) {
         target_ids.get_data()[iter] = proc;
         target_sizes.get_data()[iter] = size;
         iter++;
     }
+
 
     return CommunicationPattern{target_ids, target_sizes, send_idxs};
 }
@@ -370,8 +358,6 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
 {
     // vector of neighbour cell idx connected to interface
     std::vector<std::tuple<label, label, label>> non_local_idxs{};
-
-    std::map<label, label> unique_index{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
     label startOfRequests = Pstream::nRequests();
@@ -395,7 +381,6 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     Pstream::waitRequests(startOfRequests);
     LOG_2(verbose_, "send face cells done")
 
-
     label interface_ctr = 0;
     label uniqueIdCtr = 0;
     interface_iterator<processorLduInterface>(
@@ -416,20 +401,12 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
             LOG_2(verbose_, "receive face cells done")
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
+                auto local_row = face_cells[cellI];
                 auto global_row = global_row_index_.toGlobal(
                     neighbProcNo, otherSide_tmp()[cellI]);
-                auto search = unique_index.find(global_row);
-                // global_row is new and unique
-                label uniqueId = uniqueIdCtr;
-                if (search == unique_index.end()) {
-                    uniqueId = uniqueIdCtr;
-                    unique_index[global_row] = uniqueIdCtr;
-                    uniqueIdCtr++;
-                } else {
-                    uniqueId = unique_index[global_row];
-                }
                 non_local_idxs.push_back(
-                    {interface_ctr, face_cells[cellI], uniqueId});
+                    {interface_ctr, local_row, uniqueIdCtr});
+                uniqueIdCtr++;
                 interface_ctr += 1;
             }
         });
@@ -451,13 +428,13 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
 
     // TODO check if sorting is actually needed since interfaces should
     // be sorted already
-    std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
-              [&](const auto &a, const auto &b) {
-                  auto [interface_idx_a, row_a, unique_col_a] = a;
-                  auto [interface_idx_b, row_b, unique_col_b] = b;
-                  return std::tie(row_a, interface_idx_a) <
-                         std::tie(row_b, interface_idx_b);
-              });
+    // std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
+    //           [&](const auto &a, const auto &b) {
+    //               auto [interface_idx_a, row_a, unique_col_a] = a;
+    //               auto [interface_idx_b, row_b, unique_col_b] = b;
+    //               return std::tie(row_a, unique_col_a) <
+    //                      std::tie(row_b, unique_col_b);
+    //           });
 
     interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
@@ -713,8 +690,9 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
+                // flip the sign because openfoam lduInterfaceFieldTemplates subtracts these values
                 contiguous_iface[element_ctr] =
-                    -interface_coeffs[permute[element_ctr]];
+                    - interface_coeffs[permute[element_ctr]];
                 element_ctr++;
             }
         });
