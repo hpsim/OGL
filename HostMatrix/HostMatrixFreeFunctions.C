@@ -103,7 +103,6 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
                          const label *lower, label *rows, label *cols,
                          label *permute)
 {
-    std::cout << "init_local_sparsity\n";
     // for OpenFOAMs addressing see
     // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
     // Note that the face order in the wiki seems to be wrong. Entries are 

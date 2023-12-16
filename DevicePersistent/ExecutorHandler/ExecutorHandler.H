@@ -98,7 +98,6 @@ struct ExecutorInitFunctor {
                        "with HIP backend enabled."
                     << abort(FatalError);
             };
-
             auto ret = gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
                 true));
