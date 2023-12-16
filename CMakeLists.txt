@@ -198,10 +198,6 @@ target_include_directories(
 
 target_link_libraries(OGL
     PUBLIC
-        # $ENV{FOAM_LIBBIN}/libOpenFOAM.so
-        # $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-        # $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-        # $ENV{FOAM_LIBBIN}/libOSspecific.o
         Ginkgo::ginkgo
         stdc++fs)
 
