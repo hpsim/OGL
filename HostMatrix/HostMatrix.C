@@ -50,7 +50,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
       reorder_on_copy_(
-          solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
+          solverControls.lookupOrDefault<Switch>("reorderOnHost", false)),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(matrix.diag().size()),
       local_interface_nnz_(count_interface_nnz(interfaces, false)),
@@ -431,15 +431,17 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
-    // TODO check if sorting is actually needed since interfaces should
-    // be sorted already
-    // std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
-    //           [&](const auto &a, const auto &b) {
-    //               auto [interface_idx_a, row_a, unique_col_a] = a;
-    //               auto [interface_idx_b, row_b, unique_col_b] = b;
-    //               return std::tie(row_a, unique_col_a) <
-    //                      std::tie(row_b, unique_col_b);
-    //           });
+    // Sorting of the interfaces is still needed since we can we have 
+    // multiple interfaces using the same rows/send_idxs
+    // if the resulting non_local_matrix is not in row major order
+    // we might get non converging solvers on GPU devices
+    std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
+              [&](const auto &a, const auto &b) {
+                  auto [interface_idx_a, row_a, unique_col_a] = a;
+                  auto [interface_idx_b, row_b, unique_col_b] = b;
+                  return std::tie(row_a, unique_col_a) <
+                         std::tie(row_b, unique_col_b);
+              });
 
     interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
