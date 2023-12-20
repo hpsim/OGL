@@ -71,7 +71,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           verbose_,
           true,              // needs to be updated
           !reorder_on_copy_  // whether to init on device
-                             // if reoderOnHost is selected, the array needs
+                             // if reorderOnHost is selected, the array needs
                              // to be initialized on the host
       },
       non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
@@ -147,7 +147,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           verbose_,
           true,              // needs to be updated
           !reorder_on_copy_  // whether to init on device
-                             // if reoderOnHost is selected, the array needs
+                             // if reorderOnHost is selected, the array needs
                              // to be initialized on the host
       },
       non_local_matrix_nnz_(),

@@ -287,7 +287,7 @@ private:
 
     mutable PersistentSparsityPattern local_sparsity_;
 
-    // matrix coefficiens
+    // matrix coefficients
     mutable PersistentArray<scalar> local_coeffs_;
 
     // non-local indices
