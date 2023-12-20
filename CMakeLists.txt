@@ -197,6 +197,10 @@ target_include_directories(
          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(OGL
+    PRIVATE
+         $ENV{FOAM_LIBBIN}/libOpenFOAM.so
+         $ENV{FOAM_LIBBIN}/libfiniteVolume.so
+         $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
     PUBLIC
         Ginkgo::ginkgo
         stdc++fs)
