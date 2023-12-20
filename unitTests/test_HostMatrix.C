@@ -23,8 +23,8 @@ TEST(HostMatrixConversion, symmetric_update)
 
     std::vector<scalar> res{0., 0., 0., 0., 0., 0., 0., 0., 0.,
                             0., 0., 0., 0., 0., 0., 0., 0.};
-    std::vector<scalar> exp{1., 10., 20., 10., 2., 11., 21., 11., 3.,
-                            12., 20., 12., 4., 13., 21., 13., 5.};
+    std::vector<scalar> exp{1.,  10., 20., 10., 2.,  11., 21., 11., 3.,
+                            12., 20., 12., 4.,  13., 21., 13., 5.};
 
     Foam::symmetric_update(total_nnz, upper_nnz, p.data(), 1.0, d.data(),
                            u.data(), res.data());

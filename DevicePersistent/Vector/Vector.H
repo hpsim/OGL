@@ -154,8 +154,8 @@ public:
               VectorInitFunctor<T>(exec, name, partition, memory, verbose,
                                    init_on_device),
               update, verbose),
-	  db_(db),
-	  name_(name),
+          db_(db),
+          name_(name),
           memory_(memory),
           partition_(partition),
           exec_(exec),
@@ -193,7 +193,8 @@ public:
      **
      ** Data is stored as .mtx file under processor?/<time>/<name_>.mtx
      **/
-    void write() const {
+    void write() const
+    {
         export_vec(name_, get_vector()->get_local_vector(), db_);
     }
 
@@ -220,7 +221,6 @@ public:
     {
         return this->get_persistent_object();
     }
-
 };
 
 }  // namespace Foam
