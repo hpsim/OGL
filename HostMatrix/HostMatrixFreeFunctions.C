@@ -105,7 +105,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
 {
     // for OpenFOAMs addressing see
     // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
-    // Note that the face order in the wiki seems to be wrong. Entries are 
+    // Note that the face order in the wiki seems to be wrong. Entries are
     // stored such that upper rows are monotonic ascending
     // upper - rows of lower triangular matrix
     // lower - columns of lower triangular matrix
@@ -156,13 +156,14 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
             rows[element_ctr] = row_lower;
             cols[element_ctr] = col_lower;
             permute[element_ctr] =
-                (is_symmetric) ? faceI_lower :  upper_nnz + faceI_lower;
+                (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
             element_ctr++;
             lower_ctr++;
             if (lower_ctr >= tmp_lower.size()) {
                 break;
             }
-            auto [ tmp_row_lower, tmp_col_lower, tmp_faceI_lower ] = tmp_lower[lower_ctr];
+            auto [tmp_row_lower, tmp_col_lower, tmp_faceI_lower] =
+                tmp_lower[lower_ctr];
             row_lower = tmp_row_lower;
             col_lower = tmp_col_lower;
             faceI_lower = tmp_faceI_lower;
@@ -175,7 +176,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
         element_ctr++;
 
         // check if we have any upper elements to insert
-        while (row_upper == row ) {
+        while (row_upper == row) {
             rows[element_ctr] = row_upper;
             cols[element_ctr] = col_upper;
             permute[element_ctr] = faceI_upper;
@@ -184,7 +185,8 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
             if (upper_ctr >= tmp_upper.size()) {
                 break;
             }
-            auto [ tmp_row_upper, tmp_col_upper, tmp_faceI_upper ] = tmp_upper[upper_ctr];
+            auto [tmp_row_upper, tmp_col_upper, tmp_faceI_upper] =
+                tmp_upper[upper_ctr];
             row_upper = tmp_row_upper;
             col_upper = tmp_col_upper;
             faceI_upper = tmp_faceI_upper;

@@ -431,7 +431,7 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
-    // Sorting of the interfaces is still needed since we can we have 
+    // Sorting of the interfaces is still needed since we can we have
     // multiple interfaces using the same rows/send_idxs
     // if the resulting non_local_matrix is not in row major order
     // we might get non converging solvers on GPU devices

@@ -285,7 +285,7 @@ public:
         if (debug && db_.time().writeTime()) {
             LOG_0(verbose_, "Export system")
             dist_A.write();
-	    dist_b.write();
+            dist_b.write();
         }
 
 
