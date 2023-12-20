@@ -262,7 +262,8 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
 
-    //
+    // iterate all interfaces, count number of neighbour procs
+    // and store rows to send to neighbour procs
     label n_procs = 0;
     interface_iterator<processorFvPatch>(
         interfaces,
@@ -274,23 +275,13 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             neighbour_procs.push_back(
                 std::pair<label, label>{neighbProcNo, interface_size});
 
-            // TODO DONT MERGE For now this can be simplified since
+            // For now this can be simplified since
             // we dont have multiple interfaces between one processor
-            auto search = interface_cell_map.find(neighbProcNo);
-            if (search == interface_cell_map.end()) {
-                n_procs++;
-                interface_cell_map.insert(std::pair{
-                    neighbProcNo,
-                    std::vector<label>(face_cells.begin(), face_cells.end())});
-            } else {
-                auto cur_face_cells = interface_cell_map[neighbProcNo];
-                // TODO reserve current size + interface_size
-                cur_face_cells.reserve(interface_size);
-                for (auto face_cell : face_cells) {
-                    cur_face_cells.push_back(face_cell);
-                }
-                interface_cell_map[neighbProcNo] = cur_face_cells;
-            }
+            // auto search = interface_cell_map.find(neighbProcNo);
+            n_procs++;
+            interface_cell_map.insert(std::pair{
+                neighbProcNo,
+                std::vector<label>(face_cells.begin(), face_cells.end())});
         });
 
 
