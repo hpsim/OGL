@@ -357,8 +357,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
 
     label startOfRequests = Pstream::nRequests();
     interface_iterator<processorLduInterface>(
-        interfaces, [&](label, const label interface_size,
-                        const processorLduInterface &patch,
+        interfaces, [&](label, const label, const processorLduInterface &,
                         const lduInterfaceField *iface) {
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
@@ -399,8 +398,6 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
 
         for (label cellI = 0; cellI < interface_size; cellI++) {
             auto local_row = face_cells[cellI];
-            auto global_row = global_row_index_.toGlobal(
-                neighbProcNo, otherSide_tmp()[cellI]);
             non_local_idxs.push_back({interface_ctr, local_row, uniqueIdCtr});
             uniqueIdCtr++;
             interface_ctr += 1;
@@ -573,8 +570,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs,
-    const objectRegistry &db) const
+    const FieldField<Field, scalar> &interfaceBouCoeffs) const
 {
     auto ref_exec = exec_.get_ref_exec();
     auto upper = this->matrix().upper();
