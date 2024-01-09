@@ -98,8 +98,7 @@ struct ExecutorInitFunctor {
                     << abort(FatalError);
             };
             auto ret = gko::share(gko::HipExecutor::create(
-                device_id_ % gko::HipExecutor::get_num_devices(), host_exec
-                ));
+                device_id_ % gko::HipExecutor::get_num_devices(), host_exec));
             return ret;
         }
         if (executor_name_ == "omp") {
