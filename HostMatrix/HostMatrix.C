@@ -110,7 +110,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
     if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
         TIME_WITH_FIELDNAME(
             verbose_, update_local_matrix_data, this->fieldName(),
-            update_local_matrix_data(interfaces, interfaceBouCoeffs, db);)
+            update_local_matrix_data(interfaces, interfaceBouCoeffs);)
         TIME_WITH_FIELDNAME(
             verbose_, update_non_local_matrix_data, this->fieldName(),
             update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
