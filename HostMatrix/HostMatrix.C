@@ -614,7 +614,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
             }
         }
     } else {
-        // TODO 
+        // TODO
         // - this should be moved to separate function to avoid making this
         // too long
 
