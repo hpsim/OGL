@@ -147,12 +147,12 @@ struct MatrixInitFunctor {
         gko::array<scalar> device_non_local_values{device_exec,
                                                    *non_local_coeffs.get()};
 
-        auto value_view = val_array::view(
-            device_exec, device_values.get_num_elems(), value_ptr);
+        auto value_view =
+            val_array::view(device_exec, device_values.get_size(), value_ptr);
 
-        auto non_local_view = val_array::view(
-            device_exec, device_non_local_values.get_num_elems(),
-            non_local_value_ptr);
+        auto non_local_view =
+            val_array::view(device_exec, device_non_local_values.get_size(),
+                            non_local_value_ptr);
 
         value_view = device_values;
         non_local_view = device_non_local_values;
@@ -206,7 +206,7 @@ struct MatrixInitFunctor {
             *coeffs.get());
 
         gko::device_matrix_data<scalar, label> non_local_A_data(
-            exec, gko::dim<2>(num_rows, non_local_cols->get_num_elems()),
+            exec, gko::dim<2>(num_rows, non_local_cols->get_size()),
             *non_local_rows.get(), *non_local_cols.get(),
             *non_local_coeffs.get());
 

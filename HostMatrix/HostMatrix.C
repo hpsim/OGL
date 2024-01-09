@@ -380,8 +380,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     interface_iterator<
         processorLduInterface>(interfaces, [&](label,
                                                const label interface_size,
-                                               const processorLduInterface
-                                                   &patch,
+                                               const processorLduInterface &,
                                                const lduInterfaceField *iface) {
         const processorLduInterface &pldui =
             refCast<const processorLduInterface>(iface->interface());
@@ -614,6 +613,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         // - this should be moved to separate function to avoid making this
         // too long
 
+        using dim_type = gko::dim<2>::dimension_type;
+
         auto target_exec =
             (reorder_on_copy_) ? ref_exec : exec_.get_device_exec();
 
@@ -646,13 +647,15 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
 
         // permute and update local_coeffs
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            target_exec, gko::dim<2>{local_matrix_nnz_, 1}));
+            target_exec,
+            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1}));
 
-        auto dense_vec =
-            vec::create(target_exec, gko::dim<2>{local_matrix_nnz_, 1},
-                        gko::array<scalar>::view(target_exec, local_matrix_nnz_,
-                                                 local_coeffs_.get_data()),
-                        1);
+        auto dense_vec = vec::create(
+            target_exec,
+            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1},
+            gko::array<scalar>::view(target_exec, local_matrix_nnz_,
+                                     local_coeffs_.get_data()),
+            1);
 
         // TODO this needs to copy ldu_mapping to the device
         dense_vec->row_gather(local_sparsity_.ldu_mapping_.get_array().get(),

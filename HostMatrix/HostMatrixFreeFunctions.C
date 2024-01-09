@@ -148,6 +148,8 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
     label element_ctr = 0;
     label upper_ctr = 0;
     label lower_ctr = 0;
+    label lower_size = tmp_lower.size();
+    label upper_size = tmp_upper.size();
     auto [row_lower, col_lower, faceI_lower] = tmp_lower[0];
     auto [row_upper, col_upper, faceI_upper] = tmp_upper[0];
     for (label row = 0; row < nrows; row++) {
@@ -159,7 +161,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
                 (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
             element_ctr++;
             lower_ctr++;
-            if (lower_ctr >= tmp_lower.size()) {
+            if (lower_ctr >= lower_size) {
                 break;
             }
             auto [tmp_row_lower, tmp_col_lower, tmp_faceI_lower] =
@@ -182,7 +184,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
             permute[element_ctr] = faceI_upper;
             element_ctr++;
             upper_ctr++;
-            if (upper_ctr >= tmp_upper.size()) {
+            if (upper_ctr >= upper_size) {
                 break;
             }
             auto [tmp_row_upper, tmp_col_upper, tmp_faceI_upper] =
