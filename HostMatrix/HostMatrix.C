@@ -50,7 +50,7 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
       reorder_on_copy_(
-          solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
+          solverControls.lookupOrDefault<Switch>("reorderOnHost", false)),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(matrix.diag().size()),
       local_interface_nnz_(count_interface_nnz(interfaces, false)),
@@ -69,9 +69,10 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           exec_,
           local_matrix_w_interfaces_nnz_,
           verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
+          true,              // needs to be updated
+          !reorder_on_copy_  // whether to init on device
+                             // if reorderOnHost is selected, the array needs
+                             // to be initialized on the host
       },
       non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
       communication_pattern_(create_communication_pattern(interfaces)),
@@ -144,9 +145,10 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
           exec_,
           local_matrix_nnz_,
           verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
+          true,              // needs to be updated
+          !reorder_on_copy_  // whether to init on device
+                             // if reorderOnHost is selected, the array needs
+                             // to be initialized on the host
       },
       non_local_matrix_nnz_(),
       // proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
@@ -211,6 +213,7 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
             continue;
         }
         const auto iface{interface_getter(interfaces, i)};
+        // TODO check if copy is needed
         auto coeffs{interfaceBouCoeffs[i]};
 
         bool collect = (local)
@@ -259,7 +262,9 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
 
-    //
+    // iterate all interfaces, count number of neighbour procs
+    // and store rows to send to neighbour procs
+    label n_procs = 0;
     interface_iterator<processorFvPatch>(
         interfaces,
         [&](label, const label interface_size, const processorFvPatch &patch,
@@ -270,35 +275,14 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             neighbour_procs.push_back(
                 std::pair<label, label>{neighbProcNo, interface_size});
 
-            auto search = interface_cell_map.find(neighbProcNo);
-            if (search == interface_cell_map.end()) {
-                interface_cell_map.insert(std::pair{
-                    neighbProcNo,
-                    std::vector<label>(face_cells.begin(), face_cells.end())});
-            } else {
-                auto cur_face_cells = interface_cell_map[neighbProcNo];
-                cur_face_cells.reserve(interface_size);
-                for (auto face_cell : face_cells) {
-                    cur_face_cells.push_back(face_cell);
-                }
-                interface_cell_map[neighbProcNo] = cur_face_cells;
-            }
+            // For now this can be simplified since
+            // we dont have multiple interfaces between one processor
+            // auto search = interface_cell_map.find(neighbProcNo);
+            n_procs++;
+            interface_cell_map.insert(std::pair{
+                neighbProcNo,
+                std::vector<label>(face_cells.begin(), face_cells.end())});
         });
-
-    // reduce vector of sizes
-    // this assumes that a rank can be connected to the same neighbour through
-    // different interfaces this might not be necessary
-    label n_procs = 0;
-    std::map<label, label> reduce_map{};
-    for (auto [proc, n_faces] : neighbour_procs) {
-        auto search = reduce_map.find(proc);
-        if (search == reduce_map.end()) {
-            n_procs += 1;
-            reduce_map.insert(std::pair<label, label>{proc, n_faces});
-        } else {
-            reduce_map[proc] = reduce_map[proc] + n_faces;
-        }
-    }
 
 
     // create index_sets
@@ -320,11 +304,12 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
                                    static_cast<size_t>(n_procs)};
 
     label iter = 0;
-    for (const auto &[proc, size] : reduce_map) {
+    for (const auto &[proc, size] : neighbour_procs) {
         target_ids.get_data()[iter] = proc;
         target_sizes.get_data()[iter] = size;
         iter++;
     }
+
 
     return CommunicationPattern{target_ids, target_sizes, send_idxs};
 }
@@ -368,14 +353,11 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
 {
     // vector of neighbour cell idx connected to interface
     std::vector<std::tuple<label, label, label>> non_local_idxs{};
-
-    std::map<label, label> unique_index{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
 
     label startOfRequests = Pstream::nRequests();
     interface_iterator<processorLduInterface>(
-        interfaces, [&](label, const label interface_size,
-                        const processorLduInterface &patch,
+        interfaces, [&](label, const label, const processorLduInterface &,
                         const lduInterfaceField *iface) {
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
@@ -393,44 +375,33 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_interface(
     Pstream::waitRequests(startOfRequests);
     LOG_2(verbose_, "send face cells done")
 
-
     label interface_ctr = 0;
     label uniqueIdCtr = 0;
-    interface_iterator<processorLduInterface>(
-        interfaces, [&](label, const label interface_size,
-                        const processorLduInterface &patch,
-                        const lduInterfaceField *iface) {
-            const processorLduInterface &pldui =
-                refCast<const processorLduInterface>(iface->interface());
-            const auto &face_cells{iface->interface().faceCells()};
-            const label neighbProcNo = pldui.neighbProcNo();
+    interface_iterator<
+        processorLduInterface>(interfaces, [&](label,
+                                               const label interface_size,
+                                               const processorLduInterface &,
+                                               const lduInterfaceField *iface) {
+        const processorLduInterface &pldui =
+            refCast<const processorLduInterface>(iface->interface());
+        const auto &face_cells{iface->interface().faceCells()};
+        const label neighbProcNo = pldui.neighbProcNo();
 
-            word msg_2 = "receive face cells interface from proc " +
-                         std::to_string(neighbProcNo);
-            LOG_2(verbose_, msg_2)
+        word msg_2 = "receive face cells interface from proc " +
+                     std::to_string(neighbProcNo);
+        LOG_2(verbose_, msg_2)
 
-            auto otherSide_tmp = pldui.receive<label>(
-                Pstream::commsTypes::nonBlocking, interface_size);
-            LOG_2(verbose_, "receive face cells done")
+        auto otherSide_tmp = pldui.receive<label>(
+            Pstream::commsTypes::nonBlocking, interface_size);
+        LOG_2(verbose_, "receive face cells done")
 
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto global_row = global_row_index_.toGlobal(
-                    neighbProcNo, otherSide_tmp()[cellI]);
-                auto search = unique_index.find(global_row);
-                // global_row is new and unique
-                label uniqueId = uniqueIdCtr;
-                if (search == unique_index.end()) {
-                    uniqueId = uniqueIdCtr;
-                    unique_index[global_row] = uniqueIdCtr;
-                    uniqueIdCtr++;
-                } else {
-                    uniqueId = unique_index[global_row];
-                }
-                non_local_idxs.push_back(
-                    {interface_ctr, face_cells[cellI], uniqueId});
-                interface_ctr += 1;
-            }
-        });
+        for (label cellI = 0; cellI < interface_size; cellI++) {
+            auto local_row = face_cells[cellI];
+            non_local_idxs.push_back({interface_ctr, local_row, uniqueIdCtr});
+            uniqueIdCtr++;
+            interface_ctr += 1;
+        }
+    });
 
     word msg = "done collecting neighbouring processor cell id";
 
@@ -447,14 +418,16 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
-    // TODO check if sorting is actually needed since interfaces should
-    // be sorted already
+    // Sorting of the interfaces is still needed since we can we have
+    // multiple interfaces using the same rows/send_idxs
+    // if the resulting non_local_matrix is not in row major order
+    // we might get non converging solvers on GPU devices
     std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
               [&](const auto &a, const auto &b) {
                   auto [interface_idx_a, row_a, unique_col_a] = a;
                   auto [interface_idx_b, row_b, unique_col_b] = b;
-                  return std::tie(row_a, interface_idx_a) <
-                         std::tie(row_b, interface_idx_b);
+                  return std::tie(row_a, unique_col_a) <
+                         std::tie(row_b, unique_col_b);
               });
 
     interface_iterator<processorFvPatch>(
@@ -602,43 +575,93 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto upper = this->matrix().upper();
     auto lower = this->matrix().lower();
     auto diag = this->matrix().diag();
+
     label diag_nnz = diag.size();
     bool is_symmetric{this->matrix().symmetric()};
 
-    auto dense_vec = vec::create(
-        ref_exec,
-        gko::dim<2>{(gko::dim<2>::dimension_type)local_matrix_nnz_, 1},
-        gko::array<scalar>::view(ref_exec, local_matrix_nnz_,
-                                 local_coeffs_.get_data()),
-        1);
-
     // TODO this does not work for Ell
-    const auto permute = local_sparsity_.ldu_mapping_.get_data();
-    auto dense = dense_vec->get_values();
+    auto permute = local_sparsity_.ldu_mapping_.get_data();
 
-    if (local_interface_nnz_) {
-        auto couple_coeffs =
-            collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
-        if (is_symmetric) {
-            symmetric_update_w_interface(local_matrix_w_interfaces_nnz_,
-                                         diag_nnz, upper_nnz_, permute,
-                                         scaling_, diag.data(), upper.data(),
-                                         couple_coeffs.data(), dense);
+    if (reorder_on_copy_) {
+        auto dense = local_coeffs_.get_data();
+        if (local_interface_nnz_) {
+            auto couple_coeffs =
+                collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
+            if (is_symmetric) {
+                symmetric_update_w_interface(
+                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
+                    permute, scaling_, diag.data(), upper.data(),
+                    couple_coeffs.data(), dense);
+            } else {
+                non_symmetric_update_w_interface(
+                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
+                    permute, scaling_, diag.data(), upper.data(), lower.data(),
+                    couple_coeffs.data(), dense);
+            }
         } else {
-            non_symmetric_update_w_interface(
-                local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_, permute,
-                scaling_, diag.data(), upper.data(), lower.data(),
-                couple_coeffs.data(), dense);
+            if (is_symmetric) {
+                symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
+                                 scaling_, diag.data(), upper.data(), dense);
+            } else {
+                non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
+                                     scaling_, diag.data(), upper.data(),
+                                     lower.data(), dense);
+            }
         }
     } else {
-        if (is_symmetric) {
-            symmetric_update(local_matrix_nnz_, upper_nnz_, permute, scaling_,
-                             diag.data(), upper.data(), dense);
-        } else {
-            non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                 scaling_, diag.data(), upper.data(),
-                                 lower.data(), dense);
+        // TODO
+        // - this should be moved to separate function to avoid making this
+        // too long
+
+        using dim_type = gko::dim<2>::dimension_type;
+
+        auto target_exec =
+            (reorder_on_copy_) ? ref_exec : exec_.get_device_exec();
+
+        // copy upper
+        auto upper = this->matrix().upper();
+        auto u_host_view =
+            gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
+        auto u_device_view = gko::array<scalar>::view(target_exec, upper_nnz_,
+                                                      local_coeffs_.get_data());
+        u_device_view = u_host_view;
+
+        // for the non-symmetric case copy lower to the device
+        if (!is_symmetric) {
+            auto lower = this->matrix().lower();
+            auto l_host_view =
+                gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
+            auto l_device_view = gko::array<scalar>::view(
+                target_exec, upper_nnz_, &local_coeffs_.get_data()[upper_nnz_]);
+            l_device_view = l_host_view;
         }
+
+        // copy diag
+        auto diag = this->matrix().diag();
+        auto diag_host_view =
+            gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
+        const label diag_start = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
+        auto diag_device_view = gko::array<scalar>::view(
+            target_exec, nrows_, &local_coeffs_.get_data()[diag_start]);
+        diag_device_view = diag_host_view;
+
+        // permute and update local_coeffs
+        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            target_exec,
+            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1}));
+
+        auto dense_vec = vec::create(
+            target_exec,
+            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1},
+            gko::array<scalar>::view(target_exec, local_matrix_nnz_,
+                                     local_coeffs_.get_data()),
+            1);
+
+        // TODO this needs to copy ldu_mapping to the device
+        dense_vec->row_gather(local_sparsity_.ldu_mapping_.get_array().get(),
+                              row_collection.get());
+
+        dense_vec->copy_from(row_collection);
     }
 }
 
@@ -662,6 +685,8 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const processorFvPatch &, const lduInterfaceField *) {
             for (label cellI = 0; cellI < interface_size; cellI++) {
+                // flip the sign because openfoam lduInterfaceFieldTemplates
+                // subtracts these values
                 contiguous_iface[element_ctr] =
                     -interface_coeffs[permute[element_ctr]];
                 element_ctr++;

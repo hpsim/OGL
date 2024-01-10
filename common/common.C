@@ -50,11 +50,11 @@ void export_x(const std::string fn, const gko::matrix::Csr<scalar> *A)
 }
 
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
-                const word time)
+                const objectRegistry &db)
 {
-    system("mkdir -p export/" + time);
-    std::string fn_mtx{"export/" + time + "/" + fieldName + ".mtx"};
-    export_x(fn_mtx, x);
+    std::string folder{db.time().timePath()};
+    std::string fn{folder + "/" + fieldName + "_b_.mtx"};
+    export_x(fn, x);
 }
 
 void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,

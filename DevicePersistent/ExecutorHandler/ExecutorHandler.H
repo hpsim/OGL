@@ -77,8 +77,7 @@ struct ExecutorInitFunctor {
             };
 
             return gko::share(gko::CudaExecutor::create(
-                device_id_ % gko::CudaExecutor::get_num_devices(), host_exec,
-                false, gko::allocation_mode::device));
+                device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
         }
         if (executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
@@ -98,10 +97,8 @@ struct ExecutorInitFunctor {
                        "with HIP backend enabled."
                     << abort(FatalError);
             };
-
             auto ret = gko::share(gko::HipExecutor::create(
-                device_id_ % gko::HipExecutor::get_num_devices(), host_exec,
-                true));
+                device_id_ % gko::HipExecutor::get_num_devices(), host_exec));
             return ret;
         }
         if (executor_name_ == "omp") {

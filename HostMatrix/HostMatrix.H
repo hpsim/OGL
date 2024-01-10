@@ -53,7 +53,8 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,  // For now we assume columns and rows to be constant
-        false   // same as for values, leave on device
+        false   // we don't init on device since the indices are written using the pointer
+                // to the data
     },
     row_idxs_{
         fieldName + "_rows",
@@ -62,7 +63,7 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,  // For now we assume columns and rows to be constant
-        false   // same as for values, leave on device
+        false   // same as for cols don't init on device
     },
     ldu_mapping_{
         fieldName + "_ldu_map",
@@ -71,7 +72,7 @@ struct PersistentSparsityPattern {
         size,
         verbose,
         false,
-        false
+        false // same as for rows and cols dont init on device
     }
     {}
 
@@ -103,14 +104,18 @@ const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
 
 /** Write contiguous row and col indices from OpenFOAM lower and upper indices
- **
+ ** For details on the lower triangular based indexing see
+ ** https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOA
+ ** Note that the order of the indices are depicted wrong on the wiki
+ ** In general the upper triangular matrix is traversed in row major
+ ** and the lower triangular matrix in column major order.
  **
  ** @param nrows number of rows
  ** @param upper_nnz number of non zeros in the upper triangular matrix
  ** @param is_symmetric whether matrix is symmetric, in the symmetric case
  ** the lower elements indices in the permute array are computed differently
- ** @param upper pointer to array of
- ** @param lower pointer to rows array
+ ** @param upper pointer to OFs rows array
+ ** @param lower pointer to OFs cols array
  ** @param rows pointer to rows array
  ** @param cols pointer to columns array
  ** @param permute pointer to permuter array
@@ -282,6 +287,7 @@ private:
 
     mutable PersistentSparsityPattern local_sparsity_;
 
+    // matrix coefficients
     mutable PersistentArray<scalar> local_coeffs_;
 
     // non-local indices
@@ -332,8 +338,8 @@ private:
 
 
     /** Iterates all interfaces and counts the number of unique neighbour
-     **processors and number of interfaces in total for this processor
-     ** and collects all interface cells of this rank
+     ** processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank.
      **
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
@@ -375,7 +381,7 @@ private:
     /** Copies the LDU matrix coefficients to local_coeffs without changing or
      ** reinstantiating the sparsity pattern.
      ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host to be in row major order
+     ** on the host or device to be in row major order.
      **/
     void update_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,

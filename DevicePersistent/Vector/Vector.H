@@ -114,6 +114,10 @@ class PersistentVector
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using vec = gko::matrix::Dense<scalar>;
 
+    const objectRegistry &db_;
+
+    const word name_;
+
     const T *memory_;
 
     const PersistentPartition partition_;
@@ -150,35 +154,16 @@ public:
               VectorInitFunctor<T>(exec, name, partition, memory, verbose,
                                    init_on_device),
               update, verbose),
+          db_(db),
+          name_(name),
           memory_(memory),
           partition_(partition),
           exec_(exec),
           update_(update)
     {}
 
-    // label get_global_size() const { return partition_.size(); }
-
-    bool get_update() const { return update_; }
-
-    T *get_data() const { return this->get_persistent_object()->get_data(); }
-
-    void set_data(T *data)
-    {
-        this->get_persistent_object()->get_data() = data;
-    };
-
-    const T *get_const_data() const
-    {
-        return this->get_persistent_object()->get_const_data();
-    };
-
-
-    std::shared_ptr<gko::experimental::distributed::Vector<T>> get_vector()
-        const
-    {
-        return this->get_persistent_object();
-    }
-
+    /** Copies the content of the distributed vector back to the original source
+     **/
     void copy_back()
     {
         const auto local_size = partition_.get_local_size();
@@ -204,7 +189,38 @@ public:
         to_view = host_buffer_view;
     }
 
+    /** Writes the content of the distributed vector to disk
+     **
+     ** Data is stored as .mtx file under processor?/<time>/<name_>.mtx
+     **/
+    void write() const
+    {
+        export_vec(name_, get_vector()->get_local_vector(), db_);
+    }
+
+    // getter and setter
+
+    bool get_update() const { return update_; }
+
+    T *get_data() const { return this->get_persistent_object()->get_data(); }
+
+    void set_data(T *data)
+    {
+        this->get_persistent_object()->get_data() = data;
+    };
+
+    const T *get_const_data() const
+    {
+        return this->get_persistent_object()->get_const_data();
+    };
+
     const ExecutorHandler &get_exec_handler() const { return exec_; }
+
+    std::shared_ptr<gko::experimental::distributed::Vector<T>> get_vector()
+        const
+    {
+        return this->get_persistent_object();
+    }
 };
 
 }  // namespace Foam

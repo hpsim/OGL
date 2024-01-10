@@ -182,8 +182,8 @@ public:
             // iterative refinement method.
             auto precond_factory =
                 gko::preconditioner::Ilu<ir, ir>::build()
-                    .with_l_solver_factory(gko::clone(trisolve_factory))
-                    .with_u_solver_factory(gko::clone(trisolve_factory))
+                    .with_l_solver(gko::clone(trisolve_factory))
+                    .with_u_solver(gko::clone(trisolve_factory))
                     .on(device_exec);
 
             auto factorization_factory =

@@ -122,7 +122,7 @@ void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *b, const word time);
 
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
-                const word time);
+                const objectRegistry &db);
 
 void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
                 const word local, const objectRegistry &db,

@@ -97,23 +97,78 @@ void non_symmetric_update(const label total_nnz, const label upper_nnz,
     }
 }
 
+
 void init_local_sparsity(const label nrows, const label upper_nnz,
                          const bool is_symmetric, const label *upper,
                          const label *lower, label *rows, label *cols,
                          label *permute)
 {
+    // for OpenFOAMs addressing see
+    // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
+    // Note that the face order in the wiki seems to be wrong. Entries are
+    // stored such that upper rows are monotonic ascending
+    // upper - rows of lower triangular matrix
+    // lower - columns of lower triangular matrix
     label after_neighbours = (is_symmetric) ? upper_nnz : 2 * upper_nnz;
+
+    // first pass order elements row wise
+    // scan through all faces
+    std::vector<std::tuple<label, label, label>> tmp_upper;
+    tmp_upper.reserve(upper_nnz);
+    for (label faceI = 0; faceI < upper_nnz; faceI++) {
+        const label col = upper[faceI];
+        const label row = lower[faceI];
+        tmp_upper.emplace_back(row, col, faceI);
+    }
+
+    std::sort(tmp_upper.begin(), tmp_upper.end(),
+              [&](const auto &a, const auto &b) {
+                  auto [row_a, col_a, faceI_a] = a;
+                  auto [row_b, col_b, faceI_b] = b;
+                  return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+              });
+
+    std::vector<std::tuple<label, label, label>> tmp_lower;
+    tmp_lower.reserve(upper_nnz);
+    for (label faceI = 0; faceI < upper_nnz; faceI++) {
+        const label col = lower[faceI];
+        const label row = upper[faceI];
+        tmp_lower.emplace_back(row, col, faceI);
+    }
+
+    std::sort(tmp_lower.begin(), tmp_lower.end(),
+              [&](const auto &a, const auto &b) {
+                  auto [row_a, col_a, faceI_a] = a;
+                  auto [row_b, col_b, faceI_b] = b;
+                  return std::tie(row_a, col_a) < std::tie(row_b, col_b);
+              });
+
+    // now we have tmp_upper and tmp_lower in row order
+
     label element_ctr = 0;
     label upper_ctr = 0;
-    std::vector<std::vector<std::pair<label, label>>> lower_stack(upper_nnz);
+    label lower_ctr = 0;
+    label lower_size = tmp_lower.size();
+    label upper_size = tmp_upper.size();
+    auto [row_lower, col_lower, faceI_lower] = tmp_lower[0];
+    auto [row_upper, col_upper, faceI_upper] = tmp_upper[0];
     for (label row = 0; row < nrows; row++) {
-        // add lower elements
-        // for now just scan till current upper ctr
-        for (const auto &[stored_upper_ctr, col] : lower_stack[row]) {
-            rows[element_ctr] = row;
-            cols[element_ctr] = col;
-            permute[element_ctr] = stored_upper_ctr;
+        // check if we have any lower elements to insert
+        while (row_lower == row) {
+            rows[element_ctr] = row_lower;
+            cols[element_ctr] = col_lower;
+            permute[element_ctr] =
+                (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
             element_ctr++;
+            lower_ctr++;
+            if (lower_ctr >= lower_size) {
+                break;
+            }
+            auto [tmp_row_lower, tmp_col_lower, tmp_faceI_lower] =
+                tmp_lower[lower_ctr];
+            row_lower = tmp_row_lower;
+            col_lower = tmp_col_lower;
+            faceI_lower = tmp_faceI_lower;
         }
 
         // add diagonal elements
@@ -122,27 +177,23 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
         permute[element_ctr] = after_neighbours + row;
         element_ctr++;
 
-        // add upper elements
-        // these are the transpose of the lower elements which are stored in
-        // row major order.
-        label row_upper = lower[upper_ctr];
-        while (upper_ctr < upper_nnz && row_upper == row) {
-            const label col_upper = upper[upper_ctr];
-
+        // check if we have any upper elements to insert
+        while (row_upper == row) {
             rows[element_ctr] = row_upper;
             cols[element_ctr] = col_upper;
-
-            // insert into lower_stack
-            lower_stack[col_upper].emplace_back(
-                (is_symmetric) ? upper_ctr : upper_ctr + upper_nnz, row_upper);
-            permute[element_ctr] = upper_ctr;
-
+            permute[element_ctr] = faceI_upper;
             element_ctr++;
             upper_ctr++;
-            row_upper = lower[upper_ctr];
+            if (upper_ctr >= upper_size) {
+                break;
+            }
+            auto [tmp_row_upper, tmp_col_upper, tmp_faceI_upper] =
+                tmp_upper[upper_ctr];
+            row_upper = tmp_row_upper;
+            col_upper = tmp_col_upper;
+            faceI_upper = tmp_faceI_upper;
         }
     }
 }
-
 
 }  // namespace Foam

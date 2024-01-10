@@ -147,12 +147,12 @@ struct MatrixInitFunctor {
         gko::array<scalar> device_non_local_values{device_exec,
                                                    *non_local_coeffs.get()};
 
-        auto value_view = val_array::view(
-            device_exec, device_values.get_num_elems(), value_ptr);
+        auto value_view =
+            val_array::view(device_exec, device_values.get_size(), value_ptr);
 
-        auto non_local_view = val_array::view(
-            device_exec, device_non_local_values.get_num_elems(),
-            non_local_value_ptr);
+        auto non_local_view =
+            val_array::view(device_exec, device_non_local_values.get_size(),
+                            non_local_value_ptr);
 
         value_view = device_values;
         non_local_view = device_non_local_values;
@@ -206,7 +206,7 @@ struct MatrixInitFunctor {
             *coeffs.get());
 
         gko::device_matrix_data<scalar, label> non_local_A_data(
-            exec, gko::dim<2>(num_rows, non_local_cols->get_num_elems()),
+            exec, gko::dim<2>(num_rows, non_local_cols->get_size()),
             *non_local_rows.get(), *non_local_cols.get(),
             *non_local_coeffs.get());
 
@@ -239,10 +239,15 @@ private:
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
 
+    const objectRegistry &db_;
 
     const label verbose_;
 
     const bool export_;
+
+    const word field_name_;
+
+    const word matrix_format_;
 
     mutable PersistentBase<dist_mtx, MatrixInitFunctor> gkomatrix_;
 
@@ -260,14 +265,18 @@ public:
                   const PersistentPartition &partition,
                   const dictionary &controlDict, const word sys_matrix_name,
                   const label verbose)
-        : verbose_(verbose),
+        : db_(db),
+          verbose_(verbose),
           export_(controlDict.lookupOrDefault<Switch>("export", false)),
+          field_name_(sys_matrix_name),
+          matrix_format_(
+              controlDict.lookupOrDefault<word>("matrixFormat", "Coo")),
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
               MatrixInitFunctor(
                   db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
-                  controlDict.lookupOrDefault<word>("matrixFormat", "Coo"),
+                  matrix_format_,
                   controlDict.lookupOrDefault<Switch>("regenerate", false),
                   verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
@@ -281,6 +290,27 @@ public:
 
 
     bool get_export() const { return export_; }
+
+    /** Exports local and non-local matrix to processor?/<time>/.mtx files
+     */
+    void write() const
+    {
+        export_mtx(
+            field_name_,
+            gko::as<
+                gko::experimental::distributed::Matrix<scalar, label, label>>(
+                get().get())
+                ->get_local_matrix(),
+            "local", db_, matrix_format_);
+
+        export_mtx(
+            field_name_,
+            gko::as<
+                gko::experimental::distributed::Matrix<scalar, label, label>>(
+                get().get())
+                ->get_non_local_matrix(),
+            "non_local", db_, matrix_format_);
+    }
 };
 
 }  // namespace Foam
