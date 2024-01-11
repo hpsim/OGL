@@ -6,3 +6,6 @@
 - Implemented unit tests for ldu conversion [PR #97](https://github.com/hpsim/OGL/pull/97)
 - Move to Ginkgo v1.7.0 [PR #96](https://github.com/hpsim/OGL/pull/96)
 - Add integration tests [PR #91](https://github.com/hpsim/OGL/pull/91)
+## Performance Data
+- Recent single node performance data is available [here](https://github.com/exasim-project/benchmark_data/pull/5)
+[![Speedup](https://github.com/exasim-project/benchmark_data/blob/ogl_170_rev1/2024-01-10_09_21/LidDrivenCavity3D/postProcessing/ogl_170_rev1/unprecond_speedup_SolveP_over_nCells_c%3DnProcs_s%3Dsolver_p_cols%3DHost.png)](https://github.com/exasim-project/benchmark_data/blob/ogl_170_rev1/2024-01-10_09_21/LidDrivenCavity3D/postProcessing/ogl_170_rev1/unprecond_speedup_SolveP_over_nCells_c%3DnProcs_s%3Dsolver_p_cols%3DHost.png)
