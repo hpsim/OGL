@@ -1,4 +1,4 @@
-# 0.5.0 (unreleased)
+# 0.5.0 (2024/01/11)
 ## Features
 - Add on device permutation functionality [PR #101](https://github.com/hpsim/OGL/pull/101) 
 ## Stability and Fixes
