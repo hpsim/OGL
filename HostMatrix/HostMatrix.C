@@ -242,9 +242,9 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
         const auto iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
-        const Sel &patch = refCast<const Sel>(iface->interface());
 
         if (isA<Sel>(iface->interface())) {
+            const Sel &patch = refCast<const Sel>(iface->interface());
             func(element_ctr, interface_size, patch, iface);
         }
     }
