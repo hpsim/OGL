@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  USER: user
   BUILD_TYPE: Release
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -88,7 +89,7 @@ jobs:
         mkdir -p build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -G Ninja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -GNinja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
@@ -104,7 +105,9 @@ jobs:
     - name: Check folders
       working-directory: ${{github.workspace}}
       run: |
+          echo "check build folder"
           ls ./build
+          echo "check libbin folder ${{matrix.OF.foam_user_libbin}}"
           ls ${{matrix.OF.foam_user_libbin}}
 
     - name: Archive production artifacts
@@ -119,6 +122,8 @@ jobs:
     uses: ./.github/workflows/unit-test.yml
     with:
       path: ${{ matrix.OF.path }}
+      version: ${{ matrix.OF.version }}
+      foam_user_libbin: ${{ matrix.OF.foam_user_libbin }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}

@@ -1,5 +1,4 @@
 name: Unit Tests
-
 defaults:
  run:
   shell: bash -o pipefail -i {0}
@@ -10,6 +9,15 @@ on:
       path:
         required: true
         type: string
+      foam_user_libbin:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+
+env:
+  USER: user
 
 run-name: Unit tests on ${{github.ref_name}}
 
@@ -21,11 +29,17 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Get Ginkgo checkout version
-      shell: bash
       run: |
         grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
+
+    - name: Cache FOAM_USER_LIBBIN
+      uses: actions/cache@v3
+      with:
+        key: FOAM_USER_LIBBIN-${{ inputs.version }}-${{ github.sha }}
+        path: |
+          ${{inputs.foam_user_libbin}}
 
     - name: Cache build folder
       uses: actions/cache@v3
@@ -36,6 +50,7 @@ jobs:
 
     - name: Test OGL
       working-directory: ${{github.workspace}}/build
-      run:
+      run: |
         source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
+        ls $FOAM_USER_LIBBIN
         ./unitTests/matrixConversion
