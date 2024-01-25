@@ -251,6 +251,26 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 }
 
 
+template <class Sel, class Func>
+void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
+{
+    label element_ctr = 0;
+    for (int i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+        const auto iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (!isA<Sel>(iface->interface())) {
+            const coupledFvPatch &patch = refCast<const coupledFvPatch>(iface->interface());
+            func(element_ctr, interface_size, patch, iface);
+        }
+    }
+}
+
+
 template <class MatrixType>
 CommunicationPattern
 HostMatrixWrapper<MatrixType>::create_communication_pattern(
@@ -324,19 +344,21 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
 
-    interface_iterator<cyclicFvPatch>(
+    neg_interface_iterator<cyclicFvPatch>(
         interfaces,
         [&](label &element_ctr, label interface_size,
-            const cyclicFvPatch &patch, const lduInterfaceField *iface) {
+            // TODO FIXME this does not work for AMI patch
+            const coupledFvPatch &patch, const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
 
-#ifdef WITH_ESI_VERSION
-            const label neighbPatchId = patch.neighbPatchID();
-#else
-            const label neighbPatchId = patch.nbrPatchID();
-#endif
+            const label index = patch.index();
+// #ifdef WITH_ESI_VERSION
+//             const label neighbPatchId = patch.neighbPatchID();
+// #else
+//             const label neighbPatchId = patch.nbrPatchID();
+// #endif
             const labelUList &cols =
-                this->matrix().lduAddr().patchAddr(neighbPatchId);
+                this->matrix().lduAddr().patchAddr(index);
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 local_interface_idxs.push_back(
                     {element_ctr, face_cells[cellI], cols[cellI]});
