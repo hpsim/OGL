@@ -8,14 +8,14 @@ case:
     post_build:
       - controlDict:
            writeFormat: binary
-           libs: ["libOGL.so"]
+           libs: [libOGL.so]
            writeInterval: 100
            endTime: 200
       - blockMesh
       - decomposePar:
             method: simple
-            numberOfSubdomains: 2
-            coeffs: [2,1,1]
+            numberOfSubdomains: 4
+            coeffs: [2,2,1]
 variation:
   - operation: fvSolution
     schema: "linear_solver/pressure-{solver}{preconditioner}{executor}"
