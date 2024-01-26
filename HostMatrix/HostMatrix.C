@@ -251,8 +251,11 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 }
 
 
+/** Same as interface_iterator but checks if is *NOT* Sel
+ */
 template <class Sel, class Func>
-void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
+void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
+                            Func func)
 {
     label element_ctr = 0;
     for (int i = 0; i < interfaces.size(); i++) {
@@ -264,8 +267,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func fu
         const label interface_size = face_cells.size();
 
         if (!isA<Sel>(iface->interface())) {
-            const coupledFvPatch &patch = refCast<const coupledFvPatch>(iface->interface());
-            func(element_ctr, interface_size, patch, iface);
+            func(element_ctr, interface_size, iface);
         }
     }
 }
@@ -276,9 +278,6 @@ CommunicationPattern
 HostMatrixWrapper<MatrixType>::create_communication_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
-    // temp vector to store neighbour proc number and number of cells to send
-    std::vector<std::pair<label, label>> neighbour_procs{};
-
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
 
@@ -286,28 +285,27 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     // and store rows to send to neighbour procs
     label n_procs = 0;
     interface_iterator<processorFvPatch>(
-        interfaces,
-        [&](label, const label interface_size, const processorFvPatch &patch,
-            const lduInterfaceField *iface) {
+        interfaces, [&](label, const label, const processorFvPatch &patch,
+                        const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
             const label neighbProcNo = patch.neighbProcNo();
 
-            neighbour_procs.push_back(
-                std::pair<label, label>{neighbProcNo, interface_size});
-
             // For now this can be simplified since
             // we dont have multiple interfaces between one processor
-            // auto search = interface_cell_map.find(neighbProcNo);
-            n_procs++;
-            interface_cell_map.insert(std::pair{
-                neighbProcNo,
-                std::vector<label>(face_cells.begin(), face_cells.end())});
+            auto search = interface_cell_map.find(neighbProcNo);
+            if (search == interface_cell_map.end()) {
+                n_procs++;
+                interface_cell_map.insert(std::pair{
+                    neighbProcNo,
+                    std::vector<label>(face_cells.begin(), face_cells.end())});
+            } else {
+                auto &vec = search->second;
+                vec.insert(vec.end(), face_cells.begin(), face_cells.end());
+            }
         });
 
 
     // create index_sets
-    // currently this assumes that there is only one interface to a given
-    // neighbour rank
     std::vector<std::pair<gko::array<label>, label>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
@@ -324,16 +322,38 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
                                    static_cast<size_t>(n_procs)};
 
     label iter = 0;
-    for (const auto &[proc, size] : neighbour_procs) {
+    for (const auto &[proc, interface_cells] : interface_cell_map) {
         target_ids.get_data()[iter] = proc;
-        target_sizes.get_data()[iter] = size;
+        target_sizes.get_data()[iter] = interface_cells.size();
         iter++;
     }
-
 
     return CommunicationPattern{target_ids, target_sizes, send_idxs};
 }
 
+
+template <typename PatchType>
+void collect_local_interface_indices_impl(
+    label &element_ctr, const label interface_size,
+    const lduInterfaceField *iface, const lduAddressing &addr,
+    std::vector<std::tuple<label, label, label>> &local_interface_idxs)
+{
+    if (isA<PatchType>(iface->interface())) {
+        const PatchType &patch = refCast<const PatchType>(iface->interface());
+        const auto &face_cells{iface->interface().faceCells()};
+#ifdef WITH_ESI_VERSION
+        const label neighbPatchId = patch.neighbPatchID();
+#else
+        const label neighbPatchId = patch.nbrPatchID();
+#endif
+        const labelUList &cols = addr.patchAddr(neighbPatchId);
+        for (label cellI = 0; cellI < interface_size; cellI++) {
+            local_interface_idxs.push_back(
+                {element_ctr, face_cells[cellI], cols[cellI]});
+            element_ctr += 1;
+        }
+    }
+}
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
@@ -343,27 +363,22 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
     local_interface_idxs.reserve(local_interface_nnz_);
 
-
-    neg_interface_iterator<cyclicFvPatch>(
-        interfaces,
-        [&](label &element_ctr, label interface_size,
-            // TODO FIXME this does not work for AMI patch
-            const coupledFvPatch &patch, const lduInterfaceField *iface) {
-            const auto &face_cells{iface->interface().faceCells()};
-
-            const label index = patch.index();
-// #ifdef WITH_ESI_VERSION
-//             const label neighbPatchId = patch.neighbPatchID();
-// #else
-//             const label neighbPatchId = patch.nbrPatchID();
-// #endif
-            const labelUList &cols =
-                this->matrix().lduAddr().patchAddr(index);
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                local_interface_idxs.push_back(
-                    {element_ctr, face_cells[cellI], cols[cellI]});
-                element_ctr += 1;
-            }
+    const auto & addr = this->matrix().lduAddr();
+    neg_interface_iterator<processorFvPatch>(
+        interfaces, [&](label &element_ctr, const label interface_size,
+                        const lduInterfaceField *iface) {
+            // check whether interface is either an cylicFvPatch,
+            // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interfac
+            // indices
+            collect_local_interface_indices_impl<cyclicFvPatch>(
+                element_ctr, interface_size, iface, addr,
+                local_interface_idxs);
+            collect_local_interface_indices_impl<cyclicAMIFvPatch>(
+                element_ctr, interface_size, iface, addr,
+                local_interface_idxs);
+            collect_local_interface_indices_impl<cyclicACMIFvPatch>(
+                element_ctr, interface_size, iface, addr,
+                local_interface_idxs);
         });
     return local_interface_idxs;
 }
