@@ -64,6 +64,7 @@ jobs:
       run: |
         source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
         mkdir -p ${{matrix.Case}} && cd ${{matrix.Case}}
+        export CYCLIC_CASE=${{inputs.cyclic_case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
 
