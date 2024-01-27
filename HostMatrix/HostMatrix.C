@@ -363,22 +363,21 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
     local_interface_idxs.reserve(local_interface_nnz_);
 
-    const auto & addr = this->matrix().lduAddr();
+    const auto &addr = this->matrix().lduAddr();
     neg_interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const lduInterfaceField *iface) {
-            // check whether interface is either an cylicFvPatch,
-            // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interfac
+            // check whether interface is either an cyclicFvPatch,
+            // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
             // indices
             collect_local_interface_indices_impl<cyclicFvPatch>(
-                element_ctr, interface_size, iface, addr,
-                local_interface_idxs);
+                element_ctr, interface_size, iface, addr, local_interface_idxs);
             collect_local_interface_indices_impl<cyclicAMIFvPatch>(
-                element_ctr, interface_size, iface, addr,
-                local_interface_idxs);
+                element_ctr, interface_size, iface, addr, local_interface_idxs);
+#ifdef WITH_ESI_VERSION
             collect_local_interface_indices_impl<cyclicACMIFvPatch>(
-                element_ctr, interface_size, iface, addr,
-                local_interface_idxs);
+                element_ctr, interface_size, iface, addr, local_interface_idxs);
+#endif
         });
     return local_interface_idxs;
 }
