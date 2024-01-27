@@ -26,7 +26,7 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   OMPI_MCA_btl_vader_single_copy_mechanism: none
-  OBR_RUN_CMD: "mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
+  OBR_RUN_CMD: "mpirun --oversubscribe --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
   MPI_BUFFER_SIZE: 20000000
   GINKGO_EXECUTOR: reference
 
