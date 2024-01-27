@@ -21,6 +21,7 @@ variation:
         debug: 1
         executor: reference
         matrixFormat: Coo
+        export: 1
     values:
       - set: solvers/p
         preconditioner: none
