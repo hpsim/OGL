@@ -1,6 +1,6 @@
 case:
     type: OpenFOAMTutorialCase
-    solver: pimpleFoam
+    application: pimpleFoam
     domain: incompressible
     case: ${{env.CYCLIC_CASE}}
     uses:

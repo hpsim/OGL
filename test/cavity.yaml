@@ -1,6 +1,6 @@
 case:
     type: OpenFOAMTutorialCase
-    solver: icoFoam
+    application: icoFoam
     domain: incompressible
     case: cavity/cavity
     post_build:

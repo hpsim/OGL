@@ -79,6 +79,7 @@ jobs:
         export CYCLIC_CASE=${{inputs.cyclic_case}}
         obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
         obr run -o generate
+        cat workspace/*/case/*log
 
   run:
     runs-on: ubuntu-latest
