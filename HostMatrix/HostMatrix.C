@@ -349,7 +349,7 @@ void collect_local_interface_indices_impl(
     }
 }
 
-void collect_local_interface_indices_impl_cyclicCMIFvPatch(
+void collect_local_interface_indices_impl_cyclicAMIFvPatch(
     label &element_ctr, const lduInterfaceField *iface, const lduAddressing &addr,
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
@@ -357,11 +357,11 @@ void collect_local_interface_indices_impl_cyclicCMIFvPatch(
         const cyclicAMIFvPatch &patch = refCast<const cyclicAMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
-        const label neighbPatchId = patch.neighbPatchID();
-
-        const labelUList& nbrFaceCellsCoupled =
-            addr.patchAddr(patch.cyclicAMIPatch().neighbPatchID());
-
+#ifdef WITH_ESI_VERSION
+        const label neighbPatchId = patch.cyclicAMIPatch().neighbPatchID();
+#else
+        const label neighbPatchId = patch.cyclicAMIPatch().nbrPatchID();
+#endif
         const labelUList &cols = addr.patchAddr(neighbPatchId);
         for (label cellI = 0; cellI < interface_size; cellI++) {
             local_interface_idxs.push_back(
@@ -371,6 +371,7 @@ void collect_local_interface_indices_impl_cyclicCMIFvPatch(
     }
 }
 
+#ifdef WITH_ESI_VERSION
 void collect_local_interface_indices_impl_cyclicACMIFvPatch(
     label &element_ctr, const lduInterfaceField *iface, const lduAddressing &addr,
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
@@ -379,12 +380,8 @@ void collect_local_interface_indices_impl_cyclicACMIFvPatch(
         const cyclicACMIFvPatch &patch = refCast<const cyclicACMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
-        const label neighbPatchId = patch.neighbPatchID();
-
-        const labelUList& nbrFaceCellsCoupled =
+        const labelUList& cols =
             addr.patchAddr(patch.cyclicACMIPatch().neighbPatchID());
-
-        const labelUList &cols = addr.patchAddr(neighbPatchId);
         for (label cellI = 0; cellI < interface_size; cellI++) {
             local_interface_idxs.push_back(
                 {element_ctr, face_cells[cellI], cols[cellI]});
@@ -392,6 +389,7 @@ void collect_local_interface_indices_impl_cyclicACMIFvPatch(
         }
     }
 }
+#endif
 
 template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
@@ -410,7 +408,7 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
             // indices
             collect_local_interface_indices_impl<cyclicFvPatch>(
                 element_ctr, iface, addr, local_interface_idxs);
-            collect_local_interface_indices_impl<cyclicAMIFvPatch>(
+            collect_local_interface_indices_impl_cyclicAMIFvPatch(
                 element_ctr, iface, addr, local_interface_idxs);
 #ifdef WITH_ESI_VERSION
             collect_local_interface_indices_impl_cyclicACMIFvPatch(
