@@ -11,7 +11,6 @@ case:
       - decomposePar:
             method: simple
             numberOfSubdomains: 2
-            coeffs: [2,1,1]
 variation:
   - operation: fvSolution
     schema: "linearSolver/{solver}{preconditioner}{executor}"
