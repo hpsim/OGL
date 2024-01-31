@@ -20,7 +20,7 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   OMPI_MCA_btl_vader_single_copy_mechanism: none
-  OBR_RUN_CMD: "mpirun --oversubscribe --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
+  OBR_RUN_CMD: "mpirun --oversubscribe -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
   GINKGO_EXECUTOR: reference
 
 on: 
@@ -171,7 +171,6 @@ jobs:
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=${{inputs.foam_user_libbin}}:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
-        export OBR_RUN_CMD="mpirun --bind-to core --map-by core -np {np} {solver} -parallel -case {path}/case >  {path}/case/{solver}_{timestamp}.log 2>&1"
         echo $FOAM_USER_LIBBIN
         ls $FOAM_USER_LIBBIN
         obr run -o runParallelSolver
