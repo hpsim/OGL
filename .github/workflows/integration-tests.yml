@@ -59,6 +59,18 @@ jobs:
         key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
+
+    - name: Update OBR
+      working-directory: /github/home/
+      run: |
+         ls
+         python3 -m pip install --upgrade pip
+         pip install setuptools --upgrade 
+         pip uninstall obr -y 
+         cd /root/OBR 
+         git pull origin dev 
+         pip install -e .
+
     - name: Generate test cases
       working-directory: /github/home/
       run: |
@@ -89,6 +101,16 @@ jobs:
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV
 
+    - name: Update OBR
+      working-directory: /github/home/
+      run: |
+         python3 -m pip install --upgrade pip
+         pip install setuptools --upgrade 
+         pip uninstall obr -y 
+         cd /root/OBR 
+         git pull origin dev 
+         pip install -e .
+
     - name: Cache build
       uses: actions/cache@v3
       with:
@@ -114,6 +136,7 @@ jobs:
       timeout-minutes: 10
       run: |
         source /root/OpenFOAM/${{inputs.path}}/etc/bashrc
+        ls
         obr run -o runParallelSolver
 
     - name: Validation of exported mtx files
