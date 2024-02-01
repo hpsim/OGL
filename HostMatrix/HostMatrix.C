@@ -222,6 +222,10 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
             ret.insert(ret.end(), interfaceBouCoeffs[i].begin(),
                        interfaceBouCoeffs[i].end());
         }
+
+        std::for_each(ret.begin(), ret.end(),
+                      [](scalar &c)  // modify in-place
+                      { c = c * -1.0; });
     }
 
     return ret;
@@ -328,7 +332,8 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
 
 template <typename PatchType>
 void collect_local_interface_indices_impl(
-    label &element_ctr, const lduInterfaceField *iface, const lduAddressing &addr,
+    label &element_ctr, const lduInterfaceField *iface,
+    const lduAddressing &addr,
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
     if (isA<PatchType>(iface->interface())) {
@@ -341,20 +346,22 @@ void collect_local_interface_indices_impl(
         const label neighbPatchId = patch.nbrPatchID();
 #endif
         const labelUList &cols = addr.patchAddr(neighbPatchId);
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                local_interface_idxs.push_back(
-                    {element_ctr, face_cells[cellI], cols[cellI]});
-                element_ctr += 1;
-            }
+        for (label cellI = 0; cellI < interface_size; cellI++) {
+            local_interface_idxs.push_back(
+                {element_ctr, face_cells[cellI], cols[cellI]});
+            element_ctr += 1;
+        }
     }
 }
 
 void collect_local_interface_indices_impl_cyclicAMIFvPatch(
-    label &element_ctr, const lduInterfaceField *iface, const lduAddressing &addr,
+    label &element_ctr, const lduInterfaceField *iface,
+    const lduAddressing &addr,
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
     if (isA<cyclicAMIFvPatch>(iface->interface())) {
-        const cyclicAMIFvPatch &patch = refCast<const cyclicAMIFvPatch>(iface->interface());
+        const cyclicAMIFvPatch &patch =
+            refCast<const cyclicAMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
 #ifdef WITH_ESI_VERSION
@@ -373,14 +380,16 @@ void collect_local_interface_indices_impl_cyclicAMIFvPatch(
 
 #ifdef WITH_ESI_VERSION
 void collect_local_interface_indices_impl_cyclicACMIFvPatch(
-    label &element_ctr, const lduInterfaceField *iface, const lduAddressing &addr,
+    label &element_ctr, const lduInterfaceField *iface,
+    const lduAddressing &addr,
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
     if (isA<cyclicACMIFvPatch>(iface->interface())) {
-        const cyclicACMIFvPatch &patch = refCast<const cyclicACMIFvPatch>(iface->interface());
+        const cyclicACMIFvPatch &patch =
+            refCast<const cyclicACMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
-        const labelUList& cols =
+        const labelUList &cols =
             addr.patchAddr(patch.cyclicACMIPatch().neighbPatchID());
         for (label cellI = 0; cellI < interface_size; cellI++) {
             local_interface_idxs.push_back(
@@ -448,7 +457,8 @@ template <class MatrixType>
 void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
-    auto non_local_row_indices = collect_cells_on_non_local_interface(interfaces);
+    auto non_local_row_indices =
+        collect_cells_on_non_local_interface(interfaces);
     auto rows = non_local_sparsity_.row_idxs_.get_data();
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
@@ -674,15 +684,31 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
             target_exec, nrows_, &local_coeffs_.get_data()[diag_start]);
         diag_device_view = diag_host_view;
 
+        // copy local interfaces
+        if (local_interface_nnz_) {
+            const label interface_start = diag_start + nrows_;
+            auto couple_coeffs =
+                collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
+            auto interface_host_view = gko::array<scalar>::view(
+                ref_exec, local_interface_nnz_, couple_coeffs.data());
+            auto interface_device_view = gko::array<scalar>::view(
+                target_exec, local_interface_nnz_,
+                &local_coeffs_.get_data()[interface_start]);
+            interface_device_view = interface_host_view;
+        }
+
         // permute and update local_coeffs
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             target_exec,
-            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1}));
+            gko::dim<2>{static_cast<dim_type>(local_matrix_w_interfaces_nnz_),
+                        1}));
 
         auto dense_vec = vec::create(
             target_exec,
-            gko::dim<2>{static_cast<dim_type>(local_matrix_nnz_), 1},
-            gko::array<scalar>::view(target_exec, local_matrix_nnz_,
+            gko::dim<2>{static_cast<dim_type>(local_matrix_w_interfaces_nnz_),
+                        1},
+            gko::array<scalar>::view(target_exec,
+                                     local_matrix_w_interfaces_nnz_,
                                      local_coeffs_.get_data()),
             1);
 
@@ -712,7 +738,7 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
 
     for (label element_ctr = 0; element_ctr < non_local_matrix_nnz_;
          element_ctr++) {
-        contiguous_iface[element_ctr] = -interface_coeffs[permute[element_ctr]];
+        contiguous_iface[element_ctr] = interface_coeffs[permute[element_ctr]];
     }
 
     // copy to persistent
