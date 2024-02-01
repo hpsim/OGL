@@ -222,11 +222,9 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
             ret.insert(ret.end(), interfaceBouCoeffs[i].begin(),
                        interfaceBouCoeffs[i].end());
         }
-
-        std::for_each(ret.begin(), ret.end(),
-                      [](scalar &c)  // modify in-place
-                      { c = c * -1.0; });
     }
+
+    std::for_each(ret.begin(), ret.end(), [](scalar &c) { c = c * -1.0; });
 
     return ret;
 }
