@@ -343,7 +343,7 @@ void collect_local_interface_indices_impl(
         const labelUList &cols = addr.patchAddr(neighbPatchId);
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 local_interface_idxs.push_back(
-                    {element_ctr, face_cells[cellI], 0});
+                    {element_ctr, face_cells[cellI], cols[cellI]});
                 element_ctr += 1;
             }
     }
