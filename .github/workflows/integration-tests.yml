@@ -41,25 +41,9 @@ on:
 
 
 jobs:
-  setup_integration_matrix:
-      runs-on: ubuntu-latest
-      outputs:
-        matrix: ${{ steps.set-matrix.outputs.matrix }}
-      steps:
-      - id: set-matrix
-        run: |
-          echo "matrix=[\"cavity\", \"channel\"]" >> $GITHUB_OUTPUT
-
   setup:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: setup_integration_matrix
-    name: setup-${{matrix.Case}}-${{inputs.version}}
-    strategy:
-      fail-fast: false
-      matrix: 
-        Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
-
     steps:
     - uses: actions/checkout@v4
     - name: Source OF enviroment
@@ -77,8 +61,8 @@ jobs:
     - name: Cache workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
-        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
+        key: ws-${{inputs.version}}-${{ github.sha }}
+        path: /home/runner/work/_temp/_github_home/integration
 
 
     - name: Update OBR
@@ -89,7 +73,7 @@ jobs:
          pip install setuptools --upgrade 
          pip uninstall obr -y 
          cd /root/OBR 
-         git pull origin dev 
+         git pull origin feat/multi_case 
          pip install -e .
 
     - name: Generate test cases
@@ -97,11 +81,20 @@ jobs:
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
-        mkdir -p ${{matrix.Case}} && cd ${{matrix.Case}}
+        mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init --config /__w/OGL/OGL/test/${{matrix.Case}}.yaml
+        obr init --config /__w/OGL/OGL/test/integration.yaml
         obr run -o generate
         cat workspace/*/case/*log
+
+  setup_integration_matrix:
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+      - id: set-matrix
+        run: |
+          echo "matrix=[\"cavity\", \"${{inputs.cyclic_case}}\"]" >> $GITHUB_OUTPUT
 
   run:
     runs-on: ubuntu-latest
@@ -142,7 +135,7 @@ jobs:
          pip install setuptools --upgrade 
          pip uninstall obr -y 
          cd /root/OBR 
-         git pull origin dev 
+         git pull origin feat/multi_case 
          pip install -e .
 
     - name: Cache build
@@ -162,11 +155,11 @@ jobs:
     - name: Cache Workspace
       uses: actions/cache@v3
       with:
-        key: ws-${{inputs.version}}-${{matrix.Case}}-${{ github.sha }}
-        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
+        key: ws-${{inputs.version}}-${{ github.sha }}
+        path: /home/runner/work/_temp/_github_home/integration
 
     - name: Execute test cases
-      working-directory: /github/home/${{matrix.Case}}
+      working-directory: /github/home/integration
       timeout-minutes: 10
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
@@ -176,40 +169,43 @@ jobs:
         obr run -o runParallelSolver
 
     - name: Validation of exported mtx files
-      working-directory: /github/home/${{matrix.Case}}
+      working-directory: /github/home/integration
       run: |
         ls -la workspace/*/case/
         ls -la workspace/*/case/processor0/*
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
     - name: Validate unpreconditioned state
-      working-directory: /github/home/${{matrix.Case}}
+      working-directory: /github/home/integration
       run: |
         obr status
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --filter preconditioner==none \
+        --filter case==${{matrix.Case}} \
         --filter matrixFormat==Coo \
         --filter global==completed \
         --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
 
     - name: Validate preconditioned state
-      working-directory: /github/home/${{matrix.Case}}
+      working-directory: /github/home/integration
       run: |
         obr status
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json \
+        --filter case==${{matrix.Case}} \
         --filter preconditioner!=none \
         --filter global==completed
 
     - name: Validate matrix formats
-      working-directory: /github/home/${{matrix.Case}}
+      working-directory: /github/home/integration
       run: |
         obr status
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json \
+        --filter case==${{matrix.Case}} \
         --filter matrixFormat!=Coo \
         --filter global==completed
 
