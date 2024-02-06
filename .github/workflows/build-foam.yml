@@ -33,7 +33,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
      - name: Checkout to repository
-       uses: actions/checkout@v3
+       uses: actions/checkout@v4
      - name: Set matrix data
        id: set-matrix
        run: |
@@ -66,14 +66,14 @@ jobs:
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
     - name: Cache build folder
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
 
     - name: Cache FOAM_USER_LIBBIN
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: FOAM_USER_LIBBIN-${{ matrix.OF.version }}-${{ github.sha }}
         path: |

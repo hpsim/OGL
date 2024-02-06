@@ -35,14 +35,14 @@ jobs:
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
     - name: Cache FOAM_USER_LIBBIN
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: FOAM_USER_LIBBIN-${{ inputs.version }}-${{ github.sha }}
         path: |
           ${{inputs.foam_user_libbin}}
 
     - name: Cache build folder
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |

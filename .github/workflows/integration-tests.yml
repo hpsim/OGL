@@ -59,7 +59,7 @@ jobs:
         echo "CYCLIC_CASE=${{inputs.cyclic_case}}" >> $GITHUB_ENV
 
     - name: Cache workspace
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: ws-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/integration
@@ -139,21 +139,21 @@ jobs:
          pip install -e .
 
     - name: Cache build
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: build-${{ inputs.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
 
     - name: Cache FOAM_USER_LIBBIN
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: FOAM_USER_LIBBIN-${{ inputs.version }}-${{ github.sha }}
         path: |
           ${{inputs.foam_user_libbin}}
 
     - name: Cache Workspace
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: ws-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/integration
