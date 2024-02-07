@@ -216,7 +216,7 @@ jobs:
         find . -name "*:*" -exec rename 's|:|-|g' {} \;
 
     - name: Archive integration artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: ogl_integration_${{ inputs.path }}
