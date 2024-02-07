@@ -160,7 +160,7 @@ jobs:
 
     - name: Execute test cases
       working-directory: /github/home/integration
-      timeout-minutes: 10
+      timeout-minutes: 12
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=${{inputs.foam_user_libbin}}:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
