@@ -185,7 +185,7 @@ jobs:
         --filter case==${{matrix.Case}} \
         --filter matrixFormat==Coo \
         --filter global==completed \
-        --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json
+        --validate_against=/__w/OGL/OGL/test/validation.json
 
     - name: Validate preconditioned state
       working-directory: /github/home/integration
@@ -193,7 +193,7 @@ jobs:
         obr status
         obr query \
         -q global -q continuityErrors -q CourantNumber \
-        --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json \
+        --validate_against=/__w/OGL/OGL/test/validation.json \
         --filter case==${{matrix.Case}} \
         --filter preconditioner!=none \
         --filter global==completed
@@ -204,7 +204,7 @@ jobs:
         obr status
         obr query \
         -q global -q continuityErrors -q CourantNumber \
-        --validate_against=/__w/OGL/OGL/test/${{matrix.Case}}_validation.json \
+        --validate_against=/__w/OGL/OGL/test/validation.json \
         --filter case==${{matrix.Case}} \
         --filter matrixFormat!=Coo \
         --filter global==completed
