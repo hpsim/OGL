@@ -166,7 +166,8 @@ jobs:
         export LD_LIBRARY_PATH=${{inputs.foam_user_libbin}}:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         echo $FOAM_USER_LIBBIN
         ls $FOAM_USER_LIBBIN
-        obr run -o runParallelSolver
+        obr run -o runParallelSolver \
+          --filter case==${{matrix.Case}}
 
     - name: Validation of exported mtx files
       working-directory: /github/home/integration
