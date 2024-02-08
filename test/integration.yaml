@@ -6,7 +6,8 @@ variation:
     post_build:
       - controlDict:
            libs: [libOGL.so]
-           writeInterval: 10
+           stopAt: nextWrite
+           writeInterval: 25
       - blockMesh
       - decomposePar:
             method: simple
