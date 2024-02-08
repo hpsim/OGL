@@ -100,7 +100,11 @@ jobs:
     - name: Install OGL
       working-directory: ${{github.workspace}}
       run: |
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake --install ./build
+        ls $FOAM_USER_LIBBIN
+        ls ${{matrix.OF.foam_user_libbin}}
+
 
     - name: Check folders
       working-directory: ${{github.workspace}}
