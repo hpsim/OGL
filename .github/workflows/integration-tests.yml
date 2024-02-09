@@ -169,15 +169,39 @@ jobs:
         obr run -o runParallelSolver \
           --filter case==${{matrix.Case}}
 
+    - name: Archive workspace
+      uses: actions/cache@v4
+      with:
+        key: results-${{inputs.version}}-${{ github.sha }}
+        path: /home/runner/work/_temp/_github_home/archive
+
+    - name: Execute test cases
+      working-directory: /github/home
+      timeout-minutes: 12
+      run: |
+        cp -r integration archive
+
+  validate:
+    runs-on: ubuntu-latest
+    container: greole/ofbase
+    needs: [run]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Archive workspace
+      uses: actions/cache@v4
+      with:
+        key: results-${{inputs.version}}-${{ github.sha }}
+        path: /home/runner/work/_temp/_github_home/archive
+
     - name: Validation of exported mtx files
-      working-directory: /github/home/integration
+      working-directory: /github/home/archive
       run: |
         ls -la workspace/*/case/
         ls -la workspace/*/case/processor0/*
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
     - name: Validate unpreconditioned state
-      working-directory: /github/home/integration
+      working-directory: /github/home/archive
       run: |
         obr status
         obr query \
@@ -189,7 +213,7 @@ jobs:
         --validate_against=/__w/OGL/OGL/test/validation.json
 
     - name: Validate preconditioned state
-      working-directory: /github/home/integration
+      working-directory: /github/home/archive
       run: |
         obr status
         obr query \
@@ -198,9 +222,8 @@ jobs:
         --filter case==${{matrix.Case}} \
         --filter preconditioner!=none \
         --filter global==completed
-
     - name: Validate matrix formats
-      working-directory: /github/home/integration
+      working-directory: /github/home/archive
       run: |
         obr status
         obr query \
