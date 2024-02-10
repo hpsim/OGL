@@ -35,6 +35,7 @@ variation:
           - set: solvers/p
             preconditioner: none
             solver: GKOCG
+          # TODO reimplement
           # - set: solvers/U
           #   preconditioner: BJ
           #   solver: GKOBiCGStab
