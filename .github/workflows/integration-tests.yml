@@ -207,7 +207,6 @@ jobs:
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --filter preconditioner==none \
-        --filter case==${{matrix.Case}} \
         --filter matrixFormat==Coo \
         --filter global==completed \
         --validate_against=/__w/OGL/OGL/test/validation.json
@@ -219,7 +218,6 @@ jobs:
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --validate_against=/__w/OGL/OGL/test/validation.json \
-        --filter case==${{matrix.Case}} \
         --filter preconditioner!=none \
         --filter global==completed
     - name: Validate matrix formats
@@ -229,7 +227,6 @@ jobs:
         obr query \
         -q global -q continuityErrors -q CourantNumber \
         --validate_against=/__w/OGL/OGL/test/validation.json \
-        --filter case==${{matrix.Case}} \
         --filter matrixFormat!=Coo \
         --filter global==completed
 
