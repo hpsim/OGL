@@ -358,6 +358,9 @@ void collect_local_interface_indices_impl_cyclicAMIFvPatch(
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
     if (isA<cyclicAMIFvPatch>(iface->interface())) {
+        FatalErrorInFunction
+            << "Currently unsupported CyclicAMIFvPatch detected"
+            << exit(FatalError);
         const cyclicAMIFvPatch &patch =
             refCast<const cyclicAMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
@@ -383,6 +386,9 @@ void collect_local_interface_indices_impl_cyclicACMIFvPatch(
     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 {
     if (isA<cyclicACMIFvPatch>(iface->interface())) {
+        FatalErrorInFunction
+            << "Currently unsupported CyclicACMIFvPatch detected"
+            << exit(FatalError);
         const cyclicACMIFvPatch &patch =
             refCast<const cyclicACMIFvPatch>(iface->interface());
         const auto &face_cells{iface->interface().faceCells()};
