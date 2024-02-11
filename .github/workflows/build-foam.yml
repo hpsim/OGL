@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  USER: user
   BUILD_TYPE: Release
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -32,7 +33,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
      - name: Checkout to repository
-       uses: actions/checkout@v3
+       uses: actions/checkout@v4
      - name: Set matrix data
        id: set-matrix
        run: |
@@ -65,14 +66,14 @@ jobs:
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
     - name: Cache build folder
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
         path: |
           ${{github.workspace}}/build
 
     - name: Cache FOAM_USER_LIBBIN
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: FOAM_USER_LIBBIN-${{ matrix.OF.version }}-${{ github.sha }}
         path: |
@@ -88,7 +89,7 @@ jobs:
         mkdir -p build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -G Ninja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE ..
+        cmake -GNinja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
@@ -99,16 +100,22 @@ jobs:
     - name: Install OGL
       working-directory: ${{github.workspace}}
       run: |
+        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake --install ./build
+        ls $FOAM_USER_LIBBIN
+        ls ${{matrix.OF.foam_user_libbin}}
+
 
     - name: Check folders
       working-directory: ${{github.workspace}}
       run: |
+          echo "check build folder"
           ls ./build
+          echo "check libbin folder ${{matrix.OF.foam_user_libbin}}"
           ls ${{matrix.OF.foam_user_libbin}}
 
     - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: ogl_build_${{ matrix.OF.path }}
@@ -119,6 +126,8 @@ jobs:
     uses: ./.github/workflows/unit-test.yml
     with:
       path: ${{ matrix.OF.path }}
+      version: ${{ matrix.OF.version }}
+      foam_user_libbin: ${{ matrix.OF.foam_user_libbin }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}

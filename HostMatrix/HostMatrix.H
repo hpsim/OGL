@@ -356,7 +356,7 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label, label>> collect_cells_on_interface(
+    std::vector<std::tuple<label, label>> collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /** Based on OpenFOAMs ldu matrix format this function computes two

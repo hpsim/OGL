@@ -44,7 +44,7 @@ void symmetric_update_w_interface(const label total_nnz, const label diag_nnz,
             value = diag[pos - upper_nnz];
         }
         if (pos >= upper_nnz + diag_nnz) {
-            value = -interface[pos - upper_nnz - diag_nnz];
+            value = interface[pos - upper_nnz - diag_nnz];
         }
         dense[i] = scale * value;
     }
@@ -71,7 +71,7 @@ void non_symmetric_update_w_interface(const label total_nnz,
             value = diag[pos - 2 * upper_nnz];
         }
         if (pos >= 2 * upper_nnz + diag_nnz) {
-            value = -interface[pos - 2 * upper_nnz - diag_nnz];
+            value = interface[pos - 2 * upper_nnz - diag_nnz];
         }
         dense[i] = scale * value;
     }
