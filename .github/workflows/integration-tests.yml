@@ -72,6 +72,7 @@ jobs:
          python3 -m pip install --upgrade pip
          pip install setuptools --upgrade 
          pip uninstall obr -y 
+         pip uninstall owls -y 
          cd /root/OBR 
          git pull origin feat/multi_case 
          pip install -e .
@@ -134,6 +135,7 @@ jobs:
          python3 -m pip install --upgrade pip
          pip install setuptools --upgrade 
          pip uninstall obr -y 
+         pip uninstall owls -y 
          cd /root/OBR 
          git pull origin feat/multi_case 
          pip install -e .
