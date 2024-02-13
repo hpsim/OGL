@@ -64,7 +64,6 @@ jobs:
         key: ws-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/integration
 
-
     - name: Update OBR
       working-directory: /github/home/
       run: |
