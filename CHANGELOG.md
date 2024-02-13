@@ -1,4 +1,4 @@
-# 0.5.2 (unreleased)
+# 0.5.2 (2024/02/11)
 - Fix issue with cyclic boundary conditions [PR #108](https://github.com/hpsim/OGL/pull/108)
 # 0.5.1 (2024/01/18)
 - Fix issue with failing cmake build 
