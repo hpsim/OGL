@@ -27,7 +27,7 @@
           "type": "BOOL",
           "value": "ON"
         }
-    },
+    }},
     {
       "name": "ninja-hip-release",
       "inherits": "default",
@@ -39,7 +39,7 @@
           "type": "BOOL",
           "value": "ON"
         }
-    },
+    }},
     {
       "name": "ninja-sycl-release",
       "inherits": "default",
@@ -51,6 +51,6 @@
           "type": "BOOL",
           "value": "ON"
         }
-    }
-}]
+    }}
+]
 }
