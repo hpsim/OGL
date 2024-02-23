@@ -1,0 +1,56 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ninja-cuda-release",
+      "inherits": "default",
+      "displayName": "Ninja Multi-Config",
+      "description": "Default build using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "GINKGO_BUILD_CUDA": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+    },
+    {
+      "name": "ninja-hip-release",
+      "inherits": "default",
+      "displayName": "Ninja Multi-Config",
+      "description": "Default build using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "GINKGO_BUILD_HIP": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+    },
+    {
+      "name": "ninja-sycl-release",
+      "inherits": "default",
+      "displayName": "Ninja Multi-Config",
+      "description": "Default build using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "GINKGO_BUILD_SYCL": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+    }
+}]
+}
