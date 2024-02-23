@@ -183,7 +183,7 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
     label ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -208,7 +208,7 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     std::vector<scalar> ret{};
     ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
 
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -233,7 +233,7 @@ template <class Sel, class Func>
 void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 {
     label element_ctr = 0;
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -256,7 +256,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
                             Func func)
 {
     label element_ctr = 0;
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -597,7 +597,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
         // post insert if local interfaces were consumed but stuff remains
         // in rows_copy and cols_copy
-        for (int i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
+        for (label i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
             rows[i] = rows_copy[current_idx_ctr];
             cols[i] = cols_copy[current_idx_ctr];
             permute[i] = permute_copy[current_idx_ctr];
