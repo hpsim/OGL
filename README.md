@@ -26,6 +26,8 @@ See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for 
 ![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
 ![Documentation](https://codedocs.xyz/hpsim/OGL/)
 
+For cuda builds cuda version 12 is recommended. For older cuda versions automatic device detection might fail, in this case please set the cuda architecture manually via -DOGL_CUDA_ARCHITECTURES.
+
 ## Compilation
 
 *OGL* can be build using cmake following the standard cmake procedure. 
@@ -51,6 +53,12 @@ If you have Ninja installed on your system we recommend to use ninja over gnu ma
 And make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
+
+### CMakePresets
+
+OGL supports CMakePresets
+
+    cmake --list-preset
 
 ## Usage
 
