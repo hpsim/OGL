@@ -22,6 +22,7 @@
       "displayName": "No GPU, Ninja",
       "description": "Release build without GPU support using Ninja Multi-Config generator",
       "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseCPUOnly",
       "cacheVariables": {
         "OGL_ALLOW_REFERENCE_ONLY": {
           "type": "BOOL",
@@ -32,9 +33,10 @@
     {
       "name": "ninja-cuda-release",
       "inherits": "default",
-      "displayName": "Ninja Multi-Config",
+      "displayName": "CUDA, Ninja",
       "description": "Release build for cuda using Ninja Multi-Config generator",
       "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseCuda",
       "cacheVariables": {
         "GINKGO_BUILD_CUDA": {
           "type": "BOOL",
@@ -45,9 +47,10 @@
     {
       "name": "ninja-hip-release",
       "inherits": "default",
-      "displayName": "Ninja Multi-Config",
+      "displayName": "HIP, Ninja",
       "description": "Release build for hip using Ninja Multi-Config generator",
       "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseHip",
       "cacheVariables": {
         "GINKGO_BUILD_HIP": {
           "type": "BOOL",
@@ -58,9 +61,10 @@
     {
       "name": "ninja-sycl-release",
       "inherits": "default",
-      "displayName": "Ninja Multi-Config",
+      "displayName": "SYCL, Ninja",
       "description": "Release build for sycl using Ninja Multi-Config generator",
       "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseSycl",
       "cacheVariables": {
         "GINKGO_BUILD_SYCL": {
           "type": "BOOL",

@@ -298,22 +298,23 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             }
         });
 
+    using comm_size_type = CommunicationPattern::comm_size_type;
 
     // create index_sets
-    std::vector<std::pair<gko::array<label>, label>> send_idxs;
+    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
-        send_idxs.push_back(std::pair<gko::array<label>, label>(
+        send_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
             gko::array<label>(exec, interface_cells.begin(),
                               interface_cells.end()),
             proc));
     }
 
     // convert to gko::array
-    gko::array<label> target_ids{exec_.get_ref_exec(),
-                                 static_cast<size_t>(n_procs)};
-    gko::array<label> target_sizes{exec_.get_ref_exec(),
-                                   static_cast<size_t>(n_procs)};
+    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(),
+                                          static_cast<comm_size_type>(n_procs)};
+    gko::array<comm_size_type> target_sizes{
+        exec_.get_ref_exec(), static_cast<comm_size_type>(n_procs)};
 
     label iter = 0;
     for (const auto &[proc, interface_cells] : interface_cell_map) {

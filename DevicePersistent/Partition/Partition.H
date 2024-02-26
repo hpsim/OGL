@@ -40,7 +40,9 @@ namespace Foam {
 
 
 struct PartitionInitFunctor {
-    using part_type = gko::experimental::distributed::localized_partition<>;
+    using comm_size_type = int;
+    using part_type =
+        gko::experimental::distributed::localized_partition<label>;
 
     const ExecutorHandler &exec_;
 
@@ -51,12 +53,12 @@ struct PartitionInitFunctor {
     const int ranks_per_gpu_;
 
     // Array storing the ranks of the neighbouring processors
-    const gko::array<label> target_ids_;
+    const gko::array<comm_size_type> target_ids_;
 
     // Array storing the ranks of the neighbouring processors
-    const gko::array<label> target_sizes_;
+    const gko::array<comm_size_type> target_sizes_;
 
-    const std::vector<std::pair<gko::array<label>, label>> send_idxs_;
+    const std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs_;
 
     PartitionInitFunctor(const ExecutorHandler &exec, const label local_size,
                          const label verbose, const int ranks_per_gpu,
@@ -84,9 +86,8 @@ struct PartitionInitFunctor {
                  std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        auto host_partition = gko::experimental::distributed::
-            localized_partition<>::build_from_blocked_recv(
-                exec, local_size_, send_idxs_, target_ids_, target_sizes_);
+        auto host_partition = part_type::build_from_blocked_recv(
+            exec, local_size_, send_idxs_, target_ids_, target_sizes_);
 
         if (ranks_per_gpu_ == 1) return host_partition;
     }
@@ -102,7 +103,7 @@ struct PartitionInitFunctor {
  * */
 class PersistentPartition
     : public PersistentBase<
-          gko::experimental::distributed::localized_partition<>,
+          gko::experimental::distributed::localized_partition<label>,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
@@ -113,7 +114,8 @@ class PersistentPartition
     const ExecutorHandler &exec_;
 
 public:
-    using part_type = gko::experimental::distributed::localized_partition<>;
+    using part_type =
+        gko::experimental::distributed::localized_partition<label>;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage

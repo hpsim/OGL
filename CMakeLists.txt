@@ -21,7 +21,8 @@ option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
 option(OGL_USE_FOAM_FOUNDATION_VERSION
        "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
-option(OGL_CUDA_ARCHITECTURES "which cuda architecture to build for" "native")
+option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
+option(OGL_DP_LABELS "Compile for 64bit label size" FALSE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
@@ -124,8 +125,13 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 add_library(OGL "")
 
-target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
-                                      NoRepository WM_DP)
+if(OGL_DP_LABELS)
+  target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=64 WM_ARCH_OPTION=64
+                                        NoRepository WM_DP)
+else()
+  target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
+                                        NoRepository WM_DP)
+endif()
 
 if(APPLE)
   message("Compiling on MacOS")
