@@ -243,6 +243,7 @@ template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
     using vec = gko::matrix::Dense<scalar>;
+    using idx_array = gko::array<label>;
 
     const ExecutorHandler exec_;
 
@@ -281,9 +282,6 @@ private:
 
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
-
-    // provides mapping between local and global indexing
-    const gkoGlobalIndex global_row_index_;
 
     mutable PersistentSparsityPattern local_sparsity_;
 

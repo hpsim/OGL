@@ -70,8 +70,8 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
-# C++ 14 standard or later is required to interface with Ginkgo
-# OGL itself uses some c++ 17 features
+# C++ 14 standard or later is required to interface with Ginkgo OGL itself uses
+# some c++ 17 features
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -157,7 +157,6 @@ target_sources(
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
-          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           HostMatrix/HostMatrix.C
@@ -179,7 +178,6 @@ target_sources(
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
-         DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
@@ -196,14 +194,11 @@ target_include_directories(
          $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(OGL
-    PRIVATE
-         $ENV{FOAM_LIBBIN}/libOpenFOAM.so
-         $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-         $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-    PUBLIC
-        Ginkgo::ginkgo
-        stdc++fs)
+target_link_libraries(
+  OGL
+  PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
+          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
+  PUBLIC Ginkgo::ginkgo stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
