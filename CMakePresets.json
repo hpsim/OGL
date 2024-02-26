@@ -17,6 +17,19 @@
       }
     },
     {
+      "name": "ninja-cpuonly-release",
+      "inherits": "default",
+      "displayName": "No GPU, Ninja",
+      "description": "Release build without GPU support using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "OGL_ALLOW_REFERENCE_ONLY": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
       "name": "ninja-cuda-release",
       "inherits": "default",
       "displayName": "Ninja Multi-Config",
