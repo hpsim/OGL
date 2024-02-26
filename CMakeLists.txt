@@ -31,6 +31,7 @@ option(OGL_ALLOW_REFERENCE_ONLY
        "Enable builds of Ginkgo with reference backend only" FALSE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
+       FALSE)
 
 if(NOT OGL_ALLOW_REFERENCE_ONLY)
   if((NOT GINKGO_BUILD_CUDA)
