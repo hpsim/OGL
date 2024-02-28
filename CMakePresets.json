@@ -1,8 +1,8 @@
 {
-  "version": 3,
+  "version": 2,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 22,
+    "minor": 20,
     "patch": 0
   },
   "configurePresets": [
@@ -79,8 +79,24 @@
       "configurePreset": "default"
     },
     {
+      "name": "ninja-cpuonly-release",
+      "configurePreset": "ninja-cpuonly-release",
+      "configuration": "Release"
+    },
+    {
       "name": "ninja-cuda-release",
-      "configurePreset": "ninja-cuda-release"
+      "configurePreset": "ninja-cuda-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-hip-release",
+      "configurePreset": "ninja-hip-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-sycl-release",
+      "configurePreset": "ninja-sycl-release",
+      "configuration": "Release"
     }
   ]
   
