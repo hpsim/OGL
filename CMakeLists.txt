@@ -221,7 +221,10 @@ if(OGL_DATA_VALIDATION)
 endif()
 
 if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO)
+  message("Compile against ESI version of OpenFOAM")
   target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
+else()
+  message("Compile against FoamFoundation version of OpenFOAM")
 endif()
 
 if(${OGL_BUILD_UNITTEST})
