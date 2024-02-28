@@ -220,7 +220,7 @@ if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
 endif()
 
-if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO or)
+if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO)
   target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
 endif()
 
