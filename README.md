@@ -22,10 +22,10 @@ OGL has the following requirements
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
-![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)
-![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
-![Documentation](https://codedocs.xyz/hpsim/OGL/)
 
+[![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml)
+![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
+[![Documentation](https://img.shields.io/badge/Documentation%2C10-blue)](https://codedocs.xyz/hpsim/OGL/)
 For cuda builds cuda version 12 is recommended. For older cuda versions automatic device detection might fail, in this case please set the cuda architecture manually via `-DOGL_CUDA_ARCHITECTURES`.
 
 ## Compilation
