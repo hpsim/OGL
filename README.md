@@ -54,7 +54,7 @@ The following example shows how to execute a build and install on a cuda system.
     cmake --build --preset ninja-cpuonly-release  --target install
 
 
-After a sucesfull build install make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
+After a successful build install make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
 
