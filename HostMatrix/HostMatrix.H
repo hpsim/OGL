@@ -86,16 +86,17 @@ struct PersistentSparsityPattern {
 };
 
 struct CommunicationPattern {
+    using comm_size_type = int;
     // an array storing to which rank to communicate
-    gko::array<label> target_ids;
+    gko::array<comm_size_type> target_ids;
 
     // an array storing how many elements to communicate
     // to the corresponding target_id
-    gko::array<label> target_sizes;
+    gko::array<comm_size_type> target_sizes;
 
     // send_idx stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::array<label>, label>> send_idxs;
+    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
 };
 
 
@@ -243,6 +244,7 @@ template <class MatrixType>
 class HostMatrixWrapper : public MatrixType::solver {
 private:
     using vec = gko::matrix::Dense<scalar>;
+    using idx_array = gko::array<label>;
 
     const ExecutorHandler exec_;
 
@@ -281,9 +283,6 @@ private:
 
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
-
-    // provides mapping between local and global indexing
-    const gkoGlobalIndex global_row_index_;
 
     mutable PersistentSparsityPattern local_sparsity_;
 

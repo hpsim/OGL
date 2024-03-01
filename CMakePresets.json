@@ -1,0 +1,103 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ninja-cpuonly-release",
+      "inherits": "default",
+      "displayName": "No GPU, Ninja",
+      "description": "Release build without GPU support using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseCPUOnly",
+      "cacheVariables": {
+        "OGL_ALLOW_REFERENCE_ONLY": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
+      "name": "ninja-cuda-release",
+      "inherits": "default",
+      "displayName": "CUDA, Ninja",
+      "description": "Release build for cuda using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseCuda",
+      "cacheVariables": {
+        "GINKGO_BUILD_CUDA": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
+      "name": "ninja-hip-release",
+      "inherits": "default",
+      "displayName": "HIP, Ninja",
+      "description": "Release build for hip using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseHip",
+      "cacheVariables": {
+        "GINKGO_BUILD_HIP": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
+      "name": "ninja-sycl-release",
+      "inherits": "default",
+      "displayName": "SYCL, Ninja",
+      "description": "Release build for sycl using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ReleaseSycl",
+      "cacheVariables": {
+        "GINKGO_BUILD_SYCL": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "ninja-cpuonly-release",
+      "configurePreset": "ninja-cpuonly-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-cuda-release",
+      "configurePreset": "ninja-cuda-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-hip-release",
+      "configurePreset": "ninja-hip-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-sycl-release",
+      "configurePreset": "ninja-sycl-release",
+      "configuration": "Release"
+    }
+  ]
+  
+}

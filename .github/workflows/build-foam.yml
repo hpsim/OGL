@@ -48,13 +48,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
-#         {
-#           version: "5.0",
-#           fork: "extend",
-#           path: "foam-extend-5.0",
-#           repo: "git://git.code.sf.net/p/foam-extend/foam-extend-5.0"
-#           }
-
     steps:
     - uses: actions/checkout@v4
 

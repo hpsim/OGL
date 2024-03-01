@@ -58,7 +58,6 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      global_row_index_{nrows_},
       local_sparsity_{
           fieldName + "_local",           db,       exec_,
           local_matrix_w_interfaces_nnz_, verbose_,
@@ -135,7 +134,6 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      global_row_index_{nrows_},
       local_sparsity_{
           fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
       },
@@ -183,7 +181,7 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
     label ctr{0};
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -208,7 +206,7 @@ std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     std::vector<scalar> ret{};
     ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
 
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -233,7 +231,7 @@ template <class Sel, class Func>
 void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 {
     label element_ctr = 0;
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -256,7 +254,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
                             Func func)
 {
     label element_ctr = 0;
-    for (int i = 0; i < interfaces.size(); i++) {
+    for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -300,22 +298,23 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             }
         });
 
+    using comm_size_type = CommunicationPattern::comm_size_type;
 
     // create index_sets
-    std::vector<std::pair<gko::array<label>, label>> send_idxs;
+    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
-        send_idxs.push_back(std::pair<gko::array<label>, label>(
+        send_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
             gko::array<label>(exec, interface_cells.begin(),
                               interface_cells.end()),
             proc));
     }
 
     // convert to gko::array
-    gko::array<label> target_ids{exec_.get_ref_exec(),
-                                 static_cast<size_t>(n_procs)};
-    gko::array<label> target_sizes{exec_.get_ref_exec(),
-                                   static_cast<size_t>(n_procs)};
+    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(),
+                                          static_cast<comm_size_type>(n_procs)};
+    gko::array<comm_size_type> target_sizes{
+        exec_.get_ref_exec(), static_cast<comm_size_type>(n_procs)};
 
     label iter = 0;
     for (const auto &[proc, interface_cells] : interface_cell_map) {
@@ -597,7 +596,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
         // post insert if local interfaces were consumed but stuff remains
         // in rows_copy and cols_copy
-        for (int i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
+        for (label i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
             rows[i] = rows_copy[current_idx_ctr];
             cols[i] = cols_copy[current_idx_ctr];
             permute[i] = permute_copy[current_idx_ctr];

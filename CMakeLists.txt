@@ -21,6 +21,8 @@ option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
 option(OGL_USE_FOAM_FOUNDATION_VERSION
        "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
+option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
+option(OGL_DP_LABELS "Compile for 64bit label size" FALSE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
@@ -70,8 +72,8 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
 endif()
 
-# C++ 14 standard or later is required to interface with Ginkgo
-# OGL itself uses some c++ 17 features
+# C++ 14 standard or later is required to interface with Ginkgo OGL itself uses
+# some c++ 17 features
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -123,8 +125,13 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 add_library(OGL "")
 
-target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
-                                      NoRepository WM_DP)
+if(OGL_DP_LABELS)
+  target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=64 WM_ARCH_OPTION=64
+                                        NoRepository WM_DP)
+else()
+  target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
+                                        NoRepository WM_DP)
+endif()
 
 if(APPLE)
   message("Compiling on MacOS")
@@ -157,7 +164,6 @@ target_sources(
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
           DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
           Preconditioner/Preconditioner.C
-          DevicePersistent/IOGlobalIndex/gkoGlobalIndex.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           HostMatrix/HostMatrix.C
@@ -179,7 +185,6 @@ target_sources(
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
          Preconditioner/Preconditioner.H
-         DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
@@ -196,14 +201,11 @@ target_include_directories(
          $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(OGL
-    PRIVATE
-         $ENV{FOAM_LIBBIN}/libOpenFOAM.so
-         $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-         $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-    PUBLIC
-        Ginkgo::ginkgo
-        stdc++fs)
+target_link_libraries(
+  OGL
+  PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
+          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
+  PUBLIC Ginkgo::ginkgo stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
@@ -218,8 +220,11 @@ if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
 endif()
 
-if(EXISTS $ENV{WM_PROJECT_DIR}/CONTRIBUTORS.md)
+if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO)
+  message("Compile against ESI version of OpenFOAM")
   target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
+else()
+  message("Compile against FoamFoundation version of OpenFOAM")
 endif()
 
 if(${OGL_BUILD_UNITTEST})

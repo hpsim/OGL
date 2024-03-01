@@ -1,10 +1,9 @@
 **[Requirements](#requirements)** |
 **[Compilation](#Compilation)** |
 **[Usage](#Usage)** |
-**[Known Limitations](#Known_Limitations)** |
+**[Known Limitations](#Known_Limitations_and_Troubleshooting)** |
 **[Citing](#Citing)** |
 **[Example](#Example)** |
-**[Performance](#Performance)** 
 
 ---
 
@@ -17,14 +16,17 @@ OGL has the following requirements
 
 *   _cmake 3.13+_
 *   _OpenFOAM 6+_ or _v2106_
-*   _Ginkgo 1.5.0+_ (recommended to install via OGL)
+*   _Ginkgo 1.5.0+_ (It is recommended to install via OGL)
 *   C++17 compliant compiler (gcc or clang)
 
 See also [ginkgo's](https://github.com/ginkgo-project/ginkgo) documentation for additional requirements.
 
-![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)
+
+[![build](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml/badge.svg)](https://github.com/hpsim/OGL/actions/workflows/build-foam.yml)
 ![OF versions](https://img.shields.io/badge/OF--versions-v2212%2C10-green)
-![Documentation](https://codedocs.xyz/hpsim/OGL/)
+[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://codedocs.xyz/hpsim/OGL/)
+
+For cuda builds cuda version 12 is recommended. For older cuda versions automatic device detection might fail, in this case please set the cuda architecture manually via `-DOGL_CUDA_ARCHITECTURES`.
 
 ## Compilation
 
@@ -40,17 +42,22 @@ Then, compile and install by
 
     make -j && make install
 
-### Ninja builds
+### CMakePresets and Ninja builds
 
-If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times 
+If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times. We also provide a list of Cmake presets which can be used a recent version of Cmake (>3.20). To display available presets use: 
 
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DGINKGO_BUILD_HIP=ON  ../..
-    cmake --build . --config Release
-    cmake --install .
+    cmake --list-preset
+    
+The following example shows how to execute a build and install on a cuda system.
 
-And make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
+    cmake --preset ninja-cuda-release
+    cmake --build --preset ninja-cpuonly-release  --target install
+
+
+After a successful build install make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
 
     libs ("libOGL.so");
+
 
 ## Usage
 
@@ -58,7 +65,6 @@ OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to us
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-ranksPerGPU  | 1 | gather from n ranks to GPU
 updateRHS | true | whether to copy the system matrix to device on every solver call
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
@@ -76,17 +82,8 @@ Currently, the following solver are supported
 * BiCGStab
 * GMRES
 * IR (experimental)
-* Multigrid (experimental)
 
 additionally, the following preconditioners are available
-
-### Supported Matrix Formats (Experimental)
-Currently, the following matrix formats can be set by **matrixFormat**
-
-* Coo 
-* Csr
-* Ell (not supported for ranksPerGPU != 1)
-* Hybrid (not supported for ranksPerGPU != 1)
 
 ### Supported Preconditioner
 * BJ, block Jacobi
@@ -107,10 +104,21 @@ MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
 ZeroGuess | True | Multigrid
 
+### Supported Matrix Formats (Experimental)
+Currently, the following matrix formats can be set by **matrixFormat**
 
-## Known Limitations
+* Coo 
+* Csr
+* Ell (experimental)
+* Hybrid (experimental)
 
-Currently, only basic cyclic boundary conditions are supported. Block-coupled matrices are not supported.
+
+## Known Limitations and Troubleshooting
+
+- Currently, only basic cyclic boundary conditions are supported, no AMI boundary conditions are supported. Block-coupled matrices are not supported.
+
+- If you are compiling against a double precision label version of OpenFOAM 
+make sure to set `-DOGL_DP_LABELS=ON` otherwise errors of the following type can occur  `undefined symbol: _ZN4Foam10dictionary3addERKNS_7keyTypeEib`
 
 ## Citing
 
@@ -118,16 +126,19 @@ When using OGL please cite the main Ginkgo paper describing Ginkgo's purpose, de
 available through the following reference:
 
 ``` bibtex
-@misc{anzt2020ginkgo,
-    title={Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing},
-    author={Hartwig Anzt and Terry Cojean and Goran Flegar and Fritz Göbel and Thomas Grützmacher and Pratik Nayak and Tobias Ribizel and Yuhsiang Mike Tsai and Enrique S. Quintana-Ortí},
-    year={2020},
-    eprint={2006.16852},
-    archivePrefix={arXiv},
-    primaryClass={cs.MS}
+@article{Anzt_Ginkgo_A_Modern_2022,
+author = {Anzt, Hartwig and Cojean, Terry and Flegar, Goran and Göbel, Fritz and Grützmacher, Thomas and Nayak, Pratik and Ribizel, Tobias and Tsai, Yuhsiang and Quintana-Ortí, Enrique S.},
+doi = {10.1145/3480935},
+journal = {ACM Transactions on Mathematical Software},
+month = mar,
+number = {1},
+pages = {1--33},
+title = {{Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing}},
+volume = {48},
+year = {2022}
 }
 ```
 
 ## Example
-Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can  be seen. Here both the momentum and Poisson equation are offloaded to the gpu.
+Below an animation of a coarse 2D simulation of a karman vortex street performed on a MI100 can be seen. Here both the momentum and Poisson equation are offloaded to the GPU.
 [![karman](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)](https://github.com/hpsim/OGL_DATA/blob/main/assets/U_mag_rainbow.gif)

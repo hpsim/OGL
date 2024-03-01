@@ -200,7 +200,7 @@ void gkoGlobalIndex::init(const label localSize, const int tag,
 
     label offset = 0;
     offsets_[0] = 0;
-    for (int proci = 0; proci < nProcs; proci++) {
+    for (label proci = 0; proci < nProcs; proci++) {
         const label oldOffset = offset;
         offset += localSizes[proci];
 

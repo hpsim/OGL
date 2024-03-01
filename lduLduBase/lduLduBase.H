@@ -62,7 +62,7 @@ private:
 
     const bool force_host_buffer_;
 
-    const label ranks_per_gpu_;
+    // const label ranks_per_gpu_;
 
     const word matrix_format_;
 
@@ -74,8 +74,8 @@ public:
           debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
           force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
-          ranks_per_gpu_(
-              solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
+          // ranks_per_gpu_(
+          //     solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
               solverControls.lookupOrDefault<word>("matrixFormat", "Coo"))
     {
@@ -112,8 +112,8 @@ public:
             std::to_string(gko::experimental::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
-            std::string("\n\tCPU ranks per GPU: ") +
-            std::to_string(ranks_per_gpu_) +
+            // std::string("\n\tCPU ranks per GPU: ") +
+            // std::to_string(ranks_per_gpu_) +
             std::string("\n\tMatrix format: ") + matrix_format_ +
             std::string("\n\tEnd OGL_INFO");
         MLOG_0(verbose_, msg)
@@ -147,7 +147,6 @@ private:
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
-    using GlobalIndexType = gko::int64;
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;
