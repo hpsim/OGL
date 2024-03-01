@@ -1,7 +1,7 @@
 **[Requirements](#requirements)** |
 **[Compilation](#Compilation)** |
 **[Usage](#Usage)** |
-**[Known Limitations](#Known_Limitations)** |
+**[Known Limitations](#Known_Limitations_and_Troubleshooting)** |
 **[Citing](#Citing)** |
 **[Example](#Example)** |
 **[Performance](#Performance)** 
