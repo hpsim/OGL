@@ -4,7 +4,6 @@
 **[Known Limitations](#Known_Limitations_and_Troubleshooting)** |
 **[Citing](#Citing)** |
 **[Example](#Example)** |
-**[Performance](#Performance)** 
 
 ---
 
@@ -110,8 +109,8 @@ Currently, the following matrix formats can be set by **matrixFormat**
 
 * Coo 
 * Csr
-* Ell (not supported for ranksPerGPU != 1)
-* Hybrid (not supported for ranksPerGPU != 1)
+* Ell (experimental)
+* Hybrid (experimental)
 
 
 ## Known Limitations and Troubleshooting
