@@ -65,7 +65,6 @@ OGL solver support the same syntax as the default *OpenFOAM* solver. Thus, to us
 
 Argument | Default | Description
 ------------ | ------------- | -------------
-ranksPerGPU  | 1 | gather from n ranks to GPU
 updateRHS | true | whether to copy the system matrix to device on every solver call
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
 export | false | write the complete system to disk
