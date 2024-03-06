@@ -177,7 +177,7 @@ jobs:
         key: results-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/archive
 
-    - name: Execute test cases
+    - name: Copy cases
       working-directory: /github/home
       timeout-minutes: 12
       run: |
@@ -189,6 +189,19 @@ jobs:
     needs: [run]
     steps:
     - uses: actions/checkout@v4
+
+    - name: Update OBR
+      working-directory: /github/home/
+      run: |
+         ls
+         python3 -m pip install --upgrade pip
+         pip install setuptools --upgrade 
+         pip uninstall obr -y 
+         pip uninstall owls -y 
+         cd /root/OBR 
+         git pull origin dev
+         pip install -e .
+
     - name: Archive workspace
       uses: actions/cache@v4
       with:
