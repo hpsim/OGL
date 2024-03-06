@@ -185,6 +185,10 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: [run]
+    strategy:
+      fail-fast: false
+      matrix: 
+        Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
     steps:
     - uses: actions/checkout@v4
 
