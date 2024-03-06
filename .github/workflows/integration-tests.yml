@@ -218,12 +218,12 @@ jobs:
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
     - name: Run obr status
-      working-directory: /github/home/archive
+      working-directory: /github/home/${{matrix.Case}}
       run: |
         obr status --filter case==${{matrix.Case}}
 
     - name: Validate unpreconditioned state
-      working-directory: /github/home/archive
+      working-directory: /github/home/${{matrix.Case}}
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
@@ -234,7 +234,7 @@ jobs:
           --validate_against=/__w/OGL/OGL/test/validation.json
 
     - name: Validate preconditioned state
-      working-directory: /github/home/archive
+      working-directory: /github/home/${{matrix.Case}}
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
@@ -244,7 +244,7 @@ jobs:
           --filter case==${{matrix.Case}}
 
     - name: Validate matrix formats
-      working-directory: /github/home/archive
+      working-directory: /github/home/${{matrix.Case}}
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
