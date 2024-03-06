@@ -84,8 +84,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init --config /__w/OGL/OGL/test/integration.yaml
-        obr run -o generate
+        obr init -g --config /__w/OGL/OGL/test/integration.yaml 
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -174,12 +173,11 @@ jobs:
     - name: Archive workspace
       uses: actions/cache@v4
       with:
-        key: results-${{inputs.version}}-${{ github.sha }}
+        key: results-${{matrix.Case}}-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/archive
 
     - name: Copy cases
       working-directory: /github/home
-      timeout-minutes: 12
       run: |
         cp -r integration archive
 
@@ -205,7 +203,7 @@ jobs:
     - name: Archive workspace
       uses: actions/cache@v4
       with:
-        key: results-${{inputs.version}}-${{ github.sha }}
+        key: results-${{matrix.Case}}-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/archive
 
     - name: Validation of exported mtx files
@@ -213,35 +211,41 @@ jobs:
       run: |
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
+    - name: Run obr status
+      working-directory: /github/home/archive
+      run: |
+        obr status --filter case==${{matrix.Case}}
+
     - name: Validate unpreconditioned state
       working-directory: /github/home/archive
       run: |
-        obr status
         obr query \
-        -q global -q continuityErrors -q CourantNumber \
-        --filter preconditioner==none \
-        --filter matrixFormat==Coo \
-        --filter global==completed \
-        --validate_against=/__w/OGL/OGL/test/validation.json
+          -q global -q continuityErrors -q CourantNumber \
+          --filter case==${{matrix.Case}} \
+          --filter preconditioner==none \
+          --filter matrixFormat==Coo \
+          --filter global==completed \
+          --validate_against=/__w/OGL/OGL/test/validation.json
 
     - name: Validate preconditioned state
       working-directory: /github/home/archive
       run: |
-        obr status
         obr query \
-        -q global -q continuityErrors -q CourantNumber \
-        --validate_against=/__w/OGL/OGL/test/validation.json \
-        --filter preconditioner!=none \
-        --filter global==completed
+          -q global -q continuityErrors -q CourantNumber \
+          --validate_against=/__w/OGL/OGL/test/validation.json \
+          --filter preconditioner!=none \
+          --filter global==completed \
+          --filter case==${{matrix.Case}}
+
     - name: Validate matrix formats
       working-directory: /github/home/archive
       run: |
-        obr status
         obr query \
-        -q global -q continuityErrors -q CourantNumber \
-        --validate_against=/__w/OGL/OGL/test/validation.json \
-        --filter matrixFormat!=Coo \
-        --filter global==completed
+          -q global -q continuityErrors -q CourantNumber \
+          --validate_against=/__w/OGL/OGL/test/validation.json \
+          --filter matrixFormat!=Coo \
+          --filter global==completed \
+          --filter case==${{matrix.Case}}
 
     - name: Rename log files
       if: failure()
@@ -253,5 +257,5 @@ jobs:
       uses: actions/upload-artifact@v4
       if: failure()
       with:
-        name: ogl_integration_${{ inputs.path }}
+        name: ogl_integration_${{ inputs.path }}_${{matrix.Case}}
         path: /github/home
