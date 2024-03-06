@@ -137,7 +137,7 @@ jobs:
          pip uninstall obr -y 
          pip uninstall owls -y 
          cd /root/OBR 
-         git pull origin feat/multi_case 
+         git pull origin dev
          pip install -e .
 
     - name: Cache build
