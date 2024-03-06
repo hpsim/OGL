@@ -174,12 +174,12 @@ jobs:
       uses: actions/cache@v4
       with:
         key: results-${{matrix.Case}}-${{inputs.version}}-${{ github.sha }}
-        path: /home/runner/work/_temp/_github_home/archive
+        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Copy cases
       working-directory: /github/home
       run: |
-        cp -r integration archive
+        cp -r integration ${{matrix.Case}}
 
   validate:
     runs-on: ubuntu-latest
@@ -204,10 +204,10 @@ jobs:
       uses: actions/cache@v4
       with:
         key: results-${{matrix.Case}}-${{inputs.version}}-${{ github.sha }}
-        path: /home/runner/work/_temp/_github_home/archive
+        path: /home/runner/work/_temp/_github_home/${{matrix.Case}}
 
     - name: Validation of exported mtx files
-      working-directory: /github/home/archive
+      working-directory: /github/home/${{matrix.Case}}
       run: |
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
