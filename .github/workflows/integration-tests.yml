@@ -198,8 +198,6 @@ jobs:
     - name: Validation of exported mtx files
       working-directory: /github/home/archive
       run: |
-        ls -la workspace/*/case/
-        ls -la workspace/*/case/processor0/*
         python3 /__w/OGL/OGL/test/data_validation.py workspace
 
     - name: Validate unpreconditioned state
