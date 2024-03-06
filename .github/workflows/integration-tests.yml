@@ -184,11 +184,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     container: greole/ofbase
-    needs: [run]
+    needs: [setup_integration_matrix, run]
+    name: validate-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
       matrix: 
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
+
     steps:
     - uses: actions/checkout@v4
 
