@@ -1,4 +1,4 @@
-# 0.5.2 (unreleased)
+# 0.5.2 (2024/03/08)
 - Fix issue when building against DP labels [PR #111](https://github.com/hpsim/OGL/pull/111)
 - Fix issue with cyclic boundary conditions [PR #108](https://github.com/hpsim/OGL/pull/108)
 # 0.5.1 (2024/01/18)
