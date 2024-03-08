@@ -63,18 +63,6 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
 
 add_subdirectory(third_party)
 
-# If ginkgo is not found at this point, look for the third_party installation
-if(NOT ${OGL_USE_EXTERNAL_GINKGO})
-  find_package(
-    Ginkgo
-    CONFIG
-    1.7.0
-    REQUIRED
-    PATHS
-    $ENV{FOAM_USER_LIBBIN}/cmake/Ginkgo
-    ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
-endif()
-
 # C++ 14 standard or later is required to interface with Ginkgo OGL itself uses
 # some c++ 17 features
 
