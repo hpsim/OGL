@@ -10,8 +10,11 @@ if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
 endif()
 
-# Configuration options
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Configuration options
 include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
@@ -23,16 +26,22 @@ option(OGL_USE_FOAM_FOUNDATION_VERSION
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(OGL_DP_LABELS "Compile for 64bit label size" FALSE)
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
+option(OGL_ALLOW_REFERENCE_ONLY
+       "Enable builds of Ginkgo with reference backend only" FALSE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
+       FALSE)
+
+option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
-option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-option(OGL_ALLOW_REFERENCE_ONLY
-       "Enable builds of Ginkgo with reference backend only" FALSE)
-option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
-option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
-       FALSE)
+
+set(GINKGO_BUILD_MPI ON CACHE INTERNAL "")
+set(GINKGO_BUILD_TESTS OFF CACHE INTERNAL "")
+set(GINKGO_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+set(GINKGO_BUILD_BENCHMARKS OFF CACHE INTERNAL "")
 
 if(NOT OGL_ALLOW_REFERENCE_ONLY)
   if((NOT GINKGO_BUILD_CUDA)
@@ -46,7 +55,7 @@ if(NOT OGL_ALLOW_REFERENCE_ONLY)
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "sparse-communicator-ogl"
+    "sparse-communicator-cmake-modernization-ogl"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
@@ -60,12 +69,6 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
 
 add_subdirectory(third_party)
 
-# C++ 14 standard or later is required to interface with Ginkgo OGL itself uses
-# some c++ 17 features
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
@@ -192,8 +195,7 @@ target_include_directories(
 target_link_libraries(
   OGL
   PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-  PUBLIC Ginkgo::ginkgo stdc++fs)
+          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
@@ -225,4 +227,12 @@ add_custom_target(
   COMMAND find . -name CMakeLists.txt -exec cmake-format -i {} +
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})
+install(TARGETS OGL
+    ginkgo
+    ginkgo_device
+    ginkgo_hip
+    ginkgo_cuda
+    ginkgo_omp
+    ginkgo_dpcpp
+    ginkgo_reference
+    DESTINATION $ENV{FOAM_USER_LIBBIN})
