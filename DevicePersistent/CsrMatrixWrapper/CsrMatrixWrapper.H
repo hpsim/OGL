@@ -178,15 +178,16 @@ struct MatrixInitFunctor {
         auto exec = exec_.get_ref_exec();
 
         auto num_rows = partition_.get_local_size();
-        gko::device_matrix_data<scalar, label> A_data(
+        std::vector<device_matrix_data> A_data_v;
+        A_data_v.emplace_back(
             exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
             *coeffs.get());
 
-        gko::device_matrix_data<scalar, label> non_local_A_data(
+        std::vector<device_matrix_data> non_local_A_data_v;
+        non_local_A_data.emplace_back(
             exec, gko::dim<2>(num_rows, non_local_cols->get_size()),
             *non_local_rows.get(), *non_local_cols.get(),
             *non_local_coeffs.get());
-
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = generate_dist_mtx_with_inner_type(
@@ -201,7 +202,8 @@ struct MatrixInitFunctor {
         auto send_sizes = sparse_comm->get_send_sizes();
         auto send_offs = sparse_comm->get_send_offsets();
 
-        dist_A->read_distributed(A_data, non_local_A_data, sparse_comm);
+        // TODO this needs a std::vector version
+        dist_A->read_distributed(A_data_v, non_local_A_data_v, sparse_comm);
 
         auto device_mat = generate_dist_mtx_with_inner_type(
             exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
