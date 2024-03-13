@@ -30,7 +30,7 @@ SourceFiles
 
 #include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "DevicePersistent/Vector/Vector.H"
-#include "HostMatrix/HostMatrix.H"
+#include "MatrixWrapper/HostMatrix/HostMatrix.H"
 #include "Preconditioner/Preconditioner.H"
 #include "common/common.H"
 
