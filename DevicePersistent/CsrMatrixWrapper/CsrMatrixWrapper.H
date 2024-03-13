@@ -139,25 +139,29 @@ struct MatrixInitFunctor {
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
         std::shared_ptr<gko::Executor> exec,
-        std::shared_ptr<gko::experimental::mpi::communicator> comm) const
+        std::shared_ptr<gko::experimental::mpi::communicator> comm,
+        std::vector<gko::span> interfaces) const
     {
         if (matrix_format_ == "Csr") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type<
-                    CombinationMatrix<scalar, label, gko::matrix::Csr>>());
+                    CombinationMatrix<scalar, label, gko::matrix::Csr>>(
+                    exec, interfaces));
         }
         if (matrix_format_ == "Ell") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type <
-                    CombinationMatrix<scalar, label, gko::matrix::Ell>());
+                    CombinationMatrix<scalar, label, gko::matrix::Ell>(
+                        exec, interfaces));
         }
         if (matrix_format_ == "Coo") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type <
-                    CombinationMatrix<scalar, label, gko::matrix::Coo>());
+                    CombinationMatrix<scalar, label, gko::matrix::Coo>(
+                        exec, interfaces));
         }
         // if (matrix_format_ == "Hybrid") {
         //     return dist_mtx::create(
