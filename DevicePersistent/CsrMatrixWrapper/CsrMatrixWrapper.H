@@ -140,28 +140,40 @@ struct MatrixInitFunctor {
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
         std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::experimental::mpi::communicator> comm,
-        std::vector<gko::span> interfaces) const
+        std::vector<gko::span> local_interfaces,
+        std::vector<gko::span> non_local_interfaces, ) const
     {
         if (matrix_format_ == "Csr") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type<
                     CombinationMatrix<scalar, label, gko::matrix::Csr>>(
-                    exec, interfaces));
+                    exec, local_interfaces),
+                gko::with_matrix_type<
+                    CombinationMatrix<scalar, label, gko::matrix::Csr>>(
+                    exec, non_local_interfaces));
         }
         if (matrix_format_ == "Ell") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type <
-                    CombinationMatrix<scalar, label, gko::matrix::Ell>(
-                        exec, interfaces));
+                    gko::with_matrix_type<
+                        CombinationMatrix<scalar, label, gko::matrix::Ell>>(
+                        exec, local_interfaces),
+                gko::with_matrix_type<
+                    CombinationMatrix<scalar, label, gko::matrix::Ell>>(
+                    exec, non_local_interfaces));
         }
         if (matrix_format_ == "Coo") {
             return dist_mtx::create(
                 exec, *comm.get(),
                 gko::with_matrix_type <
-                    CombinationMatrix<scalar, label, gko::matrix::Coo>(
-                        exec, interfaces));
+                    gko::with_matrix_type<
+                        CombinationMatrix<scalar, label, gko::matrix::Coo>>(
+                        exec, local_interfaces),
+                gko::with_matrix_type<
+                    CombinationMatrix<scalar, label, gko::matrix::Coo>>(
+                    exec, non_local_interfaces));
         }
         // if (matrix_format_ == "Hybrid") {
         //     return dist_mtx::create(
@@ -193,14 +205,20 @@ struct MatrixInitFunctor {
         device_matrix_data A_data{exec, gko::dim<2>(num_rows, num_rows),
                                   *rows.get(), *cols.get(), *coeffs.get()};
 
+        auto num_non_local_elems = non_local_cols->get_size();
         device_matrix_data non_local_A_data{
-            exec, gko::dim<2>(num_rows, non_local_cols->get_size()),
+            exec, gko::dim<2>(num_rows, num_non_local_elems),
             *non_local_rows.get(), *non_local_cols.get(),
             *non_local_coeffs.get()};
 
+        std::vector<gko::span> local_interfaces{gko::span(0, num_rows)};
+        std::vector<gko::span> non_local_interfaces{
+            gko::span(0, num_non_local_elems)};
+
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = generate_dist_mtx_with_inner_type(
-            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
+            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm(),
+            local_interfaces, non_local_interfaces);
 
         auto sparse_comm =
             gko::experimental::distributed::sparse_communicator::create(
@@ -215,7 +233,8 @@ struct MatrixInitFunctor {
         dist_A->read_distributed(local_A_data, non_local_A_data, sparse_comm);
 
         auto device_mat = generate_dist_mtx_with_inner_type(
-            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
+            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm(),
+            local_interfaces, non_local_interfaces);
         dist_A->move_to(device_mat.get());
         return device_mat;
     }
