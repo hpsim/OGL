@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "HostMatrix/HostMatrix.H"
+#include "MatrixWrapper/HostMatrix/HostMatrix.H"
+
 #include "gtest/gtest.h"
 
 TEST(HostMatrixConversion, symmetric_update)

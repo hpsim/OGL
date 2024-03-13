@@ -9,6 +9,8 @@
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
 
+#include "MatrixWrapper/GkoCombinationMatrix/GkoCombinatinoMatrix.H"
+
 #include "fvCFD.H"
 
 namespace Foam {
@@ -139,25 +141,28 @@ struct MatrixInitFunctor {
         std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
-        return dist_mtx::create(exec, *comm.get(),
-                                gko::with_matrix_type<gko::Combination>());
-
         if (matrix_format_ == "Csr") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Csr>());
+            return dist_mtx::create(
+                exec, *comm.get(),
+                gko::with_matrix_type<
+                    CombinationMatrix<scalar, label, gko::matrix::Csr>>());
         }
         if (matrix_format_ == "Ell") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Ell>());
+            return dist_mtx::create(
+                exec, *comm.get(),
+                gko::with_matrix_type <
+                    CombinationMatrix<scalar, label, gko::matrix::Ell>());
+        }
+        if (matrix_format_ == "Coo") {
+            return dist_mtx::create(
+                exec, *comm.get(),
+                gko::with_matrix_type <
+                    CombinationMatrix<scalar, label, gko::matrix::Coo>());
         }
         // if (matrix_format_ == "Hybrid") {
         //     return dist_mtx::create(
         //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
         // }
-        if (matrix_format_ == "Coo") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Coo>());
-        }
 
         FatalErrorInFunction << "Matrix format " << matrix_format_
                              << " not supported " << abort(FatalError);
@@ -181,16 +186,13 @@ struct MatrixInitFunctor {
         auto exec = exec_.get_ref_exec();
 
         auto num_rows = partition_.get_local_size();
-        std::vector<device_matrix_data> A_data_v;
-        A_data_v.emplace_back(
-            exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
-            *coeffs.get());
+        device_matrix_data A_data{exec, gko::dim<2>(num_rows, num_rows),
+                                  *rows.get(), *cols.get(), *coeffs.get()};
 
-        std::vector<device_matrix_data> non_local_A_data_v;
-        non_local_A_data.emplace_back(
+        device_matrix_data non_local_A_data{
             exec, gko::dim<2>(num_rows, non_local_cols->get_size()),
             *non_local_rows.get(), *non_local_cols.get(),
-            *non_local_coeffs.get());
+            *non_local_coeffs.get()};
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto dist_A = generate_dist_mtx_with_inner_type(
@@ -206,8 +208,7 @@ struct MatrixInitFunctor {
         auto send_offs = sparse_comm->get_send_offsets();
 
         // TODO this needs a std::vector version
-        dist_A->read_distributed<>(A_data_v, non_local_A_data_v, sparse_comm,
-                                 gko::matrix::Coo::create());
+        dist_A->read_distributed(local_A_data, non_local_A_data, sparse_comm);
 
         auto device_mat = generate_dist_mtx_with_inner_type(
             exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());

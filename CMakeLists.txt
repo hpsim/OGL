@@ -156,8 +156,8 @@ target_sources(
           Preconditioner/Preconditioner.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          HostMatrix/HostMatrix.C
-          HostMatrix/HostMatrixFreeFunctions.C
+          MatrixWrapper/HostMatrix/HostMatrix.C
+          MatrixWrapper/HostMatrix/HostMatrixFreeFunctions.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
@@ -166,7 +166,8 @@ target_sources(
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
-         HostMatrix/HostMatrix.H
+         MatrixWrapper/HostMatrix/HostMatrix.H
+         MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H
