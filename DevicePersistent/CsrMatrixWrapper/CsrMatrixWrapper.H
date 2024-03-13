@@ -139,6 +139,9 @@ struct MatrixInitFunctor {
         std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
+        return dist_mtx::create(exec, *comm.get(),
+                                gko::with_matrix_type<gko::Combination>());
+
         if (matrix_format_ == "Csr") {
             return dist_mtx::create(exec, *comm.get(),
                                     gko::with_matrix_type<gko::matrix::Csr>());
@@ -203,7 +206,8 @@ struct MatrixInitFunctor {
         auto send_offs = sparse_comm->get_send_offsets();
 
         // TODO this needs a std::vector version
-        dist_A->read_distributed(A_data_v, non_local_A_data_v, sparse_comm);
+        dist_A->read_distributed<>(A_data_v, non_local_A_data_v, sparse_comm,
+                                 gko::matrix::Coo::create());
 
         auto device_mat = generate_dist_mtx_with_inner_type(
             exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
