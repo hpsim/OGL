@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
     "minor": 20,
@@ -15,6 +15,31 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
+      }
+    },
+    {
+      "name": "ninja-cpuonly-debug",
+      "inherits": "debug",
+      "displayName": "No GPU, Ninja",
+      "description": "Release build without GPU support using Ninja Multi-Config generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/DebugCPUOnly",
+      "cacheVariables": {
+        "OGL_ALLOW_REFERENCE_ONLY": {
+          "type": "BOOL",
+          "value": "ON"
+        }
       }
     },
     {
@@ -99,6 +124,20 @@
       "configurePreset": "ninja-sycl-release",
       "configuration": "Release"
     }
-  ]
-  
+  ],
+    "workflowPresets": [
+    {
+      "name": "ninja-cpuonly-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ninja-cpuonly-release"
+        },
+        {
+          "type": "build",
+          "name": "ninja-cpuonly-release"
+        }
+      ]
+    }
+    ]
 }
