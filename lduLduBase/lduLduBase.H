@@ -272,6 +272,7 @@ public:
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
+        std::cout << "!!! call solver apply\n";
         TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                             solver->apply(dist_b_v, dist_x_v);)
 
