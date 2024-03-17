@@ -76,7 +76,7 @@ jobs:
         path: |
           ${{matrix.OF.foam_user_libbin}}
 
-    - name: Configure CMake
+    - name: Configure and build
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
@@ -85,12 +85,8 @@ jobs:
         mkdir -p ${{matrix.OF.foam_user_libbin}}
         # [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
         CC=${{matrix.OF.CC }} CXX=${{matrix.OF.CXX}} cmake --preset ninja-cpuonly-release -DOGL_BUILD_UNITTEST=ON 
-
-    - name: Build OGL
-      working-directory: ${{github.workspace}}/build
-      run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         cmake --build --preset ninja-cpuonly-release --target install
+
 
     - name: Check folders
       working-directory: ${{github.workspace}}
