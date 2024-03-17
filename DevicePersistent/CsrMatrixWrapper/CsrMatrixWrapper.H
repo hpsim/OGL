@@ -342,7 +342,8 @@ public:
                     dist_matrix->get_non_local_matrix())
                     ->get_combination()
                     ->get_operators();
-            export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces, db_);
+            export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces,
+                            db_);
             export_mtx<Coo>(field_name_ + "_non_local", non_local_interfaces,
                             db_);
         }
@@ -359,7 +360,8 @@ public:
                     dist_matrix->get_non_local_matrix().get())
                     ->get_combination()
                     ->get_operators();
-            export_mtx<Csr>(word(field_name_ + "_local"), local_interfaces, db_);
+            export_mtx<Csr>(word(field_name_ + "_local"), local_interfaces,
+                            db_);
             export_mtx<Csr>(field_name_ + "_non_local", non_local_interfaces,
                             db_);
         }

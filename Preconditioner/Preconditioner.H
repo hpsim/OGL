@@ -91,8 +91,7 @@ public:
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             const unsigned int max_block_size(
-                controls.lookupOrDefault("maxBlockSize", label(1))
-                    );
+                controls.lookupOrDefault("maxBlockSize", label(1)));
 
             word msg = "Generate preconditioner " + name + " MaxBlockSize " +
                        std::to_string(max_block_size);
@@ -312,8 +311,9 @@ public:
             if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
 
             // Create multigrid factory
-            const unsigned int max_levels(controls.lookupOrDefault("maxLevels", label(9)));
-            const unsigned int  min_coarse_rows(
+            const unsigned int max_levels(
+                controls.lookupOrDefault("maxLevels", label(9)));
+            const unsigned int min_coarse_rows(
                 controls.lookupOrDefault("minCoarseRows", label(10)));
             bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
 

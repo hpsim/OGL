@@ -38,16 +38,17 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
     export_x(fn, x);
 }
 
-template<typename Mtx>
-void export_mtx(const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>>&  As,
-                const objectRegistry &db
-                )
+template <typename Mtx>
+void export_mtx(const word fieldName,
+                std::vector<std::shared_ptr<const gko::LinOp>> &As,
+                const objectRegistry &db)
 {
     std::string folder{db.time().timePath()};
     std::filesystem::create_directories(folder);
 
     for (int i = 0; i < As.size(); i++) {
-        std::string fn{folder + "/" + fieldName + "_A_" + std::to_string(i) + ".mtx"};
+        std::string fn{folder + "/" + fieldName + "_A_" + std::to_string(i) +
+                       ".mtx"};
         std::cout << "exporting " << fn << std::endl;
         std::ofstream stream{fn};
         stream << std::setprecision(15);
@@ -56,19 +57,16 @@ void export_mtx(const word fieldName, std::vector<std::shared_ptr<const gko::Lin
     }
 }
 
-template 
-void export_mtx<gko::matrix::Coo<scalar, label>>(const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>>&  As,
-                const objectRegistry &db
-                );
+template void export_mtx<gko::matrix::Coo<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
 
-template 
-void export_mtx<gko::matrix::Csr<scalar, label>>(const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>>&  As,
-                const objectRegistry &db
-                );
-template 
-void export_mtx<gko::matrix::Ell<scalar, label>>(const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>>&  As,
-                const objectRegistry &db
-                );
+template void export_mtx<gko::matrix::Csr<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
+template void export_mtx<gko::matrix::Ell<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
 
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
