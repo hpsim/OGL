@@ -46,17 +46,26 @@
           "type": "BOOL",
           "value": "ON"
         }
+      }
     },
     {
       "name": "ninja-cpuonly-debug",
-      "inherits": ["debug","cpuonly", "ninja"],
+      "inherits": [
+        "debug",
+        "cpuonly",
+        "ninja"
+      ],
       "displayName": "No GPU, Ninja",
       "description": "Debug build without GPU support using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/DebugCPUOnly"
     },
     {
       "name": "ninja-cpuonly-release",
-      "inherits": ["release","cpuonly", "ninja"],
+      "inherits": [
+        "release",
+        "cpuonly",
+        "ninja"
+      ],
       "displayName": "No GPU, Ninja",
       "description": "Debug build without GPU support using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/ReleaseCPUOnly"
@@ -135,7 +144,7 @@
       "configuration": "Release"
     }
   ],
-    "workflowPresets": [
+  "workflowPresets": [
     {
       "name": "ninja-cpuonly-release",
       "steps": [
@@ -149,5 +158,5 @@
         }
       ]
     }
-    ]
+  ]
 }
