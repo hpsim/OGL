@@ -16,6 +16,40 @@
 namespace Foam {
 
 
+template <typename InnerMatrixType>
+void perform_update(
+    const std::shared_ptr<gko::Executor> &exec,
+    std::shared_ptr<CombinationMatrix<scalar, label, InnerMatrixType>>
+        combination_matrix,
+    const PersistentSparsityPattern &sparsity,
+    std::shared_ptr<gko::array<scalar>> coeffs)
+{
+    int interface_ctr{0};
+    for (auto &interface :
+         combination_matrix->get_combination()->get_operators()) {
+        auto device_value_ptr =
+            gko::as<InnerMatrixType>(interface)->get_const_values();
+
+        // create a view into data on the device which needs an
+        // update
+        auto num_elems =
+            gko::as<InnerMatrixType>(interface)->get_num_stored_elements();
+        auto device_value_view = val_array::view(
+            exec, num_elems, const_cast<scalar *>(device_value_ptr));
+
+        // create a view into updated values and copy over to
+        // persistent data
+        auto span = sparsity.interface_spans_[interface_ctr];
+        auto update_view = val_array::view(exec, span.length(),
+                                           coeffs->get_data() + span.begin);
+
+        std::cout << "perform update " << span.length() << " " << span.begin
+                  << " " << num_elems << " " << interface->get_size() << "\n";
+        interface_ctr++;
+        device_value_view = update_view;
+    }
+};
+
 struct MatrixInitFunctor {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
@@ -28,15 +62,11 @@ struct MatrixInitFunctor {
 
     const PersistentPartition &partition_;
 
-    const PersistentArray<label> &col_idxs_;
-
-    const PersistentArray<label> &row_idxs_;
+    const PersistentSparsityPattern &local_sparsity_;
 
     const PersistentArray<scalar> &coeffs_;
 
-    const PersistentArray<label> &non_local_col_idxs_;
-
-    const PersistentArray<label> &non_local_row_idxs_;
+    const PersistentSparsityPattern &non_local_sparsity_;
 
     const PersistentArray<scalar> &non_local_coeffs_;
 
@@ -50,22 +80,18 @@ struct MatrixInitFunctor {
 
     MatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
                       const PersistentPartition &partition,
-                      const PersistentArray<label> &col_idxs,
-                      const PersistentArray<label> &row_idxs,
+                      const PersistentSparsityPattern &local_sparsity,
                       const PersistentArray<scalar> &coeffs,
-                      const PersistentArray<label> &non_local_col_idxs,
-                      const PersistentArray<label> &non_local_row_idxs,
+                      const PersistentSparsityPattern &non_local_sparsity,
                       const PersistentArray<scalar> &non_local_coeffs,
                       const word matrix_format, const bool regenerate,
                       const label verbose, const word field_name)
         : db_(db),
           exec_(exec),
           partition_(partition),
-          col_idxs_(col_idxs),
-          row_idxs_(row_idxs),
+          local_sparsity_(local_sparsity),
           coeffs_(coeffs),
-          non_local_col_idxs_(non_local_col_idxs),
-          non_local_row_idxs_(non_local_row_idxs),
+          non_local_sparsity_(non_local_sparsity),
           non_local_coeffs_(non_local_coeffs),
           matrix_format_(matrix_format),
           regenerate_(regenerate),
@@ -81,99 +107,114 @@ struct MatrixInitFunctor {
             persistent_device_matrix->copy_from(reinit.get());
             return;
         }
-        auto coeffs = coeffs_.get_array();
-        auto non_local_coeffs = non_local_coeffs_.get_array();
 
-        auto exec = exec_.get_ref_exec();
-        auto device_exec = exec_.get_device_exec();
-
-        scalar *value_ptr{};
-        scalar *non_local_value_ptr{};
-
-        std::shared_ptr<const gko::LinOp> local_matrix =
-            persistent_device_matrix->get_local_matrix();
-        std::shared_ptr<const gko::LinOp> non_local_matrix =
-            persistent_device_matrix->get_non_local_matrix();
-        if (matrix_format_ == "Csr") {
-            gko::matrix::Csr<scalar, label> *coo_ptr =
-                (gko::matrix::Csr<scalar, label> *)local_matrix.get();
-            value_ptr = coo_ptr->get_values();
-
-            gko::matrix::Csr<scalar, label> *non_local_coo_ptr =
-                (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
-            non_local_value_ptr = non_local_coo_ptr->get_values();
-        }
-        if (matrix_format_ == "Ell") {
-            gko::matrix::Ell<scalar, label> *coo_ptr =
-                (gko::matrix::Ell<scalar, label> *)local_matrix.get();
-            value_ptr = coo_ptr->get_values();
-
-            gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
-                (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
-            non_local_value_ptr = non_local_coo_ptr->get_values();
-        }
+        // The local and non-local matrix are a CombinationMatrix and we need to
+        // update the interfaces iteratively
+        std::shared_ptr<gko::LinOp> local_combination_matrix{
+            const_cast<gko::LinOp *>(
+                persistent_device_matrix->get_local_matrix().get())};
+        std::shared_ptr<gko::LinOp> non_local_combination_matrix{
+            const_cast<gko::LinOp *>(
+                persistent_device_matrix->get_non_local_matrix().get())};
         if (matrix_format_ == "Coo") {
-            gko::matrix::Coo<scalar, label> *coo_ptr =
-                (gko::matrix::Coo<scalar, label> *)local_matrix.get();
-            value_ptr = coo_ptr->get_values();
-
-            gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
-                (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
-            non_local_value_ptr = non_local_coo_ptr->get_values();
+            using Coo = gko::matrix::Coo<scalar, label>;
+            perform_update<Coo>(exec_.get_device_exec(),
+                                gko::as<CombinationMatrix<scalar, label, Coo>>(
+                                    local_combination_matrix),
+                                local_sparsity_, coeffs_.get_array());
+            perform_update<Coo>(exec_.get_device_exec(),
+                                gko::as<CombinationMatrix<scalar, label, Coo>>(
+                                    non_local_combination_matrix),
+                                non_local_sparsity_,
+                                non_local_coeffs_.get_array());
+            std::cout << " local_combination_matrix "
+                      << local_combination_matrix->get_size() << "\n";
+            std::cout << " non_local_combination_matrix "
+                      << non_local_combination_matrix->get_size() << "\n";
+            std::cout << " CsrMatrixWrapper distributed_matrix "
+                      << persistent_device_matrix.get()->get_size() << "\n";
+            std::cout << " CsrMatrixWrapper distributed_matrix get_local "
+                      << persistent_device_matrix.get()
+                             ->get_local_matrix()
+                             ->get_size()
+                      << "\n";
+            std::cout << " CsrMatrixWrapper distributed_matrix get non_local "
+                      << persistent_device_matrix.get()
+                             ->get_non_local_matrix()
+                             ->get_size()
+                      << "\n";
         }
-
-        gko::array<scalar> device_values{device_exec, *coeffs.get()};
-        gko::array<scalar> device_non_local_values{device_exec,
-                                                   *non_local_coeffs.get()};
-
-        auto value_view =
-            val_array::view(device_exec, device_values.get_size(), value_ptr);
-
-        auto non_local_view =
-            val_array::view(device_exec, device_non_local_values.get_size(),
-                            non_local_value_ptr);
-
-        value_view = device_values;
-        non_local_view = device_non_local_values;
+        // if (matrix_format_ == "Csr") {
+        //     using Csr = gko::matrix::Csr<scalar, label>;
+        //     perform_update<Csr>(exec_.get_device_exec(),
+        //                         gko::as<CombinationMatrix<scalar, label,
+        //                         Csr>>(
+        //                             local_combination_matrix),
+        //                         local_sparsity_, coeffs_.get_array());
+        //     perform_update<Csr>(exec_.get_device_exec(),
+        //                         gko::as<CombinationMatrix<scalar, label,
+        //                         Csr>>(
+        //                             non_local_combination_matrix),
+        //                         non_local_sparsity_,
+        //                         non_local_coeffs_.get_array());
+        // }
+        // if (matrix_format_ == "Ell") {
+        //     using Ell = gko::matrix::Ell<scalar, label>;
+        //     perform_update<Ell>(exec_.get_device_exec(),
+        //                         gko::as<CombinationMatrix<scalar, label,
+        //                         Ell>>(
+        //                             local_combination_matrix),
+        //                         local_sparsity_, coeffs_.get_array());
+        //     perform_update<Ell>(exec_.get_device_exec(),
+        //                         gko::as<CombinationMatrix<scalar, label,
+        //                         Ell>>(
+        //                             non_local_combination_matrix),
+        //                         non_local_sparsity_,
+        //                         non_local_coeffs_.get_array());
+        // }
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
         std::shared_ptr<gko::Executor> exec,
-        std::shared_ptr<gko::experimental::mpi::communicator> comm,
-        gko::dim<2> local_dim, std::vector<gko::span> local_interfaces,
-        gko::dim<2> non_local_dim,
-        std::vector<gko::span> non_local_interfaces) const
+        std::shared_ptr<gko::experimental::mpi::communicator> comm) const
     {
-        // if (matrix_format_ == "Csr") {
-        //     using Csr = gko::matrix::Csr<scalar, label>;
-        //     return dist_mtx::create(
-        //         exec, *comm.get(),
-        //         gko::with_matrix_type<
-        //             CombinationMatrix<scalar, label, Csr>>(
-        //             exec, local_dim, local_interfaces),
-        //         gko::with_matrix_type<
-        //             CombinationMatrix<scalar, label, Csr>>(
-        //             exec, non_local_dim, non_local_interfaces));
-        // }
-        // if (matrix_format_ == "Ell") {
-        //     using Ell = gko::matrix::Ell<scalar, label>;
-        //     return dist_mtx::create(
-        //         exec, *comm.get(),
-        //         gko::with_matrix_type <
-        //             gko::with_matrix_type<
-        //                 CombinationMatrix<scalar, label, Ell>>(
-        //                 exec, local_dim, local_interfaces),
-        //         gko::with_matrix_type<
-        //             CombinationMatrix<scalar, label, Ell>>(
-        //             exec, non_local_dim, non_local_interfaces));
-        // }
+        auto local_dim = local_sparsity_.dim_;
+        auto non_local_dim = non_local_sparsity_.dim_;
+        auto local_interfaces = local_sparsity_.interface_spans_;
+        auto non_local_interfaces = non_local_sparsity_.interface_spans_;
+
+        if (matrix_format_ == "Ell") {
+            using Ell = gko::matrix::Ell<scalar, label>;
+
+            auto local_template = CombinationMatrix<scalar, label, Ell>::create(
+                exec, local_dim, local_interfaces);
+            auto non_local_template =
+                CombinationMatrix<scalar, label, Ell>::create(
+                    exec, non_local_dim, non_local_interfaces);
+
+            return dist_mtx::create(exec, *comm.get(), local_template,
+                                    non_local_template);
+        }
+        if (matrix_format_ == "Csr") {
+            using Csr = gko::matrix::Csr<scalar, label>;
+
+            auto local_template = CombinationMatrix<scalar, label, Csr>::create(
+                exec, local_dim, local_interfaces);
+            auto non_local_template =
+                CombinationMatrix<scalar, label, Csr>::create(
+                    exec, non_local_dim, non_local_interfaces);
+
+            return dist_mtx::create(exec, *comm.get(), local_template,
+                                    non_local_template);
+        }
         if (matrix_format_ == "Coo") {
             using Coo = gko::matrix::Coo<scalar, label>;
 
-            auto local_template = CombinationMatrix<scalar, label>::create(
+            auto local_template = CombinationMatrix<scalar, label, Coo>::create(
                 exec, local_dim, local_interfaces);
-            auto non_local_template = CombinationMatrix<scalar, label>::create(
-                exec, non_local_dim, non_local_interfaces);
+            auto non_local_template =
+                CombinationMatrix<scalar, label, Coo>::create(
+                    exec, non_local_dim, non_local_interfaces);
 
             return dist_mtx::create(exec, *comm.get(), local_template,
                                     non_local_template);
@@ -194,55 +235,35 @@ struct MatrixInitFunctor {
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
 
-        auto coeffs = coeffs_.get_array();
-        auto cols = col_idxs_.get_array();
-        auto rows = row_idxs_.get_array();
-
-        auto non_local_coeffs = non_local_coeffs_.get_array();
-        auto non_local_cols = non_local_col_idxs_.get_array();
-        auto non_local_rows = non_local_row_idxs_.get_array();
-
         auto exec = exec_.get_ref_exec();
 
-        auto num_rows = partition_.get_local_size();
-        gko::dim<2> local_dim{num_rows, num_rows};
-
+        auto coeffs = coeffs_.get_array();
+        auto cols = local_sparsity_.col_idxs_.get_array();
+        auto rows = local_sparsity_.row_idxs_.get_array();
         gko::device_matrix_data<scalar, label> local_A_data{
-            exec, local_dim, *rows.get(), *cols.get(), *coeffs.get()};
+            exec, local_sparsity_.dim_, *rows.get(), *cols.get(),
+            *coeffs.get()};
 
-        auto num_non_local_elems = non_local_cols->get_size();
-        gko::dim<2> non_local_dim{num_rows, num_non_local_elems};
+        auto non_local_coeffs = non_local_coeffs_.get_array();
+        auto non_local_cols = non_local_sparsity_.col_idxs_.get_array();
+        auto non_local_rows = non_local_sparsity_.row_idxs_.get_array();
         gko::device_matrix_data<scalar, label> non_local_A_data{
-            exec, non_local_dim, *non_local_rows.get(), *non_local_cols.get(),
-            *non_local_coeffs.get()};
-
-        std::vector<gko::span> local_interfaces{gko::span(0, num_rows)};
-        std::vector<gko::span> non_local_interfaces{
-            gko::span(0, num_non_local_elems)};
+            exec, non_local_sparsity_.dim_, *non_local_rows.get(),
+            *non_local_cols.get(), *non_local_coeffs.get()};
 
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto dist_A = generate_dist_mtx_with_inner_type(
-            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm(), local_dim,
-            local_interfaces, non_local_dim, non_local_interfaces);
-
         auto sparse_comm =
             gko::experimental::distributed::sparse_communicator::create(
                 *comm.get(), partition_.get_localized_partition());
 
+        auto dist_A = generate_dist_mtx_with_inner_type(
+            exec_.get_device_exec(), exec_.get_gko_mpi_host_comm());
         dist_A->read_distributed(local_A_data, non_local_A_data, sparse_comm);
 
-        auto local_combination = gko::as<CombinationMatrix<scalar,label>>(dist_A->get_local_matrix().get())->get_combination();
-        std::cout << "local_combination.size " << local_combination->get_operators().size() << "\n";
-
-        auto device_mat = generate_dist_mtx_with_inner_type(
-            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm(), local_dim,
-            local_interfaces, non_local_dim, non_local_interfaces);
-        dist_A->move_to(device_mat.get());
-
-        auto local_device_combination = gko::as<CombinationMatrix<scalar,label>>(device_mat->get_local_matrix().get())->get_combination();
-        std::cout << "device_local_combination.size " << local_device_combination->get_operators().size() << "\n";
-
-        return device_mat;
+        // auto device_mat = generate_dist_mtx_with_inner_type(
+        //     exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
+        // dist_A->move_to(device_mat.get());
+        return dist_A;
     }
 };
 
@@ -269,11 +290,9 @@ private:
 
 public:
     MatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,
-                  const PersistentArray<label> &col_idxs,
-                  const PersistentArray<label> &row_idxs,
+                  const PersistentSparsityPattern &local_sparsity,
                   const PersistentArray<scalar> &coeffs,
-                  const PersistentArray<label> &non_local_col_idxs,
-                  const PersistentArray<label> &non_local_row_idxs,
+                  const PersistentSparsityPattern &non_local_sparsity,
                   const PersistentArray<scalar> &non_local_coeffs,
                   const PersistentPartition &partition,
                   const dictionary &controlDict, const word sys_matrix_name,
@@ -287,9 +306,8 @@ public:
           gkomatrix_{
               sys_matrix_name + "_matrix", db,
               MatrixInitFunctor(
-                  db, exec, partition, col_idxs, row_idxs, coeffs,
-                  non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
-                  matrix_format_,
+                  db, exec, partition, local_sparsity, coeffs,
+                  non_local_sparsity, non_local_coeffs, matrix_format_,
                   controlDict.lookupOrDefault<Switch>("regenerate", false),
                   verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
@@ -308,27 +326,60 @@ public:
      */
     void write() const
     {
-    auto dist_matrix = gko::as<gko::experimental::distributed::Matrix<scalar, label, label>>(this->get().get());
-    auto local_interfaces = gko::as<CombinationMatrix<scalar, label>>(dist_matrix->get_local_matrix().get())
-            ->get_combination()
-            ->get_operators();
+        auto dist_matrix = gko::as<
+            gko::experimental::distributed::Matrix<scalar, label, label>>(
+            this->get());
 
-    for (int i = 0; i < local_interfaces.size(); i++) {
-        export_mtx(
-            field_name_,
-            local_interfaces[i],
-            "local_" + std::to_string(i) , db_, matrix_format_);
-    }
+        if (matrix_format_ == "Coo") {
+            using Coo = gko::matrix::Coo<scalar, label>;
+            std::vector<std::shared_ptr<const gko::LinOp>> local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Coo>>(
+                    dist_matrix->get_local_matrix())
+                    ->get_combination()
+                    ->get_operators();
+            auto non_local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Coo>>(
+                    dist_matrix->get_non_local_matrix())
+                    ->get_combination()
+                    ->get_operators();
+            export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces, db_);
+            export_mtx<Coo>(field_name_ + "_non_local", non_local_interfaces,
+                            db_);
+        }
 
-    auto non_local_interfaces = gko::as<CombinationMatrix<scalar, label>>(dist_matrix->get_non_local_matrix().get())
-            ->get_combination()
-            ->get_operators();
-    for (int i = 0; i < non_local_interfaces.size(); i++) {
-        export_mtx(
-            field_name_,
-            non_local_interfaces[i],
-            "non_local_" + std::to_string(i), db_, matrix_format_);
-    }
+        if (matrix_format_ == "Csr") {
+            using Csr = gko::matrix::Csr<scalar, label>;
+            auto local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Csr>>(
+                    dist_matrix->get_local_matrix().get())
+                    ->get_combination()
+                    ->get_operators();
+            auto non_local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Csr>>(
+                    dist_matrix->get_non_local_matrix().get())
+                    ->get_combination()
+                    ->get_operators();
+            export_mtx<Csr>(word(field_name_ + "_local"), local_interfaces, db_);
+            export_mtx<Csr>(field_name_ + "_non_local", non_local_interfaces,
+                            db_);
+        }
+
+        if (matrix_format_ == "Ell") {
+            using Ell = gko::matrix::Ell<scalar, label>;
+            auto local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Ell>>(
+                    dist_matrix->get_local_matrix().get())
+                    ->get_combination()
+                    ->get_operators();
+            auto non_local_interfaces =
+                gko::as<CombinationMatrix<scalar, label, Ell>>(
+                    dist_matrix->get_non_local_matrix().get())
+                    ->get_combination()
+                    ->get_operators();
+            export_mtx<Ell>(field_name_ + "_local", local_interfaces, db_);
+            export_mtx<Ell>(field_name_ + "_non_local", non_local_interfaces,
+                            db_);
+        }
     }
 };
 

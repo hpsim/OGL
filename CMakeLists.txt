@@ -104,8 +104,9 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       "${CMAKE_CXX_FLAGS_DEBUG} \
       --coverage\
       -fprofile-arcs \
-      -ggdb3")
-  # * fsanitize = address \ - ftest - coverage \
+      -ggdb3 \
+      -fsanitize=address,undefined \
+      ")
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -186,6 +187,8 @@ target_sources(
   # LduMatrix / GKOACG / GKOACG.H
 )
 
+target_link_options(OGL PUBLIC "-fsanitize=address")
+
 target_include_directories(
   OGL SYSTEM
   PUBLIC $ENV{FOAM_SRC}/finiteVolume/lnInclude
@@ -197,6 +200,8 @@ target_link_libraries(
   PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
           $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo stdc++fs)
 
+
+
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
 endif()
@@ -205,6 +210,7 @@ if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
   target_link_libraries(OGL PUBLIC CUDA::nvToolsExt)
 endif()
+
 
 if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)

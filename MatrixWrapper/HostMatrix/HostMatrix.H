@@ -40,12 +40,14 @@ namespace Foam {
 
 
 struct PersistentSparsityPattern {
+
     PersistentSparsityPattern(
       const word &fieldName,
       const objectRegistry &db,
       const ExecutorHandler &exec,
       const label size,
       const label verbose):
+    size_(size),
     col_idxs_{
         fieldName + "_cols",
         db,
@@ -76,6 +78,9 @@ struct PersistentSparsityPattern {
     }
     {}
 
+    // number of nnz entries
+    const label size_;
+
     mutable PersistentArray<label> col_idxs_;
 
     mutable PersistentArray<label> row_idxs_;
@@ -83,6 +88,12 @@ struct PersistentSparsityPattern {
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
     mutable PersistentArray<label> ldu_mapping_;
+
+    // dimensions of the resulting matrix
+    mutable gko::dim<2> dim_;
+
+    // A vector of spans indicating begin and end of each interface
+    mutable std::vector<gko::span> interface_spans_;
 };
 
 struct CommunicationPattern {
@@ -432,6 +443,8 @@ public:
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
+    PersistentSparsityPattern &get_local_sparsity_pattern() const { return local_sparsity_; };
+
     PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
 
     PersistentArray<label> &get_local_col_idxs() const
@@ -443,6 +456,8 @@ public:
     {
         return local_sparsity_.row_idxs_;
     };
+
+    PersistentSparsityPattern &get_non_local_sparsity_pattern() const { return non_local_sparsity_; };
 
     PersistentArray<scalar> &get_non_local_coeffs() const
     {
