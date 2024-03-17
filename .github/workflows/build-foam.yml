@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_build_matrix
-    name: build-${{matrix.OF.version}}
+    name: build-${{matrix.OF.version}}-${{matrix.OF.CXX}}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
