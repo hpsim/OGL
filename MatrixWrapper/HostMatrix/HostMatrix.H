@@ -40,42 +40,38 @@ namespace Foam {
 
 
 struct PersistentSparsityPattern {
-
-    PersistentSparsityPattern(
-      const word &fieldName,
-      const objectRegistry &db,
-      const ExecutorHandler &exec,
-      const label size,
-      const label verbose):
-    size_(size),
-    col_idxs_{
-        fieldName + "_cols",
-        db,
-        exec,
-        size,
-        verbose,
-        false,  // For now we assume columns and rows to be constant
-        false   // we don't init on device since the indices are written using the pointer
-                // to the data
-    },
-    row_idxs_{
-        fieldName + "_rows",
-        db,
-        exec,
-        size,
-        verbose,
-        false,  // For now we assume columns and rows to be constant
-        false   // same as for cols don't init on device
-    },
-    ldu_mapping_{
-        fieldName + "_ldu_map",
-        db,
-        exec,
-        size,
-        verbose,
-        false,
-        false // same as for rows and cols dont init on device
-    }
+    PersistentSparsityPattern(const word &fieldName, const objectRegistry &db,
+                              const ExecutorHandler &exec, const label size,
+                              const label verbose)
+        : size_(size),
+          col_idxs_{
+              fieldName + "_cols",
+              db,
+              exec,
+              size,
+              verbose,
+              false,  // For now we assume columns and rows to be constant
+              false   // we don't init on device since the indices are written
+                     // using the pointer to the data
+          },
+          row_idxs_{
+              fieldName + "_rows",
+              db,
+              exec,
+              size,
+              verbose,
+              false,  // For now we assume columns and rows to be constant
+              false   // same as for cols don't init on device
+          },
+          ldu_mapping_{
+              fieldName + "_ldu_map",
+              db,
+              exec,
+              size,
+              verbose,
+              false,
+              false  // same as for rows and cols dont init on device
+          }
     {}
 
     // number of nnz entries
@@ -443,7 +439,10 @@ public:
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
-    PersistentSparsityPattern &get_local_sparsity_pattern() const { return local_sparsity_; };
+    PersistentSparsityPattern &get_local_sparsity_pattern() const
+    {
+        return local_sparsity_;
+    };
 
     PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
 
@@ -457,7 +456,10 @@ public:
         return local_sparsity_.row_idxs_;
     };
 
-    PersistentSparsityPattern &get_non_local_sparsity_pattern() const { return non_local_sparsity_; };
+    PersistentSparsityPattern &get_non_local_sparsity_pattern() const
+    {
+        return non_local_sparsity_;
+    };
 
     PersistentArray<scalar> &get_non_local_coeffs() const
     {

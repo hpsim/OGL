@@ -725,7 +725,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     std::cout << "!!! set dim_ " << nrows_ << " " << local_matrix_nnz_ << "\n";
     // NOTE interface_spans and dim are not persistent so we need to
     // recreate this for every solver call
-    // TODO this needs a propper implementation once we know how to handle interfaces
+    // TODO this needs a proper implementation once we know how to handle interfaces
     local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
     local_sparsity_.dim_ = gko::dim<2>{nrows_, nrows_};
 
