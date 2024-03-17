@@ -32,8 +32,15 @@ option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(OGL_ALLOW_REFERENCE_ONLY
        "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
+
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
@@ -67,6 +74,8 @@ check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 include(cmake/package_helpers.cmake)
 include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
+include(cmake/Sanitizer.cmake)
+
 
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
 
@@ -187,7 +196,15 @@ target_sources(
   # LduMatrix / GKOACG / GKOACG.H
 )
 
-target_link_options(OGL PUBLIC "-fsanitize=address")
+
+enable_sanitizers(
+    OGL
+    ${OGL_ENABLE_SANITIZE_ADDRESS}
+    ${OGL_ENABLE_SANITIZE_LEAK}
+    ${OGL_ENABLE_SANITIZE_UB}
+    ${OGL_ENABLE_SANITIZE_THREAD}
+    ${OGL_ENABLE_SANITIZE_MEMORY}
+)
 
 target_include_directories(
   OGL SYSTEM
