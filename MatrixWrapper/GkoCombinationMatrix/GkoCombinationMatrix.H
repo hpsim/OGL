@@ -5,19 +5,23 @@
 // operator. It provides an interface for creating linear combinations of a
 // giveen inner matrix type and a read implementation
 // template <typename ValueType, typename IndexType, typename gko::matrix::Coo>
-template <typename ValueType, typename IndexType>
+template <typename ValueType, typename IndexType, typename InnerMatrixType>
 class CombinationMatrix
-    : public gko::EnableLinOp<CombinationMatrix<ValueType, IndexType>>,
-      public gko::EnableCreateMethod<CombinationMatrix<ValueType, IndexType>>,
+    : public gko::EnableLinOp<
+          CombinationMatrix<ValueType, IndexType, InnerMatrixType>>,
+      public gko::EnableCreateMethod<
+          CombinationMatrix<ValueType, IndexType, InnerMatrixType>>,
       public gko::ReadableFromMatrixData<ValueType, IndexType> {
     friend class gko::EnableCreateMethod<
-        CombinationMatrix<ValueType, IndexType>>;
+        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>;
     friend class gko::EnablePolymorphicObject<
-        CombinationMatrix<ValueType, IndexType>, gko::LinOp>;
+        CombinationMatrix<ValueType, IndexType, InnerMatrixType>, gko::LinOp>;
 
 public:
-    using gko::EnableLinOp<CombinationMatrix<ValueType, IndexType>>::convert_to;
-    using gko::EnableLinOp<CombinationMatrix<ValueType, IndexType>>::move_to;
+    using gko::EnableLinOp<
+        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>::convert_to;
+    using gko::EnableLinOp<
+        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>::move_to;
 
     using vec = gko::matrix::Dense<ValueType>;
     using coef_type = gko::array<ValueType>;
@@ -29,36 +33,39 @@ public:
     void read(const device_matrix_data &data) override
     {
         auto exec = this->get_executor();
+        auto data_exec = data.get_executor();
+
         for (auto &interface : interface_ranges_) {
             auto length = interface.length();
-            // NOTE Dont hardcode matrix format
-            auto op = gko::share(gko::matrix::Coo<scalar, label>::create(exec));
-
             auto offset = interface.begin;
+            auto op = gko::share(InnerMatrixType::create(exec));
 
             device_matrix_data in(
                 exec, comb_->get_size(),
                 gko::array<IndexType>(
-                    make_const_array_view(exec, length,
+                    exec,
+                    make_const_array_view(data_exec, length,
                                           data.get_const_row_idxs() + offset)
                         .copy_to_array()),
                 gko::array<IndexType>(
-                    make_const_array_view(exec, length,
+                    exec,
+                    make_const_array_view(data_exec, length,
                                           data.get_const_col_idxs() + offset)
                         .copy_to_array()),
                 gko::array<ValueType>(
-                    make_const_array_view(exec, length,
+                    exec,
+                    make_const_array_view(data_exec, length,
                                           data.get_const_values() + offset)
                         .copy_to_array()));
 
             op->read(std::move(in));
+            std::cout << "!!! gkocombinationmatrix length " << length
+                      << " offset " << offset << " op->get_size() "
+                      << op->get_size() << "\n";
 
             this->comb_->add_operators(
                 gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
         }
-        std::cout << "operators.size" << this->comb_->get_operators().size() << "\n";
-        std::cout << "operator[0]" << this->comb_->get_operators()[0] << "\n";
-        // 
         // NOTE find a better place
         this->set_size(comb_->get_size());
     }
@@ -78,7 +85,7 @@ public:
         if (&other != this) {
             gko::EnableLinOp<CombinationMatrix>::operator=(other);
             interface_ranges_ = std::vector<gko::span>{};
-            for (auto i_range : other.interface_ranges_) {
+            for (auto &i_range : other.interface_ranges_) {
                 interface_ranges_.emplace_back(i_range.begin, i_range.end);
             }
             comb_ = other.comb_;

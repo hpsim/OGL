@@ -274,12 +274,13 @@ CommunicationPattern
 HostMatrixWrapper<MatrixType>::create_communication_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
+    using comm_size_type = CommunicationPattern::comm_size_type;
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
 
     // iterate all interfaces, count number of neighbour procs
     // and store rows to send to neighbour procs
-    label n_procs = 0;
+    gko::size_type n_procs = 0;
     interface_iterator<processorFvPatch>(
         interfaces, [&](label, const label, const processorFvPatch &patch,
                         const lduInterfaceField *iface) {
@@ -298,8 +299,6 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             }
         });
 
-    using comm_size_type = CommunicationPattern::comm_size_type;
-
     // create index_sets
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
@@ -311,10 +310,8 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     }
 
     // convert to gko::array
-    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(),
-                                          static_cast<comm_size_type>(n_procs)};
-    gko::array<comm_size_type> target_sizes{
-        exec_.get_ref_exec(), static_cast<comm_size_type>(n_procs)};
+    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(), n_procs};
+    gko::array<comm_size_type> target_sizes{exec_.get_ref_exec(), n_procs};
 
     label iter = 0;
     for (const auto &[proc, interface_cells] : interface_cell_map) {
@@ -484,6 +481,7 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         permute[element_ctr] = interface_idx;
         element_ctr += 1;
     }
+
 }
 
 template <class MatrixType>
@@ -561,7 +559,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
             auto [interface_idx, interface_row, interface_col] = interface;
 
             // copy from existing matrix coefficients
-            while ([&]() {
+            while ([&](auto interface_row, auto interface_col) {
                 // check for length
                 if (current_idx_ctr == local_matrix_nnz_) {
                     return false;
@@ -579,7 +577,7 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
                     return false;
                 }
                 return true;
-            }()) {
+            }(interface_row, interface_col)) {
                 // insert coeffs
                 rows[total_ctr] = rows_copy[current_idx_ctr];
                 cols[total_ctr] = cols_copy[current_idx_ctr];
@@ -624,6 +622,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     // TODO this does not work for Ell
     auto permute = local_sparsity_.ldu_mapping_.get_data();
 
+
     if (reorder_on_copy_) {
         auto dense = local_coeffs_.get_data();
         if (local_interface_nnz_) {
@@ -634,6 +633,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                     local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
                     permute, scaling_, diag.data(), upper.data(),
                     couple_coeffs.data(), dense);
+
             } else {
                 non_symmetric_update_w_interface(
                     local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
@@ -721,6 +721,14 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
 
         dense_vec->copy_from(row_collection);
     }
+
+    std::cout << "!!! set dim_ " << nrows_ << " " << local_matrix_nnz_ << "\n";
+    // NOTE interface_spans and dim are not persistent so we need to
+    // recreate this for every solver call
+    // TODO this needs a propper implementation once we know how to handle interfaces
+    local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
+    local_sparsity_.dim_ = gko::dim<2>{nrows_, nrows_};
+
 }
 
 
@@ -748,6 +756,13 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     auto i_device_view = gko::array<scalar>::view(
         ref_exec, non_local_matrix_nnz_, non_local_coeffs_.get_data());
     i_device_view = tmp_contiguous_iface;
+
+    std::cout << "!!! set dim_ " << nrows_ << " " << non_local_matrix_nnz_ << "\n";
+    // NOTE interface_spans and dim are not persistent so we need to
+    // We have now the full non_local matrix and need to add the start and end
+    // to the PersistentSparsityPattern data structure
+    non_local_sparsity_.interface_spans_.emplace_back(0, non_local_matrix_nnz_);
+    non_local_sparsity_.dim_ = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 }
 
 template HostMatrixWrapper<lduMatrix>::HostMatrixWrapper(
