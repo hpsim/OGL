@@ -10,8 +10,11 @@ if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
 endif()
 
-# Configuration options
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Configuration options
 include(cmake/build_type_helpers.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
@@ -23,16 +26,28 @@ option(OGL_USE_FOAM_FOUNDATION_VERSION
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(OGL_DP_LABELS "Compile for 64bit label size" FALSE)
+option(OGL_ALLOW_REFERENCE_ONLY
+       "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
+option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
+
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
+       FALSE)
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
+
+option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
 option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
-option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-option(OGL_ALLOW_REFERENCE_ONLY
-       "Enable builds of Ginkgo with reference backend only" FALSE)
-option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
-option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
-       FALSE)
+
+set(GINKGO_BUILD_MPI ON CACHE INTERNAL "")
+set(GINKGO_BUILD_TESTS OFF CACHE INTERNAL "")
+set(GINKGO_BUILD_EXAMPLES OFF CACHE INTERNAL "")
+set(GINKGO_BUILD_BENCHMARKS OFF CACHE INTERNAL "")
 
 if(NOT OGL_ALLOW_REFERENCE_ONLY)
   if((NOT GINKGO_BUILD_CUDA)
@@ -46,7 +61,7 @@ if(NOT OGL_ALLOW_REFERENCE_ONLY)
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "fc86d48b78cebd2b2c5833a2dcf0fe40f615cf19"
+    "sparse-communicator-cmake-modernization-combination-interface-ogl"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)
@@ -55,29 +70,13 @@ check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 include(cmake/package_helpers.cmake)
 include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
+include(cmake/Sanitizer.cmake)
+
 
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
 
 add_subdirectory(third_party)
 
-# If ginkgo is not found at this point, look for the third_party installation
-if(NOT ${OGL_USE_EXTERNAL_GINKGO})
-  find_package(
-    Ginkgo
-    CONFIG
-    1.7.0
-    REQUIRED
-    PATHS
-    $ENV{FOAM_USER_LIBBIN}/cmake/Ginkgo
-    ${CMAKE_CURRENT_BINARY_DIR}/third_party/ginkgo/build/install/lib/cmake)
-endif()
-
-# C++ 14 standard or later is required to interface with Ginkgo OGL itself uses
-# some c++ 17 features
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
@@ -110,8 +109,9 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       "${CMAKE_CXX_FLAGS_DEBUG} \
       --coverage\
       -fprofile-arcs \
-      -ggdb3")
-  # * fsanitize = address \ - ftest - coverage \
+      -ggdb3 \
+      -fsanitize=address,undefined \
+      ")
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -166,8 +166,8 @@ target_sources(
           Preconditioner/Preconditioner.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          HostMatrix/HostMatrix.C
-          HostMatrix/HostMatrixFreeFunctions.C
+          MatrixWrapper/HostMatrix/HostMatrix.C
+          MatrixWrapper/HostMatrix/HostMatrixFreeFunctions.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
@@ -176,7 +176,8 @@ target_sources(
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
-         HostMatrix/HostMatrix.H
+         MatrixWrapper/HostMatrix/HostMatrix.H
+         MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H
@@ -195,6 +196,16 @@ target_sources(
   # LduMatrix / GKOACG / GKOACG.H
 )
 
+
+enable_sanitizers(
+    OGL
+    ${OGL_ENABLE_SANITIZE_ADDRESS}
+    ${OGL_ENABLE_SANITIZE_LEAK}
+    ${OGL_ENABLE_SANITIZE_UB}
+    ${OGL_ENABLE_SANITIZE_THREAD}
+    ${OGL_ENABLE_SANITIZE_MEMORY}
+)
+
 target_include_directories(
   OGL SYSTEM
   PUBLIC $ENV{FOAM_SRC}/finiteVolume/lnInclude
@@ -204,8 +215,9 @@ target_include_directories(
 target_link_libraries(
   OGL
   PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-  PUBLIC Ginkgo::ginkgo stdc++fs)
+          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo stdc++fs)
+
+
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
@@ -215,6 +227,7 @@ if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
   target_link_libraries(OGL PUBLIC CUDA::nvToolsExt)
 endif()
+
 
 if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
@@ -237,4 +250,12 @@ add_custom_target(
   COMMAND find . -name CMakeLists.txt -exec cmake-format -i {} +
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-install(TARGETS OGL DESTINATION $ENV{FOAM_USER_LIBBIN})
+install(TARGETS OGL
+    ginkgo
+    ginkgo_device
+    ginkgo_hip
+    ginkgo_cuda
+    ginkgo_omp
+    ginkgo_dpcpp
+    ginkgo_reference
+    DESTINATION $ENV{FOAM_USER_LIBBIN})

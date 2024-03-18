@@ -33,7 +33,7 @@ SourceFiles
 
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
-#include "HostMatrix/HostMatrix.H"
+#include "MatrixWrapper/HostMatrix/HostMatrix.H"
 #include "common/common.H"
 
 namespace Foam {
