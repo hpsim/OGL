@@ -481,7 +481,6 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
         permute[element_ctr] = interface_idx;
         element_ctr += 1;
     }
-
 }
 
 template <class MatrixType>
@@ -722,13 +721,12 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         dense_vec->copy_from(row_collection);
     }
 
-    std::cout << "!!! set dim_ " << nrows_ << " " << local_matrix_nnz_ << "\n";
     // NOTE interface_spans and dim are not persistent so we need to
     // recreate this for every solver call
-    // TODO this needs a proper implementation once we know how to handle interfaces
+    // TODO this needs a proper implementation once we know how to handle
+    // interfaces
     local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
     local_sparsity_.dim_ = gko::dim<2>{nrows_, nrows_};
-
 }
 
 
@@ -757,7 +755,6 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         ref_exec, non_local_matrix_nnz_, non_local_coeffs_.get_data());
     i_device_view = tmp_contiguous_iface;
 
-    std::cout << "!!! set dim_ " << nrows_ << " " << non_local_matrix_nnz_ << "\n";
     // NOTE interface_spans and dim are not persistent so we need to
     // We have now the full non_local matrix and need to add the start and end
     // to the PersistentSparsityPattern data structure

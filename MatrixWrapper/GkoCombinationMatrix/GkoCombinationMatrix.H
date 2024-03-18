@@ -59,10 +59,6 @@ public:
                         .copy_to_array()));
 
             op->read(std::move(in));
-            std::cout << "!!! gkocombinationmatrix length " << length
-                      << " offset " << offset << " op->get_size() "
-                      << op->get_size() << "\n";
-
             this->comb_->add_operators(
                 gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
         }

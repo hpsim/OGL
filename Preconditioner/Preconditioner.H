@@ -34,7 +34,6 @@ SourceFiles
 
 namespace Foam {
 class Preconditioner {
-    using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
@@ -69,7 +68,7 @@ public:
 
     template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
@@ -88,7 +87,7 @@ public:
 
     template <typename PrecondFactory, typename Factorization>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond,
         std::shared_ptr<Factorization> factorization) const
@@ -105,7 +104,7 @@ public:
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
