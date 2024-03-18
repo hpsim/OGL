@@ -237,19 +237,6 @@ public:
         auto dist_b_v = dist_b.get_vector();
         auto dist_A_v = dist_A.get();
 
-        std::cout << " ldulduBase distributed_matrix get non_local "
-                  << gko::as<gko::experimental::distributed::Matrix<
-                         scalar, label, label>>(dist_A_v)
-                         ->get_non_local_matrix()
-                         ->get_size()
-                  << "\n";
-
-        std::cout << " ldulduBase distributed_matrix get local "
-                  << gko::as<gko::experimental::distributed::Matrix<
-                         scalar, label, label>>(dist_A_v)
-                         ->get_local_matrix()
-                         ->get_size()
-                  << "\n";
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
         if (scaling != 1) {
@@ -262,12 +249,6 @@ public:
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        std::cout << " ldulduBase distributed_matrix get local 1 "
-                  << gko::as<gko::experimental::distributed::Matrix<
-                         scalar, label, label>>(dist_A_v)
-                         ->get_local_matrix()
-                         ->get_size()
-                  << "\n";
         TIME_WITH_FIELDNAME(
             verbose_, init_precond, this->fieldName(),
             auto precond = this->init_preconditioner(
@@ -282,12 +263,6 @@ public:
 
 
         LOG_1(verbose_, "create solver")
-        std::cout << " ldulduBase distributed_matrix get local 2 "
-                  << gko::as<gko::experimental::distributed::Matrix<
-                         scalar, label, label>>(dist_A_v)
-                         ->get_local_matrix()
-                         ->get_size()
-                  << "\n";
         auto solver_gen = this->create_dist_solver(
             this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
             dist_b_v, verbose_, dist_A.get_export(), precond);
@@ -295,12 +270,6 @@ public:
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        std::cout << " ldulduBase distributed_matrix get local 3 "
-                  << gko::as<gko::experimental::distributed::Matrix<
-                         scalar, label, label>>(dist_A_v)
-                         ->get_local_matrix()
-                         ->get_size()
-                  << "\n";
         TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                             solver->apply(dist_b_v, dist_x_v);)
 

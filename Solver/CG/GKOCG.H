@@ -12,7 +12,6 @@ namespace Foam {
 
 class GKOCGFactory {
 private:
-    using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
 

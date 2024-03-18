@@ -15,40 +15,35 @@
 
 namespace Foam {
 
-
 template <typename InnerMatrixType>
 void perform_update(
-    const std::shared_ptr<gko::Executor> &exec,
-    std::shared_ptr<CombinationMatrix<scalar, label, InnerMatrixType>>
-        combination_matrix,
+    std::shared_ptr<const gko::Executor> exec,
+    CombinationMatrix<scalar, label, InnerMatrixType> *combination_matrix,
     const PersistentSparsityPattern &sparsity,
-    std::shared_ptr<gko::array<scalar>> coeffs)
+    std::shared_ptr<const gko::array<scalar>> coeffs)
 {
     int interface_ctr{0};
-    for (auto &interface :
+    for (auto interface :
          combination_matrix->get_combination()->get_operators()) {
+        auto span = sparsity.interface_spans_[interface_ctr];
         auto device_value_ptr =
-            gko::as<InnerMatrixType>(interface)->get_const_values();
+            ((InnerMatrixType *)(interface.get()))->get_values();
 
         // create a view into data on the device which needs an
         // update
-        auto num_elems =
-            gko::as<InnerMatrixType>(interface)->get_num_stored_elements();
-        auto device_value_view = val_array::view(
-            exec, num_elems, const_cast<scalar *>(device_value_ptr));
+        auto device_value_view =
+            val_array::view(exec, span.length(), device_value_ptr);
 
         // create a view into updated values and copy over to
         // persistent data
-        auto span = sparsity.interface_spans_[interface_ctr];
-        auto update_view = val_array::view(exec, span.length(),
-                                           coeffs->get_data() + span.begin);
+        auto update_view = val_array::const_view(
+            exec, span.length(), coeffs->get_const_data() + span.begin);
 
-        std::cout << "perform update " << span.length() << " " << span.begin
-                  << " " << num_elems << " " << interface->get_size() << "\n";
         interface_ctr++;
         device_value_view = update_view;
     }
 };
+
 
 struct MatrixInitFunctor {
     using dist_mtx =
@@ -110,68 +105,46 @@ struct MatrixInitFunctor {
 
         // The local and non-local matrix are a CombinationMatrix and we need to
         // update the interfaces iteratively
-        std::shared_ptr<gko::LinOp> local_combination_matrix{
-            const_cast<gko::LinOp *>(
-                persistent_device_matrix->get_local_matrix().get())};
-        std::shared_ptr<gko::LinOp> non_local_combination_matrix{
-            const_cast<gko::LinOp *>(
-                persistent_device_matrix->get_non_local_matrix().get())};
+        std::shared_ptr<const gko::LinOp> local_combination_matrix{
+            persistent_device_matrix->get_local_matrix()};
+        std::shared_ptr<const gko::LinOp> non_local_combination_matrix{
+            persistent_device_matrix->get_non_local_matrix()};
         if (matrix_format_ == "Coo") {
             using Coo = gko::matrix::Coo<scalar, label>;
             perform_update<Coo>(exec_.get_device_exec(),
-                                gko::as<CombinationMatrix<scalar, label, Coo>>(
-                                    local_combination_matrix),
+                                (CombinationMatrix<scalar, label, Coo>
+                                     *)(local_combination_matrix.get()),
                                 local_sparsity_, coeffs_.get_array());
             perform_update<Coo>(exec_.get_device_exec(),
-                                gko::as<CombinationMatrix<scalar, label, Coo>>(
-                                    non_local_combination_matrix),
+                                (CombinationMatrix<scalar, label, Coo>
+                                     *)(non_local_combination_matrix.get()),
                                 non_local_sparsity_,
                                 non_local_coeffs_.get_array());
-            std::cout << " local_combination_matrix "
-                      << local_combination_matrix->get_size() << "\n";
-            std::cout << " non_local_combination_matrix "
-                      << non_local_combination_matrix->get_size() << "\n";
-            std::cout << " CsrMatrixWrapper distributed_matrix "
-                      << persistent_device_matrix.get()->get_size() << "\n";
-            std::cout << " CsrMatrixWrapper distributed_matrix get_local "
-                      << persistent_device_matrix.get()
-                             ->get_local_matrix()
-                             ->get_size()
-                      << "\n";
-            std::cout << " CsrMatrixWrapper distributed_matrix get non_local "
-                      << persistent_device_matrix.get()
-                             ->get_non_local_matrix()
-                             ->get_size()
-                      << "\n";
         }
-        // if (matrix_format_ == "Csr") {
-        //     using Csr = gko::matrix::Csr<scalar, label>;
-        //     perform_update<Csr>(exec_.get_device_exec(),
-        //                         gko::as<CombinationMatrix<scalar, label,
-        //                         Csr>>(
-        //                             local_combination_matrix),
-        //                         local_sparsity_, coeffs_.get_array());
-        //     perform_update<Csr>(exec_.get_device_exec(),
-        //                         gko::as<CombinationMatrix<scalar, label,
-        //                         Csr>>(
-        //                             non_local_combination_matrix),
-        //                         non_local_sparsity_,
-        //                         non_local_coeffs_.get_array());
-        // }
-        // if (matrix_format_ == "Ell") {
-        //     using Ell = gko::matrix::Ell<scalar, label>;
-        //     perform_update<Ell>(exec_.get_device_exec(),
-        //                         gko::as<CombinationMatrix<scalar, label,
-        //                         Ell>>(
-        //                             local_combination_matrix),
-        //                         local_sparsity_, coeffs_.get_array());
-        //     perform_update<Ell>(exec_.get_device_exec(),
-        //                         gko::as<CombinationMatrix<scalar, label,
-        //                         Ell>>(
-        //                             non_local_combination_matrix),
-        //                         non_local_sparsity_,
-        //                         non_local_coeffs_.get_array());
-        // }
+        if (matrix_format_ == "Csr") {
+            using Csr = gko::matrix::Csr<scalar, label>;
+            perform_update<Csr>(exec_.get_device_exec(),
+                                (CombinationMatrix<scalar, label, Csr>
+                                     *)(local_combination_matrix.get()),
+                                local_sparsity_, coeffs_.get_array());
+            perform_update<Csr>(exec_.get_device_exec(),
+                                (CombinationMatrix<scalar, label, Csr>
+                                     *)(non_local_combination_matrix.get()),
+                                non_local_sparsity_,
+                                non_local_coeffs_.get_array());
+        }
+        if (matrix_format_ == "Ell") {
+            using Ell = gko::matrix::Ell<scalar, label>;
+            perform_update<Ell>(exec_.get_device_exec(),
+                                (CombinationMatrix<scalar, label, Ell>
+                                     *)(local_combination_matrix.get()),
+                                local_sparsity_, coeffs_.get_array());
+            perform_update<Ell>(exec_.get_device_exec(),
+                                (CombinationMatrix<scalar, label, Ell>
+                                     *)(non_local_combination_matrix.get()),
+                                non_local_sparsity_,
+                                non_local_coeffs_.get_array());
+        }
     }
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
