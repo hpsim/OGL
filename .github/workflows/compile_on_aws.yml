@@ -50,7 +50,7 @@ jobs:
                  aws s3 cp s3://ucfd-share/pcluster/3.x/alinux2/x86_64/postinstall_github .
                  chmod +x postinstall_github
                  sudo ./postinstall_github > ~/install.log
-                 ln -s /share/software/cmake/3.22.6/share/cmake-3.22 /usr/share/cmake-3.22
+                 ln -s /share/software/cmake/3.27.8/share/cmake-3.27 /usr/share/cmake-3.27
                  mkdir -p /share/ec2-user
                  export USER=ec2-user
   do-the-job:
@@ -83,7 +83,7 @@ jobs:
           module load OpenFOAM
           module load cmake
           cmake --list-preset
-          cmake --preset ninja-cuda-release
+          cmake -DOGL_CUDA_ARCHITECTURES=52 --preset ninja-cuda-release
           #cmake --debug-output -G Ninja -DCMAKE_BUILD_TYPE=Release -DGINKGO_BUILD_CUDA=ON .
       - name: Build
         if: always()
@@ -96,7 +96,7 @@ jobs:
           module load OpenFOAM
           module load cmake
           # cmake --build . --config Release
-          cmake --build --preset ninja-cpuonly-release  --target install
+          cmake --build --preset ninja-cuda-release  --target install
       - name: Install
         if: always()
         shell: bash -o pipefail -i {0}
