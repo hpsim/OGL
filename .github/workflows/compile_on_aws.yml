@@ -82,7 +82,9 @@ jobs:
           module load openmpi
           module load OpenFOAM
           module load cmake
-          cmake --debug-output -G Ninja -DCMAKE_BUILD_TYPE=Release -DGINKGO_BUILD_CUDA=ON .
+          cmake --list-preset
+          cmake --preset ninja-cuda-release
+          #cmake --debug-output -G Ninja -DCMAKE_BUILD_TYPE=Release -DGINKGO_BUILD_CUDA=ON .
       - name: Build
         if: always()
         shell: bash -o pipefail -i {0}
@@ -93,7 +95,8 @@ jobs:
           module load openmpi
           module load OpenFOAM
           module load cmake
-          cmake --build . --config Release
+          # cmake --build . --config Release
+          cmake --build --preset ninja-cpuonly-release  --target install
       - name: Install
         if: always()
         shell: bash -o pipefail -i {0}
@@ -103,7 +106,7 @@ jobs:
           module load openmpi
           module load OpenFOAM
           module load cmake
-          cmake --install .
+          # cmake --install .
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
@@ -113,7 +116,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
+    #if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
