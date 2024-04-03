@@ -72,7 +72,6 @@ private:
 
 public:
     PersistentBase(const word name, const objectRegistry &db,
-                   // const ExecutorHandler &exec,
                    const InitFunctor f, const bool update, const label verbose)
         : name_(name),
           db_(db),
