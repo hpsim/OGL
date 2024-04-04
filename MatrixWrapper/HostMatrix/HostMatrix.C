@@ -681,11 +681,12 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         for (auto [interface_idx, interface_row, interface_col] : local_interfaces){
           // A new interface started
           if (interface_idx > prev_interface_ctr) {
-            end = start + i;
+            end = start + local_interface_ctr;
             local_sparsity_.interface_spans_.emplace_back(start, end);
             start = end;
             prev_interface_ctr = interface_idx;
           }
+          local_interface_ctr++;
         }
     }
 }
