@@ -33,6 +33,7 @@ target_link_libraries(
          $ENV{FOAM_LIBBIN}/libfiniteVolume.so
          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
          OGL
+         Ginkgo::ginkgo
          # MPI::MPI_CXX
          ${CMAKE_DL_LIBS})
 
