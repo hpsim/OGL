@@ -463,25 +463,13 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
-    // TODO if we treat all interfaces separately we don't need to sort
-    // anymore
-    //
-    // Sorting of the interfaces is still needed since we can we have
-    // multiple interfaces using the same rows/send_idxs
-    // if the resulting non_local_matrix is not in row major order
-    // we might get non converging solvers on GPU devices
-    std::sort(non_local_row_indices.begin(), non_local_row_indices.end(),
-              [&](const auto &a, const auto &b) {
-                  auto [interface_idx_a, row_a] = a;
-                  auto [interface_idx_b, row_b] = b;
-                  return row_a < row_b;
-              });
-
     label element_ctr = 0;
+    // TODO currently we set permute eventhough this is not required
+    // anymore, remove permute from non_local_interfaces
     for (auto [interface_idx, row] : non_local_row_indices) {
         rows[element_ctr] = row;
         cols[element_ctr] = interface_idx;
-        permute[element_ctr] = interface_idx;
+        permute[element_ctr] = element_ctr;
         element_ctr += 1;
     }
 }
@@ -676,8 +664,8 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
 
         label local_interface_ctr {0};
         label prev_interface_ctr {0};
-        label end = {0};
-        label start = local_matrix_nnz_;
+        label end {0};
+        label start { local_matrix_nnz_ };
         for (auto [interface_idx, interface_row, interface_col] : local_interfaces){
           // A new interface started
           if (interface_idx > prev_interface_ctr) {
@@ -720,8 +708,25 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     // NOTE interface_spans and dim are not persistent so we need to
     // We have now the full non_local matrix and need to add the start and end
     // to the PersistentSparsityPattern data structure
-    non_local_sparsity_.interface_spans_.emplace_back(0, non_local_matrix_nnz_);
     non_local_sparsity_.dim_ = gko::dim<2>{nrows_, non_local_matrix_nnz_};
+
+    auto non_local_interfaces = collect_cells_on_non_local_interface(interfaces);
+
+    // TODO this can be merged with algorithm in update_local_matrix_data
+    // refactor to separate function
+    label interface_ctr {0};
+    label prev_interface_ctr {0};
+    label end {0};
+    label start {0};
+    for (auto [interface_idx, interface_row] : non_local_interfaces){
+        if (interface_idx > prev_interface_ctr) {
+          end = start + interface_ctr;
+          non_local_sparsity_.interface_spans_.emplace_back(start, end);
+          start = end;
+          prev_interface_ctr = interface_idx;
+        }
+        interface_ctr++;
+    }
 }
 
 template HostMatrixWrapper<lduMatrix>::HostMatrixWrapper(
