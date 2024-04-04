@@ -463,6 +463,9 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     auto cols = non_local_sparsity_.col_idxs_.get_data();
     auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
+    // TODO if we treat all interfaces separately we don't need to sort
+    // anymore
+    //
     // Sorting of the interfaces is still needed since we can we have
     // multiple interfaces using the same rows/send_idxs
     // if the resulting non_local_matrix is not in row major order
@@ -509,98 +512,39 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
 
     // Scan through given rows and insert row and column indices into array
     //
-    //  position after all local offdiagonal elements, needed for
-    //  permutation matrix
+    // position after all local offdiagonal elements, needed for
+    // permutation matrix
     //
-    //  TODO in order to simplify when local interfaces exists set
-    //  local_sparsity to size of nrows_w_interfaces, if interfaces exist
-    //  local_sparsity is only valid till nrows_
+    // TODO in order to simplify when local interfaces exists set
+    // local_sparsity to size of nrows_w_interfaces, if interfaces exist
+    // local_sparsity is only valid till nrows_
     label after_neighbours = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
     init_local_sparsity(nrows_, upper_nnz_, is_symmetric, upper, lower, rows,
                         cols, permute);
 
     // if no local interfaces are present we are done here
-    // otherwise we need to add local interfaces in order
+    // otherwise we need to add local interfaces to local_sparsity in order
+    // of the interfaces to end of the col and row idx arrays. This will produce
+    // idx = [d_1, u_1, l_2, d_2, u_2, ... d_n, i_11, i_12, .., i_nn] where
+    // i_j,k j=interface index and k cell index on the interface
     if (local_interface_nnz_) {
+        // NOTE currently, this copies the interface indizes first to a vector
+        // of tuples before inserting it into the persistent arrays. We could
+        // remove the unnessary copy via the vector of tuples and
+        // let collect_local_interface_indices_impl write directly to rows, cols, permute etc
         auto local_interfaces = collect_local_interface_indices(interfaces);
-        // sort local interfaces to be in row major order
-        // and keep original indices
-        std::sort(local_interfaces.begin(), local_interfaces.end(),
-                  [&](const auto &a, const auto &b) {
-                      auto [interface_idx_a, row_a, col_a] = a;
-                      auto [interface_idx_b, row_b, col_b] = b;
-                      return std::tie(row_a, col_a) < std::tie(row_b, col_b);
-                  });
 
-        // copy current rows and columns to tmp array
-        // TODO this has full length but is only valid till nrows_
-        auto rows_copy_a = gko::array<label>(
-            *local_sparsity_.row_idxs_.get_persistent_object().get());
-        auto cols_copy_a = gko::array<label>(
-            *local_sparsity_.col_idxs_.get_persistent_object().get());
-        auto permute_copy_a = gko::array<label>(
-            *local_sparsity_.ldu_mapping_.get_persistent_object().get());
-
-        auto rows_copy = rows_copy_a.get_data();
-        auto cols_copy = cols_copy_a.get_data();
-        auto permute_copy = permute_copy_a.get_data();
-
-        auto rows = local_sparsity_.row_idxs_.get_data();
-        auto cols = local_sparsity_.col_idxs_.get_data();
-        auto permute = local_sparsity_.ldu_mapping_.get_data();
-
-        label current_idx_ctr = 0;
-        label total_ctr = 0;
-        // iterate local interfaces i
-        // insert all coeffs for row < interface[i].row
-        // find local_interface with lowes row, column
-        for (auto const &interface : local_interfaces) {
-            auto [interface_idx, interface_row, interface_col] = interface;
-
-            // copy from existing matrix coefficients
-            while ([&](auto interface_row, auto interface_col) {
-                // check for length
-                if (current_idx_ctr == local_matrix_nnz_) {
-                    return false;
-                }
-
-                if (rows_copy[current_idx_ctr] > interface_row) {
-                    return false;
-                }
-
-                // the copy rows are or equal
-                // in that case we need to check if the
-                // copy columns are lower
-                if (rows_copy[current_idx_ctr] == interface_row &&
-                    cols_copy[current_idx_ctr] > interface_col) {
-                    return false;
-                }
-                return true;
-            }(interface_row, interface_col)) {
-                // insert coeffs
-                rows[total_ctr] = rows_copy[current_idx_ctr];
-                cols[total_ctr] = cols_copy[current_idx_ctr];
-                permute[total_ctr] = permute_copy[current_idx_ctr];
-                current_idx_ctr++;
-                total_ctr++;
-            }
-            rows[total_ctr] = interface_row;
-            cols[total_ctr] = interface_col;
-            // store the original position of the contiguous interfaces
-            permute[total_ctr] = after_neighbours + nrows_ + interface_idx;
-            total_ctr++;
-        }
-
-        // post insert if local interfaces were consumed but stuff remains
-        // in rows_copy and cols_copy
-        for (label i = total_ctr; i < local_matrix_w_interfaces_nnz_; i++) {
-            rows[i] = rows_copy[current_idx_ctr];
-            cols[i] = cols_copy[current_idx_ctr];
-            permute[i] = permute_copy[current_idx_ctr];
-            current_idx_ctr++;
+        label local_interface_ctr {0};
+        for (label i=local_matrix_nnz_; i<local_matrix_w_interfaces_nnz_ ;++i) {
+          auto [interface_idx, interface_row, interface_col] = local_interfaces[local_interface_ctr];
+          rows[i] = interface_row;
+          cols[i] = interface_col;
+          // if interfaces are treated separately we don't need to permute
+          // interface values
+          permute[i] = i;
+          local_interface_ctr++;
         }
     }
-
     LOG_1(verbose_, "done init host matrix")
 }
 
@@ -620,7 +564,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
 
     // TODO this does not work for Ell
     auto permute = local_sparsity_.ldu_mapping_.get_data();
-
 
     if (reorder_on_copy_) {
         auto dense = local_coeffs_.get_data();
@@ -725,8 +668,26 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     // recreate this for every solver call
     // TODO this needs a proper implementation once we know how to handle
     // interfaces
-    local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
     local_sparsity_.dim_ = gko::dim<2>{nrows_, nrows_};
+
+    local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
+    if (local_interface_nnz_) {
+        auto local_interfaces = collect_local_interface_indices(interfaces);
+
+        label local_interface_ctr {0};
+        label prev_interface_ctr {0};
+        label end = {0};
+        label start = local_matrix_nnz_;
+        for (auto [interface_idx, interface_row, interface_col] : local_interfaces){
+          // A new interface started
+          if (interface_idx > prev_interface_ctr) {
+            end = start + i;
+            local_sparsity_.interface_spans_.emplace_back(start, end);
+            start = end;
+            prev_interface_ctr = interface_idx;
+          }
+        }
+    }
 }
 
 
