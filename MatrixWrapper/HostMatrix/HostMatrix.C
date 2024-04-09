@@ -231,6 +231,7 @@ template <class Sel, class Func>
 void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 {
     label element_ctr = 0;
+    label interface_ctr = 0;
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
@@ -241,7 +242,8 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 
         if (isA<Sel>(iface->interface())) {
             const Sel &patch = refCast<const Sel>(iface->interface());
-            func(element_ctr, interface_size, patch, iface);
+            func(element_ctr, interface_ctr, interface_size, patch, iface);
+            interface_ctr++;
         }
     }
 }
@@ -282,7 +284,7 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     // and store rows to send to neighbour procs
     gko::size_type n_procs = 0;
     interface_iterator<processorFvPatch>(
-        interfaces, [&](label, const label, const processorFvPatch &patch,
+        interfaces, [&](label, label, label, const processorFvPatch &patch,
                         const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
             const label neighbProcNo = patch.neighbProcNo();
@@ -428,25 +430,26 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
 }
 
 template <class MatrixType>
-std::vector<std::tuple<label, label>>
+std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_cells_on_non_local_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
-    std::vector<std::tuple<label, label>> non_local_idxs{};
+    std::vector<std::tuple<label, label, label>> non_local_idxs{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
     label interface_ctr = 0;
-    interface_iterator<processorFvPatch>(
-        interfaces,
-        [&](label, const label interface_size, const processorLduInterface &,
-            const lduInterfaceField *iface) {
-            const auto &face_cells{iface->interface().faceCells()};
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto local_row = face_cells[cellI];
-                non_local_idxs.push_back({interface_ctr, local_row});
-                interface_ctr += 1;
-            }
-        });
+    interface_iterator<
+        processorFvPatch>(interfaces, [&](label, label interface_id,
+                                          label interface_size,
+                                          const processorLduInterface &,
+                                          const lduInterfaceField *iface) {
+        const auto &face_cells{iface->interface().faceCells()};
+        for (label cellI = 0; cellI < interface_size; cellI++) {
+            auto local_row = face_cells[cellI];
+            non_local_idxs.push_back({interface_id, interface_ctr, local_row});
+            interface_ctr += 1;
+        }
+    });
 
     word msg = "done collecting neighbouring processor cell id";
     LOG_2(verbose_, msg)
@@ -466,7 +469,7 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     label element_ctr = 0;
     // TODO currently we set permute eventhough this is not required
     // anymore, remove permute from non_local_interfaces
-    for (auto [interface_idx, row] : non_local_row_indices) {
+    for (auto [interface_id, interface_idx, row] : non_local_row_indices) {
         rows[element_ctr] = row;
         cols[element_ctr] = interface_idx;
         permute[element_ctr] = element_ctr;
@@ -519,18 +522,21 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
         // NOTE currently, this copies the interface indizes first to a vector
         // of tuples before inserting it into the persistent arrays. We could
         // remove the unnessary copy via the vector of tuples and
-        // let collect_local_interface_indices_impl write directly to rows, cols, permute etc
+        // let collect_local_interface_indices_impl write directly to rows,
+        // cols, permute etc
         auto local_interfaces = collect_local_interface_indices(interfaces);
 
-        label local_interface_ctr {0};
-        for (label i=local_matrix_nnz_; i<local_matrix_w_interfaces_nnz_ ;++i) {
-          auto [interface_idx, interface_row, interface_col] = local_interfaces[local_interface_ctr];
-          rows[i] = interface_row;
-          cols[i] = interface_col;
-          // if interfaces are treated separately we don't need to permute
-          // interface values
-          permute[i] = i;
-          local_interface_ctr++;
+        label local_interface_ctr{0};
+        for (label i = local_matrix_nnz_; i < local_matrix_w_interfaces_nnz_;
+             ++i) {
+            auto [interface_idx, interface_row, interface_col] =
+                local_interfaces[local_interface_ctr];
+            rows[i] = interface_row;
+            cols[i] = interface_col;
+            // if interfaces are treated separately we don't need to permute
+            // interface values
+            permute[i] = i;
+            local_interface_ctr++;
         }
     }
     LOG_1(verbose_, "done init host matrix")
@@ -662,19 +668,22 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     if (local_interface_nnz_) {
         auto local_interfaces = collect_local_interface_indices(interfaces);
 
-        label local_interface_ctr {0};
-        label prev_interface_ctr {0};
-        label end {0};
-        label start { local_matrix_nnz_ };
-        for (auto [interface_idx, interface_row, interface_col] : local_interfaces){
-          // A new interface started
-          if (interface_idx > prev_interface_ctr) {
-            end = start + local_interface_ctr;
-            local_sparsity_.interface_spans_.emplace_back(start, end);
-            start = end;
-            prev_interface_ctr = interface_idx;
-          }
-          local_interface_ctr++;
+        label local_interface_ctr{0};
+        label prev_interface_ctr{0};
+        label end{0};
+        label start{local_matrix_nnz_};
+        for (auto [interface_idx, interface_row, interface_col] :
+             local_interfaces) {
+            // check if a new interface has started or final interface has been
+            // reache
+            if (interface_idx > prev_interface_ctr ||
+                local_interface_ctr + 1 == local_interfaces.size()) {
+                end = start + local_interface_ctr;
+                local_sparsity_.interface_spans_.emplace_back(start, end);
+                start = end;
+                prev_interface_ctr = interface_idx;
+            }
+            local_interface_ctr++;
         }
     }
 }
@@ -710,20 +719,26 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     // to the PersistentSparsityPattern data structure
     non_local_sparsity_.dim_ = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 
-    auto non_local_interfaces = collect_cells_on_non_local_interface(interfaces);
+    auto non_local_interfaces =
+        collect_cells_on_non_local_interface(interfaces);
 
     // TODO this can be merged with algorithm in update_local_matrix_data
     // refactor to separate function
-    label interface_ctr {0};
-    label prev_interface_ctr {0};
-    label end {0};
-    label start {0};
-    for (auto [interface_idx, interface_row] : non_local_interfaces){
-        if (interface_idx > prev_interface_ctr) {
-          end = start + interface_ctr;
-          non_local_sparsity_.interface_spans_.emplace_back(start, end);
-          start = end;
-          prev_interface_ctr = interface_idx;
+    label interface_ctr{0};
+    label prev_interface_ctr{0};
+    label end{0};
+    label start{0};
+    for (auto [interface_idx, interface_cell_ctr, interface_row] :
+         non_local_interfaces) {
+        std::cout << "updating interface span " << interface_idx << "\n";
+        // check if a new interface has started or final interface has been
+        // reache
+        if (interface_idx > prev_interface_ctr ||
+            interface_ctr + 1 == non_local_interfaces.size()) {
+            end = start + interface_ctr;
+            non_local_sparsity_.interface_spans_.emplace_back(start, end);
+            start = end;
+            prev_interface_ctr = interface_idx;
         }
         interface_ctr++;
     }

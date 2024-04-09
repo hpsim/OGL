@@ -52,7 +52,7 @@ struct PersistentSparsityPattern {
               verbose,
               false,  // For now we assume columns and rows to be constant
               false   // we don't init on device since the indices are written
-                     // using the pointer to the data
+                      // using the pointer to the data
           },
           row_idxs_{
               fieldName + "_rows",
@@ -362,7 +362,8 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label>> collect_cells_on_non_local_interface(
+    std::vector<std::tuple<label, label, label>>
+    collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /** Based on OpenFOAMs ldu matrix format this function computes two
