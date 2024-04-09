@@ -94,8 +94,7 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 
   set(CMAKE_CXX_FLAGS_DEBUG
       "${CMAKE_CXX_FLAGS_DEBUG} \
-    -fno-omit-frame-pointer \
-    -fsanitize=address")
+    -fno-omit-frame-pointer")
 
   set(CMAKE_CXX_FLAGS_RELEASE
       "${CMAKE_CXX_FLAGS_RELEASE} \
@@ -114,7 +113,6 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       --coverage\
       -fprofile-arcs \
       -ggdb3 \
-      -fsanitize=address,undefined \
       ")
 
   set(CMAKE_CXX_FLAGS_RELEASE
