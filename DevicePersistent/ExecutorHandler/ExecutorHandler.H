@@ -114,7 +114,10 @@ struct ExecutorInitFunctor {
             return host_exec;
         }
 
-        // NOTE Return empty pointer to avoid compiler warnings
+        FatalErrorInFunction
+            << "OGL does not support the executor: " << name
+            << "\nValid Choices: cuda, hip, dpcpp, omp, reference"
+            << abort(FatalError);
         return {};
     }
 };
