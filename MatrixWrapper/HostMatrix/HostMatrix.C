@@ -735,7 +735,7 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
         // reache
         if (interface_idx > prev_interface_ctr ||
             interface_ctr + 1 == non_local_interfaces.size()) {
-            end = start + interface_ctr;
+            end = start + interface_ctr + 1;
             non_local_sparsity_.interface_spans_.emplace_back(start, end);
             start = end;
             prev_interface_ctr = interface_idx;
