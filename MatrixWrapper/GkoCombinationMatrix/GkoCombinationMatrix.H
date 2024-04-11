@@ -38,6 +38,7 @@ public:
         for (auto &interface : interface_ranges_) {
             auto length = interface.length();
             auto offset = interface.begin;
+            std::cout << " read interface " << length << " " << offset << "\n";
             auto op = gko::share(InnerMatrixType::create(exec));
 
             device_matrix_data in(

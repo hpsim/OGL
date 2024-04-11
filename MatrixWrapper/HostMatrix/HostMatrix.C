@@ -668,20 +668,22 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     if (local_interface_nnz_) {
         auto local_interfaces = collect_local_interface_indices(interfaces);
 
+        // counter how many interface elements are found on current interface
         label local_interface_ctr{0};
-        label prev_interface_ctr{0};
+        label prev_interface_idx{0};
         label end{0};
         label start{local_matrix_nnz_};
         for (auto [interface_idx, interface_row, interface_col] :
              local_interfaces) {
             // check if a new interface has started or final interface has been
             // reache
-            if (interface_idx > prev_interface_ctr ||
+            if (interface_idx > prev_interface_idx ||
                 local_interface_ctr + 1 == local_interfaces.size()) {
                 end = start + local_interface_ctr;
+                local_interface_ctr = 0;
                 local_sparsity_.interface_spans_.emplace_back(start, end);
                 start = end;
-                prev_interface_ctr = interface_idx;
+                prev_interface_idx = interface_idx;
             }
             local_interface_ctr++;
         }
@@ -697,7 +699,6 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     auto ref_exec = exec_.get_ref_exec();
     auto interface_coeffs =
         collect_interface_coeffs(interfaces, interfaceBouCoeffs, false);
-    auto permute = non_local_sparsity_.ldu_mapping_.get_data();
 
     // copy interfaces
     auto tmp_contiguous_iface =
@@ -706,7 +707,7 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
 
     for (label element_ctr = 0; element_ctr < non_local_matrix_nnz_;
          element_ctr++) {
-        contiguous_iface[element_ctr] = interface_coeffs[permute[element_ctr]];
+        contiguous_iface[element_ctr] = interface_coeffs[element_ctr];
     }
 
     // copy to persistent
@@ -730,12 +731,12 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     label start{0};
     for (auto [interface_idx, interface_cell_ctr, interface_row] :
          non_local_interfaces) {
-        std::cout << "updating interface span " << interface_idx << "\n";
         // check if a new interface has started or final interface has been
         // reache
         if (interface_idx > prev_interface_ctr ||
-            interface_ctr + 1 == non_local_interfaces.size()) {
-            end = start + interface_ctr + 1;
+            interface_ctr == non_local_interfaces.size() - 1) {
+            end = start + interface_ctr;
+            interface_ctr = 0;
             non_local_sparsity_.interface_spans_.emplace_back(start, end);
             start = end;
             prev_interface_ctr = interface_idx;
