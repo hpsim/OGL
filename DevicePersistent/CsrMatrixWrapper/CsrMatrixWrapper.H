@@ -10,6 +10,7 @@
 #include "DevicePersistent/Partition/Partition.H"
 
 #include "MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H"
+#include "MatrixWrapper/RepartDistMatrix/RepartDistMatrix.H"
 
 #include "fvCFD.H"
 
@@ -42,12 +43,11 @@ void perform_update(
         interface_ctr++;
         device_value_view = update_view;
     }
-};
+}
 
 
 struct MatrixInitFunctor {
-    using dist_mtx =
-        gko::experimental::distributed::Matrix<scalar, label, label>;
+    using dist_mtx = RepartDistMatrix<scalar, label, label>;
 
     using val_array = gko::array<scalar>;
 
@@ -159,39 +159,37 @@ struct MatrixInitFunctor {
         if (matrix_format_ == "Ell") {
             using Ell = gko::matrix::Ell<scalar, label>;
 
-            auto local_template = CombinationMatrix<scalar, label, Ell>::create(
-                exec, local_dim, local_interfaces);
-            auto non_local_template =
+            return gko::share(dist_mtx::create(
+                exec, comm,
+                CombinationMatrix<scalar, label, Ell>::create(exec, local_dim,
+                                                              local_interfaces),
                 CombinationMatrix<scalar, label, Ell>::create(
-                    exec, non_local_dim, non_local_interfaces);
-
-            return dist_mtx::create(exec, *comm.get(), local_template,
-                                    non_local_template);
+                    exec, non_local_dim, non_local_interfaces)));
         }
-        if (matrix_format_ == "Csr") {
-            using Csr = gko::matrix::Csr<scalar, label>;
-
-            auto local_template = CombinationMatrix<scalar, label, Csr>::create(
-                exec, local_dim, local_interfaces);
-            auto non_local_template =
-                CombinationMatrix<scalar, label, Csr>::create(
-                    exec, non_local_dim, non_local_interfaces);
-
-            return dist_mtx::create(exec, *comm.get(), local_template,
-                                    non_local_template);
-        }
-        if (matrix_format_ == "Coo") {
-            using Coo = gko::matrix::Coo<scalar, label>;
-
-            auto local_template = CombinationMatrix<scalar, label, Coo>::create(
-                exec, local_dim, local_interfaces);
-            auto non_local_template =
-                CombinationMatrix<scalar, label, Coo>::create(
-                    exec, non_local_dim, non_local_interfaces);
-
-            return dist_mtx::create(exec, *comm.get(), local_template,
-                                    non_local_template);
-        }
+        // if (matrix_format_ == "Csr") {
+        //     using Csr = gko::matrix::Csr<scalar, label>;
+        //
+        //     auto local_template = CombinationMatrix<scalar, label, Csr>::create(
+        //         exec, local_dim, local_interfaces);
+        //     auto non_local_template =
+        //         CombinationMatrix<scalar, label, Csr>::create(
+        //             exec, non_local_dim, non_local_interfaces);
+        //
+        //     return dist_mtx::create(exec, comm, local_template,
+        //                             non_local_template);
+        // }
+        // if (matrix_format_ == "Coo") {
+        //     using Coo = gko::matrix::Coo<scalar, label>;
+        //
+        //     auto local_template = CombinationMatrix<scalar, label, Coo>::create(
+        //         exec, local_dim, local_interfaces);
+        //     auto non_local_template =
+        //         CombinationMatrix<scalar, label, Coo>::create(
+        //             exec, non_local_dim, non_local_interfaces);
+        //
+        //     return dist_mtx::create(exec, comm, local_template,
+        //                             non_local_template);
+        // }
         // if (matrix_format_ == "Hybrid") {
         //     return dist_mtx::create(
         //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
@@ -225,12 +223,24 @@ struct MatrixInitFunctor {
             *non_local_cols.get(), *non_local_coeffs.get()};
 
         auto comm = exec_.get_gko_mpi_host_comm();
+
+        // TODO here we would need a source and target comm / partition to allow
+        // repartitioning
         auto sparse_comm =
             gko::experimental::distributed::sparse_communicator::create(
                 *comm.get(), partition_.get_localized_partition());
 
         auto dist_A = generate_dist_mtx_with_inner_type(
             exec_.get_device_exec(), exec_.get_gko_mpi_host_comm());
+
+        // TODO here we would need a source and target comm / partition to allow
+        // repartitioning However repartitioning is also specific to the
+        // combination matrix since it moves data between interfaces thus it
+        // would need a function that does repartition(local, non_local) we
+        // could do that by implementing a wrapper for the distributed matrix
+        // type GKORepartitionedDistributedMatrix after the first read it
+        // constructs everything needed for repartitioning update would than be
+        // handled via repeat_create()
         dist_A->read_distributed(local_A_data, non_local_A_data, sparse_comm);
 
         // auto device_mat = generate_dist_mtx_with_inner_type(
@@ -243,8 +253,7 @@ struct MatrixInitFunctor {
 
 class MatrixWrapper {
 private:
-    using dist_mtx =
-        gko::experimental::distributed::Matrix<scalar, label, label>;
+    using dist_mtx = RepartDistMatrix<scalar, label, label>;
 
     const objectRegistry &db_;
 

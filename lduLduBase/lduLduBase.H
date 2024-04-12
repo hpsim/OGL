@@ -121,8 +121,8 @@ class lduLduBase : public OGL_Info,
                    public Preconditioner {
 private:
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
-    using dist_mtx =
-        gko::experimental::distributed::Matrix<scalar, label, label>;
+    using dist_mtx = RepartDistMatrix<scalar, label, label>;
+
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
     using csr_mtx = gko::matrix::Csr<scalar>;
