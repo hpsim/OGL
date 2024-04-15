@@ -9,8 +9,8 @@
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
 
-#include "MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H"
-#include "MatrixWrapper/RepartDistMatrix/RepartDistMatrix.H"
+#include "MatrixWrapper/Combination/Combination.H"
+#include "MatrixWrapper/Distributed/Distributed.H"
 
 #include "fvCFD.H"
 

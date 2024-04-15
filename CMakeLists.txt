@@ -175,7 +175,7 @@ target_sources(
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
          MatrixWrapper/HostMatrix/HostMatrix.H
-         MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H
+         MatrixWrapper/Combination/Combination.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H

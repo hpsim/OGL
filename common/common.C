@@ -10,7 +10,7 @@
 #include <filesystem>
 #include "common.H"
 
-#include "MatrixWrapper/GkoCombinationMatrix/GkoCombinationMatrix.H"
+#include "MatrixWrapper/Combination/Combination.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
