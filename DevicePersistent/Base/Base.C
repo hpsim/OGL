@@ -4,7 +4,7 @@
 
 #include "Base.H"
 
-#include "../../MatrixWrapper/Distributed/Distributed.H"
+#include "MatrixWrapper/Distributed/Distributed.H"
 
 namespace Foam {
 
