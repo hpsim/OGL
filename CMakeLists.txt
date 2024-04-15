@@ -48,10 +48,18 @@ option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
 
-set(GINKGO_BUILD_MPI ON CACHE INTERNAL "")
-set(GINKGO_BUILD_TESTS OFF CACHE INTERNAL "")
-set(GINKGO_BUILD_EXAMPLES OFF CACHE INTERNAL "")
-set(GINKGO_BUILD_BENCHMARKS OFF CACHE INTERNAL "")
+set(GINKGO_BUILD_MPI
+    ON
+    CACHE INTERNAL "")
+set(GINKGO_BUILD_TESTS
+    OFF
+    CACHE INTERNAL "")
+set(GINKGO_BUILD_EXAMPLES
+    OFF
+    CACHE INTERNAL "")
+set(GINKGO_BUILD_BENCHMARKS
+    OFF
+    CACHE INTERNAL "")
 
 if((NOT OGL_ALLOW_REFERENCE_ONLY) AND (NOT OGL_USE_EXTERNAL_GINKGO))
   if((NOT GINKGO_BUILD_CUDA)
@@ -76,11 +84,9 @@ include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
 include(cmake/Sanitizer.cmake)
 
-
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
 
 add_subdirectory(third_party)
-
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
@@ -92,8 +98,7 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("Compiling with clang")
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-  set(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} \
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
     -fno-omit-frame-pointer")
 
   set(CMAKE_CXX_FLAGS_RELEASE
@@ -160,12 +165,12 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
-          DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.C
+          DevicePersistent/LDUMatrixAdapter/LDUMatrixAdapter.C
           Preconditioner/Preconditioner.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          MatrixWrapper/HostMatrix/HostMatrix.C
-          MatrixWrapper/HostMatrix/HostMatrixFreeFunctions.C
+          MatrixWrapper/LDUMatrix/HostMatrix.C
+          MatrixWrapper/LDUMatrix/HostMatrixFreeFunctions.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
@@ -174,7 +179,7 @@ target_sources(
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
-         MatrixWrapper/HostMatrix/HostMatrix.H
+         MatrixWrapper/LDUMatrix/HostMatrix.H
          MatrixWrapper/Combination/Combination.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
@@ -182,7 +187,7 @@ target_sources(
          DevicePersistent/Vector/Vector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
-         DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H
+         DevicePersistent/LDUMatrixAdapter/LDUMatrixAdapter.H
          Preconditioner/Preconditioner.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
@@ -194,15 +199,10 @@ target_sources(
   # LduMatrix / GKOACG / GKOACG.H
 )
 
-
 enable_sanitizers(
-    OGL
-    ${OGL_ENABLE_SANITIZE_ADDRESS}
-    ${OGL_ENABLE_SANITIZE_LEAK}
-    ${OGL_ENABLE_SANITIZE_UB}
-    ${OGL_ENABLE_SANITIZE_THREAD}
-    ${OGL_ENABLE_SANITIZE_MEMORY}
-)
+  OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
+  ${OGL_ENABLE_SANITIZE_UB} ${OGL_ENABLE_SANITIZE_THREAD}
+  ${OGL_ENABLE_SANITIZE_MEMORY})
 
 target_include_directories(
   OGL SYSTEM
@@ -213,9 +213,8 @@ target_include_directories(
 target_link_libraries(
   OGL
   PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo stdc++fs)
-
-
+          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo
+          stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
@@ -225,7 +224,6 @@ if(${GINKGO_BUILD_CUDA})
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
   target_link_libraries(OGL PUBLIC CUDA::nvToolsExt)
 endif()
-
 
 if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
@@ -248,12 +246,13 @@ add_custom_target(
   COMMAND find . -name CMakeLists.txt -exec cmake-format -i {} +
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-install(TARGETS OGL
-    ginkgo
-    ginkgo_device
-    ginkgo_hip
-    ginkgo_cuda
-    ginkgo_omp
-    ginkgo_dpcpp
-    ginkgo_reference
-    DESTINATION $ENV{FOAM_USER_LIBBIN})
+install(
+  TARGETS OGL
+          ginkgo
+          ginkgo_device
+          ginkgo_hip
+          ginkgo_cuda
+          ginkgo_omp
+          ginkgo_dpcpp
+          ginkgo_reference
+  DESTINATION $ENV{FOAM_USER_LIBBIN})

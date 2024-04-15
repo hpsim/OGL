@@ -33,62 +33,46 @@ SourceFiles
 #include "DevicePersistent/Array/Array.H"
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
+#include "MatrixWrapper/Combination/Combination.H"
 #include "common/common.H"
 
 
 namespace Foam {
 
 
-struct PersistentSparsityPattern {
-    PersistentSparsityPattern(const word &fieldName, const objectRegistry &db,
-                              const ExecutorHandler &exec, const label size,
-                              const label verbose)
+struct SparsityPattern {
+    SparsityPattern(const ExecutorHandler &exec, const label size)
         : size_(size),
           col_idxs_{
-              fieldName + "_cols",
-              db,
-              exec,
-              size,
-              verbose,
-              false,  // For now we assume columns and rows to be constant
-              false   // we don't init on device since the indices are written
-                      // using the pointer to the data
+              exec.get_host_executor(),
+              size
           },
           row_idxs_{
-              fieldName + "_rows",
-              db,
-              exec,
-              size,
-              verbose,
-              false,  // For now we assume columns and rows to be constant
-              false   // same as for cols don't init on device
+              exec.get_host_executor(),
+              size
           },
           ldu_mapping_{
-              fieldName + "_ldu_map",
-              db,
-              exec,
-              size,
-              verbose,
-              false,
-              false  // same as for rows and cols dont init on device
+              exec.get_host_executor(),
+              size
           }
     {}
 
     // number of nnz entries
     const label size_;
 
-    mutable PersistentArray<label> col_idxs_;
+    mutable gko::Array<label> col_idxs_;
 
-    mutable PersistentArray<label> row_idxs_;
+    mutable gko::Array<label> row_idxs_;
 
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
-    mutable PersistentArray<label> ldu_mapping_;
+    mutable gko::Array<label> ldu_mapping_;
 
     // dimensions of the resulting matrix
     mutable gko::dim<2> dim_;
 
     // A vector of spans indicating begin and end of each interface
+    // this is used to keep all col and row idx consecutive in memory
     mutable std::vector<gko::span> interface_spans_;
 };
 
@@ -243,12 +227,14 @@ void non_symmetric_update_w_interface(
  * format into Ginkgo array data structures
  *
  * It mainly generates:
- * - sparsity pattern/device_matrix_data of the local_matrix and
- * - non_local_matrix (with global columns)
+ * - sparsity pattern of the local_matrix and
+ *   non_local_matrix (with global columns)
  * - CommunicationPattern
+ * - implements an interfaces so that
+ *   RepartDistMatrix can read_distributed(A_host)
  * */
-template <class MatrixType>
-class HostMatrixWrapper : public MatrixType::solver {
+class HostMatrixWrapper
+{
 private:
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
@@ -259,30 +245,33 @@ private:
 
     const label verbose_;
 
+    const word fieldName_;
+
     // Whether the matrix coefficients should be reordered
     // during copy or on device
-    // NOTE Not implemented
     const bool reorder_on_copy_;
 
     // multiply the complete system by this factor, ie sAx=sb
-    // NOTE this could be also achieved by just fliping the sign
+    // NOTE this needed to avoid negative diagonal matrix entries, but
+    // this could be also achieved by just fliping the sign
     const scalar scaling_;
 
     // number of local matrix rows
     const label nrows_;
+
+    // number of local upper elements
+    // ie coefficients which column_idx < nrows_
+    const label upper_nnz_;
+
+    const bool symmetric_;
 
     // number of local elements on interfaces
     // ie number of interfaces which column_idx is < nrows_
     // and have to be sorted into local matrix
     const label local_interface_nnz_;
 
-    // number of local upper elements
-    // ie coefficients which column_idx < nrows_
-    const label upper_nnz_;
-
     // total number of local upper and lower elements
     // ie 2*upper_nnz_ since the sparsity pattern is symmetric
-    // TODO should this include the local_interface_nnz_ ?
     const label non_diag_nnz_;
 
     // nnz of local matrix wo local interfaces
@@ -291,27 +280,14 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
-    mutable PersistentSparsityPattern local_sparsity_;
-
-    // matrix coefficients
-    mutable PersistentArray<scalar> local_coeffs_;
+    mutable SparsityPattern local_sparsity_pattern_;
 
     // non-local indices
     const label non_local_matrix_nnz_;
 
-    const CommunicationPattern communication_pattern_;
-
     mutable PersistentSparsityPattern non_local_sparsity_;
 
-    mutable PersistentArray<scalar> non_local_coeffs_;
-
-    // FIXME TODO unused
-    const word permutation_matrix_name_;
-
-    const bool permutation_stored_;
-
-    mutable std::shared_ptr<gko::LinOp> P_;
-
+    const CommunicationPattern communication_pattern_;
 
     /* Iterates all interfaces and collects the coefficients into a vector
     **
@@ -402,28 +378,29 @@ private:
         const FieldField<Field, scalar> &interfaceBouCoeffs) const;
 
 public:
-    // segregated wrapper constructor
-    // TODO - compute local_interface_nnzs these are matrix coefficient
-    //      that are on an interface but not on a different rank
-    //      - then a new array/vector is needed to store local_interfaces
-    //      - if local interfaces are present init_local_sparsity_pattern
-    //      needs to be adapted
-    //      - local_sparsity_.ldu_mapping needs a new section for interfaces
-    HostMatrixWrapper(
-        const objectRegistry &db, const MatrixType &matrix,
-        // coeffs for cells on boundaries
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        // coeffs for internal cells
-        const FieldField<Field, scalar> &interfaceIntCoeffs,
-        // pointers to interfaces can be used to access concrete
-        // functions such as transferring indices, patch neighbours etc
-        const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls, const word &fieldName);
 
-    // TODO reimplement this at some point
+    // segregated matrix wrapper constructor
+    HostMatrixWrapper(
+        label nrows,
+        label upper_nnz,
+        bool symmetric,
+        const scalar* diag,
+        const scalar* upper,
+        const scalar* lower,
+        const label* lowerAddr,
+        const label* upperAddr,
+        const objectRegistry &db,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls,
+        const word &fieldName,
+        label verbose);
+
     // coupled wrapper constructor
     HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      const dictionary &solverControls, const word &fieldName);
+                      const dictionary &solverControls, const word &fieldName)
+        {OGL_NOT_IMPLEMENTED};
 
 
     // getter

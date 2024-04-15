@@ -33,150 +33,40 @@ SourceFiles
 
 namespace Foam {
 
-template <class MatrixType>
+
 HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
-    const objectRegistry &db, const MatrixType &matrix,
-    // coeffs for cells on boundaries
+    label nrows, label upper_nnz, bool symmetric, const scalar *diag,
+    const scalar *upper, const scalar *lower, const label *lowerAddr,
+    const label *upperAddr, const objectRegistry &db,
     const FieldField<Field, scalar> &interfaceBouCoeffs,
-    // coeffs for internal cells
     const FieldField<Field, scalar> &interfaceIntCoeffs,
-    // pointers to interfaces can be used to access concrete
-    // functions such as transferring indices, patch neighbours etc
     const lduInterfaceFieldPtrsList &interfaces,
-    const dictionary &solverControls, const word &fieldName)
-    : MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
-                         interfaceIntCoeffs, interfaces, solverControls),
-      exec_{db, solverControls, fieldName},
+    const dictionary &solverControls, const word &fieldName, label verbose)
+    : exec_{db, solverControls, fieldName},
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
-      verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-      reorder_on_copy_(
-          solverControls.lookupOrDefault<Switch>("reorderOnHost", false)),
-      scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-      nrows_(matrix.diag().size()),
-      local_interface_nnz_(count_interface_nnz(interfaces, false)),
-      upper_nnz_(matrix.lduAddr().upperAddr().size()),
-      non_diag_nnz_(2 * upper_nnz_),
-      local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-      local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      local_sparsity_{
-          fieldName + "_local",           db,       exec_,
-          local_matrix_w_interfaces_nnz_, verbose_,
-      },
-      local_coeffs_{
-          fieldName + "_local_coeffs",
-          db,
-          exec_,
-          local_matrix_w_interfaces_nnz_,
-          verbose_,
-          true,              // needs to be updated
-          !reorder_on_copy_  // whether to init on device
-                             // if reorderOnHost is selected, the array needs
-                             // to be initialized on the host
-      },
-      non_local_matrix_nnz_(count_interface_nnz(interfaces, true)),
-      communication_pattern_(create_communication_pattern(interfaces)),
-      non_local_sparsity_{
-          fieldName + "_non_local", db, exec_, non_local_matrix_nnz_, verbose_,
-      },
-      non_local_coeffs_{
-          fieldName + "_non_local_coeffs",
-          db,
-          exec_,
-          non_local_matrix_nnz_,
-          verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
-      },
-      permutation_matrix_name_{"PermutationMatrix"},
-      permutation_stored_{
-          db.template foundObject<regIOobject>(permutation_matrix_name_)},
-      P_{(permutation_stored_)
-             ? db.template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                     permutation_matrix_name_)
-                   .get_ptr()
-             : nullptr}
-{
-    if (!local_sparsity_.col_idxs_.get_stored() ||
-        local_sparsity_.col_idxs_.get_update()) {
-        TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
-                            this->fieldName(),
-                            init_local_sparsity_pattern(interfaces);)
-        TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
-                            this->fieldName(),
-                            init_non_local_sparsity_pattern(interfaces);)
-    }
-    if (!local_coeffs_.get_stored() || local_coeffs_.get_update()) {
-        TIME_WITH_FIELDNAME(
-            verbose_, update_local_matrix_data, this->fieldName(),
-            update_local_matrix_data(interfaces, interfaceBouCoeffs);)
-        TIME_WITH_FIELDNAME(
-            verbose_, update_non_local_matrix_data, this->fieldName(),
-            update_non_local_matrix_data(interfaces, interfaceBouCoeffs);)
-    }
-}
-
-
-template <class MatrixType>
-HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
-    const objectRegistry &db, const MatrixType &matrix,
-    const dictionary &solverControls, const word &fieldName)
-    : MatrixType::solver(fieldName, matrix, solverControls),
-      exec_{db, solverControls, fieldName},
-      device_id_guard_{db, fieldName, exec_.get_device_exec()},
-      verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+      verbose_(verbose),
+      fieldName_(fieldName),
       reorder_on_copy_(
           solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
-      nrows_(matrix.diag().size()),
+      nrows_(nrows),
       local_interface_nnz_(0),
-      upper_nnz_(matrix.lduAddr().upperAddr().size()),
+      upper_nnz_(upper_nnz),
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      local_sparsity_{
-          fieldName + "_cols", db, exec_, local_matrix_nnz_, verbose_,
-      },
-      local_coeffs_{
-          fieldName + "_coeffs",
-          db,
-          exec_,
-          local_matrix_nnz_,
-          verbose_,
-          true,              // needs to be updated
-          !reorder_on_copy_  // whether to init on device
-                             // if reorderOnHost is selected, the array needs
-                             // to be initialized on the host
-      },
-      non_local_matrix_nnz_(),
-      // proc_target_id_and_sizes_(assemble_proc_id_and_sizes(interfaces)),
-      non_local_sparsity_{
-          fieldName + "_non_local", db, exec_, non_local_matrix_nnz_, verbose_,
-      },
-      non_local_coeffs_{
-          fieldName + "_non_local_coeffs",
-          db,
-          exec_,
-          non_local_matrix_nnz_,
-          verbose_,
-          true,  // needs to be updated
-          false  // leave it on host once it is turned into a distributed
-                 // matrix it will be put on the device
-      },
-      permutation_matrix_name_{"PermutationMatrix"},
-      permutation_stored_{
-          db.template foundObject<regIOobject>(permutation_matrix_name_)},
-      P_{(permutation_stored_)
-             ? db.template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                     permutation_matrix_name_)
-                   .get_ptr()
-             : nullptr}
+      local_sparsity_{exec_.get_host_exec(), local_matrix_nnz_},
+      non_local_matrix_nnz_{count_interface_nnz(interfaces, true)},
+      non_local_sparsity_{exec_.get_host_exec(), non_local_matrix_nnz_}
 {
-    FatalErrorInFunction << "This constructor is currently not implemented"
-                         << abort(FatalError);
+    TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
+                        fieldName_,
+                        init_local_sparsity_pattern(interfaces);)
+    TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
+                        fieldName_,
+                        init_non_local_sparsity_pattern(interfaces);)
 }
 
-template <class MatrixType>
 label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
@@ -198,7 +88,6 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     return ctr;
 }
 
-template <class MatrixType>
 std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> &interfaceBouCoeffs, const bool local) const
@@ -271,7 +160,6 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 }
 
 
-template <class MatrixType>
 CommunicationPattern
 HostMatrixWrapper<MatrixType>::create_communication_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
@@ -402,7 +290,6 @@ void collect_local_interface_indices_impl_cyclicACMIFvPatch(
 }
 #endif
 
-template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
@@ -429,7 +316,6 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
     return local_interface_idxs;
 }
 
-template <class MatrixType>
 std::vector<std::tuple<label, label, label>>
 HostMatrixWrapper<MatrixType>::collect_cells_on_non_local_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
@@ -456,8 +342,7 @@ HostMatrixWrapper<MatrixType>::collect_cells_on_non_local_interface(
     return non_local_idxs;
 }
 
-template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
+void HostMatrixWrapper::init_non_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     auto non_local_row_indices =
@@ -477,12 +362,10 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     }
 }
 
-template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
+void HostMatrixWrapper::init_local_sparsity_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
-    bool is_symmetric{this->matrix().symmetric()};
 
     auto lower_local = idx_array::view(
         exec_.get_ref_exec(), upper_nnz_ - local_interface_nnz_,
@@ -509,8 +392,8 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    label after_neighbours = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
-    init_local_sparsity(nrows_, upper_nnz_, is_symmetric, upper, lower, rows,
+    label after_neighbours = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
+    init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
                         cols, permute);
 
     // if no local interfaces are present we are done here
@@ -539,12 +422,11 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
             local_interface_ctr++;
         }
     }
-    LOG_1(verbose_, "done init host matrix")
+    LOG_1(verbose_, "done init host sparsity pattern")
 }
 
 
-template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
+void HostMatrixWrapper::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> &interfaceBouCoeffs) const
 {
@@ -554,7 +436,6 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
     auto diag = this->matrix().diag();
 
     label diag_nnz = diag.size();
-    bool is_symmetric{this->matrix().symmetric()};
 
     // TODO this does not work for Ell
     auto permute = local_sparsity_.ldu_mapping_.get_data();
@@ -564,7 +445,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
         if (local_interface_nnz_) {
             auto couple_coeffs =
                 collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
-            if (is_symmetric) {
+            if (symmetric_) {
                 symmetric_update_w_interface(
                     local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
                     permute, scaling_, diag.data(), upper.data(),
@@ -577,7 +458,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
                     couple_coeffs.data(), dense);
             }
         } else {
-            if (is_symmetric) {
+            if (symmetric_) {
                 symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
                                  scaling_, diag.data(), upper.data(), dense);
             } else {
@@ -691,8 +572,7 @@ void HostMatrixWrapper<MatrixType>::update_local_matrix_data(
 }
 
 
-template <class MatrixType>
-void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
+void HostMatrixWrapper::update_non_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> &interfaceBouCoeffs) const
 {
@@ -745,7 +625,7 @@ void HostMatrixWrapper<MatrixType>::update_non_local_matrix_data(
     }
 }
 
-template HostMatrixWrapper<lduMatrix>::HostMatrixWrapper(
+template HostMatrixWrapper::HostMatrixWrapper(
     const objectRegistry &db, const lduMatrix &matrix,
     // coeffs for cells on boundaries
     const FieldField<Field, scalar> &interfaceBouCoeffs,

@@ -117,7 +117,6 @@ public:
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public OGL_Info,
                    public SolverFactory,
-                   public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
@@ -132,9 +131,18 @@ private:
 
     const objectRegistry &db_;
 
+    const MatrixType& matrix_;
+
+    const FieldField<Field, scalar> &interfaceBouCoeffs_,
+
+    const FieldField<Field, scalar> &interfaceIntCoeffs_,
+
+    const lduInterfaceFieldPtrsList &interfaces_,
+
     const dictionary &solver_controls_;
 
     const label verbose_;
+
 
 public:
     // constructor for segregated solver
@@ -145,16 +153,13 @@ public:
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>{matrix.mesh().thisDb(),
-                                        matrix,
-                                        interfaceBouCoeffs,
-                                        interfaceIntCoeffs,
-                                        interfaces,
-                                        solverControls,
-                                        fieldName},
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
+          matrix_(matrix),
+          interfaceBouCoeffs_(interfaceBouCoeffs),
+          interfaceIntCoeffs_(interfaceIntCoeffs),
+          interfaces_(interfaces),
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
@@ -168,11 +173,15 @@ public:
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
-                                        solverControls, fieldName),
+          // HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
+          //                               solverControls, fieldName),
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
+          matrix_(matrix),
+          interfaceBouCoeffs_(),
+          interfaceIntCoeffs_(),
+          interfaces_(),
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
@@ -192,6 +201,19 @@ public:
     {
         auto ref_exec = this->get_exec_handler().get_ref_exec();
 
+        // using a thin wrapper around OpenFOAMs LDU matrix class
+        PersistentLDUMatrix host_A{
+          db_,
+          this->get_exec_handler(),
+          solver_controls_
+          this->fieldName(),
+          this->get_verbose(),
+          matrix_,
+          interfaceBouCoeffs_,
+          interfaceIntCoeffs_,
+          interfaces_,
+       };
+
         PersistentPartition partition{
             db_,
             this->get_exec_handler(),
@@ -200,13 +222,10 @@ public:
             psi.size(),  // number of elements
             this->get_communication_pattern()};
 
-        // TODO this is now the local matrix part for dist_A
+        // create a distributed matrix from the host matrix
+        // here also repartitioning is performed if required
         MatrixWrapper dist_A{db_,
-                             this->get_exec_handler(),  // get exec
-                             this->get_local_sparsity_pattern(),
-                             this->get_local_coeffs(),
-                             this->get_non_local_sparsity_pattern(),
-                             this->get_non_local_coeffs(),
+                            host_A,
                              partition,
                              solver_controls_,
                              this->fieldName(),
@@ -233,6 +252,7 @@ public:
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device
         };
+
         auto dist_x_v = dist_x.get_vector();
         auto dist_b_v = dist_b.get_vector();
         auto dist_A_v = dist_A.get();
