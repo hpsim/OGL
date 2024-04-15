@@ -4,6 +4,8 @@
 
 #include "Base.H"
 
+#include "../../MatrixWrapper/RepartDistMatrix/RepartDistMatrix.H"
+
 namespace Foam {
 
 // to store the std::shared_ptr<T> in the IO registry the type needs to be
@@ -30,7 +32,7 @@ typedef gko::experimental::distributed::localized_partition<label> Partition;
 defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
                                "PersistentPartition");
 
-typedef gko::experimental::distributed::Matrix<scalar, label, label> GkoMatrix;
-defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
+typedef RepartDistMatrix<scalar, label, label> RepartDistMatrix;
+defineTemplateTypeNameWithName(DevicePersistentBase<RepartDistMatrix>,
                                "PersistentMatrix");
 }  // namespace Foam

@@ -157,46 +157,39 @@ struct MatrixInitFunctor {
         auto non_local_interfaces = non_local_sparsity_.interface_spans_;
 
         if (matrix_format_ == "Ell") {
-            using Ell = gko::matrix::Ell<scalar, label>;
+            using mtx_type = gko::matrix::Ell<scalar, label>;
 
             return gko::share(dist_mtx::create(
                 exec, comm,
-                CombinationMatrix<scalar, label, Ell>::create(exec, local_dim,
+                CombinationMatrix<scalar, label, mtx_type>::create(exec, local_dim,
                                                               local_interfaces),
-                CombinationMatrix<scalar, label, Ell>::create(
+                CombinationMatrix<scalar, label, mtx_type>::create(
                     exec, non_local_dim, non_local_interfaces)));
         }
-        // if (matrix_format_ == "Csr") {
-        //     using Csr = gko::matrix::Csr<scalar, label>;
-        //
-        //     auto local_template = CombinationMatrix<scalar, label, Csr>::create(
-        //         exec, local_dim, local_interfaces);
-        //     auto non_local_template =
-        //         CombinationMatrix<scalar, label, Csr>::create(
-        //             exec, non_local_dim, non_local_interfaces);
-        //
-        //     return dist_mtx::create(exec, comm, local_template,
-        //                             non_local_template);
-        // }
-        // if (matrix_format_ == "Coo") {
-        //     using Coo = gko::matrix::Coo<scalar, label>;
-        //
-        //     auto local_template = CombinationMatrix<scalar, label, Coo>::create(
-        //         exec, local_dim, local_interfaces);
-        //     auto non_local_template =
-        //         CombinationMatrix<scalar, label, Coo>::create(
-        //             exec, non_local_dim, non_local_interfaces);
-        //
-        //     return dist_mtx::create(exec, comm, local_template,
-        //                             non_local_template);
-        // }
-        // if (matrix_format_ == "Hybrid") {
-        //     return dist_mtx::create(
-        //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
-        // }
+        if (matrix_format_ == "Csr") {
+            using mtx_type = gko::matrix::Csr<scalar, label>;
+
+            return gko::share(dist_mtx::create(
+                exec, comm,
+                CombinationMatrix<scalar, label, mtx_type>::create(exec, local_dim,
+                                                              local_interfaces),
+                CombinationMatrix<scalar, label, mtx_type>::create(
+                    exec, non_local_dim, non_local_interfaces)));
+        }
+        if (matrix_format_ == "Coo") {
+            using mtx_type = gko::matrix::Coo<scalar, label>;
+
+            return gko::share(dist_mtx::create(
+                exec, comm,
+                CombinationMatrix<scalar, label, mtx_type>::create(exec, local_dim,
+                                                              local_interfaces),
+                CombinationMatrix<scalar, label, mtx_type>::create(
+                    exec, non_local_dim, non_local_interfaces)));
+        }
 
         FatalErrorInFunction << "Matrix format " << matrix_format_
-                             << " not supported " << abort(FatalError);
+                             << " not supported. Supported formats are: Ell, Csr, and Coo."
+                             << abort(FatalError);
     }
 
     std::shared_ptr<dist_mtx> init() const

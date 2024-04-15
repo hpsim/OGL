@@ -29,6 +29,7 @@ public:
     using coef_type = gko::array<ValueType>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using matrix_data = gko::matrix_data<scalar, label>;
+    using communicator = gko::experimental::mpi::communicator;
     using sparse_communicator = gko::experimental::distributed::sparse_communicator;
 
 
@@ -38,23 +39,16 @@ public:
         std::shared_ptr<const sparse_communicator> sparse_comm)
     {
         this->dist_mtx_->read_distributed(local_data, non_local_data, sparse_comm);
-    }
-
-    std::shared_ptr<const gko::LinOp> get_non_local_matrix() {
-        this->dist_mtx_->get_local_matrix();
+        this->set_size(dist_mtx_->get_size());
     }
 
     std::shared_ptr<const gko::LinOp> get_local_matrix() {
-        this->dist_mtx_->get_non_local_matrix();
+        this->dist_mtx_->get_local_matrix();
     }
 
-    // Function with the exact same interface as create but reuses intermediate computations 
-    static std::unique_ptr<RepartDistMatrix<ValueType, LocalIndexType, GlobalIndexType> > create(
-        std::shared_ptr<gko::Executor> exec,
-        std::shared_ptr<gko::experimental::mpi::communicator> comm,
-        std::shared_ptr<const gko::LinOp> local_template,
-        std::shared_ptr<const gko::LinOp> non_local_template
-        ); 
+    std::shared_ptr<const gko::LinOp> get_non_local_matrix() {
+        this->dist_mtx_->get_non_local_matrix();
+    }
 
     // Function with the exact same interface as create but reuses intermediate computations 
     void update(
@@ -72,6 +66,7 @@ public:
     {
         if (&other != this) {
             *dist_mtx_.get() = *other.dist_mtx_.get();
+            this->set_size(dist_mtx_->get_size());
         }
         return *this;
     }
@@ -86,6 +81,7 @@ public:
         if (&other != this) {
             gko::EnableLinOp<RepartDistMatrix>::operator=(std::move(other));
             dist_mtx_ = std::move(other.dist_mtx_);
+            this->set_size(dist_mtx_->get_size());
         }
         return *this;
     }
@@ -96,12 +92,12 @@ protected:
     {}
 
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
-        std::shared_ptr<const sparse_communicator> sparse_comm,
+        std::shared_ptr<const communicator> comm,
         std::unique_ptr<const gko::LinOp> local_template,
         std::unique_ptr<const gko::LinOp> non_local_template
                       )
         : gko::EnableLinOp<RepartDistMatrix>(exec),
-          dist_mtx_(dist_mtx::create(exec, sparse_comm, local_template, non_local_template))
+          dist_mtx_(dist_mtx::create(exec, *comm.get(), local_template, non_local_template))
     {}
 
     // Here we implement the application of the linear operator, x = A * b.
