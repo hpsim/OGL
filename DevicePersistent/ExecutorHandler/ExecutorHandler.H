@@ -115,7 +115,7 @@ struct ExecutorInitFunctor {
         }
 
         FatalErrorInFunction
-            << "OGL does not support the executor: " << name
+            << "OGL does not support the executor: " << executor_name_
             << "\nValid Choices: cuda, hip, dpcpp, omp, reference"
             << abort(FatalError);
         return {};
