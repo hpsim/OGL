@@ -44,19 +44,18 @@ struct DistributedMatrixInitFunctor {
 
     const label verbose_;
 
-    const dictionary& solver_controls_;
+    const dictionary &solver_controls_;
 
-    const PersistentHostMatrixAdapter& host_A_;
+    const PersistentHostMatrixAdapter &host_A_;
 
-    const PersistentPartition& partition_;
+    const PersistentPartition &partition_;
 
-    DistributedMatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
-                         const label verbose,
-                         const word field_name,
-                         const PersistentHostMatrixAdapter& host_A,
-                         const PersistentPartition& partition,
-                         const dictionary& solver_controls
-                         )
+    DistributedMatrixInitFunctor(const objectRegistry &db,
+                                 const ExecutorHandler &exec,
+                                 const label verbose, const word field_name,
+                                 const PersistentHostMatrixAdapter &host_A,
+                                 const PersistentPartition &partition,
+                                 const dictionary &solver_controls)
         : db_(db),
           exec_(exec),
           field_name_(field_name),
@@ -66,17 +65,16 @@ struct DistributedMatrixInitFunctor {
           host_A_(host_A)
     {}
 
-    void update(
-        std::shared_ptr<RepartDistMatrix<scalar, label, label>> persistent_device_matrix) const
+    void update(std::shared_ptr<RepartDistMatrix<scalar, label, label>>
+                    persistent_device_matrix) const
     {
-        persistent_device_matrix->update(
-            host_A_.get());
+        persistent_device_matrix->update(host_A_.get());
     }
 
     std::shared_ptr<RepartDistMatrix<scalar, label, label>> init() const
     {
-        return RepartDistMatrix<scalar, label, label>::create(
-            host_A_.get(), partition_.get());
+        return RepartDistMatrix<scalar, label, label>::create(host_A_.get(),
+                                                              partition_.get());
     }
 };
 
@@ -92,28 +90,27 @@ private:
 
     const word field_name_;
 
-    mutable PersistentBase<RepartDistMatrix<scalar, label, label>, DistributedMatrixInitFunctor> host_matrix_;
+    mutable PersistentBase<RepartDistMatrix<scalar, label, label>,
+                           DistributedMatrixInitFunctor>
+        host_matrix_;
 
 
 public:
-    PersistentDistributedMatrix(
-                  const objectRegistry &db,
-                  const ExecutorHandler &exec,
-                  const word field_name,
-                  const PersistentHostMatrixAdapter& host_A,
-                  const PersistentPartition& partition,
-                  const dictionary &controlDict,
-                  const label verbose
-                  )
+    PersistentDistributedMatrix(const objectRegistry &db,
+                                const ExecutorHandler &exec,
+                                const word field_name,
+                                const PersistentHostMatrixAdapter &host_A,
+                                const PersistentPartition &partition,
+                                const dictionary &controlDict,
+                                const label verbose)
         : db_(db),
           verbose_(verbose),
           field_name_(field_name),
           host_matrix_{
               field_name + "_distributed_matrix", db,
               DistributedMatrixInitFunctor(db, exec, verbose_,
-                                   field_name + "_distributed_matrix",
-                                   host_A, partition,
-                                   controlDict),
+                                           field_name + "_distributed_matrix",
+                                           host_A, partition, controlDict),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
               verbose_}
     {}
@@ -123,10 +120,7 @@ public:
         return host_matrix_.get_persistent_object();
     }
 
-    void write() 
-    {
-        this->get()->write();
-    }
+    void write() { this->get()->write(); }
 
     bool get_export();
 };
