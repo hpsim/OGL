@@ -169,7 +169,5 @@ public:
     }
 };
 
-using PersistentExecutor = ExecutorHandler;
-
 }  // namespace Foam
 // namespace Foam

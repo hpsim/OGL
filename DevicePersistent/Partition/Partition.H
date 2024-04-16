@@ -10,7 +10,7 @@
 
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
-#include "MatrixWrapper/HostMatrix/HostMatrix.H"
+#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 namespace Foam {

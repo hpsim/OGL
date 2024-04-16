@@ -86,6 +86,20 @@ public:
         return *this;
     }
 
+    static std::shared_ptr<RepartDistMatrix> create(
+        std::shared_ptr<const gko::Executor> exec,
+        std::shared_ptr<const communicator> comm
+        );
+
+    void update(
+        std::shared_ptr<const gko::Executor> exec,
+        std::shared_ptr<const communicator> comm,
+        std::unique_ptr<const gko::LinOp> local_template,
+        std::unique_ptr<const gko::LinOp> non_local_template
+        );
+
+    void write();
+
 protected:
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec)
         : gko::EnableLinOp<RepartDistMatrix>(exec)
@@ -122,6 +136,7 @@ protected:
     {
         this->dist_mtx_->apply(alpha, b, beta, x);
     }
+
 
 private:
     std::unique_ptr<dist_mtx> dist_mtx_;

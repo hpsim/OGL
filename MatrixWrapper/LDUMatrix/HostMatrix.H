@@ -34,6 +34,7 @@ SourceFiles
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
 #include "MatrixWrapper/Combination/Combination.H"
+#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 
@@ -43,18 +44,9 @@ namespace Foam {
 struct SparsityPattern {
     SparsityPattern(const ExecutorHandler &exec, const label size)
         : size_(size),
-          col_idxs_{
-              exec.get_host_executor(),
-              size
-          },
-          row_idxs_{
-              exec.get_host_executor(),
-              size
-          },
-          ldu_mapping_{
-              exec.get_host_executor(),
-              size
-          }
+          col_idxs_{exec.get_ref_exec(), size},
+          row_idxs_{exec.get_ref_exec(), size},
+          ldu_mapping_{exec.get_ref_exec(), size}
     {}
 
     // number of nnz entries
@@ -75,21 +67,6 @@ struct SparsityPattern {
     // this is used to keep all col and row idx consecutive in memory
     mutable std::vector<gko::span> interface_spans_;
 };
-
-struct CommunicationPattern {
-    using comm_size_type = int;
-    // an array storing to which rank to communicate
-    gko::array<comm_size_type> target_ids;
-
-    // an array storing how many elements to communicate
-    // to the corresponding target_id
-    gko::array<comm_size_type> target_sizes;
-
-    // send_idx stores the index_set ie which cells
-    // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-};
-
 
 // Free functions
 const lduInterfaceField *interface_getter(
@@ -233,8 +210,7 @@ void non_symmetric_update_w_interface(
  * - implements an interfaces so that
  *   RepartDistMatrix can read_distributed(A_host)
  * */
-class HostMatrixWrapper
-{
+class HostMatrixWrapper {
 private:
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
@@ -245,11 +221,19 @@ private:
 
     const label verbose_;
 
-    const word fieldName_;
+    const word field_name_;
 
     // Whether the matrix coefficients should be reordered
     // during copy or on device
     const bool reorder_on_copy_;
+
+    const lduAddressing& addr_;
+
+    const scalar* diag_;
+
+    const scalar* upper_;
+
+    const scalar* lower_;
 
     // multiply the complete system by this factor, ie sAx=sb
     // NOTE this needed to avoid negative diagonal matrix entries, but
@@ -285,7 +269,7 @@ private:
     // non-local indices
     const label non_local_matrix_nnz_;
 
-    mutable PersistentSparsityPattern non_local_sparsity_;
+    mutable SparsityPattern non_local_sparsity_pattern_;
 
     const CommunicationPattern communication_pattern_;
 
@@ -368,44 +352,59 @@ private:
      **/
     void update_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        gko::array<scalar>& local_coeffs
+        ) const;
 
     /** Copies the interface matrix coefficients to non_local_coeffs without
     ** changing or reinstantiating the sparsity pattern.
     **/
     void update_non_local_matrix_data(
         const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        gko::array<scalar>& local_coeffs
+        ) const;
 
 public:
-
     // segregated matrix wrapper constructor
-    HostMatrixWrapper(
-        label nrows,
-        label upper_nnz,
-        bool symmetric,
-        const scalar* diag,
-        const scalar* upper,
-        const scalar* lower,
-        const label* lowerAddr,
-        const label* upperAddr,
-        const objectRegistry &db,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        const FieldField<Field, scalar> &interfaceIntCoeffs,
-        const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls,
-        const word &fieldName,
-        label verbose);
+    HostMatrixWrapper(label nrows, label upper_nnz, bool symmetric,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower,
+                      const lduAddressing& addr,
+                      const objectRegistry &db,
+                      const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      const lduInterfaceFieldPtrsList &interfaces,
+                      const dictionary &solverControls, const word &fieldName,
+                      label verbose);
 
     // coupled wrapper constructor
-    HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      const dictionary &solverControls, const word &fieldName)
-        {OGL_NOT_IMPLEMENTED};
+    // HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
+    //                   const dictionary &solverControls, const word
+    //                   &fieldName)
+    //     {OGL_NOT_IMPLEMENTED};
 
 
     // getter
 
 public:
+    static std::shared_ptr<HostMatrixWrapper> create(
+        const ExecutorHandler &exec, 
+        const objectRegistry &db,
+        label nrows, label upper_nnz, bool symmetric,
+        const scalar *diag, const scalar *upper, const scalar *lower,
+        const lduAddressing& addr,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls, const word &fieldName, label verbose);
+
+    void update(const scalar *diag, const scalar *upper, const scalar *lower,
+                const FieldField<Field, scalar> &interfaceBouCoeffs,
+                const FieldField<Field, scalar> &interfaceIntCoeffs,
+                const lduInterfaceFieldPtrsList &interfaces);
+
+
     bool get_verbose() const { return verbose_; }
 
     const CommunicationPattern &get_communication_pattern() const
@@ -417,41 +416,38 @@ public:
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
-    PersistentSparsityPattern &get_local_sparsity_pattern() const
+    gko::Array<scalar> &get_local_coeffs() const {};
+
+    gko::Array<label> &get_local_col_idxs() const
     {
-        return local_sparsity_;
+        return local_sparsity_pattern_.col_idxs_;
     };
 
-    PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
-
-    PersistentArray<label> &get_local_col_idxs() const
+    gko::Array<label> &get_local_row_idxs() const
     {
-        return local_sparsity_.col_idxs_;
+        return local_sparsity_pattern_.row_idxs_;
     };
 
-    PersistentArray<label> &get_local_row_idxs() const
+    SparsityPattern &get_local_sparsity_pattern() const
     {
-        return local_sparsity_.row_idxs_;
+        return local_sparsity_pattern_;
     };
 
-    PersistentSparsityPattern &get_non_local_sparsity_pattern() const
+    SparsityPattern &get_non_local_sparsity_pattern() const
     {
-        return non_local_sparsity_;
+        return non_local_sparsity_pattern_;
     };
 
-    PersistentArray<scalar> &get_non_local_coeffs() const
+    gko::Array<scalar> &get_non_local_coeffs() const {};
+
+    gko::Array<label> &get_non_local_col_idxs() const
     {
-        return non_local_coeffs_;
+        return non_local_sparsity_pattern_.col_idxs_;
     };
 
-    PersistentArray<label> &get_non_local_col_idxs() const
+    gko::Array<label> &get_non_local_row_idxs() const
     {
-        return non_local_sparsity_.col_idxs_;
-    };
-
-    PersistentArray<label> &get_non_local_row_idxs() const
-    {
-        return non_local_sparsity_.row_idxs_;
+        return non_local_sparsity_pattern_.row_idxs_;
     };
 };
 

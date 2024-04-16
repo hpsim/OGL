@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
+#include "DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H"
+#include "DevicePersistent/DistributedMatrixAdapter/DistributedMatrixAdapter.H"
 #include "DevicePersistent/Vector/Vector.H"
-#include "MatrixWrapper/HostMatrix/HostMatrix.H"
 #include "Preconditioner/Preconditioner.H"
 #include "common/common.H"
 
@@ -116,11 +116,11 @@ public:
  */
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public OGL_Info,
+                   public MatrixType::solver,
                    public SolverFactory,
                    public Preconditioner {
 private:
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
-    using dist_mtx = RepartDistMatrix<scalar, label, label>;
 
     using mtx = gko::matrix::Csr<scalar>;
     using coo_mtx = gko::matrix::Coo<scalar>;
@@ -131,18 +131,17 @@ private:
 
     const objectRegistry &db_;
 
-    const MatrixType& matrix_;
-
-    const FieldField<Field, scalar> &interfaceBouCoeffs_,
-
-    const FieldField<Field, scalar> &interfaceIntCoeffs_,
-
-    const lduInterfaceFieldPtrsList &interfaces_,
+    const MatrixType &matrix_;
 
     const dictionary &solver_controls_;
 
+    const word & field_name_;
+
     const label verbose_;
 
+    const ExecutorHandler& exec_handler_;
+
+    PersistentHostMatrixAdapter host_A_;
 
 public:
     // constructor for segregated solver
@@ -152,16 +151,31 @@ public:
                const lduInterfaceFieldPtrsList &interfaces,
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
+                         interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
-                         this->get_verbose()),
+                solverControls.lookupOrDefault<label>("verbose", 0)     
+                  ),
           db_(matrix.mesh().thisDb()),
           matrix_(matrix),
-          interfaceBouCoeffs_(interfaceBouCoeffs),
-          interfaceIntCoeffs_(interfaceIntCoeffs),
-          interfaces_(interfaces),
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+          field_name_(fieldName),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          exec_handler_{
+              db_, solver_controls_, fieldName
+          },
+          host_A_{
+              db_,
+              exec_handler_,
+              solver_controls_,
+              fieldName,
+              verbose_,
+              matrix_,
+              interfaceBouCoeffs,
+              interfaceIntCoeffs,
+              interfaces,
+          }
     {}
 
 
@@ -176,12 +190,9 @@ public:
           // HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
           //                               solverControls, fieldName),
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
-                         this->get_verbose()),
+                         verbose_),
           db_(matrix.mesh().thisDb()),
           matrix_(matrix),
-          interfaceBouCoeffs_(),
-          interfaceIntCoeffs_(),
-          interfaces_(),
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
     {}
@@ -199,43 +210,33 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
+        auto ref_exec = exec_handler_.get_ref_exec();
 
         // using a thin wrapper around OpenFOAMs LDU matrix class
-        PersistentLDUMatrix host_A{
-          db_,
-          this->get_exec_handler(),
-          solver_controls_
-          this->fieldName(),
-          this->get_verbose(),
-          matrix_,
-          interfaceBouCoeffs_,
-          interfaceIntCoeffs_,
-          interfaces_,
-       };
 
         PersistentPartition partition{
             db_,
-            this->get_exec_handler(),
+            exec_handler_,
             verbose_,
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
             psi.size(),  // number of elements
-            this->get_communication_pattern()};
+            host_A_.get_communication_pattern()};
 
         // create a distributed matrix from the host matrix
         // here also repartitioning is performed if required
-        MatrixWrapper dist_A{db_,
-                            host_A,
+        PersistentDistributedMatrix dist_A{db_,
+                             exec_handler_,
+                             field_name_,
+                             host_A_,
                              partition,
                              solver_controls_,
-                             this->fieldName(),
-                             this->get_verbose()};
+                             verbose_};
 
         PersistentVector<scalar> dist_b{
             &source[0],
-            this->fieldName() + "_rhs",
+            field_name_ + "_rhs",
             db_,
-            this->get_exec_handler(),
+            exec_handler_,
             partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
@@ -244,9 +245,9 @@ public:
 
         PersistentVector<scalar> dist_x{
             &psi[0],
-            this->fieldName() + "_solution",
+            field_name_ + "_solution",
             db_,
-            this->get_exec_handler(),
+            exec_handler_,
             partition,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
@@ -265,14 +266,14 @@ public:
                     {scaling}, ref_exec));
 
             TIME_WITH_FIELDNAME(
-                verbose_, scale_RHS, this->fieldName(),
+                verbose_, scale_RHS, field_name_,
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
         TIME_WITH_FIELDNAME(
-            verbose_, init_precond, this->fieldName(),
+            verbose_, init_precond, field_name_,
             auto precond = this->init_preconditioner(
-                dist_A_v, this->get_exec_handler().get_device_exec());)
+                dist_A_v, exec_handler_.get_device_exec());)
 
         bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
         if (debug && db_.time().writeTime()) {
@@ -284,16 +285,16 @@ public:
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
+            exec_handler_.get_device_exec(), dist_A_v, dist_x_v,
             dist_b_v, verbose_, dist_A.get_export(), precond);
 
-        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
+        TIME_WITH_FIELDNAME(verbose_, generate_solver, field_name_,
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "solve solver done")
-        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+        TIME_WITH_FIELDNAME(verbose_, solve, field_name_,
                             solver->apply(dist_b_v, dist_x_v);)
 
-        TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
+        TIME_WITH_FIELDNAME(verbose_, copy_x_back, field_name_,
                             dist_x.copy_back();)
         auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
                                    delta_t_copy_x_back / 1000.0;
@@ -306,8 +307,8 @@ public:
         auto time_per_iter =
             delta_t_solve / max(this->get_number_of_iterations(), 1);
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        exec_handler_.get_gko_mpi_host_comm()->broadcast(
+            exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition.get_total_size();
@@ -331,14 +332,14 @@ public:
     {
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
-            lduMatrix::preconditioner::getName(this->controlDict_) +
-                this->get_exec_handler().get_exec_name() + typeName,
-            this->fieldName());
+            lduMatrix::preconditioner::getName(solver_controls_) +
+                exec_handler_.get_exec_name() + typeName,
+            field_name_);
 
         // Solve system
         if (Pstream::parRun()) {
             TIME_WITH_FIELDNAME(
-                verbose_, solve_multi_gpu, this->fieldName(),
+                verbose_, solve_multi_gpu, field_name_,
                 auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
             return res;
         } else {

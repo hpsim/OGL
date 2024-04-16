@@ -34,10 +34,11 @@ SourceFiles
 namespace Foam {
 
 
-HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
+HostMatrixWrapper::HostMatrixWrapper(
     label nrows, label upper_nnz, bool symmetric, const scalar *diag,
-    const scalar *upper, const scalar *lower, const label *lowerAddr,
-    const label *upperAddr, const objectRegistry &db,
+    const scalar *upper, const scalar *lower,
+    const lduAddressing& addr,
+    const objectRegistry &db,
     const FieldField<Field, scalar> &interfaceBouCoeffs,
     const FieldField<Field, scalar> &interfaceIntCoeffs,
     const lduInterfaceFieldPtrsList &interfaces,
@@ -45,29 +46,34 @@ HostMatrixWrapper<MatrixType>::HostMatrixWrapper(
     : exec_{db, solverControls, fieldName},
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(verbose),
-      fieldName_(fieldName),
+      field_name_(fieldName),
       reorder_on_copy_(
           solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
+      addr_(addr),
+      diag_(diag),
+      upper_(upper),
+      lower_(lower),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(nrows),
       local_interface_nnz_(0),
       upper_nnz_(upper_nnz),
+      symmetric_(symmetric),
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      local_sparsity_{exec_.get_host_exec(), local_matrix_nnz_},
+      local_sparsity_pattern_{exec_, local_matrix_nnz_},
       non_local_matrix_nnz_{count_interface_nnz(interfaces, true)},
-      non_local_sparsity_{exec_.get_host_exec(), non_local_matrix_nnz_}
+      non_local_sparsity_pattern_{exec_, non_local_matrix_nnz_}
 {
     TIME_WITH_FIELDNAME(verbose_, init_local_sparsity_pattern,
-                        fieldName_,
+                        field_name_,
                         init_local_sparsity_pattern(interfaces);)
     TIME_WITH_FIELDNAME(verbose_, init_non_local_sparsity_pattern,
-                        fieldName_,
+                        field_name_,
                         init_non_local_sparsity_pattern(interfaces);)
 }
 
-label HostMatrixWrapper<MatrixType>::count_interface_nnz(
+label HostMatrixWrapper::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
     label ctr{0};
@@ -88,7 +94,7 @@ label HostMatrixWrapper<MatrixType>::count_interface_nnz(
     return ctr;
 }
 
-std::vector<scalar> HostMatrixWrapper<MatrixType>::collect_interface_coeffs(
+std::vector<scalar> HostMatrixWrapper::collect_interface_coeffs(
     const lduInterfaceFieldPtrsList &interfaces,
     const FieldField<Field, scalar> &interfaceBouCoeffs, const bool local) const
 {
@@ -161,7 +167,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 
 
 CommunicationPattern
-HostMatrixWrapper<MatrixType>::create_communication_pattern(
+HostMatrixWrapper::create_communication_pattern(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     using comm_size_type = CommunicationPattern::comm_size_type;
@@ -291,13 +297,12 @@ void collect_local_interface_indices_impl_cyclicACMIFvPatch(
 #endif
 
 std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
+HostMatrixWrapper::collect_local_interface_indices(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
     local_interface_idxs.reserve(local_interface_nnz_);
 
-    const auto &addr = this->matrix().lduAddr();
     neg_interface_iterator<processorFvPatch>(
         interfaces, [&](label &element_ctr, const label interface_size,
                         const lduInterfaceField *iface) {
@@ -305,19 +310,19 @@ HostMatrixWrapper<MatrixType>::collect_local_interface_indices(
             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
             // indices
             collect_local_interface_indices_impl<cyclicFvPatch>(
-                element_ctr, iface, addr, local_interface_idxs);
+                element_ctr, iface, addr_, local_interface_idxs);
             collect_local_interface_indices_impl_cyclicAMIFvPatch(
-                element_ctr, iface, addr, local_interface_idxs);
+                element_ctr, iface, addr_, local_interface_idxs);
 #ifdef WITH_ESI_VERSION
             collect_local_interface_indices_impl_cyclicACMIFvPatch(
-                element_ctr, iface, addr, local_interface_idxs);
+                element_ctr, iface, addr_, local_interface_idxs);
 #endif
         });
     return local_interface_idxs;
 }
 
 std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper<MatrixType>::collect_cells_on_non_local_interface(
+HostMatrixWrapper::collect_cells_on_non_local_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
@@ -347,9 +352,9 @@ void HostMatrixWrapper::init_non_local_sparsity_pattern(
 {
     auto non_local_row_indices =
         collect_cells_on_non_local_interface(interfaces);
-    auto rows = non_local_sparsity_.row_idxs_.get_data();
-    auto cols = non_local_sparsity_.col_idxs_.get_data();
-    auto permute = non_local_sparsity_.ldu_mapping_.get_data();
+    auto rows = non_local_sparsity_pattern_.row_idxs_.get_data();
+    auto cols = non_local_sparsity_pattern_.col_idxs_.get_data();
+    auto permute = non_local_sparsity_pattern_.ldu_mapping_.get_data();
 
     label element_ctr = 0;
     // TODO currently we set permute eventhough this is not required
@@ -369,20 +374,20 @@ void HostMatrixWrapper::init_local_sparsity_pattern(
 
     auto lower_local = idx_array::view(
         exec_.get_ref_exec(), upper_nnz_ - local_interface_nnz_,
-        const_cast<label *>(&this->matrix().lduAddr().lowerAddr()[0]));
+        const_cast<label *>(addr_.lowerAddr().begin()));
 
     auto upper_local = idx_array::view(
         exec_.get_ref_exec(), upper_nnz_ - local_interface_nnz_,
-        const_cast<label *>(&this->matrix().lduAddr().upperAddr()[0]));
+        const_cast<label *>(addr_.upperAddr().begin()));
 
     // row of upper, col of lower
     const auto lower = lower_local.get_const_data();
     // col of upper, row of lower
     const auto upper = upper_local.get_const_data();
 
-    auto rows = local_sparsity_.row_idxs_.get_data();
-    auto cols = local_sparsity_.col_idxs_.get_data();
-    const auto permute = local_sparsity_.ldu_mapping_.get_data();
+    auto rows = local_sparsity_pattern_.row_idxs_.get_data();
+    auto cols = local_sparsity_pattern_.col_idxs_.get_data();
+    const auto permute = local_sparsity_pattern_.ldu_mapping_.get_data();
 
     // Scan through given rows and insert row and column indices into array
     //
@@ -428,43 +433,40 @@ void HostMatrixWrapper::init_local_sparsity_pattern(
 
 void HostMatrixWrapper::update_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+    const FieldField<Field, scalar> &interfaceBouCoeffs,
+    gko::array<scalar>& local_coeffs
+    ) const
 {
     auto ref_exec = exec_.get_ref_exec();
-    auto upper = this->matrix().upper();
-    auto lower = this->matrix().lower();
-    auto diag = this->matrix().diag();
-
-    label diag_nnz = diag.size();
 
     // TODO this does not work for Ell
-    auto permute = local_sparsity_.ldu_mapping_.get_data();
+    auto permute = local_sparsity_pattern_.ldu_mapping_.get_data();
 
     if (reorder_on_copy_) {
-        auto dense = local_coeffs_.get_data();
+        auto dense = local_coeffs.get_data();
         if (local_interface_nnz_) {
             auto couple_coeffs =
                 collect_interface_coeffs(interfaces, interfaceBouCoeffs, true);
             if (symmetric_) {
                 symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
-                    permute, scaling_, diag.data(), upper.data(),
+                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_,
+                    permute, scaling_, diag_, upper_,
                     couple_coeffs.data(), dense);
 
             } else {
                 non_symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, diag_nnz, upper_nnz_,
-                    permute, scaling_, diag.data(), upper.data(), lower.data(),
+                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_,
+                    permute, scaling_, diag_, upper_, lower_,
                     couple_coeffs.data(), dense);
             }
         } else {
             if (symmetric_) {
                 symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                 scaling_, diag.data(), upper.data(), dense);
+                                 scaling_, diag_, upper_, dense);
             } else {
                 non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                     scaling_, diag.data(), upper.data(),
-                                     lower.data(), dense);
+                                     scaling_, diag_, upper_,
+                                     lower_, dense);
             }
         }
     } else {
@@ -478,30 +480,27 @@ void HostMatrixWrapper::update_local_matrix_data(
             (reorder_on_copy_) ? ref_exec : exec_.get_device_exec();
 
         // copy upper
-        auto upper = this->matrix().upper();
         auto u_host_view =
-            gko::array<scalar>::view(ref_exec, upper_nnz_, &upper[0]);
+            gko::array<scalar>::const_view(ref_exec, upper_nnz_, upper_);
         auto u_device_view = gko::array<scalar>::view(target_exec, upper_nnz_,
-                                                      local_coeffs_.get_data());
+                                                      local_coeffs.get_data());
         u_device_view = u_host_view;
 
         // for the non-symmetric case copy lower to the device
-        if (!is_symmetric) {
-            auto lower = this->matrix().lower();
+        if (!symmetric_) {
             auto l_host_view =
-                gko::array<scalar>::view(ref_exec, upper_nnz_, &lower[0]);
+                gko::array<scalar>::const_view(ref_exec, upper_nnz_, lower_);
             auto l_device_view = gko::array<scalar>::view(
-                target_exec, upper_nnz_, &local_coeffs_.get_data()[upper_nnz_]);
+                target_exec, upper_nnz_, &local_coeffs.get_data()[upper_nnz_]);
             l_device_view = l_host_view;
         }
 
         // copy diag
-        auto diag = this->matrix().diag();
         auto diag_host_view =
-            gko::array<scalar>::view(ref_exec, nrows_, &diag[0]);
-        const label diag_start = (is_symmetric) ? upper_nnz_ : 2 * upper_nnz_;
+            gko::array<scalar>::const_view(ref_exec, nrows_, diag_);
+        const label diag_start = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
         auto diag_device_view = gko::array<scalar>::view(
-            target_exec, nrows_, &local_coeffs_.get_data()[diag_start]);
+            target_exec, nrows_, &local_coeffs.get_data()[diag_start]);
         diag_device_view = diag_host_view;
 
         // copy local interfaces
@@ -513,7 +512,7 @@ void HostMatrixWrapper::update_local_matrix_data(
                 ref_exec, local_interface_nnz_, couple_coeffs.data());
             auto interface_device_view = gko::array<scalar>::view(
                 target_exec, local_interface_nnz_,
-                &local_coeffs_.get_data()[interface_start]);
+                &local_coeffs.get_data()[interface_start]);
             interface_device_view = interface_host_view;
         }
 
@@ -529,11 +528,11 @@ void HostMatrixWrapper::update_local_matrix_data(
                         1},
             gko::array<scalar>::view(target_exec,
                                      local_matrix_w_interfaces_nnz_,
-                                     local_coeffs_.get_data()),
+                                     local_coeffs.get_data()),
             1);
 
         // TODO this needs to copy ldu_mapping to the device
-        dense_vec->row_gather(local_sparsity_.ldu_mapping_.get_array().get(),
+        dense_vec->row_gather(&local_sparsity_pattern_.ldu_mapping_,
                               row_collection.get());
 
         dense_vec->copy_from(row_collection);
@@ -543,9 +542,9 @@ void HostMatrixWrapper::update_local_matrix_data(
     // recreate this for every solver call
     // TODO this needs a proper implementation once we know how to handle
     // interfaces
-    local_sparsity_.dim_ = gko::dim<2>{nrows_, nrows_};
+    local_sparsity_pattern_.dim_ = gko::dim<2>{nrows_, nrows_};
 
-    local_sparsity_.interface_spans_.emplace_back(0, local_matrix_nnz_);
+    local_sparsity_pattern_.interface_spans_.emplace_back(0, local_matrix_nnz_);
     if (local_interface_nnz_) {
         auto local_interfaces = collect_local_interface_indices(interfaces);
 
@@ -562,7 +561,7 @@ void HostMatrixWrapper::update_local_matrix_data(
                 local_interface_ctr + 1 == local_interfaces.size()) {
                 end = start + local_interface_ctr;
                 local_interface_ctr = 0;
-                local_sparsity_.interface_spans_.emplace_back(start, end);
+                local_sparsity_pattern_.interface_spans_.emplace_back(start, end);
                 start = end;
                 prev_interface_idx = interface_idx;
             }
@@ -574,7 +573,9 @@ void HostMatrixWrapper::update_local_matrix_data(
 
 void HostMatrixWrapper::update_non_local_matrix_data(
     const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs) const
+    const FieldField<Field, scalar> &interfaceBouCoeffs,
+    gko::array<scalar>& non_local_coeffs
+    ) const
 {
     auto ref_exec = exec_.get_ref_exec();
     auto interface_coeffs =
@@ -592,13 +593,13 @@ void HostMatrixWrapper::update_non_local_matrix_data(
 
     // copy to persistent
     auto i_device_view = gko::array<scalar>::view(
-        ref_exec, non_local_matrix_nnz_, non_local_coeffs_.get_data());
+        ref_exec, non_local_matrix_nnz_, non_local_coeffs.get_data());
     i_device_view = tmp_contiguous_iface;
 
     // NOTE interface_spans and dim are not persistent so we need to
     // We have now the full non_local matrix and need to add the start and end
     // to the PersistentSparsityPattern data structure
-    non_local_sparsity_.dim_ = gko::dim<2>{nrows_, non_local_matrix_nnz_};
+    non_local_sparsity_pattern_.dim_ = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 
     auto non_local_interfaces =
         collect_cells_on_non_local_interface(interfaces);
@@ -617,23 +618,12 @@ void HostMatrixWrapper::update_non_local_matrix_data(
             interface_ctr == non_local_interfaces.size() - 1) {
             end = start + interface_ctr;
             interface_ctr = 0;
-            non_local_sparsity_.interface_spans_.emplace_back(start, end);
+            non_local_sparsity_pattern_.interface_spans_.emplace_back(start, end);
             start = end;
             prev_interface_ctr = interface_idx;
         }
         interface_ctr++;
     }
 }
-
-template HostMatrixWrapper::HostMatrixWrapper(
-    const objectRegistry &db, const lduMatrix &matrix,
-    // coeffs for cells on boundaries
-    const FieldField<Field, scalar> &interfaceBouCoeffs,
-    // coeffs for internal cells
-    const FieldField<Field, scalar> &interfaceIntCoeffs,
-    // pointers to interfaces can be used to access concrete
-    // functions such as transferring indices, patch neighbours etc
-    const lduInterfaceFieldPtrsList &interfaces,
-    const dictionary &solverControls, const word &fieldName);
 
 }  // namespace Foam

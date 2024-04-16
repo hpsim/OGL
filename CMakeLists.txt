@@ -165,7 +165,7 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
-          DevicePersistent/LDUMatrixAdapter/LDUMatrixAdapter.C
+          DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.C
           Preconditioner/Preconditioner.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
@@ -187,7 +187,7 @@ target_sources(
          DevicePersistent/Vector/Vector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
-         DevicePersistent/LDUMatrixAdapter/LDUMatrixAdapter.H
+         DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H
          Preconditioner/Preconditioner.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
