@@ -1,5 +1,6 @@
 #include <ginkgo/ginkgo.hpp>
 
+#include  "MatrixWrapper/LDUMatrix/HostMatrix.H"
 
 // The RepartDistMatrix class is a wrapper around Ginkgos distributed Matrix class
 // 
@@ -18,6 +19,8 @@ class RepartDistMatrix
 
     using dist_mtx =
         gko::experimental::distributed::Matrix<ValueType, LocalIndexType, GlobalIndexType>;
+    using part_type =
+        gko::experimental::distributed::localized_partition<label>;
 
 public:
     using gko::EnableLinOp<
@@ -50,14 +53,6 @@ public:
         this->dist_mtx_->get_non_local_matrix();
     }
 
-    // Function with the exact same interface as create but reuses intermediate computations 
-    void update(
-        std::shared_ptr<gko::Executor> exec,
-        std::shared_ptr<gko::experimental::mpi::communicator> comm,
-        std::shared_ptr<gko::LinOp> local_template,
-        std::shared_ptr<gko::LinOp> non_local_template
-            ) {}
-
     /**
      * Copy-assigns a CombinationMatrix matrix. Preserves executor, copies
      * everything else.
@@ -87,15 +82,12 @@ public:
     }
 
     static std::shared_ptr<RepartDistMatrix> create(
-        std::shared_ptr<const gko::Executor> exec,
-        std::shared_ptr<const communicator> comm
+        std::shared_ptr<const HostMatrixWrapper> host_A,
+        std::shared_ptr<const part_type> partition
         );
 
     void update(
-        std::shared_ptr<const gko::Executor> exec,
-        std::shared_ptr<const communicator> comm,
-        std::unique_ptr<const gko::LinOp> local_template,
-        std::unique_ptr<const gko::LinOp> non_local_template
+        std::shared_ptr<const HostMatrixWrapper> host_A
         );
 
     void write();

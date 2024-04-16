@@ -69,16 +69,14 @@ struct DistributedMatrixInitFunctor {
     void update(
         std::shared_ptr<RepartDistMatrix<scalar, label, label>> persistent_device_matrix) const
     {
-        // persistent_device_matrix->update(
-        //     matrix_.diag().begin(), matrix_.upper().begin(),
-        //     matrix_.lower().begin(), interfaceBouCoeffs_, interfaceIntCoeffs_,
-        //     interfaces_);
+        persistent_device_matrix->update(
+            host_A_.get());
     }
 
     std::shared_ptr<RepartDistMatrix<scalar, label, label>> init() const
     {
-        // return RepartDistMatrix<scalar, label, label>::create(
-        //     exec_, host_A_);
+        return RepartDistMatrix<scalar, label, label>::create(
+            host_A_.get(), partition_.get());
     }
 };
 

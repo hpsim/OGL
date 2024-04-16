@@ -121,7 +121,7 @@ public:
         global_elements_ = local_elements;
     }
 
-    std::shared_ptr<part_type> get_localized_partition() const
+    std::shared_ptr<part_type> get() const
     {
         return this->get_persistent_object();
     }
