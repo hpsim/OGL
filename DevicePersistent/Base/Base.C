@@ -35,4 +35,7 @@ defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
 typedef RepartDistMatrix<scalar, label, label> RepartDistMatrix;
 defineTemplateTypeNameWithName(DevicePersistentBase<RepartDistMatrix>,
                                "PersistentMatrix");
+
+defineTemplateTypeNameWithName(DevicePersistentBase<HostMatrixWrapper>,
+                               "PersistentHostMatrixWrapper");
 }  // namespace Foam

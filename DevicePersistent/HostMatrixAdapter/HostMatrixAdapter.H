@@ -137,11 +137,6 @@ public:
     {
         return host_matrix_.get_persistent_object();
     }
-
-    const CommunicationPattern& get_communication_pattern() const
-    {
-        return this->get()->get_communication_pattern();
-    }
 };
 
 }  // namespace Foam

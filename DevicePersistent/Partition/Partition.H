@@ -57,7 +57,6 @@ struct PartitionInitFunctor {
     std::shared_ptr<part_type> init() const
     {
         auto exec = exec_.get_ref_exec();
-        auto comm = exec_.get_gko_mpi_host_comm();
 
         word msg{"initialising partition of size " +
                  std::to_string(local_size_)};
@@ -66,7 +65,7 @@ struct PartitionInitFunctor {
         auto host_partition = part_type::build_from_blocked_recv(
             exec, local_size_, send_idxs_, target_ids_, target_sizes_);
 
-        if (ranks_per_gpu_ == 1) return host_partition;
+        return host_partition;
     }
 };
 
@@ -93,6 +92,7 @@ class PersistentPartition
 public:
     using part_type =
         gko::experimental::distributed::localized_partition<label>;
+
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage

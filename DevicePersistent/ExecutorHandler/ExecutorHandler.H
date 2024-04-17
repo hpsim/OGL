@@ -163,7 +163,7 @@ public:
     }
 
     std::shared_ptr<gko::experimental::mpi::communicator>
-    get_gko_mpi_device_comm() const
+    get_communicator() const
     {
         return this->device_comm_;
     }

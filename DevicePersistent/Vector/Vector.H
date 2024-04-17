@@ -25,9 +25,6 @@ struct VectorInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    // representing the partitioning that OF uses
-    const PersistentPartition &partition_;
-
     const label verbose_;
 
     const bool on_device_;
@@ -35,16 +32,19 @@ struct VectorInitFunctor {
     // Memory from which array will be initialised
     const T *other_;
 
+    const label size_;
+
 
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
-                      const PersistentPartition &partition, const T *other,
+                      const T *other,
+                      const label size,
                       const label verbose, const bool on_device = false)
-        : exec_(exec),
-          name_(name),
-          partition_(partition),
+        : name_(name),
+          exec_(exec),
           on_device_(on_device),
           verbose_(verbose),
-          other_(other)
+          other_(other),
+          size_(size)
     {}
 
 
@@ -52,7 +52,7 @@ struct VectorInitFunctor {
     void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
                     persistent_vector) const
     {
-        const auto local_size = partition_.get_local_size();
+        const auto local_size = size_;
         word msg{"updating array " + name_ + " of size " +
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
@@ -66,7 +66,7 @@ struct VectorInitFunctor {
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
 
-        const auto local_size = partition_.get_local_size();
+        const auto local_size = size_;
         word msg{"initialising vector " + name_ + " of size " +
                  std::to_string(local_size)};
         msg += (on_device_) ? " on device" : " on host";
@@ -75,11 +75,9 @@ struct VectorInitFunctor {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
-        if (partition_.get_ranks_per_gpu() == 1) {
-            return gko::share(dist_vec::create(
-                exec, *exec_.get_gko_mpi_device_comm().get(),
+        return gko::share(dist_vec::create(
+                exec, *exec_.get_communicator().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
-        }
     }
 };
 
@@ -89,6 +87,7 @@ class PersistentVector
     : public PersistentBase<gko::experimental::distributed::Vector<T>,
                             VectorInitFunctor<T>> {
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
+    using part_type = gko::experimental::distributed::Partition<label, label>;
     using vec = gko::matrix::Dense<scalar>;
 
     const objectRegistry &db_;
@@ -97,7 +96,7 @@ class PersistentVector
 
     const T *memory_;
 
-    const PersistentPartition partition_;
+    const label size_;
 
     const ExecutorHandler &exec_;
 
@@ -121,30 +120,30 @@ public:
      * device or host
      * @param ranks_per_gpu
      */
-    PersistentVector(const T *memory, const word name, const objectRegistry &db,
+    PersistentVector(const T *memory, const label size, const word name, const objectRegistry &db,
                      const ExecutorHandler &exec,
-                     const PersistentPartition partition, const label verbose,
+                     const label verbose,
                      const bool update, const bool init_on_device)
         : PersistentBase<gko::experimental::distributed::Vector<T>,
                          VectorInitFunctor<T>>(
               name, db,
-              VectorInitFunctor<T>(exec, name, partition, memory, verbose,
+              VectorInitFunctor<T>(exec, name, memory, size, verbose,
                                    init_on_device),
               update, verbose),
           db_(db),
           name_(name),
           memory_(memory),
-          partition_(partition),
+          size_(size),
           exec_(exec),
           update_(update)
     {}
 
     /** Copies the content of the distributed vector back to the original source
      **/
-    void copy_back()
+    void copy_back(std::shared_ptr<const part_type> partition)
     {
-        const auto local_size = partition_.get_local_size();
-        auto global_size = partition_.get_total_size();
+        const label local_size = size_;
+        auto global_size = partition->get_size();
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto host_device_vector =
@@ -176,7 +175,6 @@ public:
     }
 
     // getter and setter
-
     bool get_update() const { return update_; }
 
     T *get_data() const { return this->get_persistent_object()->get_data(); }

@@ -141,6 +141,7 @@ private:
 
     const ExecutorHandler& exec_handler_;
 
+    // A thin wrapper around OpenFOAMs LDU matrix class
     PersistentHostMatrixAdapter host_A_;
 
 public:
@@ -174,7 +175,7 @@ public:
               matrix_,
               interfaceBouCoeffs,
               interfaceIntCoeffs,
-              interfaces,
+              interfaces
           }
     {}
 
@@ -210,45 +211,38 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto ref_exec = exec_handler_.get_ref_exec();
-
-        // using a thin wrapper around OpenFOAMs LDU matrix class
-
-        PersistentPartition partition{
-            db_,
-            exec_handler_,
-            verbose_,
-            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-            psi.size(),  // number of elements
-            host_A_.get_communication_pattern()};
+        auto exec_handler = host_A_.get()->get_exec_handler();
+        auto ref_exec = exec_handler.get_ref_exec();
 
         // create a distributed matrix from the host matrix
         // here also repartitioning is performed if required
+        std::cout << "Start persistent distributed matrix\n";
         PersistentDistributedMatrix dist_A{db_,
-                             exec_handler_,
+                             exec_handler,
                              field_name_,
                              host_A_,
-                             partition,
                              solver_controls_,
                              verbose_};
 
+        auto partition = dist_A.get()->get_partition();
+
         PersistentVector<scalar> dist_b{
-            &source[0],
+            source.begin(),
+            source.size(),
             field_name_ + "_rhs",
             db_,
-            exec_handler_,
-            partition,
+            exec_handler,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
         };
 
         PersistentVector<scalar> dist_x{
-            &psi[0],
+            psi.begin(),
+            psi.size(),
             field_name_ + "_solution",
             db_,
-            exec_handler_,
-            partition,
+            exec_handler,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device
@@ -295,8 +289,8 @@ public:
                             solver->apply(dist_b_v, dist_x_v);)
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, field_name_,
-                            dist_x.copy_back();)
-        auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
+                            dist_x.copy_back(partition);)
+        auto bandwidth_copy_back = sizeof(scalar) * psi.size() /
                                    delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
@@ -311,7 +305,7 @@ public:
             exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition.get_total_size();
+            time_per_iter * 1000.0 / partition->get_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
