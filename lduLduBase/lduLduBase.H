@@ -216,15 +216,12 @@ public:
 
         // create a distributed matrix from the host matrix
         // here also repartitioning is performed if required
-        std::cout << "Start persistent distributed matrix\n";
         PersistentDistributedMatrix dist_A{db_,
                              exec_handler,
                              field_name_,
                              host_A_,
                              solver_controls_,
                              verbose_};
-
-        auto partition = dist_A.get()->get_partition();
 
         PersistentVector<scalar> dist_b{
             source.begin(),
@@ -269,25 +266,26 @@ public:
             auto precond = this->init_preconditioner(
                 dist_A_v, exec_handler_.get_device_exec());)
 
-        bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
-        if (debug && db_.time().writeTime()) {
+        bool write(solver_controls_.lookupOrDefault<Switch>("export", false));
+        if (write && db_.time().writeTime()) {
             LOG_0(verbose_, "Export system")
-            dist_A.write();
-            dist_b.write();
+            dist_A.get()->write(field_name_, db_);
+            //dist_b.write(field_name_, db_);
         }
 
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            exec_handler_.get_device_exec(), dist_A_v, dist_x_v,
-            dist_b_v, verbose_, dist_A.get_export(), precond);
+            exec_handler.get_device_exec(), dist_A_v, dist_x_v,
+            dist_b_v, verbose_, write, precond);
 
         TIME_WITH_FIELDNAME(verbose_, generate_solver, field_name_,
                             auto solver = solver_gen->generate(dist_A_v);)
-        LOG_1(verbose_, "solve solver done")
+        LOG_1(verbose_, "generate solver done")
         TIME_WITH_FIELDNAME(verbose_, solve, field_name_,
                             solver->apply(dist_b_v, dist_x_v);)
 
+        auto partition = dist_A.get()->get_partition();
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, field_name_,
                             dist_x.copy_back(partition);)
         auto bandwidth_copy_back = sizeof(scalar) * psi.size() /

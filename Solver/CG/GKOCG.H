@@ -14,10 +14,7 @@ class GKOCGFactory {
 private:
     using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
-
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
-    using dist_mtx =
-        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 

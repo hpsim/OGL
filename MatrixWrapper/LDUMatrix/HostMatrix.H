@@ -276,6 +276,8 @@ private:
 
     const lduInterfaceFieldPtrsList &interfaces_;
 
+    const FieldField<Field, scalar> &interfaceBouCoeffs_;
+
     const CommunicationPattern communication_pattern_;
 
     /* Iterates all interfaces and collects the coefficients into a vector
@@ -324,23 +326,7 @@ private:
 
     // updater
 
-    /** Copies the LDU matrix coefficients to local_coeffs without changing or
-     ** reinstantiating the sparsity pattern.
-     ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host or device to be in row major order.
-     **/
-    void update_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        gko::array<scalar> &local_coeffs) const;
 
-    /** Copies the interface matrix coefficients to non_local_coeffs without
-    ** changing or reinstantiating the sparsity pattern.
-    **/
-    void update_non_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        gko::array<scalar> &local_coeffs) const;
 
 public:
     // segregated matrix wrapper constructor
@@ -383,7 +369,21 @@ public:
      ** which are required to create to a ginkgo matrix
      **/
     SparsityPattern compute_local_sparsity(
-            std::shared_ptr<const gko::Executor> exec) const;
+        std::shared_ptr<const gko::Executor> exec) const;
+
+    /** Copies the LDU matrix coefficients to local_coeffs without changing or
+     ** reinstantiating the sparsity pattern.
+     ** This uses the local_sparsity_.ldu_mapping to permute the data already
+     ** on the host or device to be in row major order.
+     **/
+    void compute_local_coeffs(const SparsityPattern &sparsity,
+                              gko::array<scalar> &target_coeffs) const;
+
+    /** Copies the interface matrix coefficients to non_local_coeffs without
+    ** changing or reinstantiating the sparsity pattern.
+    **/
+    void compute_non_local_coeffs(const SparsityPattern &sparsity,
+                                  gko::array<scalar> &target_coeffs) const;
 
     /** Based on OpenFOAMs interfaces this function computes two
      ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
@@ -392,7 +392,7 @@ public:
      ** matrix
      **/
     SparsityPattern compute_non_local_sparsity(
-            std::shared_ptr<const gko::Executor> exec) const;
+        std::shared_ptr<const gko::Executor> exec) const;
 
     /** Iterates all interfaces and counts the number of unique neighbour
      ** processors and number of interfaces in total for this processor
@@ -411,7 +411,6 @@ public:
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
     gko::Array<scalar> &get_local_coeffs() const {};
-
 };
 
 

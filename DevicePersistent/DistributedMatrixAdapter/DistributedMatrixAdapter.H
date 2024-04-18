@@ -118,12 +118,10 @@ public:
         return host_matrix_.get_persistent_object();
     }
 
-    void write() 
-    {
-        this->get()->write();
-    }
-
-    bool get_export();
+    // void write() 
+    // {
+    //     this->get()->write();
+    // }
 };
 
 }  // namespace Foam
