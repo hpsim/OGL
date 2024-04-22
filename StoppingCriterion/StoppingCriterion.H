@@ -91,7 +91,8 @@ class StoppingCriterion {
          * or rewritten as || r - ( b - x* ) || + || (b - x*) ||
          *  */
         scalar compute_normfactor_dist(
-            std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
+            std::shared_ptr<const gko::Executor> device_exec,
+            const dist_vec* r,
             std::shared_ptr<const gko::LinOp> gkomatrix,
             std::shared_ptr<const dist_vec> x,
             std::shared_ptr<const dist_vec> b) const;

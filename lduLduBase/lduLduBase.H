@@ -207,11 +207,12 @@ public:
     {}
 
 
-    solverPerformance solve_multi_gpu_impl(scalarField &psi,
+    solverPerformance solve_multi_gpu_impl(
+            ExecutorHandler &exec_handler,
+            scalarField &psi,
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto exec_handler = host_A_.get()->get_exec_handler();
         auto ref_exec = exec_handler.get_ref_exec();
 
         // create a distributed matrix from the host matrix
@@ -264,13 +265,13 @@ public:
         TIME_WITH_FIELDNAME(
             verbose_, init_precond, field_name_,
             auto precond = this->init_preconditioner(
-                dist_A_v, exec_handler_.get_device_exec());)
+                dist_A_v, exec_handler.get_device_exec());)
 
         bool write(solver_controls_.lookupOrDefault<Switch>("export", false));
         if (write && db_.time().writeTime()) {
             LOG_0(verbose_, "Export system")
             dist_A.get()->write(field_name_, db_);
-            //dist_b.write(field_name_, db_);
+            dist_b.write();
         }
 
 
@@ -289,7 +290,7 @@ public:
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, field_name_,
                             dist_x.copy_back(partition);)
         auto bandwidth_copy_back = sizeof(scalar) * psi.size() /
-                                   delta_t_copy_x_back / 1000.0;
+                                   (delta_t_copy_x_back + SMALL) / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -299,8 +300,8 @@ public:
         auto time_per_iter =
             delta_t_solve / max(this->get_number_of_iterations(), 1);
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        exec_handler_.get_gko_mpi_host_comm()->broadcast(
-            exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        exec_handler.get_gko_mpi_host_comm()->broadcast(
+            exec_handler.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
             time_per_iter * 1000.0 / partition->get_size();
@@ -322,17 +323,18 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
+        auto exec_handler = host_A_.get()->get_exec_handler();
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
             lduMatrix::preconditioner::getName(solver_controls_) +
-                exec_handler_.get_exec_name() + typeName,
+                exec_handler.get_exec_name() + typeName,
             field_name_);
 
         // Solve system
         if (Pstream::parRun()) {
             TIME_WITH_FIELDNAME(
                 verbose_, solve_multi_gpu, field_name_,
-                auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
+                auto res = solve_multi_gpu_impl(exec_handler, psi, source, solverPerf);)
             return res;
         } else {
             FatalErrorInFunction << "Only parallel runs are supported for OGL"

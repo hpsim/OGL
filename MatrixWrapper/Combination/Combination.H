@@ -39,7 +39,6 @@ public:
         for (auto &interface : interface_ranges_) {
             auto length = interface.length();
             auto offset = interface.begin;
-            std::cout << " read interface " << length << " " << offset << "\n";
             auto op = gko::share(InnerMatrixType::create(exec));
 
             device_matrix_data in(
@@ -80,15 +79,8 @@ public:
      */
     CombinationMatrix &operator=(const CombinationMatrix &other)
     {
-        if (&other != this) {
-            gko::EnableLinOp<CombinationMatrix>::operator=(other);
-            interface_ranges_ = std::vector<gko::span>{};
-            for (auto &i_range : other.interface_ranges_) {
-                interface_ranges_.emplace_back(i_range.begin, i_range.end);
-            }
-            comb_ = other.comb_;
-        }
-        return *this;
+    FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
+                         << abort(FatalError);
     }
 
     /**

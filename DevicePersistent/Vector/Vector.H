@@ -36,9 +36,8 @@ struct VectorInitFunctor {
 
 
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
-                      const T *other,
-                      const label size,
-                      const label verbose, const bool on_device = false)
+                      const T *other, const label size, const label verbose,
+                      const bool on_device = false)
         : name_(name),
           exec_(exec),
           on_device_(on_device),
@@ -76,8 +75,8 @@ struct VectorInitFunctor {
                                              const_cast<T *>(other_));
 
         return gko::share(dist_vec::create(
-                exec, *exec_.get_communicator().get(),
-                vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
+            exec, *exec_.get_communicator().get(),
+            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
     }
 };
 
@@ -120,10 +119,10 @@ public:
      * device or host
      * @param ranks_per_gpu
      */
-    PersistentVector(const T *memory, const label size, const word name, const objectRegistry &db,
-                     const ExecutorHandler &exec,
-                     const label verbose,
-                     const bool update, const bool init_on_device)
+    PersistentVector(const T *memory, const label size, const word name,
+                     const objectRegistry &db, const ExecutorHandler &exec,
+                     const label verbose, const bool update,
+                     const bool init_on_device)
         : PersistentBase<gko::experimental::distributed::Vector<T>,
                          VectorInitFunctor<T>>(
               name, db,
@@ -142,26 +141,12 @@ public:
      **/
     void copy_back(std::shared_ptr<const part_type> partition)
     {
-        const label local_size = size_;
-        auto global_size = partition->get_size();
+        auto ref_exec = exec_.get_ref_exec();
+        auto host_buffer_view = gko::array<T>::view(
+            exec_.get_device_exec(), size_, get_vector()->get_local_values());
 
-        auto comm = exec_.get_gko_mpi_host_comm();
-        auto host_device_vector =
-            dist_vec::create(exec_.get_ref_exec(), *comm.get());
-        host_device_vector->operator=(*get_vector().get());
-
-        // TODO why does it need its size
-        // repartitioner size should be sufficient
-        auto target_vector = dist_vec::create(exec_.get_ref_exec(), *comm.get(),
-                                              gko::dim<2>{global_size, 1},
-                                              gko::dim<2>{local_size, 1}, 1);
-        scalar *host_buffer = host_device_vector->get_local_values();
-
-        auto host_buffer_view =
-            gko::array<T>::view(exec_.get_ref_exec(), local_size, host_buffer);
-
-        auto to_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
-                                           const_cast<T *>(memory_));
+        auto to_view =
+            gko::array<T>::view(ref_exec, size_, const_cast<T *>(memory_));
         to_view = host_buffer_view;
     }
 

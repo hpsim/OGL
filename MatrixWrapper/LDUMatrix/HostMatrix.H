@@ -368,7 +368,7 @@ public:
      ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
      ** which are required to create to a ginkgo matrix
      **/
-    SparsityPattern compute_local_sparsity(
+    std::shared_ptr<SparsityPattern> compute_local_sparsity(
         std::shared_ptr<const gko::Executor> exec) const;
 
     /** Copies the LDU matrix coefficients to local_coeffs without changing or
@@ -376,13 +376,13 @@ public:
      ** This uses the local_sparsity_.ldu_mapping to permute the data already
      ** on the host or device to be in row major order.
      **/
-    void compute_local_coeffs(const SparsityPattern &sparsity,
+    void compute_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
                               gko::array<scalar> &target_coeffs) const;
 
     /** Copies the interface matrix coefficients to non_local_coeffs without
     ** changing or reinstantiating the sparsity pattern.
     **/
-    void compute_non_local_coeffs(const SparsityPattern &sparsity,
+    void compute_non_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
                                   gko::array<scalar> &target_coeffs) const;
 
     /** Based on OpenFOAMs interfaces this function computes two
@@ -391,7 +391,7 @@ public:
      ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
      ** matrix
      **/
-    SparsityPattern compute_non_local_sparsity(
+    std::shared_ptr<SparsityPattern> compute_non_local_sparsity(
         std::shared_ptr<const gko::Executor> exec) const;
 
     /** Iterates all interfaces and counts the number of unique neighbour
@@ -408,9 +408,9 @@ public:
 
     label get_local_nrows() const { return nrows_; }
 
-    const ExecutorHandler &get_exec_handler() const { return exec_; }
+    gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
 
-    gko::Array<scalar> &get_local_coeffs() const {};
+    const ExecutorHandler &get_exec_handler() const { return exec_; }
 };
 
 

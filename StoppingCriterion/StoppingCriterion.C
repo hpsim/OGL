@@ -31,7 +31,7 @@ void StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_Axref_dist(
 
 scalar
 StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
-    std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
+    std::shared_ptr<const gko::Executor> device_exec, const dist_vec* r,
     std::shared_ptr<const gko::LinOp> gkomatrix,
     std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b) const
 {
@@ -43,6 +43,7 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
 
     auto Axref = gko::share(
         dist_vec::create(device_exec, comm, global_size, local_size));
+    Axref->fill(0.0);
 
     compute_Axref_dist(global_size[0], local_size[0], device_exec, gkomatrix, x,
                        Axref);
@@ -89,7 +90,7 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto start_eval = std::chrono::steady_clock::now();
     const auto exec = this->get_executor();
 
-    auto *dense_r = gko::as<dist_vec>(updater.residual_);
+    auto dense_r = gko::as<dist_vec>(updater.residual_);
     auto norm1 = vec::create(exec, gko::dim<2>{1});
     dense_r->compute_norm1(norm1.get());
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});
