@@ -323,6 +323,10 @@ public:
                                   const scalarField &source,
                                   const direction cmpt = 0) const
     {
+        if (!Pstream::parRun()) {
+            FatalErrorInFunction << "Only parallel runs are supported for OGL"
+                                 << exit(FatalError);
+        }
         auto exec_handler = host_A_.get()->get_exec_handler();
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
@@ -331,15 +335,10 @@ public:
             field_name_);
 
         // Solve system
-        if (Pstream::parRun()) {
-            TIME_WITH_FIELDNAME(
-                verbose_, solve_multi_gpu, field_name_,
-                auto res = solve_multi_gpu_impl(exec_handler, psi, source, solverPerf);)
-            return res;
-        } else {
-            FatalErrorInFunction << "Only parallel runs are supported for OGL"
-                                 << exit(FatalError);
-        }
+        TIME_WITH_FIELDNAME(
+            verbose_, solve_multi_gpu, field_name_,
+            auto res = solve_multi_gpu_impl(exec_handler, psi, source, solverPerf);)
+        return res;
 
         return solverPerf;
     };

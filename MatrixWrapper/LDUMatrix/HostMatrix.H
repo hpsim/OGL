@@ -278,8 +278,6 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
-    const CommunicationPattern communication_pattern_;
-
     /* Iterates all interfaces and collects the coefficients into a vector
     **
     ** @param local whether local or non local coefficients should be collected
@@ -401,7 +399,9 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    CommunicationPattern create_communication_pattern() const;
+    CommunicationPattern create_communication_pattern(
+        const gko::experimental::mpi::communicator& comm
+            ) const;
 
 
     bool get_verbose() const { return verbose_; }

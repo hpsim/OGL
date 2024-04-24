@@ -1,8 +1,36 @@
+/*---------------------------------------------------------------------------*\
+License
+    This file is part of OGL.
+
+    OGL is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OGL is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
+
+Class
+    Foam::IOSortingIdxHandler
+
+Author: Gregor Olenik <go@hpsim.de>
+
+SourceFiles
+    CommunicationPattern.H
+
+\*---------------------------------------------------------------------------*/
+
 #include <ginkgo/core/distributed/lin_op.hpp>
 #include <ginkgo/ginkgo.hpp>
 
 
 #include "MatrixWrapper/LDUMatrix/HostMatrix.H"
+#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 
 
 template <typename DistMtxType>
@@ -134,12 +162,15 @@ public:
 
     std::shared_ptr<part_type> get_partition() { return this->partition_; }
 
+
     static std::shared_ptr<RepartDistMatrix> create(
         word matrix_format, std::shared_ptr<const HostMatrixWrapper> host_A)
     {
         auto exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_device_exec();
         auto comm = *exec_handler.get_communicator().get();
+        // TODO FIXME
+        label ranks_per_gpu = 2;
 
         // repartition things here first by creating device_matrix_data on
         // device with correct size on each rank
@@ -149,8 +180,8 @@ public:
         auto non_local_sparsity_ = host_A->compute_non_local_sparsity(exec);
 
         // create original communicator pattern
-        auto src_comm_pattern = host_A.get()->create_communication_pattern();
-        // auto dst_comm_pattern = repartition_comm_pattern(src_comm_pattern);
+        auto src_comm_pattern = host_A.get()->create_communication_pattern(comm);
+        auto dst_comm_pattern = repartition_comm_pattern(ranks_per_gpu, src_comm_pattern);
 
         // // if accumulate_ranks
         // // 1. move to shared buffer

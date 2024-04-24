@@ -171,6 +171,7 @@ target_sources(
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           MatrixWrapper/LDUMatrix/HostMatrix.C
           MatrixWrapper/LDUMatrix/HostMatrixFreeFunctions.C
+          MatrixWrapper/CommunicationPattern/CommunicationPattern.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C

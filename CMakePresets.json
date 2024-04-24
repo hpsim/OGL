@@ -13,7 +13,7 @@
       "description": "Default build using Ninja generator",
       "generator": "Ninja",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
       }
     },

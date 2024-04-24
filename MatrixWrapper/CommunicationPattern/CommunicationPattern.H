@@ -26,9 +26,15 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 
 #pragma once
+#include <ginkgo/ginkgo.hpp>
+#include "fvCFD.H"
+
 
 struct CommunicationPattern {
-    using comm_size_type = int;
+    using comm_size_type = label;
+
+    gko::experimental::mpi::communicator comm;
+
     // an array storing to which rank to communicate
     gko::array<comm_size_type> target_ids;
 
@@ -40,3 +46,14 @@ struct CommunicationPattern {
     // are owned by the interface and the corresponding target rank
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
 };
+
+std::ostream& operator<<(std::ostream& out, const CommunicationPattern& e); 
+
+// TODO NOTE currently we have just one communication pattern for multiple proc
+// interfaces
+//  hence this will communicate vectors which are too long, FIXME potentially
+//  have the wrong idxs and will communictate the same remote buffer several
+//  times through the combination matrix.
+CommunicationPattern repartition_comm_pattern(
+    label ranks_per_gpu,
+    CommunicationPattern &src_comm_pattern);

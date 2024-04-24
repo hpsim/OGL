@@ -159,7 +159,9 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 }
 
 
-CommunicationPattern HostMatrixWrapper::create_communication_pattern() const
+CommunicationPattern HostMatrixWrapper::create_communication_pattern(
+    const gko::experimental::mpi::communicator& comm
+    ) const
 {
     using comm_size_type = CommunicationPattern::comm_size_type;
     // temp map, mapping from neighbour rank interface cells
@@ -207,7 +209,7 @@ CommunicationPattern HostMatrixWrapper::create_communication_pattern() const
         iter++;
     }
 
-    return CommunicationPattern{target_ids, target_sizes, send_idxs};
+    return CommunicationPattern{comm, target_ids, target_sizes, send_idxs};
 }
 
 

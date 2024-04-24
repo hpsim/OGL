@@ -12,6 +12,8 @@
 
 namespace Foam {
 
+
+
 struct ExecutorInitFunctor {
     mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
 
@@ -30,14 +32,14 @@ struct ExecutorInitFunctor {
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_((Pstream::parRun()) ? comm_->rank() / gpus_per_rank : 0),
+          device_id_( comm_->rank() / gpus_per_rank ),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
     {}
 
-
     void update(std::shared_ptr<gko::Executor>) const {}
+
 
     const std::string not_compiled_tag = "not compiled";
     const gko::version_info version = gko::version_info::get();
