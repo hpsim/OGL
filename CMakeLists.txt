@@ -20,6 +20,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Configuration options
 include(cmake/build_type_helpers.cmake)
+include(cmake/OpenFOAM.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
@@ -205,17 +206,9 @@ enable_sanitizers(
   ${OGL_ENABLE_SANITIZE_UB} ${OGL_ENABLE_SANITIZE_THREAD}
   ${OGL_ENABLE_SANITIZE_MEMORY})
 
-target_include_directories(
-  OGL SYSTEM
-  PUBLIC $ENV{FOAM_SRC}/finiteVolume/lnInclude
-         $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
-         $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(OGL SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(
-  OGL
-  PRIVATE $ENV{FOAM_LIBBIN}/libOpenFOAM.so $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so Ginkgo::ginkgo
-          stdc++fs)
+target_link_libraries(OGL PRIVATE OpenFOAM Ginkgo::ginkgo stdc++fs)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)

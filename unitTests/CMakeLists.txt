@@ -18,22 +18,17 @@ add_executable(matrixConversion "test_HostMatrix.C")
 find_package(MPI REQUIRED)
 
 target_include_directories(
-    matrixConversion SYSTEM
+  matrixConversion SYSTEM
   PUBLIC $ENV{FOAM_SRC}/finiteVolume/lnInclude
          $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
          $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_compile_definitions(matrixConversion PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
-                              NoRepository WM_DP)
+target_compile_definitions(
+  matrixConversion PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64 NoRepository WM_DP)
 
 target_link_libraries(
   matrixConversion
-  PUBLIC GTest::gtest_main
-         $ENV{FOAM_LIBBIN}/libOpenFOAM.so
-         $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-         $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-         OGL
-         Ginkgo::ginkgo
+  PUBLIC GTest::gtest_main OGL OpenFOAM Ginkgo::ginkgo
          # MPI::MPI_CXX
          ${CMAKE_DL_LIBS})
 
