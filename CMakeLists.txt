@@ -92,7 +92,7 @@ add_subdirectory(third_party)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
     "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -march=native -fopenmp -fPIC -Wno-undefined-var-template"
+  -Wall -Wpedantic -Wextra -Wextramarch=native -fopenmp -fPIC -Wno-undefined-var-template"
 )
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -143,6 +143,7 @@ if(APPLE)
   target_compile_definitions(OGL PRIVATE APPLE arm64)
 else()
   target_compile_definitions(OGL PRIVATE linux64)
+  target_link_libraries(OGL PRIVATE stdc++fs)
 endif()
 
 # Add a custom command that produces version.cpp, plus a dummy output that's not
@@ -208,7 +209,7 @@ enable_sanitizers(
 
 target_include_directories(OGL SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(OGL PRIVATE OpenFOAM Ginkgo::ginkgo stdc++fs)
+target_link_libraries(OGL PRIVATE OpenFOAM Ginkgo::ginkgo)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)
