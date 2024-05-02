@@ -44,9 +44,9 @@ namespace Foam {
 struct SparsityPattern {
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
         : size_(size),
-          col_idxs{exec, size},
-          row_idxs{exec, size},
-          ldu_mapping{exec, size}
+          col_idxs{exec, static_cast<gko::size_type>(size)},
+          row_idxs{exec, static_cast<gko::size_type>(size)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size)}
     {}
 
     // TODO rename the public members and remove trailing _

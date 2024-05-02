@@ -139,7 +139,7 @@ private:
 
     const label verbose_;
 
-    const ExecutorHandler& exec_handler_;
+    const ExecutorHandler exec_handler_;
 
     // A thin wrapper around OpenFOAMs LDU matrix class
     PersistentHostMatrixAdapter host_A_;

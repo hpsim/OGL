@@ -29,8 +29,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 
 
-#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
+#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 
 
 template <typename DistMtxType>
@@ -162,7 +162,6 @@ public:
 
     std::shared_ptr<part_type> get_partition() { return this->partition_; }
 
-
     static std::shared_ptr<RepartDistMatrix> create(
         word matrix_format, std::shared_ptr<const HostMatrixWrapper> host_A)
     {
@@ -179,24 +178,34 @@ public:
         auto local_sparsity_ = host_A->compute_local_sparsity(exec);
         auto non_local_sparsity_ = host_A->compute_non_local_sparsity(exec);
 
-        // create original communicator pattern
-        auto src_comm_pattern = host_A.get()->create_communication_pattern(comm);
-        auto dst_comm_pattern = repartition_comm_pattern(ranks_per_gpu, src_comm_pattern);
+        auto orig_partition = gko::share(
+            gko::experimental::distributed::build_partition_from_local_size<
+                label, label>(exec, comm, local_sparsity_->dim[0]));
 
-        // // if accumulate_ranks
-        // // 1. move to shared buffer
-        // // 2. switch interfaces to local_data
-        // // 3. modify communication pattern
-        // auto [local_sparsity_pattern_r, non_local_sparsity_pattern_r] =
-        //     repartition_indices(ranks_per_gpu, source_partition,
-        //                         local_sparsity_pattern,
-        //                         non_local_sparsity_pattern);
-        //
-        // auto [local_coeff_r, non_local_coeff_r] =
-        //     repartition_coeffs(ranks_per_gpu, source_partition,
-        //                        local_device_data, non_local_device_data);
-        //
-        //
+        // create original communicator pattern
+        auto src_comm_pattern =
+            host_A.get()->create_communication_pattern(comm);
+        // create partiton here and pass to constructor
+        auto dst_comm_pattern =
+            repartition_comm_pattern(ranks_per_gpu, src_comm_pattern, orig_partition);
+
+        auto repartition_sparsity = [](label, std::shared_ptr<SparsityPattern>,
+                                       std::shared_ptr<SparsityPattern>,
+                                       const CommunicationPattern &) {
+            // this is not implemented yet, but we can't fail here for debugging reasons
+            //FatalErrorInFunction << "Not implemented" << abort(FatalError);
+            return std::make_pair<std::shared_ptr<SparsityPattern>,
+                                  std::shared_ptr<SparsityPattern>>({}, {});
+        };
+
+        auto [repart_loc_sparsity, repart_non_loc_sparsity] =
+            repartition_sparsity(ranks_per_gpu, local_sparsity_,
+                                 non_local_sparsity_, dst_comm_pattern);
+
+        local_sparsity_ = repart_loc_sparsity;
+        non_local_sparsity_ = repart_non_loc_sparsity;
+
+
         auto comm_pattern = src_comm_pattern;
         const label local_nnz = local_sparsity_->size_;
         const label non_local_nnz = non_local_sparsity_->size_;
@@ -244,33 +253,43 @@ public:
         scalar *local_value_ptr{};
         scalar *non_local_value_ptr{};
 
-        if (matrix_format == "Csr") {
-            local_value_ptr =
-                (gko::matrix::Csr<scalar, label> *)dist_mtx_->get_local_matrix()
-                    ->get_values();
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+        // TODO local matrix is now of type Combination<Csr>
+        // Combination should get an update(gko::array<> coeffs function)
+        //
+        // if (matrix_format == "Csr") {
+        //     local_value_ptr =
+        //         (gko::matrix::Csr<scalar, label>
+        //         *)(dist_mtx_->get_local_matrix())
+        //             ->get_values();
 
-            non_local_value_ptr = (gko::matrix::Csr<scalar, label> *)dist_mtx_
-                                      ->get_non_local_matrix()
-                                      ->get_values();
-        }
-        if (matrix_format == "Ell") {
-            local_value_ptr =
-                (gko::matrix::Ell<scalar, label> *)dist_mtx_->get_local_matrix()
-                    ->get_values();
+        //     non_local_value_ptr = (gko::matrix::Csr<scalar, label>
+        //     *)dist_mtx_
+        //                               ->get_non_local_matrix()
+        //                               ->get_values();
+        // }
+        // if (matrix_format == "Ell") {
+        //     local_value_ptr =
+        //         (gko::matrix::Ell<scalar, label>
+        //         *)dist_mtx_->get_local_matrix()
+        //             ->get_values();
 
-            non_local_value_ptr = (gko::matrix::Ell<scalar, label> *)dist_mtx_
-                                      ->get_non_local_matrix()
-                                      ->get_values();
-        }
-        if (matrix_format == "Coo") {
-            local_value_ptr =
-                (gko::matrix::Coo<scalar, label> *)dist_mtx_->get_local_matrix()
-                    ->get_values();
+        //     non_local_value_ptr = (gko::matrix::Ell<scalar, label>
+        //     *)dist_mtx_
+        //                               ->get_non_local_matrix()
+        //                               ->get_values();
+        // }
+        // if (matrix_format == "Coo") {
+        //     local_value_ptr =
+        //         (gko::matrix::Coo<scalar, label>
+        //         *)dist_mtx_->get_local_matrix()
+        //             ->get_values();
 
-            non_local_value_ptr = (gko::matrix::Coo<scalar, label> *)dist_mtx_
-                                      ->get_non_local_matrix()
-                                      ->get_values();
-        }
+        //     non_local_value_ptr = (gko::matrix::Coo<scalar, label>
+        //     *)dist_mtx_
+        //                               ->get_non_local_matrix()
+        //                               ->get_values();
+        // }
 
         const label local_nnz = local_sparsity_->size_;
         const label non_local_nnz = non_local_sparsity_->size_;

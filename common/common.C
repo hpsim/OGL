@@ -157,6 +157,16 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
     return get_gko_solver_property(sys_matrix_name, iters_name, db, label(1));
 }
 
+std::ostream& operator<<(std::ostream& out, const std::vector<label>& e){
+    out << " vector: [";
+    for (int i = 0; i < e.size(); i++) {
+        out << e[i] << " ";
+
+    }
+    out << "]";
+    return out;
+}
+
 std::ostream& operator<<(std::ostream& out, const gko::array<label>& e){
     out << " array: [";
     for (int i = 0; i < e.get_size(); i++) {
@@ -191,4 +201,6 @@ std::ostream &operator<<(std::ostream &os,
     }
     return os;
 }
+
+
 }  // namespace Foam

@@ -92,7 +92,7 @@ add_subdirectory(third_party)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
     "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -Wextramarch=native -fopenmp -fPIC -Wno-undefined-var-template"
+  -Wall -Wpedantic -Wextra -Wextra -march=native -fopenmp -fPIC -Wno-undefined-var-template"
 )
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")

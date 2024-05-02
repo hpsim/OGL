@@ -29,6 +29,8 @@ SourceFiles
 #include <ginkgo/ginkgo.hpp>
 #include "fvCFD.H"
 
+// TODO move this file to top level since it is not really a matrix-wrapper
+
 
 struct CommunicationPattern {
     using comm_size_type = label;
@@ -47,7 +49,7 @@ struct CommunicationPattern {
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
 };
 
-std::ostream& operator<<(std::ostream& out, const CommunicationPattern& e); 
+std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e);
 
 // TODO NOTE currently we have just one communication pattern for multiple proc
 // interfaces
@@ -55,5 +57,6 @@ std::ostream& operator<<(std::ostream& out, const CommunicationPattern& e);
 //  have the wrong idxs and will communictate the same remote buffer several
 //  times through the combination matrix.
 CommunicationPattern repartition_comm_pattern(
-    label ranks_per_gpu,
-    CommunicationPattern &src_comm_pattern);
+    label ranks_per_gpu, CommunicationPattern &src_comm_pattern,
+std::shared_ptr<const gko::experimental::distributed::Partition<label, label>> partition
+);
