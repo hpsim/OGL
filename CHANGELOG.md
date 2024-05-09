@@ -1,4 +1,4 @@
-# 0.5.4 (2024/04/10)
+# 0.5.4 (unreleased)
 - Notify user of a unsupported executor argument [PR #] 
 # 0.5.3 (2024/03/08)
 - Fix issue when building against DP labels [PR #111](https://github.com/hpsim/OGL/pull/111)
