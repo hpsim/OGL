@@ -44,18 +44,50 @@ namespace Foam {
 struct SparsityPattern {
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
         : size_(size),
-          col_idxs{exec, static_cast<gko::size_type>(size)},
           row_idxs{exec, static_cast<gko::size_type>(size)},
+          col_idxs{exec, static_cast<gko::size_type>(size)},
           ldu_mapping{exec, static_cast<gko::size_type>(size)}
     {}
+
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
+                    gko::dim<2> dim, std::vector<label> &rows,
+                    std::vector<label> &cols, std::vector<label> &map,
+                    std::vector<label> &spans_begin,
+                    std::vector<label> &spans_end, std::vector<label> &ranks)
+        : size_(size),
+          dim(dim),
+          row_idxs{exec, static_cast<gko::size_type>(size)},
+          col_idxs{exec, static_cast<gko::size_type>(size)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size)}
+    {
+        ASSERT_EQ(size, rows.size());
+        std::copy(rows.begin(), rows.end(), row_idxs.get_data());
+
+        ASSERT_EQ(size, cols.size());
+        std::copy(cols.begin(), cols.end(), col_idxs.get_data());
+
+        ASSERT_EQ(size, map.size());
+        std::copy(map.begin(), map.end(), ldu_mapping.get_data());
+
+        ASSERT_EQ(spans_begin.size(), spans_end.size());
+        std::transform(spans_begin.begin(), spans_begin.end(),
+                       spans_end.begin(), std::back_inserter(interface_spans),
+                       [](const auto begin, const auto end) {
+                           return gko::span{static_cast<gko::size_type>(begin),
+                                            static_cast<gko::size_type>(end)};
+                       });
+
+        ASSERT_EQ(spans_begin.size(), ranks.size());
+        rank = ranks;
+    }
 
     // TODO rename the public members and remove trailing _
     // number of nnz entries
     const label size_;
 
-    mutable gko::Array<label> col_idxs;
-
     mutable gko::Array<label> row_idxs;
+
+    mutable gko::Array<label> col_idxs;
 
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
@@ -68,7 +100,8 @@ struct SparsityPattern {
     // this is used to keep all col and row idx consecutive in memory
     mutable std::vector<gko::span> interface_spans;
 
-    // keep track of original rank of each interface or matrix block
+    // keep track of original (communication) rank of each interface or matrix
+    // block
     mutable std::vector<label> rank;
 };
 
@@ -317,13 +350,12 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label, label>>
+    std::vector<std::tuple<label, label, label, label>>
     collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
 
     // updater
-
 
 
 public:
@@ -380,8 +412,9 @@ public:
     /** Copies the interface matrix coefficients to non_local_coeffs without
     ** changing or reinstantiating the sparsity pattern.
     **/
-    void compute_non_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
-                                  gko::array<scalar> &target_coeffs) const;
+    void compute_non_local_coeffs(
+        std::shared_ptr<const SparsityPattern> sparsity,
+        gko::array<scalar> &target_coeffs) const;
 
     /** Based on OpenFOAMs interfaces this function computes two
      ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
@@ -400,8 +433,7 @@ public:
      ** @return the CommunicationPattern
      */
     CommunicationPattern create_communication_pattern(
-        const gko::experimental::mpi::communicator& comm
-            ) const;
+        const gko::experimental::mpi::communicator &comm) const;
 
 
     bool get_verbose() const { return verbose_; }

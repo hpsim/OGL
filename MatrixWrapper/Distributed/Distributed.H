@@ -36,7 +36,8 @@ SourceFiles
 template <typename DistMtxType>
 std::unique_ptr<DistMtxType> generate_dist_mtx_with_inner_type(
     word matrix_format, std::shared_ptr<gko::Executor> exec,
-    std::shared_ptr<gko::experimental::distributed::sparse_communicator> comm,
+    std::shared_ptr<const gko::experimental::distributed::sparse_communicator>
+        comm,
     std::shared_ptr<const SparsityPattern> local_sparsity,
     std::shared_ptr<const SparsityPattern> non_local_sparsity)
 {
@@ -168,7 +169,7 @@ public:
         auto exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_device_exec();
         auto comm = *exec_handler.get_communicator().get();
-        // TODO FIXME
+        // TODO FIXME read from dictionary
         label ranks_per_gpu = 2;
 
         // repartition things here first by creating device_matrix_data on
@@ -186,34 +187,311 @@ public:
         auto src_comm_pattern =
             host_A.get()->create_communication_pattern(comm);
         // create partiton here and pass to constructor
-        auto dst_comm_pattern =
-            repartition_comm_pattern(ranks_per_gpu, src_comm_pattern, orig_partition);
+        auto dst_comm_pattern = repartition_comm_pattern(
+            ranks_per_gpu, src_comm_pattern, orig_partition);
 
-        auto repartition_sparsity = [](label, std::shared_ptr<SparsityPattern>,
-                                       std::shared_ptr<SparsityPattern>,
-                                       const CommunicationPattern &) {
-            // this is not implemented yet, but we can't fail here for debugging reasons
-            //FatalErrorInFunction << "Not implemented" << abort(FatalError);
-            return std::make_pair<std::shared_ptr<SparsityPattern>,
-                                  std::shared_ptr<SparsityPattern>>({}, {});
-        };
+        label rank{src_comm_pattern.comm.rank()};
+
+        auto repartition_sparsity =
+            [ranks_per_gpu, src_comm_pattern, exec, orig_partition](
+                std::shared_ptr<SparsityPattern> src_local_pattern,
+                std::shared_ptr<SparsityPattern> src_non_local_pattern) {
+                // 1. obtain send recv sizes vector
+                // here we can reuse code from repartition_comm_pattern
+                //
+                // 2. initialize send and recv buffer
+                // if we keep interfaces separated row and col indices can be
+                //
+                // 3. ldu mapping needs to be update?
+                // 4. dim needs to be updated
+                // this is not implemented yet, but we can't fail here for
+                // debugging reasons
+                // FatalErrorInFunction << "Not implemented" <<
+                // abort(FatalError);
+                auto target_rank = [ranks_per_gpu](label rank) {
+                    return rank - (rank % ranks_per_gpu);
+                };
+
+
+                auto comm = src_comm_pattern.comm;
+
+                // find ranks which are now local
+                // the target_ids, target_sizes etc need to be communicated
+                // with new owner. thus we use maps to store them where the
+                // index is the new owner.
+                label rank{src_comm_pattern.comm.rank()};
+                label owner_rank = target_rank(rank);
+                bool owner = rank == owner_rank;
+
+                auto local_comm_pattern = compute_send_recv_counts(
+                    ranks_per_gpu, owner_rank, src_local_pattern->size_, comm,
+                    exec);
+
+                auto gather_to_owner = [&](label offset, label *data,
+                                           label size, auto &comm_pattern) {
+                    if (offset > 0) {
+                        std::transform(data, data + size, data,
+                                       [&](label idx) { return idx + offset; });
+                    }
+
+                    auto [send_counts, recv_counts, send_offsets, recv_offsets,
+                          recv_buffer] = comm_pattern;
+
+                    comm.all_to_all_v(exec, data, send_counts.data(),
+                                      send_offsets.data(), recv_buffer.data(),
+                                      recv_counts.data(), recv_offsets.data());
+
+                    return std::vector<label>{recv_buffer};
+                };
+
+
+                label offset = orig_partition->get_range_bounds()[rank] -
+                               orig_partition->get_range_bounds()[owner_rank];
+
+                std::vector<label> merged_local_rows = gather_to_owner(
+                    offset, src_local_pattern->row_idxs.get_data(),
+                    src_local_pattern->row_idxs.get_size(), local_comm_pattern);
+
+                std::vector<label> merged_local_cols = gather_to_owner(
+                    offset, src_local_pattern->col_idxs.get_data(),
+                    src_local_pattern->row_idxs.get_size(), local_comm_pattern);
+
+                std::vector<label> merged_ldu_mapping = gather_to_owner(
+                    0, src_local_pattern->ldu_mapping.get_data(),
+                    src_local_pattern->row_idxs.get_size(), local_comm_pattern);
+
+
+                label rows = (owner) ? merged_local_rows.back() + 1 : 0;
+                gko::dim<2> merged_local_dim{rows, rows};
+
+                std::vector<label> merged_begin{0};
+                std::vector<label> merged_end{ merged_local_rows.size()};
+                std::vector<label> merged_ranks{rank};
+
+                // TODO remove
+                // std::cout << __FILE__ << " on rank " << rank
+                //           << " merged_local_rows " << merged_local_rows
+                //            << " merged_local_cols " << merged_local_cols
+                //         << "\n";
+
+                auto non_local_comm_pattern = compute_send_recv_counts(
+                    ranks_per_gpu, owner_rank, src_non_local_pattern->size_,
+                    comm, exec);
+
+                std::vector<label> merged_non_local_rows = gather_to_owner(
+                    offset, src_non_local_pattern->row_idxs.get_data(),
+                    src_non_local_pattern->row_idxs.get_size(),
+                    non_local_comm_pattern);
+
+                std::vector<label> merged_non_local_cols = gather_to_owner(
+                    offset, src_non_local_pattern->col_idxs.get_data(),
+                    src_non_local_pattern->row_idxs.get_size(),
+                    non_local_comm_pattern);
+
+                std::vector<label> merged_non_local_ldu_mapping =
+                    gather_to_owner(
+                        0, src_non_local_pattern->ldu_mapping.get_data(),
+                        src_non_local_pattern->row_idxs.get_size(),
+                        non_local_comm_pattern);
+
+                // TODO remove
+                // std::cout << __FILE__ << " on rank " << rank
+                //           << " merged_non_local_rows" <<
+                //           merged_non_local_rows
+                //           << " merged_non_local_cols " <<
+                //           merged_non_local_cols
+                //           << "\n";
+
+                auto [span_send_counts, span_recv_counts, span_send_offsets,
+                      span_recv_offsets, span_recv_buffer] =
+                    compute_send_recv_counts(
+                        ranks_per_gpu, owner_rank,
+                        src_non_local_pattern->interface_spans.size(), comm,
+                        exec);
+
+                std::vector<label> spans_begin;
+                std::vector<label> spans_end;
+
+                for (auto elem : src_non_local_pattern->interface_spans) {
+                    spans_begin.push_back(elem.begin);
+                    spans_end.push_back(elem.end);
+                }
+
+                comm.all_to_all_v(
+                    exec, spans_begin.data(), span_send_counts.data(),
+                    span_send_offsets.data(), span_recv_buffer.data(),
+                    span_recv_counts.data(), span_recv_offsets.data());
+
+                std::vector<label> merged_non_local_begin{span_recv_buffer};
+
+                comm.all_to_all_v(
+                    exec, spans_end.data(), span_send_counts.data(),
+                    span_send_offsets.data(), span_recv_buffer.data(),
+                    span_recv_counts.data(), span_recv_offsets.data());
+                std::vector<label> merged_non_local_end{span_recv_buffer};
+
+                comm.all_to_all_v(
+                    exec, src_non_local_pattern->rank.data(),
+                    span_send_counts.data(), span_send_offsets.data(),
+                    span_recv_buffer.data(), span_recv_counts.data(),
+                    span_recv_offsets.data());
+                std::vector<label> merged_non_local_ranks{span_recv_buffer};
+
+                std::cout << __FILE__ << " on rank " << rank << " merged_begin"
+                          << merged_begin << " merged_end " << merged_end
+                          << " merged_ranks " << merged_non_local_ranks << "\n";
+
+                // TODO shorten this
+                std::vector<label> gathered_non_local_rows;
+                std::vector<label> gathered_non_local_cols;
+                std::vector<label> gathered_non_local_mapping;
+                std::vector<label> gathered_ranks;
+                std::vector<label> gathered_begin;
+                std::vector<label> gathered_end;
+                label merged_ranks_size = merged_non_local_ranks.size();
+                for (label i=0;i<merged_ranks_size;i++) {
+                    auto merged_target_rank = merged_non_local_ranks[i];
+                    label to_rank = target_rank(merged_target_rank);
+                    bool local = rank == to_rank;
+                    std::cout << __FILE__ << " on rank " << rank
+                              << " merged_target_rank " << merged_target_rank
+                              << " is local " << local << " target_rank "
+                              << to_rank << "\n";
+                    auto begin = merged_begin[i];
+                    auto end = merged_end[i];
+                    if (local) {
+                        label size_before = merged_local_rows.size();
+                        merged_local_rows.insert(
+                            merged_local_rows.end(),
+                            merged_non_local_rows.begin() + begin,
+                            merged_non_local_rows.begin() + end);
+                        merged_local_cols.insert(
+                            merged_local_cols.end(),
+                            merged_non_local_cols.begin() + begin,
+                            merged_non_local_cols.begin() + end);
+                        merged_ldu_mapping.insert(
+                            merged_ldu_mapping.end(),
+                            merged_non_local_ldu_mapping.data() + begin,
+                            merged_non_local_ldu_mapping.data() + end);
+
+                        label size_after = merged_local_rows.size();
+                        merged_begin.push_back(size_before);
+                        merged_end.push_back(size_after);
+                        merged_ranks.push_back(rank);
+                    } else {
+                        label size_before = gathered_non_local_rows.size();
+                        gathered_non_local_rows.insert(
+                            gathered_non_local_rows.end(),
+                            merged_non_local_rows.begin() + begin,
+                            merged_non_local_rows.begin() + end);
+                        gathered_non_local_cols.insert(
+                            gathered_non_local_cols.end(),
+                            merged_non_local_cols.begin() + begin,
+                            merged_non_local_cols.begin() + end);
+                        gathered_non_local_mapping.insert(
+                            gathered_non_local_mapping.end(),
+                            merged_non_local_cols.begin() + begin,
+                            merged_non_local_cols.begin() + end);
+                        label size_after = gathered_non_local_rows.size();
+                        std::cout << __FILE__ << " on rank " << rank
+                                << " non_local size_before " << size_before
+                                << " non_local size_after " << size_after
+                                << "\n";
+                        gathered_begin.push_back(size_before);
+                        gathered_end.push_back(size_after);
+                        gathered_ranks.push_back(to_rank);
+                    }
+                }
+
+                // add interfaces
+                // to add interfaces we go through the non_local_sparsity
+                // pattern and check if interface is still non_local
+                //
+                // iterate interfaces and send to owner.
+                // on owner decide to move to local or non_local
+                // for sending to owner we can also use the all_to_all_v
+                // approach we than have
+                //
+                // row [ 4 , 8,  12 | 16 , 17, 18 ] <- local row
+                // col [ 1 , 2, 3 | 1, 2, 3 ] <- just the interface ctr
+                // from repartition_comm_pattern we could get
+                //
+                // or we split local / non-local first
+                // for this we could store ranges when computing
+                // repartition_comm_pattern
+                //
+
+
+                if (owner) {
+                    auto new_local_spars_pattern =
+                        std::make_shared<SparsityPattern>(
+                            exec, merged_local_rows.size(), merged_local_dim,
+                            merged_local_rows, merged_local_cols,
+                            merged_ldu_mapping, merged_begin, merged_end,
+                            merged_ranks);
+
+                    std::cout << __FILE__ << " on rank " << rank
+                              << "local dim ["
+                              << new_local_spars_pattern->dim[0] << " x "
+                              << new_local_spars_pattern->dim[1] << "] \n";
+
+                    auto new_non_local_spars_pattern =
+                        std::make_shared<SparsityPattern>(
+                            exec, gathered_non_local_rows.size(),
+                            gko::dim<2>{merged_local_dim[0],
+                                        gathered_non_local_rows.size()},
+                            gathered_non_local_rows, gathered_non_local_cols,
+                            gathered_non_local_mapping, gathered_begin,
+                            gathered_end, gathered_ranks);
+
+                    std::cout << __FILE__ << " on rank " << rank
+                              << " done_sparsity \n";
+                    return std::make_pair<std::shared_ptr<SparsityPattern>,
+                                          std::shared_ptr<SparsityPattern>>(
+                        std::move(new_local_spars_pattern),
+                        std::move(new_non_local_spars_pattern));
+                } else {
+                    auto new_local_spars_pattern =
+                        std::make_shared<SparsityPattern>(exec, 0);
+
+                    auto new_non_local_spars_pattern =
+                        std::make_shared<SparsityPattern>(exec, 0);
+
+                    new_local_spars_pattern->dim = merged_local_dim;
+                    new_non_local_spars_pattern->dim = merged_local_dim;
+
+                    return std::make_pair<std::shared_ptr<SparsityPattern>,
+                                          std::shared_ptr<SparsityPattern>>(
+                        std::move(new_local_spars_pattern),
+                        std::move(new_non_local_spars_pattern));
+                }
+            };
 
         auto [repart_loc_sparsity, repart_non_loc_sparsity] =
-            repartition_sparsity(ranks_per_gpu, local_sparsity_,
-                                 non_local_sparsity_, dst_comm_pattern);
+            repartition_sparsity(local_sparsity_, non_local_sparsity_);
 
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
 
-
-        auto comm_pattern = src_comm_pattern;
-        const label local_nnz = local_sparsity_->size_;
-        const label non_local_nnz = non_local_sparsity_->size_;
+        // const label local_nnz = local_sparsity_->size_;
+        // const label non_local_nnz = non_local_sparsity_->size_;
 
         auto localized_partition = local_part_type::build_from_blocked_recv(
-            exec, local_sparsity_->dim[0], comm_pattern.send_idxs,
-            comm_pattern.target_ids, comm_pattern.target_sizes);
+            exec, local_sparsity_->dim[0], dst_comm_pattern.send_idxs,
+            dst_comm_pattern.target_ids, dst_comm_pattern.target_sizes);
 
+
+        std::cout << __FILE__ << " rank " << rank << " local sparsity dim"
+                  << local_sparsity_->dim[0] << "non_local sparsity dim"
+                  << non_local_sparsity_->dim[0] << "x"
+                  << non_local_sparsity_->dim[1] << " target_ids "
+                  << dst_comm_pattern.target_ids << " target_sizes "
+                  << dst_comm_pattern.target_sizes << " target_send_idxs.size "
+                  << dst_comm_pattern.send_idxs.size()
+                  << " non_local_sparsity.size " << non_local_sparsity_->size_
+                  << " get_recv_indices "
+                  << localized_partition->get_recv_indices().get_num_elems()
+                  << " \n";
 
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
@@ -221,14 +499,19 @@ public:
         auto dist_A = generate_dist_mtx_with_inner_type<dist_mtx>(
             matrix_format, exec, sparse_comm, local_sparsity_,
             non_local_sparsity_);
+        std::cout << __FILE__ << " rank " << rank
+                  << " done generate dist_mtx\n";
 
-        auto local_coeffs = gko::array<scalar>(exec, local_nnz);
-        auto non_local_coeffs = gko::array<scalar>(exec, non_local_nnz);
+        auto local_coeffs = gko::array<scalar>(exec, local_sparsity_->size_);
+        auto non_local_coeffs =
+            gko::array<scalar>(exec, non_local_sparsity_->size_);
 
-        host_A.get()->compute_local_coeffs(local_sparsity_, local_coeffs);
-        host_A.get()->compute_non_local_coeffs(non_local_sparsity_,
-                                               non_local_coeffs);
+        // host_A.get()->compute_local_coeffs(local_sparsity_, local_coeffs);
+        // host_A.get()->compute_non_local_coeffs(non_local_sparsity_,
+        //                                        non_local_coeffs);
 
+        std::cout << __FILE__ << " on rank " << rank
+                  << " done compute local coeffs \n";
         dist_A->read_distributed(
             device_matrix_data(exec, local_sparsity_->dim,
                                local_sparsity_->row_idxs,
@@ -237,6 +520,9 @@ public:
                                non_local_sparsity_->row_idxs,
                                non_local_sparsity_->col_idxs, non_local_coeffs),
             sparse_comm);
+        std::cout << __FILE__ << " on rank " << rank
+                  << " done read_distributed  dist_A size" << dist_A->get_size()
+                  << " \n";
 
         return std::make_shared<RepartDistMatrix>(
             exec, comm, host_A->get_size(), dist_A->get_size(),
@@ -334,6 +620,7 @@ public:
         auto dist_matrix = gko::as<
             gko::experimental::distributed::Matrix<scalar, label, label>>(
             this->dist_mtx_.get());
+        // TODO FIXME dont leave hardcoded value here
         word matrix_format_{"Coo"};
 
         if (matrix_format_ == "Coo") {

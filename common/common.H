@@ -90,6 +90,12 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
+#define ASSERT_EQ(_val1, _val2)                                            \
+    if (_val1 != _val2) {                                                      \
+        throw ::gko::ValueMismatch(__FILE__, __LINE__, __func__, _val1, _val2, \
+                                   "expected equal values");                   \
+    }
+
 #define OGL_NOT_IMPLEMENTED GKO_NOT_IMPLEMENTED
 
 std::ostream& operator<<(std::ostream& out, const std::vector<label>& e);

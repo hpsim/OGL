@@ -33,10 +33,12 @@ public:
 
     void read(const device_matrix_data &data) override
     {
+        std::cout << __FILE__ << " read combination \n";
         auto exec = this->get_executor();
         auto data_exec = data.get_executor();
 
         for (auto &interface : interface_ranges_) {
+            std::cout << __FILE__ << " read combination  interface \n";
             auto length = interface.length();
             auto offset = interface.begin;
             auto op = gko::share(InnerMatrixType::create(exec));

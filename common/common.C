@@ -46,6 +46,8 @@ void export_mtx(const word fieldName,
     std::string folder{db.time().timePath()};
     std::filesystem::create_directories(folder);
 
+    std::cout << __FILE__ << " exporting to " << folder << " " << As.size() << "\n";
+
     for (int i = 0; i < As.size(); i++) {
         std::string fn{folder + "/" + fieldName + "_A_" + std::to_string(i) +
                        ".mtx"};

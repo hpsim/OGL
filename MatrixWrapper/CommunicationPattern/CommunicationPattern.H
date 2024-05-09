@@ -32,6 +32,14 @@ SourceFiles
 // TODO move this file to top level since it is not really a matrix-wrapper
 
 
+// This function computes the send and recv counts vectors for repartitioning
+//
+std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+           std::vector<label>, std::vector<label>>
+compute_send_recv_counts(label ranks_per_gpu, label owner_rank, label size,
+                         const gko::experimental::mpi::communicator &comm,
+                         std::shared_ptr<const gko::Executor> exec);
+
 struct CommunicationPattern {
     using comm_size_type = label;
 
@@ -58,5 +66,6 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e);
 //  times through the combination matrix.
 CommunicationPattern repartition_comm_pattern(
     label ranks_per_gpu, CommunicationPattern &src_comm_pattern,
-std::shared_ptr<const gko::experimental::distributed::Partition<label, label>> partition
-);
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition);

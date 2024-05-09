@@ -314,24 +314,32 @@ HostMatrixWrapper::collect_local_interface_indices(
     return local_interface_idxs;
 }
 
-std::vector<std::tuple<label, label, label>>
+std::vector<std::tuple<label, label, label, label>>
 HostMatrixWrapper::collect_cells_on_non_local_interface(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
-    std::vector<std::tuple<label, label, label>> non_local_idxs{};
+    std::vector<std::tuple<label, label, label, label>> non_local_idxs{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
-    label interface_ctr = 0;
     interface_iterator<
         processorFvPatch>(interfaces, [&](label, label interface_id,
                                           label interface_size,
                                           const processorLduInterface &,
                                           const lduInterfaceField *iface) {
         const auto &face_cells{iface->interface().faceCells()};
+
+        const processorLduInterface &pldui =
+                refCast<const processorLduInterface>(iface->interface());
+        const label neighbProcNo = pldui.neighbProcNo();
+        pldui.send(Pstream::commsTypes::blocking, face_cells);
+
+        auto otherSide_tmp = pldui.receive<label>(
+                Pstream::commsTypes::blocking, interface_size);
+
         for (label cellI = 0; cellI < interface_size; cellI++) {
             auto local_row = face_cells[cellI];
-            non_local_idxs.push_back({interface_id, interface_ctr, local_row});
-            interface_ctr += 1;
+            auto col = otherSide_tmp()[cellI];
+            non_local_idxs.push_back({interface_id, col, local_row, neighbProcNo});
         }
     });
 
@@ -347,42 +355,40 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
                                                     non_local_matrix_nnz_)};
     sparsity->dim = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 
-    auto non_local_row_indices =
+    auto non_local_indices =
         collect_cells_on_non_local_interface(interfaces_);
     auto rows = sparsity->row_idxs.get_data();
     auto cols = sparsity->col_idxs.get_data();
     auto permute = sparsity->ldu_mapping.get_data();
-
-    label element_ctr = 0;
-    // TODO currently we set permute eventhough this is not required
-    // anymore, remove permute from non_local_interfaces
-    for (auto [interface_id, interface_idx, row] : non_local_row_indices) {
-        rows[element_ctr] = row;
-        cols[element_ctr] = interface_idx;
-        permute[element_ctr] = element_ctr;
-        element_ctr += 1;
-    }
-
-    // TODO this can be merged with algorithm in update_local_matrix_data
-    auto non_local_interfaces =
-        collect_cells_on_non_local_interface(interfaces_);
-    label interface_ctr{0};
     label prev_interface_ctr{0};
     label end{0};
     label start{0};
-    for (auto [interface_idx, interface_cell_ctr, interface_row] :
-         non_local_interfaces) {
-        // check if a new interface has started or final interface has been
-        // reache
-        if (interface_idx > prev_interface_ctr ||
-            interface_ctr == non_local_interfaces.size() - 1) {
-            end = start + interface_ctr + 1;
-            interface_ctr = 0;
+
+    label element_ctr = 0;
+    label interface_ctr{0};
+    label prev_rank{0};
+
+    // TODO currently we set permute eventhough this is not required
+    // anymore, remove permute from non_local_interfaces
+    for (auto [interface_idx, col, row, rank] : non_local_indices) {
+        rows[element_ctr] = row;
+        cols[element_ctr] = col;
+        permute[element_ctr] = element_ctr;
+
+        // a new interface started or the last element on last interface has been reached
+        bool last_element = element_ctr == non_local_indices.size() - 1;
+        if (interface_idx > prev_interface_ctr || last_element) {
+            // this check will be reached one element earlier if we reached
+            // the end of the non_local_indices thus we need to increment
+            // the elment_ctr once more
+            end = (last_element) ? element_ctr + 1 : element_ctr;
             sparsity->interface_spans.emplace_back(start, end);
+            sparsity->rank.emplace_back(prev_rank);
             start = end;
             prev_interface_ctr = interface_idx;
         }
-        interface_ctr++;
+        prev_rank = rank;
+        element_ctr++;
     }
 
     return sparsity;
@@ -494,8 +500,9 @@ void HostMatrixWrapper::compute_local_coeffs(
     auto ref_exec = exec_.get_ref_exec();
     auto permute = sparsity->ldu_mapping.get_data();
 
-    // // TODO this does not work for Ell
     if (reorder_on_copy_) {
+        // TODO assert array is on master
+        // TODO assert
         auto dense = local_coeffs.get_data();
         if (local_interface_nnz_) {
             auto couple_coeffs = collect_interface_coeffs(

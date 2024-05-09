@@ -28,6 +28,44 @@ SourceFiles
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
+std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+           std::vector<label>, std::vector<label>>
+compute_send_recv_counts(label ranks_per_gpu, label owner_rank, label size,
+                         const gko::experimental::mpi::communicator &comm,
+                         std::shared_ptr<const gko::Executor> exec)
+{
+    label total_ranks{comm.size()};
+    label rank{comm.rank()};
+    std::vector<label> send_counts(total_ranks, 0);
+    std::vector<label> recv_counts(total_ranks, 0);
+    std::vector<label> send_offsets(total_ranks, 0);
+    std::vector<label> recv_offsets(total_ranks, 0);
+
+    label tot_recv_elements{0};
+    label comm_elements_buffer{0};
+    if (rank == owner_rank) {
+        // send and recv to it self
+        send_counts[owner_rank] = size;
+        recv_counts[owner_rank] = size;
+        tot_recv_elements = size;
+
+        for (int i = 1; i < ranks_per_gpu; i++) {
+            comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
+            recv_offsets[rank + i] = tot_recv_elements;
+            recv_counts[rank + i] = comm_elements_buffer;
+            tot_recv_elements += comm_elements_buffer;
+        }
+    } else {
+        comm.send(exec, &size, 1, owner_rank, owner_rank);
+        send_counts[owner_rank] = size;
+    }
+
+    std::vector<label> target_recv_buffer(tot_recv_elements, 0);
+
+    return std::make_tuple(send_counts, recv_counts, send_offsets, recv_offsets,
+                           target_recv_buffer);
+}
+
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     out << "CommunicationPattern: for rank: " << e.comm.rank();
@@ -119,36 +157,14 @@ CommunicationPattern repartition_comm_pattern(
         }
     }
 
-    label total_ranks{comm.size()};
-    std::vector<label> recv_elements(ranks_per_gpu, 0);
     // where to put elements from recv
-    std::vector<label> recv_offsets(total_ranks, 0);
-    std::vector<label> recv_counts(total_ranks, 0);
-    std::vector<label> send_counts(total_ranks, 0);
-
     // communicate with all neighbours which are to be merged
     // how many elements the owner rank is to receive
-    label tot_recv_elements{0};
-    label comm_elements_buffer{0};
-    if (owner) {
-        for (int i = 1; i < ranks_per_gpu; i++) {
-            comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
-            tot_recv_elements += comm_elements_buffer;
-            recv_offsets[rank + i] = tot_recv_elements;
-            recv_counts[rank + i] = comm_elements_buffer;
-        }
-        send_counts[owner_rank] = target_ids.size();
-        recv_counts[owner_rank] = target_ids.size();
-    } else {
-        comm_elements_buffer = target_ids.size();
-        comm.send(exec, &comm_elements_buffer, 1, owner_rank, owner_rank);
-        tot_recv_elements += comm_elements_buffer;
-        send_counts[owner_rank] = tot_recv_elements;
-    }
+    auto [send_counts, recv_counts, send_offsets, recv_offsets,
+          target_recv_buffer] =
+        compute_send_recv_counts(ranks_per_gpu, owner_rank, target_ids.size(),
+                                 comm, exec);
 
-    // all send buffer start at zero
-    std::vector<label> send_offsets(total_ranks, 0);
-    std::vector<label> target_recv_buffer(tot_recv_elements + 1);
 
     comm.all_to_all_v(exec, target_ids.data(), send_counts.data(),
                       send_offsets.data(), target_recv_buffer.data(),
@@ -168,6 +184,8 @@ CommunicationPattern repartition_comm_pattern(
     // additionally we already have then target_sizes and send_counts and
     // recv_counts which can be reused to for sending the index vectors
 
+    // TODO this could be refactored to separtate function
+    // this is also used distributed
     if (owner) {
         // retrieve from all neighbours
         for (int i = 1; i < ranks_per_gpu; i++) {
