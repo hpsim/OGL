@@ -132,6 +132,10 @@ target_compile_definitions(OGL PUBLIC NoRepository)
 target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=$ENV{WM_LABEL_SIZE}
                                       WM_$ENV{WM_PRECISION_OPTION})
 
+if((GINKGO_BUILD_SYCL) AND (NOT ($ENV{WM_MPLIB} MATCHES "INTELMPI")))
+  message(WARNING "When building for SYCL it is recommended to use INTELMPI")
+endif()
+
 if(APPLE)
   message("Compiling on MacOS")
   target_link_options(OGL PUBLIC "LINKER:-undefined,dynamic_lookup")
