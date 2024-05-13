@@ -63,9 +63,16 @@ struct ExecutorInitFunctor {
                        "with SYCL backend enabled."
                     << abort(FatalError);
             };
-            return gko::share(gko::DpcppExecutor::create(
-                device_id_ % gko::DpcppExecutor::get_num_devices("gpu"),
-                host_exec));
+            auto devices = gko::DpcppExecutor::get_num_devices("gpu");
+            if (devices == 0){
+                return gko::share(gko::DpcppExecutor::create(
+                    0,
+                    host_exec));
+            } else {
+                return gko::share(gko::DpcppExecutor::create(
+                    device_id_ % devices,
+                    host_exec));
+            }
         }
         if (executor_name_ == "hip") {
             if (version.hip_version.tag == not_compiled_tag) {
