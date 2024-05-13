@@ -37,7 +37,7 @@ option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
 
-if(NOT OGL_ALLOW_REFERENCE_ONLY)
+if((NOT OGL_ALLOW_REFERENCE_ONLY) OR (OGL_USE_EXTERNAL_GINKGO))
   if((NOT GINKGO_BUILD_CUDA)
      AND (NOT GINKGO_BUILD_HIP)
      AND (NOT GINKGO_BUILD_SYCL))
@@ -131,10 +131,6 @@ add_library(OGL "")
 target_compile_definitions(OGL PUBLIC NoRepository)
 target_compile_definitions(OGL PUBLIC WM_LABEL_SIZE=$ENV{WM_LABEL_SIZE}
                                       WM_$ENV{WM_PRECISION_OPTION})
-
-if((GINKGO_BUILD_SYCL) AND (NOT ($ENV{WM_MPLIB} MATCHES "INTELMPI")))
-  message(WARNING "When building for SYCL it is recommended to use INTELMPI")
-endif()
 
 if(APPLE)
   message("Compiling on MacOS")
