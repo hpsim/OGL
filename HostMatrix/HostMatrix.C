@@ -291,9 +291,9 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
 
     // convert to gko::array
     gko::array<label> target_ids{exec_.get_ref_exec(),
-                                          static_cast<gko::size_type>(n_procs)};
-    gko::array<label> target_sizes{
-        exec_.get_ref_exec(), static_cast<gko::size_type>(n_procs)};
+                                 static_cast<gko::size_type>(n_procs)};
+    gko::array<label> target_sizes{exec_.get_ref_exec(),
+                                   static_cast<gko::size_type>(n_procs)};
 
     label iter = 0;
     for (const auto &[proc, interface_cells] : interface_cell_map) {

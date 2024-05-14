@@ -6,9 +6,9 @@ name: Compile on AWS
 run-name: Compile on AWS
 on:
   - workflow_run:
-    workflows: ["Integration Tests"]
-    types:
-      - completed
+      workflows: ["Integration Tests"]
+      types:
+        - completed
 jobs:
   start-runner:
     if: contains(github.event.pull_request.labels.*.name, 'full-ci')
