@@ -4,14 +4,18 @@
 
 name: Compile on AWS
 run-name: Compile on AWS
+
 on:
-  - workflow_run:
-      workflows: ["Integration Tests"]
-      types:
-        - completed
+  pull_request:
+    types: synchronize
+      # workflow_run:
+      #   workflows: ["Integration Tests"]
+      #   types:
+      #     - completed
+
 jobs:
   start-runner:
-    if: contains(github.event.pull_request.labels.*.name, 'full-ci')
+    if: contains(github.event.pull_request.labels.*.name, 'full_ci')
     name: Start self-hosted EC2 runner
     runs-on: ubuntu-latest
     permissions:
