@@ -5,10 +5,13 @@
 name: Compile on AWS
 run-name: Compile on AWS
 on:
-  # enable to manually trigger the tests
-  workflow_dispatch:
+  - workflow_run:
+    workflows: ["Integration Tests"]
+    types:
+      - completed
 jobs:
   start-runner:
+    if: contains(github.event.pull_request.labels.*.name, 'full-ci')
     name: Start self-hosted EC2 runner
     runs-on: ubuntu-latest
     permissions:
@@ -89,6 +92,17 @@ jobs:
           cmake --list-preset
           cmake -DOGL_CUDA_ARCHITECTURES=52 --preset ninja-cuda-release
       - name: Build and install
+        if: always()
+        shell: bash -o pipefail -i {0}
+        run: |
+          export HOME=/share/ec2-user
+          module load gnu/10
+          module load libfabric-aws
+          module load openmpi
+          module load OpenFOAM
+          module load cmake
+          cmake --build --preset ninja-cuda-release  --target install
+      - name: Run integration tests
         if: always()
         shell: bash -o pipefail -i {0}
         run: |
