@@ -80,6 +80,7 @@ jobs:
          cd /root/OBR 
          git pull origin dev
          pip install -e .
+         obr --version
 
     - name: Generate test cases
       working-directory: /github/home/

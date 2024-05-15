@@ -86,10 +86,12 @@ jobs:
       - name: Install OBR
         shell: bash -o pipefail -i {0}
         run: |
+          module load conda
+          conda activate
           python3 -m pip install --upgrade pip
           pip install setuptools --upgrade 
-          cd $HOME
           git clone https://github.com/exasim-project/OBR
+          cd OBR
           pip install .
           obr --version
 
@@ -119,10 +121,16 @@ jobs:
         shell: bash -o pipefail -i {0}
         run: |
           export HOME=/share/ec2-user
+          module load conda
+          conda activate
           module load gnu/10
           module load libfabric-aws
           module load openmpi
           module load OpenFOAM
+          export GINKGO_EXECUTOR=cuda
+          obr init -g --config test/integration.yaml 
+          obr run -o runParallelSolver 
+          obr status
 
   stop-runner:
     name: Stop self-hosted EC2 runner
