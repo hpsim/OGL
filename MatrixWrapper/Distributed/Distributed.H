@@ -265,7 +265,7 @@ public:
                 gko::dim<2> merged_local_dim{rows, rows};
 
                 std::vector<label> merged_begin{0};
-                std::vector<label> merged_end{ merged_local_rows.size()};
+                std::vector<label> merged_end{merged_local_rows.size()};
                 std::vector<label> merged_ranks{rank};
 
                 // TODO remove
@@ -349,6 +349,7 @@ public:
                 std::vector<label> gathered_begin;
                 std::vector<label> gathered_end;
                 label merged_ranks_size = merged_non_local_ranks.size();
+                // redistribute interfaces
                 for (label i=0;i<merged_ranks_size;i++) {
                     auto merged_target_rank = merged_non_local_ranks[i];
                     label to_rank = target_rank(merged_target_rank);
@@ -357,8 +358,8 @@ public:
                               << " merged_target_rank " << merged_target_rank
                               << " is local " << local << " target_rank "
                               << to_rank << "\n";
-                    auto begin = merged_begin[i];
-                    auto end = merged_end[i];
+                    auto begin = merged_non_local_begin[i];
+                    auto end = merged_non_local_end[i];
                     if (local) {
                         label size_before = merged_local_rows.size();
                         merged_local_rows.insert(
@@ -379,6 +380,8 @@ public:
                         merged_end.push_back(size_after);
                         merged_ranks.push_back(rank);
                     } else {
+                        // FIXME begin and end are from the merged local
+                        // here we need non local
                         label size_before = gathered_non_local_rows.size();
                         gathered_non_local_rows.insert(
                             gathered_non_local_rows.end(),
@@ -394,6 +397,7 @@ public:
                             merged_non_local_cols.begin() + end);
                         label size_after = gathered_non_local_rows.size();
                         std::cout << __FILE__ << " on rank " << rank
+                                << " begin " << begin << " end " << end
                                 << " non_local size_before " << size_before
                                 << " non_local size_after " << size_after
                                 << "\n";
@@ -431,6 +435,8 @@ public:
                             merged_ranks);
 
                     std::cout << __FILE__ << " on rank " << rank
+                              << " merged_begin " <<  merged_begin
+                              << " merged_end " <<  merged_end
                               << "local dim ["
                               << new_local_spars_pattern->dim[0] << " x "
                               << new_local_spars_pattern->dim[1] << "] \n";
