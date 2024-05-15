@@ -83,6 +83,16 @@ jobs:
           module load OpenFOAM
           module load cmake
           env
+      - name: Install OBR
+        shell: bash -o pipefail -i {0}
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install setuptools --upgrade 
+          cd $HOME
+          git clone https://github.com/exasim-project/OBR
+          pip install .
+          obr --version
+
       - name: Config
         if: always()
         shell: bash -o pipefail -i {0}
@@ -96,7 +106,6 @@ jobs:
           cmake --list-preset
           cmake -DOGL_CUDA_ARCHITECTURES=52 --preset ninja-cuda-release
       - name: Build and install
-        if: always()
         shell: bash -o pipefail -i {0}
         run: |
           export HOME=/share/ec2-user
@@ -107,7 +116,6 @@ jobs:
           module load cmake
           cmake --build --preset ninja-cuda-release  --target install
       - name: Run integration tests
-        if: always()
         shell: bash -o pipefail -i {0}
         run: |
           export HOME=/share/ec2-user
@@ -115,8 +123,7 @@ jobs:
           module load libfabric-aws
           module load openmpi
           module load OpenFOAM
-          module load cmake
-          cmake --build --preset ninja-cuda-release  --target install
+
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
