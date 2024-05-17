@@ -38,10 +38,17 @@ public:
         auto data_exec = data.get_executor();
 
         for (auto &interface : interface_ranges_) {
-            std::cout << __FILE__ << " read combination  interface \n";
             auto length = interface.length();
             auto offset = interface.begin;
             auto op = gko::share(InnerMatrixType::create(exec));
+            auto rows = gko::array<IndexType>(
+                    exec,
+                    make_const_array_view(data_exec, length,
+                                          data.get_const_row_idxs() + offset)
+                        .copy_to_array());
+            std::cout << __FILE__ << " read combination  interface"
+                      << " offset: " <<  offset << " rows " << rows << " \n";
+
 
             device_matrix_data in(
                 exec, comb_->get_size(),

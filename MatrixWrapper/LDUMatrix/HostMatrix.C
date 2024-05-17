@@ -500,35 +500,6 @@ void HostMatrixWrapper::compute_local_coeffs(
     auto ref_exec = exec_.get_ref_exec();
     auto permute = sparsity->ldu_mapping.get_data();
 
-    if (reorder_on_copy_) {
-        // TODO assert array is on master
-        // TODO assert
-        auto dense = local_coeffs.get_data();
-        if (local_interface_nnz_) {
-            auto couple_coeffs = collect_interface_coeffs(
-                interfaces_, interfaceBouCoeffs_, true);
-            if (symmetric_) {
-                symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_, permute,
-                    scaling_, diag_, upper_, couple_coeffs.data(), dense);
-
-            } else {
-                non_symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_, permute,
-                    scaling_, diag_, upper_, lower_, couple_coeffs.data(),
-                    dense);
-            }
-        } else {
-            if (symmetric_) {
-                symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                 scaling_, diag_, upper_, dense);
-            } else {
-                non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                     scaling_, diag_, upper_, lower_, dense);
-            }
-        }
-    }
-    // } else {
     //     // TODO
     //     // - this should be moved to separate function to avoid making this
     //     // too long
@@ -598,8 +569,6 @@ void HostMatrixWrapper::compute_local_coeffs(
     //                           row_collection.get());
     //
     //     dense_vec->copy_from(row_collection);
-    // }
-    //
 }
 
 
