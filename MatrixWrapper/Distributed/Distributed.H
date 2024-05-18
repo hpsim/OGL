@@ -33,24 +33,6 @@ SourceFiles
 #include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 
 
-template <typename Type>
-void gather_array_to_owner(
-    label *data, label size,
-    std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const gko::experimental::distributed::sparse_communicator>
-        comm,
-    const CommunicationPattern &comm_pattern)
-{
-    // this will need a specific comm_pattern
-
-    auto [send_counts, recv_counts, send_offsets, recv_offsets, recv_buffer] =
-        comm_pattern;
-
-    comm.all_to_all_v(exec, data, send_counts.data(), send_offsets.data(),
-                      recv_buffer.data(), recv_counts.data(),
-                      recv_offsets.data());
-};
-
 template <typename DistMtxType>
 std::unique_ptr<DistMtxType> generate_dist_mtx_with_inner_type(
     word matrix_format, std::shared_ptr<gko::Executor> exec,
