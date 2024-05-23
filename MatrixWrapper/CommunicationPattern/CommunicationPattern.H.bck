@@ -32,36 +32,17 @@ SourceFiles
 // TODO move this file to top level since it is not really a matrix-wrapper
 
 
-// This function computes the send and recv counts vectors for repartitioning
+/** This function computes the send and recv counts vectors for repartitioning
+ *
+ * @parameter padding allow padding in recv buffer
+ * */
 std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
            std::vector<label>, std::vector<label>>
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
+compute_send_recv_counts(label ranks_per_gpu, label owner_rank, label size,
                          const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size,
-                         label total_size, label padding_before,
-                         label padding_after);
-
-// This function computes the send and recv counts vectors for repartitioning
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>, std::vector<label>>
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
-                         const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size);
-
-void gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    gko::experimental::mpi::communicator &comm,
-    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-               std::vector<label>, std::vector<label>> &comm_pattern,
-    const scalar *send_buffer, scalar *recv_buffer);
-
-std::vector<label> gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    gko::experimental::mpi::communicator &comm,
-    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-               std::vector<label>, std::vector<label>> &comm_pattern,
-    const scalar *send_buffer, scalar *recv_buffer,
-    label offset=0
+                         std::shared_ptr<const gko::Executor> exec,
+                         label padding_before=0,
+                         label padding_after=0
 );
 
 struct CommunicationPattern {

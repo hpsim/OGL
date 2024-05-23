@@ -109,7 +109,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
     // stored such that upper rows are monotonic ascending
     // upper - rows of lower triangular matrix
     // lower - columns of lower triangular matrix
-    label after_neighbours = (is_symmetric) ? upper_nnz : 2 * upper_nnz;
+    label after_neighbours = 2 * upper_nnz;
 
     // first pass order elements row wise
     // scan through all faces

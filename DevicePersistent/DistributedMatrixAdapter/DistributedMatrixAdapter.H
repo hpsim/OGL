@@ -72,6 +72,7 @@ struct DistributedMatrixInitFunctor {
     {
         return RepartDistMatrix<scalar, label, label>::create(
               solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"),
+              solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
               host_A_.get());
     }
 };

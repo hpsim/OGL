@@ -426,7 +426,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    label after_neighbours = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
+    label after_neighbours = 2 * upper_nnz_;
     init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
                         cols, permute);
 
@@ -439,6 +439,9 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // idx = [d_1, u_1, l_2, d_2, u_2, ... d_n, i_11, i_12, .., i_nn] where
     // i_j,k j=interface index and k cell index on the interface
     if (local_interface_nnz_) {
+        // we now treat interfaces differently
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+
         // NOTE currently, this copies the interface indizes first to a vector
         // of tuples before inserting it into the persistent arrays. We could
         // remove the unnessary copy via the vector of tuples and

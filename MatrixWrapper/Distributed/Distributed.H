@@ -24,6 +24,7 @@ SourceFiles
     CommunicationPattern.H
 
 \*---------------------------------------------------------------------------*/
+#include <map>
 
 #include <ginkgo/core/distributed/lin_op.hpp>
 #include <ginkgo/ginkgo.hpp>
@@ -164,13 +165,12 @@ public:
     std::shared_ptr<part_type> get_partition() { return this->partition_; }
 
     static std::shared_ptr<RepartDistMatrix> create(
-        word matrix_format, std::shared_ptr<const HostMatrixWrapper> host_A)
+        word matrix_format, label ranks_per_gpu,
+        std::shared_ptr<const HostMatrixWrapper> host_A)
     {
         auto exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_device_exec();
         auto comm = *exec_handler.get_communicator().get();
-        // TODO FIXME read from dictionary
-        label ranks_per_gpu = 2;
 
         // repartition things here first by creating device_matrix_data on
         // device with correct size on each rank
@@ -192,8 +192,16 @@ public:
 
         label rank{src_comm_pattern.comm.rank()};
 
+        auto target_rank = [ranks_per_gpu](label rank) {
+            return rank - (rank % ranks_per_gpu);
+        };
+
+        label owner_rank = target_rank(rank);
+        bool owner = rank == owner_rank;
+
         auto repartition_sparsity =
-            [ranks_per_gpu, src_comm_pattern, exec, orig_partition](
+            [rank, owner, owner_rank, comm, ranks_per_gpu, src_comm_pattern,
+             exec, orig_partition, target_rank](
                 std::shared_ptr<SparsityPattern> src_local_pattern,
                 std::shared_ptr<SparsityPattern> src_non_local_pattern) {
                 // 1. obtain send recv sizes vector
@@ -208,24 +216,11 @@ public:
                 // debugging reasons
                 // FatalErrorInFunction << "Not implemented" <<
                 // abort(FatalError);
-                auto target_rank = [ranks_per_gpu](label rank) {
-                    return rank - (rank % ranks_per_gpu);
-                };
 
 
-                auto comm = src_comm_pattern.comm;
-
-                // find ranks which are now local
-                // the target_ids, target_sizes etc need to be communicated
-                // with new owner. thus we use maps to store them where the
-                // index is the new owner.
-                label rank{src_comm_pattern.comm.rank()};
-                label owner_rank = target_rank(rank);
-                bool owner = rank == owner_rank;
-
-                auto local_comm_pattern = compute_send_recv_counts(
-                    ranks_per_gpu, owner_rank, src_local_pattern->size_, comm,
-                    exec);
+                auto local_comm_pattern =
+                    compute_send_recv_counts(ranks_per_gpu, owner_rank, comm,
+                                             exec, src_local_pattern->size_);
 
                 auto gather_to_owner = [&](label offset, label *data,
                                            label size, auto &comm_pattern) {
@@ -260,6 +255,23 @@ public:
                     0, src_local_pattern->ldu_mapping.get_data(),
                     src_local_pattern->row_idxs.get_size(), local_comm_pattern);
 
+                // after gathering on owner we need to make ldu_mapping_idx
+                // consecutive
+                {
+                    auto [send_counts, recv_counts, send_offsets, recv_offsets,
+                          recv_buffer] = local_comm_pattern;
+
+                    label ldu_offset = 0;
+                    auto *data = src_local_pattern->ldu_mapping.get_data();
+                    for (label i = 0; i < ranks_per_gpu; i++) {
+                        auto size = recv_counts[i];
+                        std::transform(
+                            data + ldu_offset, data + size, data + ldu_offset,
+                            [&](label idx) { return idx + ldu_offset; });
+                        ldu_offset += size;
+                    }
+                }
+
 
                 label rows = (owner) ? merged_local_rows.back() + 1 : 0;
                 gko::dim<2> merged_local_dim{rows, rows};
@@ -269,8 +281,8 @@ public:
                 std::vector<label> merged_ranks{rank};
 
                 auto non_local_comm_pattern = compute_send_recv_counts(
-                    ranks_per_gpu, owner_rank, src_non_local_pattern->size_,
-                    comm, exec);
+                    ranks_per_gpu, owner_rank, comm, exec,
+                    src_non_local_pattern->size_);
 
                 std::vector<label> merged_non_local_rows = gather_to_owner(
                     offset, src_non_local_pattern->row_idxs.get_data(),
@@ -310,9 +322,8 @@ public:
                 auto [span_send_counts, span_recv_counts, span_send_offsets,
                       span_recv_offsets, span_recv_buffer] =
                     compute_send_recv_counts(
-                        ranks_per_gpu, owner_rank,
-                        src_non_local_pattern->interface_spans.size(), comm,
-                        exec);
+                        ranks_per_gpu, owner_rank, comm, exec,
+                        src_non_local_pattern->interface_spans.size());
 
                 std::vector<label> spans_begin;
                 std::vector<label> spans_end;
@@ -444,6 +455,7 @@ public:
                             gathered_non_local_cols.end(),
                             merged_non_local_cols.begin() + begin,
                             merged_non_local_cols.begin() + end);
+                        // TODO we don't do anything with non local mapping
                         gathered_non_local_mapping.insert(
                             gathered_non_local_mapping.end(),
                             merged_non_local_cols.begin() + begin,
@@ -462,6 +474,27 @@ public:
                         gathered_end.push_back(size_after);
                         gathered_ranks.push_back(to_rank);
                     }
+                }
+
+                // for compressed cols we compute a mapping first
+                std::map<label, label> compressed_col_idxs{};
+                label unique_idx = 0;
+                for (auto idx : gathered_non_local_cols) {
+                    auto search = compressed_col_idxs.find(idx);
+                    if (search == compressed_col_idxs.end()) {
+                        std::cout << " insert " << idx << " " << unique_idx
+                                  << "\n";
+                        compressed_col_idxs[idx] = unique_idx;
+                        unique_idx += 1;
+                    };
+                }
+
+                for (int i = 0; i < gathered_non_local_cols.size(); i++) {
+                    label uncompressed = gathered_non_local_cols[i];
+                    label compressed = compressed_col_idxs[uncompressed];
+                    std::cout << " i " << i << " uncompressed " << uncompressed
+                              << " compressed " << compressed << "\n";
+                    gathered_non_local_cols[i] = compressed;
                 }
 
                 // add interfaces
@@ -583,10 +616,71 @@ public:
             sparse_comm);
 
 
-        // We now have an distribute matrix which needs to be filled/updated
-        // first we copy L+D+U over
-        // here we can reuse the gather to owner implementation
+        label nrows = host_A->get_local_nrows();
+        label local_matrix_nnz = host_A->get_local_matrix_nnz();
+        // size + padding has to be local_matrix_nnz
+        auto diag_comm_pattern = compute_send_recv_counts(
+            ranks_per_gpu, owner_rank, comm, exec, nrows, local_matrix_nnz,
+            local_matrix_nnz - nrows, 0);
 
+        label upper_nnz = host_A->get_upper_nnz();
+        auto upper_comm_pattern = compute_send_recv_counts(
+            ranks_per_gpu, owner_rank, comm, exec, upper_nnz, local_matrix_nnz,
+            0, local_matrix_nnz - upper_nnz);
+        auto lower_comm_pattern = compute_send_recv_counts(
+            ranks_per_gpu, owner_rank, comm, exec, upper_nnz, local_matrix_nnz,
+            upper_nnz, nrows);
+
+        scalar *local_ptr;
+
+        if (owner) {
+            using Coo = gko::matrix::Coo<scalar, label>;
+            std::shared_ptr<const Coo> local =
+                gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
+                                 dist_A->get_local_matrix())
+                                 ->get_combination()
+                                 ->get_operators()[0]);
+
+            local_ptr = const_cast<scalar *>(local->get_const_values());
+        }
+        gather_to_owner(exec, comm, diag_comm_pattern, host_A->get_diag(),
+                        local_ptr);
+        gather_to_owner(exec, comm, upper_comm_pattern, host_A->get_upper(),
+                        local_ptr);
+        if (host_A->symmetric()) {
+            // TODO FIXME
+            // if symmetric we can reuse already copied data
+            gather_to_owner(exec, comm, lower_comm_pattern, host_A->get_lower(),
+                            local_ptr);
+        } else {
+            gather_to_owner(exec, comm, lower_comm_pattern, host_A->get_lower(),
+                            local_ptr);
+        }
+
+
+        // next update local and non_local interfaces
+
+
+        // TODO make sure this doesn't copy
+        // create a non owning dense matrix of local_values
+        using dim_type = gko::dim<2>::dimension_type;
+        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            exec,
+            gko::dim<2>{static_cast<dim_type>(repart_loc_sparsity->size_), 1},
+            gko::array<scalar>::view(exec, repart_loc_sparsity->size_,
+                                     local_ptr),
+            1));
+        if (rank == 0) {
+            std::cout << __FILE__ << " on rank " << rank
+                      << " created row collection of size  "
+                      << repart_loc_sparsity->size_ << " ldu_mapping "
+                      << local_sparsity_->ldu_mapping << "\n";
+        }
+
+        // TODO this needs to copy ldu_mapping to the device
+        auto dense_vec = row_collection->clone();
+        dense_vec->row_gather(&local_sparsity_->ldu_mapping,
+                              row_collection.get());
 
         return std::make_shared<RepartDistMatrix>(
             exec, comm, host_A->get_size(), dist_A->get_size(),
@@ -749,23 +843,24 @@ public:
 
 protected:
     // Here we implement the application of the linear operator, x = A * b.
-    // apply_impl will be called by the apply method, after the arguments have
-    // been moved to the correct executor and the operators checked for
+    // apply_impl will be called by the apply method, after the arguments
+    // have been moved to the correct executor and the operators checked for
     // conforming sizes.
     //
-    // For simplicity, we assume that there is always only one right hand side
-    // and the stride of consecutive elements in the vectors is 1 (both of these
-    // are always true in this example).
+    // For simplicity, we assume that there is always only one right hand
+    // side and the stride of consecutive elements in the vectors is 1 (both
+    // of these are always true in this example).
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
         this->dist_mtx_->apply(b, x);
     }
 
 
-    // There is also a version of the apply function which does the operation
-    // x = alpha * A * b + beta * x. This function is commonly used and can
-    // often be better optimized than implementing it using x = A * b. However,
-    // for simplicity, we will implement it exactly like that in this example.
+    // There is also a version of the apply function which does the
+    // operation x = alpha * A * b + beta * x. This function is commonly
+    // used and can often be better optimized than implementing it using x =
+    // A * b. However, for simplicity, we will implement it exactly like
+    // that in this example.
     void apply_impl(const gko::LinOp *alpha, const gko::LinOp *b,
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
