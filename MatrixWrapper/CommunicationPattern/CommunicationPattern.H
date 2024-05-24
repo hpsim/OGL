@@ -31,10 +31,13 @@ SourceFiles
 
 // TODO move this file to top level since it is not really a matrix-wrapper
 
+using CommCounts =
+std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+           std::vector<label>>;
+
 
 // This function computes the send and recv counts vectors for repartitioning
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>, std::vector<label>>
+CommCounts
 compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
                          const gko::experimental::mpi::communicator &comm,
                          std::shared_ptr<const gko::Executor> exec, label size,
@@ -42,27 +45,24 @@ compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
                          label padding_after);
 
 // This function computes the send and recv counts vectors for repartitioning
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>, std::vector<label>>
+CommCounts
 compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
                          const gko::experimental::mpi::communicator &comm,
                          std::shared_ptr<const gko::Executor> exec, label size);
 
-void gather_to_owner(
+// TODO these are separate functions
+// create gather_coeffs, gather_idx, and a templated impl function
+std::vector<label> gather_to_owner(
     std::shared_ptr<const gko::Executor> exec,
-    gko::experimental::mpi::communicator &comm,
-    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-               std::vector<label>, std::vector<label>> &comm_pattern,
+    const gko::experimental::mpi::communicator &comm,
+    const CommCounts &comm_pattern,
     const scalar *send_buffer, scalar *recv_buffer);
 
 std::vector<label> gather_to_owner(
     std::shared_ptr<const gko::Executor> exec,
-    gko::experimental::mpi::communicator &comm,
-    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-               std::vector<label>, std::vector<label>> &comm_pattern,
-    const scalar *send_buffer, scalar *recv_buffer,
-    label offset=0
-);
+    const gko::experimental::mpi::communicator &comm,
+    const CommCounts &comm_pattern,
+    label size, const label *data, label offset = 0);
 
 struct CommunicationPattern {
     using comm_size_type = label;
@@ -83,6 +83,7 @@ struct CommunicationPattern {
 
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e);
 
+// TODO move to Repartitioner
 // TODO NOTE currently we have just one communication pattern for multiple proc
 // interfaces
 //  hence this will communicate vectors which are too long, FIXME potentially

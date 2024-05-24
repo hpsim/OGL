@@ -214,11 +214,15 @@ public:
                                            solverPerformance &solverPerf) const
     {
         auto ref_exec = exec_handler.get_ref_exec();
+        Repartitioner repartitioner {
+        psi.size(),
+        solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1), exec_handler};
 
         // create a distributed matrix from the host matrix
         // here also repartitioning is performed if required
         PersistentDistributedMatrix dist_A{db_,
                              exec_handler,
+                             repartitioner,
                              field_name_,
                              host_A_,
                              solver_controls_,
@@ -228,6 +232,7 @@ public:
             source.begin(),
             source.size(),
             field_name_ + "_rhs",
+            repartitioner,
             db_,
             exec_handler,
             verbose_,
@@ -239,6 +244,7 @@ public:
             psi.begin(),
             psi.size(),
             field_name_ + "_solution",
+            repartitioner,
             db_,
             exec_handler,
             verbose_,

@@ -40,6 +40,8 @@ struct DistributedMatrixInitFunctor {
 
     const ExecutorHandler &exec_;
 
+    const Repartitioner & repartitioner_;
+
     const word field_name_;
 
     const label verbose_;
@@ -49,6 +51,7 @@ struct DistributedMatrixInitFunctor {
     const PersistentHostMatrixAdapter& host_A_;
 
     DistributedMatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
+                         const Repartitioner & repartitioner,
                          const label verbose,
                          const word field_name,
                          const PersistentHostMatrixAdapter& host_A,
@@ -56,6 +59,7 @@ struct DistributedMatrixInitFunctor {
                          )
         : db_(db),
           exec_(exec),
+          repartitioner_(repartitioner),
           field_name_(field_name),
           verbose_(verbose),
           solver_controls_(solver_controls),
@@ -72,7 +76,7 @@ struct DistributedMatrixInitFunctor {
     {
         return RepartDistMatrix<scalar, label, label>::create(
               solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"),
-              solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
+              repartitioner_,
               host_A_.get());
     }
 };
@@ -96,6 +100,7 @@ public:
     PersistentDistributedMatrix(
                   const objectRegistry &db,
                   const ExecutorHandler &exec,
+                  const Repartitioner& repartitioner,
                   const word field_name,
                   const PersistentHostMatrixAdapter& host_A,
                   const dictionary &controlDict,
@@ -106,7 +111,7 @@ public:
           field_name_(field_name),
           host_matrix_{
               field_name + "_distributed_matrix", db,
-              DistributedMatrixInitFunctor(db, exec, verbose_,
+              DistributedMatrixInitFunctor(db, exec, repartitioner, verbose_,
                                    field_name + "_distributed_matrix",
                                    host_A, 
                                    controlDict),

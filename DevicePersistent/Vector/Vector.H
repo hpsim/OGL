@@ -11,6 +11,7 @@
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
+#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 #include "common/common.H"
 
 namespace Foam {
@@ -23,6 +24,8 @@ struct VectorInitFunctor {
 
     const word name_;
 
+    const Repartitioner & repartitioner_;
+
     const ExecutorHandler &exec_;
 
     const label verbose_;
@@ -34,11 +37,12 @@ struct VectorInitFunctor {
 
     const label size_;
 
-
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
+        const Repartitioner & repartitioner,
                       const T *other, const label size, const label verbose,
                       const bool on_device = false)
         : name_(name),
+          repartitioner_(repartitioner),
           exec_(exec),
           on_device_(on_device),
           verbose_(verbose),
@@ -74,9 +78,16 @@ struct VectorInitFunctor {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
-        return gko::share(dist_vec::create(
-            exec, *exec_.get_communicator().get(),
-            vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
+        label repart_size = local_size;
+        auto local_coeffs = gko::array<scalar>(exec, repart_size);
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+        return {};
+
+        // gather_to_owner(exec, comm, comm_pattern_, host_view,
+        //                 local_coeffs.get_data());
+
+        // return gko::share(dist_vec::create(
+        //     exec, *exec_.get_communicator().get(), local_coeffs));
     }
 };
 
@@ -103,7 +114,6 @@ class PersistentVector
     // updated even if was found in the object registry
     const bool update_;
 
-
 public:
     /* PersistentVector constructor using existing memory
      *
@@ -120,13 +130,14 @@ public:
      * @param ranks_per_gpu
      */
     PersistentVector(const T *memory, const label size, const word name,
+                     const Repartitioner & repartitioner,
                      const objectRegistry &db, const ExecutorHandler &exec,
                      const label verbose, const bool update,
                      const bool init_on_device)
         : PersistentBase<gko::experimental::distributed::Vector<T>,
                          VectorInitFunctor<T>>(
               name, db,
-              VectorInitFunctor<T>(exec, name, memory, size, verbose,
+              VectorInitFunctor<T>(exec, name, repartitioner, memory, size, verbose,
                                    init_on_device),
               update, verbose),
           db_(db),
