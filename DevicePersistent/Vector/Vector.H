@@ -12,6 +12,7 @@
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
 #include "MatrixWrapper/LDUMatrix/HostMatrix.H"
+#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 namespace Foam {
@@ -78,16 +79,22 @@ struct VectorInitFunctor {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
-        label repart_size = local_size;
+        label repart_size = repartitioner_.get_repart_size();
+        // this should happen on device
         auto local_coeffs = gko::array<scalar>(exec, repart_size);
-        FatalErrorInFunction << "Not implemented" << abort(FatalError);
-        return {};
 
-        // gather_to_owner(exec, comm, comm_pattern_, host_view,
-        //                 local_coeffs.get_data());
+        // FIXME this shouldn't be needed here also not during an
+        // update
+        auto comm_pattern =
+            compute_send_recv_counts(
+            exec_, repartitioner_.get_ranks_per_gpu(), local_size);
 
-        // return gko::share(dist_vec::create(
-        //     exec, *exec_.get_communicator().get(), local_coeffs));
+        gather_to_owner(exec_, comm_pattern, host_view.get_data(),
+                        local_coeffs.get_data());
+
+        return gko::share(dist_vec::create(
+            exec, *exec_.get_communicator().get(),
+            vec::create(exec, gko::dim<2>{repart_size, 1}, local_coeffs, 1)));
     }
 };
 

@@ -33,6 +33,25 @@ SourceFiles
 
 namespace Foam {
 
+void make_ldu_mapping_consecutive(
+    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+               std::vector<label>>
+        comm_pattern,
+    std::vector<label> &ldu_mapping, label rank, label ranks_per_gpu)
+{
+    auto [send_counts, recv_counts, send_offsets, recv_offsets] =
+        comm_pattern;
+
+    label ldu_offset = 0;
+    auto *data = ldu_mapping.data();
+
+    for (label i = 0; i < ranks_per_gpu; i++) {
+        auto size = recv_counts[i];
+        std::transform(data + ldu_offset, data + ldu_offset + size, data + ldu_offset,
+                       [&](label idx) { return idx + ldu_offset; });
+        ldu_offset += size;
+    }
+};
 
 HostMatrixWrapper::HostMatrixWrapper(
     const ExecutorHandler &exec, const objectRegistry &db, label nrows,
@@ -160,8 +179,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 
 
 CommunicationPattern HostMatrixWrapper::create_communication_pattern(
-    const gko::experimental::mpi::communicator& comm
-    ) const
+    const gko::experimental::mpi::communicator &comm) const
 {
     using comm_size_type = CommunicationPattern::comm_size_type;
     // temp map, mapping from neighbour rank interface cells
@@ -209,7 +227,7 @@ CommunicationPattern HostMatrixWrapper::create_communication_pattern(
         iter++;
     }
 
-    return CommunicationPattern{comm, target_ids, target_sizes, send_idxs};
+    return CommunicationPattern{exec_, target_ids, target_sizes, send_idxs};
 }
 
 
@@ -321,27 +339,27 @@ HostMatrixWrapper::collect_cells_on_non_local_interface(
     // vector of neighbour cell idx connected to interface
     std::vector<std::tuple<label, label, label, label>> non_local_idxs{};
     non_local_idxs.reserve(non_local_matrix_nnz_);
-    interface_iterator<
-        processorFvPatch>(interfaces, [&](label, label interface_id,
-                                          label interface_size,
-                                          const processorLduInterface &,
-                                          const lduInterfaceField *iface) {
-        const auto &face_cells{iface->interface().faceCells()};
+    interface_iterator<processorFvPatch>(
+        interfaces,
+        [&](label, label interface_id, label interface_size,
+            const processorLduInterface &, const lduInterfaceField *iface) {
+            const auto &face_cells{iface->interface().faceCells()};
 
-        const processorLduInterface &pldui =
+            const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
-        const label neighbProcNo = pldui.neighbProcNo();
-        pldui.send(Pstream::commsTypes::blocking, face_cells);
+            const label neighbProcNo = pldui.neighbProcNo();
+            pldui.send(Pstream::commsTypes::blocking, face_cells);
 
-        auto otherSide_tmp = pldui.receive<label>(
+            auto otherSide_tmp = pldui.receive<label>(
                 Pstream::commsTypes::blocking, interface_size);
 
-        for (label cellI = 0; cellI < interface_size; cellI++) {
-            auto local_row = face_cells[cellI];
-            auto col = otherSide_tmp()[cellI];
-            non_local_idxs.push_back({interface_id, col, local_row, neighbProcNo});
-        }
-    });
+            for (label cellI = 0; cellI < interface_size; cellI++) {
+                auto local_row = face_cells[cellI];
+                auto col = otherSide_tmp()[cellI];
+                non_local_idxs.push_back(
+                    {interface_id, col, local_row, neighbProcNo});
+            }
+        });
 
     word msg = "done collecting neighbouring processor cell id";
     LOG_2(verbose_, msg)
@@ -355,8 +373,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
                                                     non_local_matrix_nnz_)};
     sparsity->dim = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 
-    auto non_local_indices =
-        collect_cells_on_non_local_interface(interfaces_);
+    auto non_local_indices = collect_cells_on_non_local_interface(interfaces_);
     auto rows = sparsity->row_idxs.get_data();
     auto cols = sparsity->col_idxs.get_data();
     auto permute = sparsity->ldu_mapping.get_data();
@@ -375,7 +392,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         cols[element_ctr] = col;
         permute[element_ctr] = element_ctr;
 
-        // a new interface started or the last element on last interface has been reached
+        // a new interface started or the last element on last interface has
+        // been reached
         bool last_element = element_ctr == non_local_indices.size() - 1;
         if (interface_idx > prev_interface_ctr || last_element) {
             // this check will be reached one element earlier if we reached

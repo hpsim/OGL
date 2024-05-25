@@ -25,6 +25,7 @@ SourceFiles
 #ifndef OGL_HostMatrix_INCLUDED_H
 #define OGL_HostMatrix_INCLUDED_H
 #include <map>
+#include <numeric>
 
 #include <ginkgo/ginkgo.hpp>
 
@@ -62,35 +63,36 @@ void make_ldu_mapping_consecutive(
 class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
+
+    const label size_;  //! Size (n matrix rows ) before repartitioning
+
+    const label repart_size_;  //! Size after repartitioning
+
     const label ranks_per_gpu_;
 
-    const ExecutorHandler exec_handler_;
+    const ExecutorHandler &exec_handler_;
 
     std::shared_ptr<const partition> orig_partition_;
 
 
 public:
-    Repartitioner(
-        label size,
-        label ranks_per_gpu,
-        const ExecutorHandler &exec_handler
-                )
-        : ranks_per_gpu_(ranks_per_gpu),
+    Repartitioner(label size, label ranks_per_gpu,
+                  const ExecutorHandler &exec_handler)
+        : size_(size),
+          repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
+                                                          exec_handler)),
+          ranks_per_gpu_(ranks_per_gpu),
           exec_handler_(exec_handler),
-          orig_partition_(
-            gko::share(
-            gko::experimental::distributed::build_partition_from_local_size<
-                label, label>(
-            exec_handler_.get_device_exec(),
-            *exec_handler_.get_communicator().get(),
-                    size))
-)
-        {};
+          orig_partition_(gko::share(
+              gko::experimental::distributed::build_partition_from_local_size<
+                  label, label>(exec_handler_.get_device_exec(),
+                                *exec_handler_.get_communicator().get(),
+                                size))) {};
 
     /* returns the owner rank for a given rank */
     label get_owner_rank(label rank) const
     {
-        return rank - (rank % ranks_per_gpu_);
+        return compute_owner_rank(rank, ranks_per_gpu_);
     };
 
     /* returns the owner rank for a given rank */
@@ -107,14 +109,36 @@ public:
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 
-    std::shared_ptr<const partition> get_orig_partition() const {return orig_partition_;};
+    static label compute_repart_size(label local_size, label ranks_per_gpu,
+                                     const ExecutorHandler &exec_handler)
+    {
+        if (ranks_per_gpu == 1) {
+            return local_size;
+        }
+
+        CommCounts comm_pattern =
+            compute_send_recv_counts(exec_handler, ranks_per_gpu, 1);
+
+        std::vector<label> data{local_size};
+
+        auto local_sizes =
+            gather_to_owner(exec_handler, comm_pattern, 1, data.data());
+
+        return std::reduce(local_sizes.begin(), local_sizes.end());
+    }
+
+    label get_repart_size() const {return repart_size_;}
+
+    std::shared_ptr<const partition> get_orig_partition() const
+    {
+        return orig_partition_;
+    };
 
     std::pair<std::shared_ptr<SparsityPattern>,
               std::shared_ptr<SparsityPattern>>
     repartition_sparsity(
         std::shared_ptr<SparsityPattern> src_local_pattern,
-        std::shared_ptr<SparsityPattern> src_non_local_pattern
-) const
+        std::shared_ptr<SparsityPattern> src_non_local_pattern) const
     {
         // 1. obtain send recv sizes vector
         // here we can reuse code from repartition_comm_pattern
@@ -134,17 +158,19 @@ public:
         label ranks_per_gpu = ranks_per_gpu_;
 
         auto local_comm_pattern = compute_send_recv_counts(
-            ranks_per_gpu, owner_rank, comm, exec, src_local_pattern->size_);
+            exec_handler_, ranks_per_gpu, src_local_pattern->size_);
 
         label offset = orig_partition_->get_range_bounds()[rank] -
                        orig_partition_->get_range_bounds()[owner_rank];
 
-        auto gather_closure = [exec, comm](auto &comm_pattern, auto &data,
-                                           label offset) {
-            return gather_to_owner(exec, comm, comm_pattern, data.get_size(),
+        auto &exec_handler = exec_handler_;
+        auto gather_closure = [exec_handler](auto &comm_pattern, auto &data,
+                                             label offset) {
+            return gather_to_owner(exec_handler, comm_pattern, data.get_size(),
                                    data.get_data(), offset);
         };
 
+        std::cout << __FILE__ << " rank " << rank << "before gathered_local\n";
         auto merged_local_rows = gather_closure(
             local_comm_pattern, src_local_pattern->row_idxs, offset);
 
@@ -154,8 +180,10 @@ public:
         auto merged_ldu_mapping = gather_closure(
             local_comm_pattern, src_local_pattern->ldu_mapping, 0);
 
+        std::cout << __FILE__ << " rank " << rank << " gathered_local\n";
         make_ldu_mapping_consecutive(local_comm_pattern, merged_ldu_mapping,
                                      rank, ranks_per_gpu);
+        std::cout << __FILE__ << " rank " << rank << " done ldu mapping consecutive\n";
 
         label rows = (owner) ? merged_local_rows.back() + 1 : 0;
         gko::dim<2> merged_local_dim{rows, rows};
@@ -164,25 +192,27 @@ public:
         std::vector<label> merged_end{label(merged_local_rows.size())};
         std::vector<label> merged_ranks{rank};
 
-        auto non_local_comm_pattern =
-            compute_send_recv_counts(ranks_per_gpu, owner_rank, comm, exec,
-                                     src_non_local_pattern->size_);
+        auto non_local_comm_pattern = compute_send_recv_counts(
+            exec_handler, ranks_per_gpu, src_non_local_pattern->size_);
 
         auto merged_non_local_rows = gather_closure(
             non_local_comm_pattern, src_non_local_pattern->row_idxs, offset);
+        std::cout << __FILE__ << " rank " << rank << " gathered_non_local\n";
 
         // the non local cols are in local idx of other side
         // thus we need the new offset of the other side
         for (label i = 0; i < src_non_local_pattern->rank.size(); i++) {
             auto comm_rank = src_non_local_pattern->rank[i];
             auto [begin, end] = src_non_local_pattern->interface_spans[i];
-            label local_offset = orig_partition_->get_range_bounds()[comm_rank] -
-                                 orig_partition_->get_range_bounds()[owner_rank];
+            label local_offset =
+                orig_partition_->get_range_bounds()[comm_rank] -
+                orig_partition_->get_range_bounds()[owner_rank];
             auto *data = src_non_local_pattern->col_idxs.get_data() + begin;
             auto size = end - begin;
             std::transform(data, data + size, data,
                            [&](label idx) { return idx + local_offset; });
         }
+        std::cout << __FILE__ << " rank " << rank << " done offset non_local\n";
 
         // we now dealed with the new offset thus we dont need an offset
         // now
@@ -193,8 +223,10 @@ public:
             non_local_comm_pattern, src_non_local_pattern->row_idxs, 0);
 
         auto span_comm_pattern = compute_send_recv_counts(
-            ranks_per_gpu, owner_rank, comm, exec,
+            exec_handler, ranks_per_gpu,
             src_non_local_pattern->interface_spans.size());
+
+        std::cout << __FILE__ << " rank " << rank << " done merged non_local\n";
 
         std::vector<label> spans_begin;
         std::vector<label> spans_end;
@@ -205,15 +237,18 @@ public:
         }
 
         auto merged_non_local_begin =
-            gather_to_owner(exec, comm, span_comm_pattern, spans_begin.size(),
+            gather_to_owner(exec_handler, span_comm_pattern, spans_begin.size(),
                             spans_begin.data());
 
-        auto merged_non_local_end = gather_to_owner(
-            exec, comm, span_comm_pattern, spans_end.size(), spans_end.data());
+        auto merged_non_local_end =
+            gather_to_owner(exec_handler, span_comm_pattern, spans_end.size(),
+                            spans_end.data());
 
         auto merged_non_local_ranks = gather_to_owner(
-            exec, comm, span_comm_pattern, src_non_local_pattern->rank.size(),
+            exec_handler, span_comm_pattern, src_non_local_pattern->rank.size(),
             src_non_local_pattern->rank.data());
+
+        std::cout << __FILE__ << " rank " << rank << " done merged non_local2\n";
 
 
         // fix the received merged_non_local_begin and ends

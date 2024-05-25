@@ -189,14 +189,12 @@ public:
         auto dst_comm_pattern = repartition_comm_pattern(
             ranks_per_gpu, src_comm_pattern, orig_partition);
 
-        label rank{src_comm_pattern.comm.rank()};
-
+        label rank{src_comm_pattern.get_comm().rank()};
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.get_owner();
 
         auto [repart_loc_sparsity, repart_non_loc_sparsity] =
-            repartitioner.repartition_sparsity(
-                local_sparsity_,
+            repartitioner.repartition_sparsity(local_sparsity_,
                                                non_local_sparsity_);
 
         local_sparsity_ = repart_loc_sparsity;
@@ -233,8 +231,10 @@ public:
         auto non_local_coeffs =
             gko::array<scalar>(exec, non_local_sparsity_->size_);
 
+
         local_coeffs.fill(0.0);
         non_local_coeffs.fill(0.0);
+        // FIXME make sure that we work on the device executor
 
         dist_A->read_distributed(
             device_matrix_data(exec, local_sparsity_->dim,
@@ -250,16 +250,16 @@ public:
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
         auto diag_comm_pattern = compute_send_recv_counts(
-            ranks_per_gpu, owner_rank, comm, exec, nrows, local_matrix_nnz,
+            exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
             local_matrix_nnz - nrows, 0);
 
         label upper_nnz = host_A->get_upper_nnz();
         auto upper_comm_pattern = compute_send_recv_counts(
-            ranks_per_gpu, owner_rank, comm, exec, upper_nnz, local_matrix_nnz,
-            0, local_matrix_nnz - upper_nnz);
+            exec_handler, ranks_per_gpu, upper_nnz,
+            local_matrix_nnz, 0, local_matrix_nnz - upper_nnz);
         auto lower_comm_pattern = compute_send_recv_counts(
-            ranks_per_gpu, owner_rank, comm, exec, upper_nnz, local_matrix_nnz,
-            upper_nnz, nrows);
+            exec_handler, ranks_per_gpu, upper_nnz,
+            local_matrix_nnz, upper_nnz, nrows);
 
         scalar *local_ptr;
 
@@ -273,17 +273,17 @@ public:
 
             local_ptr = const_cast<scalar *>(local->get_const_values());
         }
-        gather_to_owner(exec, comm, diag_comm_pattern, host_A->get_diag(),
+        gather_to_owner(exec_handler, diag_comm_pattern, host_A->get_diag(),
                         local_ptr);
-        gather_to_owner(exec, comm, upper_comm_pattern, host_A->get_upper(),
+        gather_to_owner(exec_handler, upper_comm_pattern, host_A->get_upper(),
                         local_ptr);
         if (host_A->symmetric()) {
             // TODO FIXME
             // if symmetric we can reuse already copied data
-            gather_to_owner(exec, comm, lower_comm_pattern, host_A->get_lower(),
+            gather_to_owner(exec_handler, lower_comm_pattern, host_A->get_lower(),
                             local_ptr);
         } else {
-            gather_to_owner(exec, comm, lower_comm_pattern, host_A->get_lower(),
+            gather_to_owner(exec_handler, lower_comm_pattern, host_A->get_lower(),
                             local_ptr);
         }
 
