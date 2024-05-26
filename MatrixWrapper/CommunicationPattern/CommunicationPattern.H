@@ -27,47 +27,51 @@ SourceFiles
 
 #pragma once
 #include <ginkgo/ginkgo.hpp>
+
 #include "fvCFD.H"
+
+#include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 
 // TODO move this file to top level since it is not really a matrix-wrapper
 
-using CommCounts =
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>>;
+using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
+                              std::vector<label>, std::vector<label>>;
 
 
 // This function computes the send and recv counts vectors for repartitioning
-CommCounts
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
-                         const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size,
-                         label total_size, label padding_before,
-                         label padding_after);
+CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_gpu, label size,
+                                    label total_size, label padding_before,
+                                    label padding_after);
 
 // This function computes the send and recv counts vectors for repartitioning
-CommCounts
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
-                         const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size);
+CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_gpu, label size);
 
-// TODO these are separate functions
+/* Given a rank id and ranks_per_gpus this function computes the corresponding
+ * owner rank  */
+label compute_owner_rank(label rank, label ranks_per_gpu);
+
+// TODO these are separate functions, the scalar version generally operates
+// on the device where as labels are only communicated on the host side
 // create gather_coeffs, gather_idx, and a templated impl function
-std::vector<label> gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    const gko::experimental::mpi::communicator &comm,
-    const CommCounts &comm_pattern,
-    const scalar *send_buffer, scalar *recv_buffer);
+/* Given a comm_pattern this function executes the communication
+**
+*/
+void communicate_values (const ExecutorHandler &exec_handler,
+                                   const CommCounts &comm_pattern,
+                                   const scalar *send_buffer,
+                                   scalar *recv_buffer);
 
-std::vector<label> gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    const gko::experimental::mpi::communicator &comm,
-    const CommCounts &comm_pattern,
-    label size, const label *data, label offset = 0);
+/* Returns a vector of length total received elements + padding */
+std::vector<label> gather_to_owner(const ExecutorHandler &exec_handler,
+                                   const CommCounts &comm_pattern, label size,
+                                   const label *data, label offset = 0);
 
 struct CommunicationPattern {
     using comm_size_type = label;
 
-    gko::experimental::mpi::communicator comm;
+    const ExecutorHandler &exec_handler;
 
     // an array storing to which rank to communicate
     gko::array<comm_size_type> target_ids;
@@ -79,6 +83,11 @@ struct CommunicationPattern {
     // send_idx stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
+
+    const gko::experimental::mpi::communicator &get_comm() const
+    {
+        return *exec_handler.get_communicator().get();
+    }
 };
 
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e);

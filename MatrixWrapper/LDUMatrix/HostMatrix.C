@@ -39,19 +39,37 @@ void make_ldu_mapping_consecutive(
         comm_pattern,
     std::vector<label> &ldu_mapping, label rank, label ranks_per_gpu)
 {
-    auto [send_counts, recv_counts, send_offsets, recv_offsets] =
-        comm_pattern;
+    auto [send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
 
     label ldu_offset = 0;
     auto *data = ldu_mapping.data();
 
     for (label i = 0; i < ranks_per_gpu; i++) {
         auto size = recv_counts[i];
-        std::transform(data + ldu_offset, data + ldu_offset + size, data + ldu_offset,
+        std::transform(data + ldu_offset, data + ldu_offset + size,
+                       data + ldu_offset,
                        [&](label idx) { return idx + ldu_offset; });
         ldu_offset += size;
     }
 };
+
+void make_begin_and_ends_consecutive(
+    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+               std::vector<label>>
+        comm_pattern,
+    std::vector<label> &begin, std::vector<label> &end, label rank,
+    label ranks_per_gpu)
+{
+    for (label i = 1; i < ranks_per_gpu; i++) {
+        auto recv_count = std::get<1>(comm_pattern)[rank + i];
+        auto recv_offset = std::get<3>(comm_pattern)[rank + i];
+        auto range_offset = end[recv_offset - 1];
+        for (label j = 0; j < recv_count; j++) {
+            begin[recv_offset + j] += range_offset;
+            end[recv_offset + j] += range_offset;
+        }
+    }
+}
 
 HostMatrixWrapper::HostMatrixWrapper(
     const ExecutorHandler &exec, const objectRegistry &db, label nrows,

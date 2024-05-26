@@ -28,27 +28,34 @@ SourceFiles
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
+
+label compute_owner_rank(label rank, label ranks_per_gpu)
+{
+    return rank - (rank % ranks_per_gpu);
+};
+
 std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
            std::vector<label>>
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
-                         const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size)
+compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                         label ranks_per_gpu, label size)
 {
-    return compute_send_recv_counts(ranks_per_gpu, owner_rank, comm, exec, size,
-                                    size, 0, 0);
+    return compute_send_recv_counts(exec_handler, ranks_per_gpu, size, size, 0,
+                                    0);
 }
 
 std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
            std::vector<label>>
-compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
-                         const gko::experimental::mpi::communicator &comm,
-                         std::shared_ptr<const gko::Executor> exec, label size,
-                         label total_size, label padding_before,
-                         label padding_after)
+compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                         label ranks_per_gpu, label size, label total_size,
+                         label padding_before, label padding_after)
 {
+    auto exec = exec_handler.get_device_exec();
+    auto comm = *exec_handler.get_communicator().get();
+
     ASSERT_EQ(total_size, size + padding_before + padding_after);
     label total_ranks{comm.size()};
     label rank{comm.rank()};
+    label owner_rank = compute_owner_rank(rank, ranks_per_gpu);
     std::vector<label> send_counts(total_ranks, 0);
     std::vector<label> recv_counts(total_ranks, 0);
     std::vector<label> send_offsets(total_ranks, 0);
@@ -97,13 +104,14 @@ compute_send_recv_counts(label ranks_per_gpu, label owner_rank,
                            recv_offsets);
 }
 
-std::vector<label> gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    const gko::experimental::mpi::communicator &comm,
+void communicate_values (
+    const ExecutorHandler &exec_handler,
     const std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
                      std::vector<label>> &comm_pattern,
     const scalar *send_buffer, scalar *recv_buffer)
 {
+    auto exec = exec_handler.get_device_exec();
+    auto comm = *exec_handler.get_communicator().get();
     auto [send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
     // TODO add some sanity checks for comm pattern
     // 1. length needs to be same as mpi ranks
@@ -122,16 +130,16 @@ std::vector<label> gather_to_owner(
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer, recv_counts.data(),
                       recv_offsets.data());
-    return {};
 };
 
 std::vector<label> gather_to_owner(
-    std::shared_ptr<const gko::Executor> exec,
-    const gko::experimental::mpi::communicator &comm,
+    const ExecutorHandler &exec_handler,
     const std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
                      std::vector<label>> &comm_pattern,
     label size, const label *data, label offset)
 {
+    auto exec = exec_handler.get_ref_exec();
+    auto comm = *exec_handler.get_communicator().get();
     // TODO don't modify send_buffer
     std::vector<label> send_buffer_copy(size);
     if (offset > 0) {
@@ -150,8 +158,8 @@ std::vector<label> gather_to_owner(
         total_recv_size += recv_counts[i];
     }
 
-    std::cout << " total_recv_ size " << total_recv_size << "\n";
     std::vector<label> recv_buffer(total_recv_size);
+    auto rank = comm.rank();
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer.data(),
                       recv_counts.data(), recv_offsets.data());
@@ -161,7 +169,7 @@ std::vector<label> gather_to_owner(
 
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
-    out << "CommunicationPattern: for rank: " << e.comm.rank();
+    out << "CommunicationPattern: for rank: " << e.get_comm().rank();
     out << " {";
     out << "\ntarget_ids: " << e.target_ids;
     out << "\ntarget_sizes: " << e.target_sizes;
@@ -202,12 +210,14 @@ CommunicationPattern repartition_comm_pattern(
         return CommunicationPattern(src_comm_pattern);
     }
 
+    auto & exec_handler = src_comm_pattern.exec_handler;
     auto exec = src_comm_pattern.target_ids.get_executor();
+    auto comm = src_comm_pattern.get_comm();
+
     auto target_rank = [ranks_per_gpu](label rank) {
         return rank - (rank % ranks_per_gpu);
     };
 
-    auto comm = src_comm_pattern.comm;
 
     // find ranks which are now local
     // the target_ids, target_sizes etc need to be communicated
@@ -216,7 +226,7 @@ CommunicationPattern repartition_comm_pattern(
     std::vector<label> target_ids{};
     std::vector<label> target_sizes{};
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-    label rank{src_comm_pattern.comm.rank()};
+    label rank{src_comm_pattern.get_comm().rank()};
     label owner_rank = target_rank(rank);
     bool owner = rank == owner_rank;
 
@@ -255,13 +265,13 @@ CommunicationPattern repartition_comm_pattern(
     // where to put elements from recv
     // communicate with all neighbours which are to be merged
     // how many elements the owner rank is to receive
-    auto comm_pattern = compute_send_recv_counts(ranks_per_gpu, owner_rank,
-                                                 comm, exec, target_ids.size());
+    auto comm_pattern = compute_send_recv_counts(exec_handler, ranks_per_gpu,
+                                                 target_ids.size());
 
-    target_ids = gather_to_owner(exec, comm, comm_pattern, target_ids.size(),
+    target_ids = gather_to_owner(exec_handler, comm_pattern, target_ids.size(),
                                  target_ids.data());
 
-    target_sizes = gather_to_owner(exec, comm, comm_pattern,
+    target_sizes = gather_to_owner(exec_handler, comm_pattern,
                                    target_sizes.size(), target_sizes.data());
 
     // communicate the send indices to owner rank
@@ -371,7 +381,7 @@ CommunicationPattern repartition_comm_pattern(
     }
 
     return CommunicationPattern{
-        src_comm_pattern.comm,
+        exec_handler,
         gko::array<comm_size_type>{exec, merged_target_ids.begin(),
                                    merged_target_ids.end()},
         gko::array<comm_size_type>{exec, merged_target_sizes.begin(),

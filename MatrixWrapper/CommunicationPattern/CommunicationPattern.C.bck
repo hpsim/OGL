@@ -33,9 +33,7 @@ std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
 compute_send_recv_counts(label ranks_per_gpu, label owner_rank, label size,
                          const gko::experimental::mpi::communicator &comm,
                          std::shared_ptr<const gko::Executor> exec,
-                         label padding_before,
-                         label padding_after
-)
+                         label padding_before, label padding_after)
 {
     label total_ranks{comm.size()};
     label rank{comm.rank()};
@@ -214,11 +212,8 @@ CommunicationPattern repartition_comm_pattern(
     // this is also used distributed
     if (owner) {
         // retrieve from all neighbours
-        std::cout << __FILE__ << " on rank "
-                  << rank << " owner "
-                  << ranks_per_gpu
-                  << " recv_counts " << recv_counts
-                  << " \n";
+        std::cout << __FILE__ << " on rank " << rank << " owner "
+                  << ranks_per_gpu << " recv_counts " << recv_counts << " \n";
         for (int i = 1; i < ranks_per_gpu; i++) {
             // retrieve all send_idxs
 
@@ -226,17 +221,14 @@ CommunicationPattern repartition_comm_pattern(
                 auto target_size = target_sizes[j + 1];
                 auto target_id = target_ids[j + 1];
                 std::vector<label> recv_buffer(target_size);
-                std::cout << __FILE__ << " on rank " << rank
-                          << " recv from  i " << rank + i
-                          <<  " interface j " << j
-                    << " target_size " << target_size
-                    << " target_id " << target_id
-                    << "\n";
+                std::cout << __FILE__ << " on rank " << rank << " recv from  i "
+                          << rank + i << " interface j " << j << " target_size "
+                          << target_size << " target_id " << target_id << "\n";
 
                 comm.recv(exec, recv_buffer.data(), target_size, rank + i,
                           rank);
                 std::cout << __FILE__ << " on rank " << rank
-                    << " after recv \n";
+                          << " after recv \n";
 
 
                 // the new offset is

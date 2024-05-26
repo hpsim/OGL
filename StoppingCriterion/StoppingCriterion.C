@@ -74,6 +74,7 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     gko::array<gko::stopping_status> *stop_status, bool *one_changed,
     const Criterion::Updater &updater)
 {
+    std::cout << __FILE__ << ":" << __LINE__ << "Stopping check \n";
     // Dont check residual norm before minIter is reached
     if (*(parameters_.iter) > 0 &&
         *(parameters_.iter) < parameters_.openfoam_minIter) {

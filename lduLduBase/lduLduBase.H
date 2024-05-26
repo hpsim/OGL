@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H"
 #include "DevicePersistent/DistributedMatrixAdapter/DistributedMatrixAdapter.H"
+#include "DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H"
 #include "DevicePersistent/Vector/Vector.H"
 #include "Preconditioner/Preconditioner.H"
 #include "common/common.H"
@@ -135,7 +135,7 @@ private:
 
     const dictionary &solver_controls_;
 
-    const word & field_name_;
+    const word &field_name_;
 
     const label verbose_;
 
@@ -153,30 +153,20 @@ public:
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
           MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
-                         interfaceIntCoeffs, interfaces, solverControls),
+                             interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
-                solverControls.lookupOrDefault<label>("verbose", 0)     
-                  ),
+                         solverControls.lookupOrDefault<label>("verbose", 0)),
           db_(matrix.mesh().thisDb()),
           matrix_(matrix),
           solver_controls_(solverControls),
           field_name_(fieldName),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          exec_handler_{
-              db_, solver_controls_, fieldName
-          },
+          exec_handler_{db_, solver_controls_, fieldName},
           host_A_{
-              db_,
-              exec_handler_,
-              solver_controls_,
-              fieldName,
-              verbose_,
-              matrix_,
-              interfaceBouCoeffs,
-              interfaceIntCoeffs,
-              interfaces
-          }
+              db_,       exec_handler_, solver_controls_,   fieldName,
+              verbose_,  matrix_,       interfaceBouCoeffs, interfaceIntCoeffs,
+              interfaces}
     {}
 
 
@@ -207,26 +197,21 @@ public:
     {}
 
 
-    solverPerformance solve_multi_gpu_impl(
-            ExecutorHandler &exec_handler,
-            scalarField &psi,
+    solverPerformance solve_multi_gpu_impl(scalarField &psi,
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto ref_exec = exec_handler.get_ref_exec();
-        Repartitioner repartitioner {
-        psi.size(),
-        solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1), exec_handler};
+        auto ref_exec = exec_handler_.get_ref_exec();
+        Repartitioner repartitioner{
+            psi.size(),
+            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
+            exec_handler_};
 
         // create a distributed matrix from the host matrix
         // here also repartitioning is performed if required
-        PersistentDistributedMatrix dist_A{db_,
-                             exec_handler,
-                             repartitioner,
-                             field_name_,
-                             host_A_,
-                             solver_controls_,
-                             verbose_};
+        PersistentDistributedMatrix dist_A{
+            db_,     exec_handler_,    repartitioner, field_name_,
+            host_A_, solver_controls_, verbose_};
 
         PersistentVector<scalar> dist_b{
             source.begin(),
@@ -234,7 +219,7 @@ public:
             field_name_ + "_rhs",
             repartitioner,
             db_,
-            exec_handler,
+            exec_handler_,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -246,7 +231,7 @@ public:
             field_name_ + "_solution",
             repartitioner,
             db_,
-            exec_handler,
+            exec_handler_,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device
@@ -268,10 +253,9 @@ public:
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        TIME_WITH_FIELDNAME(
-            verbose_, init_precond, field_name_,
-            auto precond = this->init_preconditioner(
-                dist_A_v, exec_handler.get_device_exec());)
+        TIME_WITH_FIELDNAME(verbose_, init_precond, field_name_,
+                            auto precond = this->init_preconditioner(
+                                dist_A_v, exec_handler_.get_device_exec());)
 
         bool write(solver_controls_.lookupOrDefault<Switch>("export", false));
         if (write && db_.time().writeTime()) {
@@ -283,8 +267,8 @@ public:
 
         LOG_1(verbose_, "create solver")
         auto solver_gen = this->create_dist_solver(
-            exec_handler.get_device_exec(), dist_A_v, dist_x_v,
-            dist_b_v, verbose_, write, precond);
+            exec_handler_.get_device_exec(), dist_A_v, dist_x_v, dist_b_v,
+            verbose_, write, precond);
 
         TIME_WITH_FIELDNAME(verbose_, generate_solver, field_name_,
                             auto solver = solver_gen->generate(dist_A_v);)
@@ -305,12 +289,14 @@ public:
         auto time_for_res_norm_eval = this->get_res_norm_time();
         auto time_per_iter =
             delta_t_solve / max(this->get_number_of_iterations(), 1);
-        scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        exec_handler.get_gko_mpi_host_comm()->broadcast(
-            exec_handler.get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        scalar prev_rel_res_cost =
+            time_per_iter / (time_for_res_norm_eval + SMALL);
+        exec_handler_.get_gko_mpi_host_comm()->broadcast(
+            exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
-        auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition->get_size();
+        auto time_per_iter_and_dof = 0;
+        // TOOD FIXME
+        // time_per_iter * 1000.0 / partition->get_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +
@@ -333,17 +319,16 @@ public:
             FatalErrorInFunction << "Only parallel runs are supported for OGL"
                                  << exit(FatalError);
         }
-        auto exec_handler = host_A_.get()->get_exec_handler();
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(
             lduMatrix::preconditioner::getName(solver_controls_) +
-                exec_handler.get_exec_name() + typeName,
+                exec_handler_.get_exec_name() + typeName,
             field_name_);
 
         // Solve system
         TIME_WITH_FIELDNAME(
             verbose_, solve_multi_gpu, field_name_,
-            auto res = solve_multi_gpu_impl(exec_handler, psi, source, solverPerf);)
+            auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
         return res;
 
         return solverPerf;

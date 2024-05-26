@@ -41,9 +41,7 @@ std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
 compute_send_recv_counts(label ranks_per_gpu, label owner_rank, label size,
                          const gko::experimental::mpi::communicator &comm,
                          std::shared_ptr<const gko::Executor> exec,
-                         label padding_before=0,
-                         label padding_after=0
-);
+                         label padding_before = 0, label padding_after = 0);
 
 struct CommunicationPattern {
     using comm_size_type = label;

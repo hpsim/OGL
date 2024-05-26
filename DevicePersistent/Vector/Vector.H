@@ -25,7 +25,7 @@ struct VectorInitFunctor {
 
     const word name_;
 
-    const Repartitioner & repartitioner_;
+    const Repartitioner &repartitioner_;
 
     const ExecutorHandler &exec_;
 
@@ -69,19 +69,19 @@ struct VectorInitFunctor {
         auto exec =
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
+        auto rank = comm->rank();
 
         const auto local_size = size_;
+        label repart_size = repartitioner_.get_repart_size();
         word msg{"initialising vector " + name_ + " of size " +
-                 std::to_string(local_size)};
+                 std::to_string(repart_size)};
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
+        std::cout << __FILE__  << __LINE__ << " on rank " << rank << " before host view \n";
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
-
-        label repart_size = repartitioner_.get_repart_size();
-        // this should happen on device
-        auto local_coeffs = gko::array<scalar>(exec, repart_size);
+        std::cout << __FILE__ << " on rank " << rank << " done host view \n";
 
         // FIXME this shouldn't be needed here also not during an
         // update
@@ -89,12 +89,20 @@ struct VectorInitFunctor {
             compute_send_recv_counts(
             exec_, repartitioner_.get_ranks_per_gpu(), local_size);
 
-        gather_to_owner(exec_, comm_pattern, host_view.get_data(),
-                        local_coeffs.get_data());
+        // this should happen on device
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << " before local coeffs  \n" << std::endl;
+        auto local_coeffs = gko::array<scalar>(exec, repart_size);
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << " done local coeffs  \n";
 
-        return gko::share(dist_vec::create(
-            exec, *exec_.get_communicator().get(),
+        communicate_values(exec_, comm_pattern, host_view.get_data(),
+                        local_coeffs.get_data());
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << "  gather_to_owner done \n";
+
+        auto ret =  gko::share(dist_vec::create(
+            exec, *comm.get(),
             vec::create(exec, gko::dim<2>{repart_size, 1}, local_coeffs, 1)));
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << "  done dist vector create \n";
+        return ret;
     }
 };
 
@@ -159,13 +167,14 @@ public:
      **/
     void copy_back(std::shared_ptr<const part_type> partition)
     {
-        auto ref_exec = exec_.get_ref_exec();
-        auto host_buffer_view = gko::array<T>::view(
-            exec_.get_device_exec(), size_, get_vector()->get_local_values());
+        // TODO FIXME
+        // auto ref_exec = exec_.get_ref_exec();
+        // auto host_buffer_view = gko::array<T>::view(
+        //     exec_.get_device_exec(), size_, get_vector()->get_local_values());
 
-        auto to_view =
-            gko::array<T>::view(ref_exec, size_, const_cast<T *>(memory_));
-        to_view = host_buffer_view;
+        // auto to_view =
+        //     gko::array<T>::view(ref_exec, size_, const_cast<T *>(memory_));
+        // to_view = host_buffer_view;
     }
 
     /** Writes the content of the distributed vector to disk

@@ -114,7 +114,12 @@ private:
 
     const word device_executor_name_;
 
+
+
 public:
+
+    ExecutorHandler(const ExecutorHandler&) = delete;
+
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name)
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(

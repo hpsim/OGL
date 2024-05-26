@@ -59,6 +59,28 @@ void make_ldu_mapping_consecutive(
         comm_pattern,
     std::vector<label> &ldu_mapping, label rank, label ranks_per_gpu);
 
+
+/** fix the received merged_non_local_begin and ends
+ *  we received begins and ends of the interfaces from
+ *  the neighbour ranks. however the begin and ends are
+ *  computed based on the unmerged interfaces. Now we
+ *  need to offset these values. For example
+ *  before communication and merge:
+ *  rank 0 begin [ 0 10 ], end [10 20]
+ *  rank 1 begin [ 0 10 ], end [10 20]
+ *  after communication
+ * on owner merged begin [ 0 10 0 10 ], end [10 20 10 20]
+ *    after fix
+ *   merged begin [ 0 10 20 30 ], end [10 20 30 40]
+ */
+void make_begin_and_ends_consecutive(
+    std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+               std::vector<label>>
+        comm_pattern,
+    std::vector<label> &begin, std::vector<label> &end, label rank,
+    label ranks_per_gpu);
+
+
 // TODO this should be persistent
 class Repartitioner {
 private:
@@ -70,7 +92,7 @@ private:
 
     const label ranks_per_gpu_;
 
-    const ExecutorHandler &exec_handler_;
+    const ExecutorHandler & exec_handler_;
 
     std::shared_ptr<const partition> orig_partition_;
 
@@ -127,7 +149,9 @@ public:
         return std::reduce(local_sizes.begin(), local_sizes.end());
     }
 
-    label get_repart_size() const {return repart_size_;}
+    label get_repart_size() const { return repart_size_; }
+
+    gko::dim<2> get_repart_dim() const { return gko::dim<2>{repart_size_,repart_size_}; }
 
     std::shared_ptr<const partition> get_orig_partition() const
     {
@@ -164,7 +188,7 @@ public:
                        orig_partition_->get_range_bounds()[owner_rank];
 
         auto &exec_handler = exec_handler_;
-        auto gather_closure = [exec_handler](auto &comm_pattern, auto &data,
+        auto gather_closure = [&](auto &comm_pattern, auto &data,
                                              label offset) {
             return gather_to_owner(exec_handler, comm_pattern, data.get_size(),
                                    data.get_data(), offset);
@@ -180,10 +204,10 @@ public:
         auto merged_ldu_mapping = gather_closure(
             local_comm_pattern, src_local_pattern->ldu_mapping, 0);
 
-        std::cout << __FILE__ << " rank " << rank << " gathered_local\n";
-        make_ldu_mapping_consecutive(local_comm_pattern, merged_ldu_mapping,
-                                     rank, ranks_per_gpu);
-        std::cout << __FILE__ << " rank " << rank << " done ldu mapping consecutive\n";
+        if (owner) {
+            make_ldu_mapping_consecutive(local_comm_pattern, merged_ldu_mapping,
+                                         rank, ranks_per_gpu);
+        }
 
         label rows = (owner) ? merged_local_rows.back() + 1 : 0;
         gko::dim<2> merged_local_dim{rows, rows};
@@ -248,28 +272,11 @@ public:
             exec_handler, span_comm_pattern, src_non_local_pattern->rank.size(),
             src_non_local_pattern->rank.data());
 
-        std::cout << __FILE__ << " rank " << rank << " done merged non_local2\n";
 
-
-        // fix the received merged_non_local_begin and ends
-        // we received begins and ends of the interfaces from
-        // the neighbour ranks. however the begin and ends are
-        // computed base on the non merged interfaces. Now we
-        // need to offset these values
-        // before merge
-        // rank 0 begin [ 0 10 ], end [10 20]
-        // rank 1 begin [ 0 10 ], end [10 20]
-        // merged begin [ 0 10 0 10 ], end [10 20 10 20]
-        // after fix
-        // merged begin [ 0 10 20 30 ], end [10 20 30 40]
-        for (label i = 1; i < ranks_per_gpu; i++) {
-            auto recv_count = std::get<1>(span_comm_pattern)[rank + i];
-            auto recv_offset = std::get<3>(span_comm_pattern)[rank + i];
-            auto range_offset = merged_non_local_end[recv_offset - 1];
-            for (label j = 0; j < recv_count; j++) {
-                merged_non_local_begin[recv_offset + j] += range_offset;
-                merged_non_local_end[recv_offset + j] += range_offset;
-            }
+        if (owner) {
+            make_begin_and_ends_consecutive(
+                span_comm_pattern, merged_non_local_begin, merged_non_local_end,
+                rank, ranks_per_gpu);
         }
 
 
@@ -370,6 +377,8 @@ public:
                 gathered_ranks.push_back(to_rank);
             }
         }
+        std::cout << __FILE__ << " rank " << rank
+                  << " done merged non_local4\n";
 
         // for compressed cols we compute a mapping first
         std::map<label, label> compressed_col_idxs{};
@@ -382,6 +391,8 @@ public:
                 unique_idx += 1;
             };
         }
+        std::cout << __FILE__ << " rank " << rank
+                  << " done merged non_local5\n";
 
         for (int i = 0; i < gathered_non_local_cols.size(); i++) {
             label uncompressed = gathered_non_local_cols[i];
@@ -390,6 +401,8 @@ public:
                       << " compressed " << compressed << "\n";
             gathered_non_local_cols[i] = compressed;
         }
+        std::cout << __FILE__ << " rank " << rank
+                  << " done merged non_local6\n";
 
         // add interfaces
         // to add interfaces we go through the non_local_sparsity
@@ -605,7 +618,7 @@ private:
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
 
-    const ExecutorHandler exec_;
+    const ExecutorHandler &exec_;
 
     const DeviceIdGuardHandler device_id_guard_;
 

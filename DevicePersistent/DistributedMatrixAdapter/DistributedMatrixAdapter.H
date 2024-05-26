@@ -30,6 +30,7 @@ SourceFiles
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
 #include "MatrixWrapper/Distributed/Distributed.H"
+#include "DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H"
 
 #include "fvCFD.H"
 
@@ -40,7 +41,7 @@ struct DistributedMatrixInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const Repartitioner & repartitioner_;
+    const Repartitioner &repartitioner_;
 
     const word field_name_;
 
