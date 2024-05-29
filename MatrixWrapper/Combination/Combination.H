@@ -139,7 +139,9 @@ protected:
     // are always true in this example).
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
-        this->comb_->apply(b, x);
+        if (interface_ranges_.size() > 0) {
+            this->comb_->apply(b, x);
+        }
     }
 
     // There is also a version of the apply function which does the operation
@@ -149,7 +151,9 @@ protected:
     void apply_impl(const gko::LinOp *alpha, const gko::LinOp *b,
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
-        this->comb_->apply(alpha, b, beta, x);
+        if (interface_ranges_.size() > 0) {
+            this->comb_->apply(alpha, b, beta, x);
+        }
     }
 
 

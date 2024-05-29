@@ -13,6 +13,7 @@
 #include "DevicePersistent/Partition/Partition.H"
 #include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
+#include "Repartitioner/Repartitioner.H"
 #include "common/common.H"
 
 namespace Foam {

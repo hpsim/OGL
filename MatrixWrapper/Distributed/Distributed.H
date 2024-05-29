@@ -32,6 +32,7 @@ SourceFiles
 
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "MatrixWrapper/LDUMatrix/HostMatrix.H"
+#include "Repartitioner/Repartitioner.H"
 
 
 template <typename DistMtxType>
@@ -186,12 +187,12 @@ public:
         auto src_comm_pattern =
             host_A.get()->create_communication_pattern(comm);
         // create partiton here and pass to constructor
-        auto dst_comm_pattern = repartition_comm_pattern(
-            ranks_per_gpu, src_comm_pattern, orig_partition);
+        auto dst_comm_pattern = repartitioner.repartition_comm_pattern(
+            src_comm_pattern, orig_partition);
 
         label rank{src_comm_pattern.get_comm().rank()};
         label owner_rank = repartitioner.get_owner_rank();
-        bool owner = repartitioner.get_owner();
+        bool owner = repartitioner.is_owner();
 
         auto [repart_loc_sparsity, repart_non_loc_sparsity] =
             repartitioner.repartition_sparsity(local_sparsity_,

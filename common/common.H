@@ -107,17 +107,6 @@ std::ostream &operator<<(
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
 
-// template <typename T, typename Compare>
-// std::vector<std::size_t> sort_permutation(
-//     const std::vector<T>& vec,
-//     Compare compare);
-
-// template <typename T>
-// std::vector<T> apply_permutation(
-//     const std::vector<T>& vec,
-//     const std::vector<std::size_t>& p);
-
-
 // TODO move to somewhere else
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,

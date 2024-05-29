@@ -38,13 +38,24 @@ using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
                               std::vector<label>, std::vector<label>>;
 
 
-// This function computes the send and recv counts vectors for repartitioning
+/* @brief  This function computes the send and recv counts vectors for
+ *repartitioning to an owner rank
+ *
+ * @parameter size how many elements to send to owner
+ * @parameter total_size size of the block of memory on the receiver site
+ * @parameter padding_before unused elements before inserting size elements
+ * @parameter padding_after unused elements after insesting size elements
+ * */
 CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
                                     label ranks_per_gpu, label size,
                                     label total_size, label padding_before,
                                     label padding_after);
 
-// This function computes the send and recv counts vectors for repartitioning
+/* @brief  This function computes the send and recv counts vectors for
+ *repartitioning to an owner rank
+ *
+ * @parameter size how many elements to send to owner
+ * */
 CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
                                     label ranks_per_gpu, label size);
 
@@ -58,10 +69,9 @@ label compute_owner_rank(label rank, label ranks_per_gpu);
 /* Given a comm_pattern this function executes the communication
 **
 */
-void communicate_values (const ExecutorHandler &exec_handler,
-                                   const CommCounts &comm_pattern,
-                                   const scalar *send_buffer,
-                                   scalar *recv_buffer);
+void communicate_values(const ExecutorHandler &exec_handler,
+                        const CommCounts &comm_pattern,
+                        const scalar *send_buffer, scalar *recv_buffer);
 
 /* Returns a vector of length total received elements + padding */
 std::vector<label> gather_to_owner(const ExecutorHandler &exec_handler,
@@ -84,6 +94,19 @@ struct CommunicationPattern {
     // are owned by the interface and the corresponding target rank
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
 
+    CommunicationPattern(
+        const ExecutorHandler &exec, gko::array<comm_size_type> ids,
+        gko::array<comm_size_type> sizes,
+        std::vector<std::pair<gko::array<label>, comm_size_type>> idxs)
+        : exec_handler(exec),
+          target_ids(ids),
+          target_sizes(sizes),
+          send_idxs(idxs)
+    {
+        ASSERT_EQ(target_ids.get_size(), target_sizes.get_size());
+        //ASSERT_EQ(target_ids.get_size(), send_idxs.size());
+    };
+
     const gko::experimental::mpi::communicator &get_comm() const
     {
         return *exec_handler.get_communicator().get();
@@ -91,15 +114,3 @@ struct CommunicationPattern {
 };
 
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e);
-
-// TODO move to Repartitioner
-// TODO NOTE currently we have just one communication pattern for multiple proc
-// interfaces
-//  hence this will communicate vectors which are too long, FIXME potentially
-//  have the wrong idxs and will communictate the same remote buffer several
-//  times through the combination matrix.
-CommunicationPattern repartition_comm_pattern(
-    label ranks_per_gpu, CommunicationPattern &src_comm_pattern,
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition);
