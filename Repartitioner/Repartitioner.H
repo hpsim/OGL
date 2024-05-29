@@ -123,7 +123,7 @@ public:
         auto local_sizes =
             gather_to_owner(exec_handler, comm_pattern, 1, data.data());
 
-        return std::reduce(local_sizes.begin(), local_sizes.end());
+        return std::accumulate(local_sizes.begin(), local_sizes.end(),0);
     }
 
     label get_repart_size() const { return repart_size_; }
