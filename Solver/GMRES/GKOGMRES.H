@@ -43,7 +43,7 @@ public:
     CREATE_SOLVER_METHODS(gmres)
 
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(std::shared_ptr<const gko::Executor> exec) const
     {
         auto gmres =
             gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
@@ -51,7 +51,7 @@ public:
     };
 
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
+    create_precond(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto gmres = gmres::build()

@@ -37,7 +37,7 @@ SourceFiles
 
 template <typename DistMtxType>
 std::unique_ptr<DistMtxType> generate_dist_mtx_with_inner_type(
-    word matrix_format, std::shared_ptr<gko::Executor> exec,
+    word matrix_format, std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const gko::experimental::distributed::sparse_communicator>
         comm,
     std::shared_ptr<const SparsityPattern> local_sparsity,

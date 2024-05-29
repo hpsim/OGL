@@ -22,7 +22,7 @@ namespace Foam {
 
 #define CREATE_SOLVER_METHODS(Solver)                                          \
     std::unique_ptr<Solver::Factory, std::default_delete<Solver::Factory>>     \
-    create_dist_solver(std::shared_ptr<gko::Executor> exec,                    \
+    create_dist_solver(std::shared_ptr<const gko::Executor> exec,                    \
                        std::shared_ptr<const gko::LinOp> gkomatrix,            \
                        std::shared_ptr<const dist_vec> x,                      \
                        std::shared_ptr<const dist_vec> b, const label verbose, \

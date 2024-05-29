@@ -13,10 +13,10 @@
 namespace Foam {
 
 struct DeviceIdGuardInitFunctor {
-    const std::shared_ptr<gko::Executor> executor_;
+    std::shared_ptr<const gko::Executor> executor_;
 
 
-    DeviceIdGuardInitFunctor(const std::shared_ptr<gko::Executor> executor)
+    DeviceIdGuardInitFunctor(std::shared_ptr<const gko::Executor> executor)
         : executor_(executor)
     {}
 
@@ -34,7 +34,7 @@ class DeviceIdGuardHandler : public PersistentBase<gko::scoped_device_id_guard,
                                                    DeviceIdGuardInitFunctor> {
 public:
     DeviceIdGuardHandler(const objectRegistry &db, const word field_name,
-                         const std::shared_ptr<gko::Executor> executor)
+                         const std::shared_ptr<const gko::Executor> executor)
         : PersistentBase<gko::scoped_device_id_guard, DeviceIdGuardInitFunctor>(
               "scoped_device_id_guard_" + field_name, db,
               DeviceIdGuardInitFunctor(executor), true, 0)

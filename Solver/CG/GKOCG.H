@@ -38,14 +38,14 @@ public:
     CREATE_SOLVER_METHODS(cg)
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(std::shared_ptr<const gko::Executor> exec) const
     {
         auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
         return cg;
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
+    create_precond(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto cg = cg::build()

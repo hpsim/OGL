@@ -190,7 +190,7 @@ public:
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory>
-    build_dist_stopping_criterion(std::shared_ptr<gko::Executor> device_exec,
+    build_dist_stopping_criterion(std::shared_ptr<const gko::Executor> device_exec,
                                   std::shared_ptr<const gko::LinOp> gkomatrix,
                                   std::shared_ptr<const dist_vec> x,
                                   std::shared_ptr<const dist_vec> b,

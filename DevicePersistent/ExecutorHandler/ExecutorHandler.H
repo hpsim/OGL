@@ -150,12 +150,12 @@ public:
     }
 
 
-    const std::shared_ptr<gko::Executor> get_device_exec() const
+    std::shared_ptr<const gko::Executor> get_device_exec() const
     {
         return this->get_persistent_object();
     }
 
-    const std::shared_ptr<gko::Executor> get_ref_exec() const
+    std::shared_ptr<const gko::Executor> get_ref_exec() const
     {
         return get_device_exec()->get_master();
     }

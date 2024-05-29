@@ -54,7 +54,7 @@ public:
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec,
+    create_default(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                    std::shared_ptr<vec> b, const label verbose) const
     {
@@ -77,7 +77,7 @@ public:
 
     std::unique_ptr<gko::solver::Ir<scalar>::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_scalar_jacobi(std::shared_ptr<gko::Executor> exec,
+    create_scalar_jacobi(std::shared_ptr<const gko::Executor> exec,
                          std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                          std::shared_ptr<vec> b, const label verbose) const
     {

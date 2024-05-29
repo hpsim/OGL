@@ -86,7 +86,7 @@ public:
                                                                 label(10))){};
 
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
-    create_dist_solver(std::shared_ptr<gko::Executor> exec,
+    create_dist_solver(std::shared_ptr<const gko::Executor> exec,
                        std::shared_ptr<gko::LinOp> gkomatrix,
                        std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> b,
                        const label verbose, const bool export_res,
@@ -143,7 +143,7 @@ public:
 
     // Create solver
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
-    create_solver(std::shared_ptr<gko::Executor> exec,
+    create_solver(std::shared_ptr<const gko::Executor> exec,
                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                   std::shared_ptr<vec> b, const label verbose,
                   const bool export_res,
