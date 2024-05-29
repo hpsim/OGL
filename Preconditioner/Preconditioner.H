@@ -46,7 +46,7 @@ public:
     template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
         std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<const gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
         if (Pstream::parRun()) {
@@ -65,7 +65,7 @@ public:
     template <typename PrecondFactory, typename Factorization>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
         std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<const gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond,
         std::shared_ptr<Factorization> factorization) const
     {
@@ -82,7 +82,7 @@ public:
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
         std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        std::shared_ptr<const gko::Executor> device_exec) const
     {
         bool skip_sorting =
             controls.lookupOrDefault<Switch>("skipSorting", true);
@@ -351,8 +351,8 @@ public:
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
         const fileName path = precond_store_name;

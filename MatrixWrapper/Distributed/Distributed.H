@@ -163,7 +163,7 @@ public:
     }
 
 
-    std::shared_ptr<part_type> get_partition() { return this->partition_; }
+    std::shared_ptr<const part_type> get_partition() const { return this->partition_; }
 
     static std::shared_ptr<RepartDistMatrix> create(
         word matrix_format, const Repartitioner &repartitioner,

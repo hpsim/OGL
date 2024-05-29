@@ -68,7 +68,7 @@ struct DistributedMatrixInitFunctor {
     {}
 
     void update(
-        std::shared_ptr<RepartDistMatrix<scalar, label, label>> persistent_device_matrix) const
+        std::shared_ptr< RepartDistMatrix<scalar, label, label>> persistent_device_matrix) const
     {
         // persistent_device_matrix->update();
     }
@@ -94,7 +94,7 @@ private:
 
     const word field_name_;
 
-    mutable PersistentBase<RepartDistMatrix<scalar, label, label>, DistributedMatrixInitFunctor> host_matrix_;
+    mutable PersistentBase< RepartDistMatrix<scalar, label, label>, DistributedMatrixInitFunctor> host_matrix_;
 
 
 public:
@@ -120,7 +120,7 @@ public:
               verbose_}
     {}
 
-    std::shared_ptr<RepartDistMatrix<scalar, label, label>> get() const
+    std::shared_ptr<const RepartDistMatrix<scalar, label, label>> get() const
     {
         return host_matrix_.get_persistent_object();
     }
