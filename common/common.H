@@ -1,27 +1,6 @@
-/*---------------------------------------------------------------------------*\
-License
-    This file is part of OGL.
+// SPDX-License-Identifier: GPLv3 
+// SPDX-FileCopyrightText: 2024 OGL authors 
 
-    OGL is free software: you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    OGL is distributed in the hope that it will be useful, but WITHOUT
-    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-    for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
-
-
-Author: Gregor Olenik <go@hpsim.de>
-
-SourceFiles
-    common.H
-
-\*---------------------------------------------------------------------------*/
 #ifndef OGL_COMMON_H
 #define OGL_COMMON_H
 
