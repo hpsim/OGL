@@ -260,6 +260,46 @@ public:
             sparse_comm);
 
 
+
+        std::cout << __FILE__ << " on rank " << rank << " make_shared "
+                  << " dist_A size " << dist_A->get_size() << "\n";
+        auto ret = std::make_shared<RepartDistMatrix>(
+            exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
+            std::move(dist_A));
+        if (rank == 0) {
+            std::cout << __FILE__ << " on rank " << rank
+                      << "done make_shared\n";
+        }
+        update_impl(matrix_format, repartitioner, host_A, ret, local_sparsity_);
+
+
+        return ret;
+    };
+
+    void update(
+        word matrix_format, const Repartitioner &repartitioner,
+        std::shared_ptr<const HostMatrixWrapper> host_A)
+        {
+
+        };
+
+    // TODO matrix_format can be data member
+    static void update_impl(
+        word matrix_format, const Repartitioner &repartitioner,
+        std::shared_ptr<const HostMatrixWrapper> host_A,
+        std::shared_ptr<RepartDistMatrix> dist_A,
+        std::shared_ptr<const SparsityPattern> local_sparsity
+)
+    {
+        auto &exec_handler = host_A.get()->get_exec_handler();
+        auto exec = exec_handler.get_ref_exec();
+        auto device_exec = exec_handler.get_device_exec();
+        auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+        label rank{repartitioner.get_rank()};
+        label owner_rank = repartitioner.get_owner_rank();
+        bool owner = repartitioner.is_owner();
+
+
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
@@ -347,7 +387,7 @@ public:
                 gko::array<scalar>::view(exec, local_elements, local_ptr), 1));
 
             auto mapping_view = gko::array<label>::view(
-                 exec, local_elements, local_sparsity_->ldu_mapping.get_data());
+                 exec, local_elements, local_sparsity->ldu_mapping.get_data());
 
 
             // TODO this needs to copy ldu_mapping to the device
@@ -359,91 +399,6 @@ public:
                           << " done row gather\n";
             }
         }
-
-        std::cout << __FILE__ << " on rank " << rank << " make_shared "
-                  << " dist_A size " << dist_A->get_size() << "\n";
-        auto ret = std::make_shared<RepartDistMatrix>(
-            exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
-            std::move(dist_A));
-        if (rank == 0) {
-            std::cout << __FILE__ << " on rank " << rank
-                      << "done make_shared\n";
-        }
-
-        return ret;
-    };
-
-    // TODO matrix_format can be data member
-    void update(
-        word matrix_format, const Repartitioner &repartitioner,
-        std::shared_ptr<const HostMatrixWrapper> host_A)
-    {
-        auto &exec_handler = host_A.get()->get_exec_handler();
-        auto device_exec = exec_handler.get_device_exec();
-
-        scalar *local_value_ptr{};
-        scalar *non_local_value_ptr{};
-
-        FatalErrorInFunction << "Not implemented" << abort(FatalError);
-        // TODO local matrix is now of type Combination<Csr>
-        // Combination should get an update(gko::array<> coeffs function)
-        //
-        // if (matrix_format == "Csr") {
-        //     local_value_ptr =
-        //         (gko::matrix::Csr<scalar, label>
-        //         *)(dist_mtx_->get_local_matrix())
-        //             ->get_values();
-
-        //     non_local_value_ptr = (gko::matrix::Csr<scalar, label>
-        //     *)dist_mtx_
-        //                               ->get_non_local_matrix()
-        //                               ->get_values();
-        // }
-        // if (matrix_format == "Ell") {
-        //     local_value_ptr =
-        //         (gko::matrix::Ell<scalar, label>
-        //         *)dist_mtx_->get_local_matrix()
-        //             ->get_values();
-
-        //     non_local_value_ptr = (gko::matrix::Ell<scalar, label>
-        //     *)dist_mtx_
-        //                               ->get_non_local_matrix()
-        //                               ->get_values();
-        // }
-        // if (matrix_format == "Coo") {
-        //     local_value_ptr =
-        //         (gko::matrix::Coo<scalar, label>
-        //         *)dist_mtx_->get_local_matrix()
-        //             ->get_values();
-
-        //     non_local_value_ptr = (gko::matrix::Coo<scalar, label>
-        //     *)dist_mtx_
-        //                               ->get_non_local_matrix()
-        //                               ->get_values();
-        // }
-
-        const label local_nnz = local_sparsity_->size_;
-        const label non_local_nnz = non_local_sparsity_->size_;
-        auto local_coeffs = gko::array<scalar>(device_exec, local_nnz);
-        auto non_local_coeffs = gko::array<scalar>(device_exec, non_local_nnz);
-
-        host_A.get()->compute_local_coeffs(local_sparsity_, local_coeffs);
-        host_A.get()->compute_non_local_coeffs(non_local_sparsity_,
-                                               non_local_coeffs);
-
-        auto value_view =
-            val_array::view(device_exec, local_nnz, local_value_ptr);
-
-        auto non_local_view =
-            val_array::view(device_exec, non_local_nnz, non_local_value_ptr);
-
-        value_view = local_coeffs;
-        non_local_view = non_local_coeffs;
-
-        // On update dist_mtx already exists
-        // and only local and non local coeffs need to be updated
-        //
-        // repartition_coeffs(local_device_data, non_local_device_data)
     };
 
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
