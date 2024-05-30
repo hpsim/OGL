@@ -44,34 +44,37 @@ public:
             auto length = interface.length();
             auto offset = interface.begin;
             auto op = gko::share(InnerMatrixType::create(exec));
-            auto rows = gko::array<IndexType>(
-                    exec,
-                    make_const_array_view(data_exec, length,
-                                          data.get_const_row_idxs() + offset)
-                        .copy_to_array());
-            std::cout << __FILE__ << " read combination  interface"
-                      << " offset: " <<  offset << " rows " << rows << " \n";
+            // auto rows = gko::array<IndexType>(
+            //         exec,
+            //         make_const_array_view(data_exec, length,
+            //                               data.get_const_row_idxs() + offset)
+            //             .copy_to_array());
+
+            // std::cout << __FILE__ << " read combination  interface"
+            //           << " data.size() " << data.get_num_stored_elements()
+            //           << " offset: " <<  offset
+            //           << " length: " <<  length
+            //           << " comb_->get_size() " << comb_->get_size()
+            //           << " rows " << rows
+            //           << " \n";
 
 
             device_matrix_data in(
                 exec, comb_->get_size(),
                 gko::array<IndexType>(
                     exec,
-                    make_const_array_view(data_exec, length,
-                                          data.get_const_row_idxs() + offset)
-                        .copy_to_array()),
+                    data.get_const_row_idxs() + offset,
+                    data.get_const_row_idxs() + offset + length),
                 gko::array<IndexType>(
                     exec,
-                    make_const_array_view(data_exec, length,
-                                          data.get_const_col_idxs() + offset)
-                        .copy_to_array()),
+                    data.get_const_col_idxs() + offset,
+                    data.get_const_col_idxs() + offset + length),
                 gko::array<ValueType>(
                     exec,
-                    make_const_array_view(data_exec, length,
-                                          data.get_const_values() + offset)
-                        .copy_to_array()));
+                    data.get_const_values() + offset,
+                    data.get_const_values() + offset + length));
 
-            op->read(std::move(in));
+            op->read(in);
             this->comb_->add_operators(
                 gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
         }

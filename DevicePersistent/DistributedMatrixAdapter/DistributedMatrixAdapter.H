@@ -70,7 +70,10 @@ struct DistributedMatrixInitFunctor {
     void update(
         std::shared_ptr< RepartDistMatrix<scalar, label, label>> persistent_device_matrix) const
     {
-        // persistent_device_matrix->update();
+         persistent_device_matrix->update(
+              solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"),
+              repartitioner_,
+           host_A_.get());
     }
 
     std::shared_ptr<RepartDistMatrix<scalar, label, label>> init() const
