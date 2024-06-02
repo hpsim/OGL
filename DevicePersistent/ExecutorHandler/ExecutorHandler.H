@@ -13,7 +13,6 @@
 namespace Foam {
 
 
-
 struct ExecutorInitFunctor {
     mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
 
@@ -32,7 +31,7 @@ struct ExecutorInitFunctor {
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_( comm_->rank() / gpus_per_rank ),
+          device_id_(comm_->rank() / gpus_per_rank),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
@@ -115,10 +114,8 @@ private:
     const word device_executor_name_;
 
 
-
 public:
-
-    ExecutorHandler(const ExecutorHandler&) = delete;
+    ExecutorHandler(const ExecutorHandler &) = delete;
 
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name)
@@ -169,8 +166,8 @@ public:
             MPI_COMM_WORLD, gko_force_host_buffer_);
     }
 
-    std::shared_ptr<gko::experimental::mpi::communicator>
-    get_communicator() const
+    std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
+        const
     {
         return this->device_comm_;
     }

@@ -24,19 +24,48 @@ SourceFiles
 \*---------------------------------------------------------------------------*/
 #pragma once
 
+/* Vector variant of the SparsityPattern
+**
+*/
+struct SparsityPatternVector {
+    std::vector<label> rows;
+    std::vector<label> cols;
+    std::vector<label> mapping;
+    std::vector<label> begin;
+    std::vector<label> end;
+    std::vector<label> ranks;
+};
+
 struct SparsityPattern {
-    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
-        : size_(size),
-          row_idxs{exec, static_cast<gko::size_type>(size)},
-          col_idxs{exec, static_cast<gko::size_type>(size)},
-          ldu_mapping{exec, static_cast<gko::size_type>(size)}
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec)
+        : size_(0),
+          row_idxs{exec, static_cast<gko::size_type>(size_)},
+          col_idxs{exec, static_cast<gko::size_type>(size_)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size_)},
+          dim(gko::dim<2>{0, 0}),
+          interface_spans(std::vector<gko::span>{}),
+          rank(std::vector<label>{})
     {}
 
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, label size)
+        : size_(size),
+          row_idxs{exec, static_cast<gko::size_type>(size_)},
+          col_idxs{exec, static_cast<gko::size_type>(size_)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size_)}
+    {}
+
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, gko::dim<2> dim,
+                    const SparsityPatternVector &in)
+        : SparsityPattern(exec, in.rows.size(), dim, in.rows, in.cols,
+                          in.mapping, in.begin, in.end, in.ranks) {}
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
-                    gko::dim<2> dim, std::vector<label> &rows,
-                    std::vector<label> &cols, std::vector<label> &map,
-                    std::vector<label> &spans_begin,
-                    std::vector<label> &spans_end, std::vector<label> &ranks)
+                    gko::dim<2> dim, const std::vector<label> &rows,
+                    const std::vector<label> &cols,
+                    const std::vector<label> &map,
+                    const std::vector<label> &spans_begin,
+                    const std::vector<label> &spans_end,
+                    const std::vector<label> &ranks)
         : size_(size),
           dim(dim),
           row_idxs{exec, static_cast<gko::size_type>(size)},
@@ -83,7 +112,19 @@ struct SparsityPattern {
     // this is used to keep all col and row idx consecutive in memory
     mutable std::vector<gko::span> interface_spans;
 
-    // keep track of original (communication) rank of each interface or matrix
+    // keep track of communication rank id of each interface or matrix
     // block
     mutable std::vector<label> rank;
 };
+
+// struct SparsityDataMap {
+
+//     SparsityDataMap (
+//         const SparsityPattern& pattern_in,
+//     {}
+
+//     const SparsityPattern& pattern;
+
+//     const vector<scalar*> data;
+
+// };

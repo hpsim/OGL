@@ -38,7 +38,7 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls) {};
 
     CREATE_SOLVER_METHODS(gmres)
 
@@ -137,10 +137,10 @@ public:
              const lduInterfaceFieldPtrsList &interfaces,
              const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls) {};
 
     //- Destructor
-    virtual ~GKOGMRES(){};
+    virtual ~GKOGMRES() {};
 
 
     // Member Functions

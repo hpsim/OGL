@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------* \
 License
     This file is part of OGL.
 
@@ -123,7 +123,7 @@ public:
         auto local_sizes =
             gather_to_owner(exec_handler, comm_pattern, 1, data.data());
 
-        return std::accumulate(local_sizes.begin(), local_sizes.end(),0);
+        return std::accumulate(local_sizes.begin(), local_sizes.end(), 0);
     }
 
     label get_repart_size() const { return repart_size_; }
@@ -138,8 +138,75 @@ public:
         return orig_partition_;
     };
 
-    std::pair<std::shared_ptr<SparsityPattern>,
-              std::shared_ptr<SparsityPattern>>
+
+    /* @brief given received interfaces this function sorts into local and non
+     *local
+     * returns: SparsityPatternVector storing new non_local sparsity pattern,
+     *  and a pair of locality information, where the first bool stores if the
+     *  interface performs a local communication and the second bool if the
+     *  the interface was originally from this rank
+     */
+    std::pair<SparsityPatternVector, std::vector<bool>>
+    build_non_local_interfaces(SparsityPatternVector &loc,
+                               const SparsityPatternVector &non_loc) const
+    {
+        std::vector<label> rows, cols, ldu_mapping, ranks, begins, ends;
+        std::vector<bool> is_local;
+        label merged_ranks_size = non_loc.ranks.size();
+
+        for (label i = 0; i < merged_ranks_size; i++) {
+            // these are the begin ends before merging they need to be
+            // offseted;
+            auto begin = non_loc.begin[i];
+            auto end = non_loc.end[i];
+            bool local = reparts_to_local(non_loc.ranks[i]);
+            is_local.push_back(local);
+            if (local) {
+                // TODO depending on the interface simple non
+                // transforming and interpolating interfaces like now
+                // local processor interfaces could be merged
+                loc.begin.push_back(loc.rows.size());
+                loc.rows.insert(loc.rows.end(), non_loc.rows.begin() + begin,
+                                non_loc.rows.begin() + end);
+                loc.cols.insert(loc.cols.end(), non_loc.cols.begin() + begin,
+                                non_loc.cols.begin() + end);
+                loc.mapping.insert(loc.mapping.end(),
+                                   non_loc.mapping.data() + begin,
+                                   non_loc.mapping.data() + end);
+                // TODO store from rank ie from which rank it came
+                // this is currently unused
+                loc.end.push_back(loc.rows.size());
+                loc.ranks.push_back(non_loc.ranks[i]);
+            } else {
+                begins.push_back(rows.size());
+                rows.insert(rows.end(), non_loc.rows.begin() + begin,
+                            non_loc.rows.begin() + end);
+                cols.insert(cols.end(), non_loc.cols.begin() + begin,
+                            non_loc.cols.begin() + end);
+                // NOTE we don't do anything with non local mapping
+                ldu_mapping.insert(ldu_mapping.end(),
+                                   non_loc.cols.begin() + begin,
+                                   non_loc.cols.begin() + end);
+                ends.push_back(rows.size());
+                ranks.push_back(get_owner_rank(non_loc.ranks[i]));
+            }
+        }
+        return std::make_pair(
+            SparsityPatternVector{rows, cols, ldu_mapping, begins, ends, ranks},
+            is_local);
+    }
+
+
+    /*
+    ** returns the the new sparsity patterns (local and non-local) and a vector
+    ** tracking the interfaces. This contains a pair where the first entry
+    *(bool)
+    ** signals whether this is a new local interface (no communication), and the
+    ** second entry (label) tracks the original rank of the interface
+    */
+    std::tuple<std::shared_ptr<SparsityPattern>,
+               std::shared_ptr<SparsityPattern>,
+               std::vector<std::pair<bool, label>>>
     repartition_sparsity(
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const
@@ -173,37 +240,44 @@ public:
                                    data.get_data(), offset);
         };
 
-        std::cout << __FILE__ << " rank " << rank << "before gathered_local\n";
-        auto merged_local_rows = gather_closure(
-            local_comm_pattern, src_local_pattern->row_idxs, offset);
+        SparsityPatternVector merged_local{
+            gather_closure(local_comm_pattern, src_local_pattern->row_idxs,
+                           offset),
+            gather_closure(local_comm_pattern, src_local_pattern->col_idxs,
+                           offset),
+            gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping,
+                           0),
+            std::vector<label>{0},
+            std::vector<label>{0},
+            std::vector{rank}};
+        merged_local.end[0] = merged_local.rows.size();
 
-        auto merged_local_cols = gather_closure(
-            local_comm_pattern, src_local_pattern->col_idxs, offset);
-
-        auto merged_ldu_mapping = gather_closure(
-            local_comm_pattern, src_local_pattern->ldu_mapping, 0);
 
         if (is_owner()) {
-            make_ldu_mapping_consecutive(local_comm_pattern, merged_ldu_mapping,
-                                         rank, ranks_per_gpu);
+            make_ldu_mapping_consecutive(
+                local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
         }
 
-        label rows = (is_owner()) ? merged_local_rows.back() + 1 : 0;
+        label rows = (is_owner()) ? merged_local.rows.back() + 1 : 0;
         gko::dim<2> merged_local_dim{rows, rows};
-
-        std::vector<label> merged_begin{0};
-        std::vector<label> merged_end{label(merged_local_rows.size())};
-        std::vector<label> merged_ranks{rank};
 
         auto non_local_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, src_non_local_pattern->size_);
 
-        auto merged_non_local_rows = gather_closure(
-            non_local_comm_pattern, src_non_local_pattern->row_idxs, offset);
-        std::cout << __FILE__ << " rank " << rank << " gathered_non_local\n";
+        std::vector<label> spans_begin;
+        std::vector<label> spans_end;
+        auto span_comm_pattern = compute_send_recv_counts(
+            exec_handler, ranks_per_gpu,
+            src_non_local_pattern->interface_spans.size());
+        for (auto elem : src_non_local_pattern->interface_spans) {
+            spans_begin.push_back(elem.begin);
+            spans_end.push_back(elem.end);
+        }
 
         // the non local cols are in local idx of other side
         // thus we need the new offset of the other side
+        // NOTE TODO this modifies src_non_local_pattern better do the offsets
+        // on the owner side after gathering
         for (label i = 0; i < src_non_local_pattern->rank.size(); i++) {
             auto comm_rank = src_non_local_pattern->rank[i];
             auto [begin, end] = src_non_local_pattern->interface_spans[i];
@@ -215,174 +289,105 @@ public:
             std::transform(data, data + size, data,
                            [&](label idx) { return idx + local_offset; });
         }
-        std::cout << __FILE__ << " rank " << rank << " done offset non_local\n";
 
-        // we now dealed with the new offset thus we dont need an offset
-        // now
-        auto merged_non_local_cols = gather_closure(
-            non_local_comm_pattern, src_non_local_pattern->col_idxs, 0);
-
-        auto merged_non_local_ldu_mapping = gather_closure(
-            non_local_comm_pattern, src_non_local_pattern->row_idxs, 0);
-
-        auto span_comm_pattern = compute_send_recv_counts(
-            exec_handler, ranks_per_gpu,
-            src_non_local_pattern->interface_spans.size());
-
-        std::cout << __FILE__ << " rank " << rank << " done merged non_local\n";
-
-        std::vector<label> spans_begin;
-        std::vector<label> spans_end;
-
-        for (auto elem : src_non_local_pattern->interface_spans) {
-            spans_begin.push_back(elem.begin);
-            spans_end.push_back(elem.end);
-        }
-
-        auto merged_non_local_begin =
+        SparsityPatternVector merged_non_local{
+            gather_closure(non_local_comm_pattern,
+                           src_non_local_pattern->row_idxs, offset),
+            gather_closure(non_local_comm_pattern,
+                           src_non_local_pattern->col_idxs, 0),
+            gather_closure(non_local_comm_pattern,
+                           src_non_local_pattern->row_idxs, 0),
             gather_to_owner(exec_handler, span_comm_pattern, spans_begin.size(),
-                            spans_begin.data());
-
-        auto merged_non_local_end =
+                            spans_begin.data()),
             gather_to_owner(exec_handler, span_comm_pattern, spans_end.size(),
-                            spans_end.data());
+                            spans_end.data()),
+            gather_to_owner(exec_handler, span_comm_pattern,
+                            src_non_local_pattern->rank.size(),
+                            src_non_local_pattern->rank.data())};
 
-        auto merged_non_local_ranks = gather_to_owner(
-            exec_handler, span_comm_pattern, src_non_local_pattern->rank.size(),
-            src_non_local_pattern->rank.data());
-
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << " merged_non_local.ranks" << merged_non_local.ranks
+                  << "\n";
 
         if (is_owner()) {
             make_begin_and_ends_consecutive(
-                span_comm_pattern, merged_non_local_begin, merged_non_local_end,
+                span_comm_pattern, merged_non_local.begin, merged_non_local.end,
                 rank, ranks_per_gpu);
         }
 
+        auto [gathered_non_local, is_local] =
+            build_non_local_interfaces(merged_local, merged_non_local);
 
-        // TODO remove
-        //     if (rank == 0) {
-        // std::cout << __FILE__ << " on rank " << rank << "
-        // merged_begin"
-        //           << merged_begin
-        //           << " span_recv_counts " << span_recv_counts
-        //           << " span_recv_offsets " << span_recv_offsets
-        //           << " merged_non_local_begins " <<
-        //           merged_non_local_begin
-        //           << " merged_non_local_end " << merged_non_local_end
-        //           << " merged_end " << merged_end
-        //           << " merged_non_local_rows " <<
-        //           merged_non_local_rows
-        //           << " merged_ranks " << merged_non_local_ranks <<
-        //           "\n";
-        // }
+        // build vector with locality information
+        std::vector<std::pair<bool, label>> locality;
 
-        // TODO shorten this
-        std::vector<label> gathered_non_local_rows;
-        std::vector<label> gathered_non_local_cols;
-        std::vector<label> gathered_non_local_mapping;
-        std::vector<label> gathered_ranks;
-        std::vector<label> gathered_begin;
-        std::vector<label> gathered_end;
-        label merged_ranks_size = merged_non_local_ranks.size();
-        // redistribute interfaces
-        for (label i = 0; i < merged_ranks_size; i++) {
-            auto merged_target_rank = merged_non_local_ranks[i];
-            label to_rank = get_owner_rank(merged_target_rank);
-            bool local = rank == to_rank;
-            // these are the begin ends before merging they need to be
-            // offseted;
-            auto begin = merged_non_local_begin[i];
-            auto end = merged_non_local_end[i];
-            if (local) {
-                // TODO depending on the interface simple non
-                // transforming and interpolating interfaces like now
-                // local processor interfaces could be merged
-                label size_before = merged_local_rows.size();
-                merged_local_rows.insert(merged_local_rows.end(),
-                                         merged_non_local_rows.begin() + begin,
-                                         merged_non_local_rows.begin() + end);
-                merged_local_cols.insert(merged_local_cols.end(),
-                                         merged_non_local_cols.begin() + begin,
-                                         merged_non_local_cols.begin() + end);
-                merged_ldu_mapping.insert(
-                    merged_ldu_mapping.end(),
-                    merged_non_local_ldu_mapping.data() + begin,
-                    merged_non_local_ldu_mapping.data() + end);
-                // TODO store from rank ie from which rank it came
-                merged_ranks.push_back(to_rank);
-
-                label size_after = merged_local_rows.size();
-                merged_begin.push_back(size_before);
-                merged_end.push_back(size_after);
-                // TODO remove
-                // if (rank == 0) {
-                //     std::cout << __FILE__ << " on rank " << rank
-                //             << " begin " << begin << " end " << end
-                //             << " insert merged_local_rows " <<
-                //             merged_local_rows
-                //             << "\n";
-                //     }
-            } else {
-                label size_before = gathered_non_local_rows.size();
-                gathered_non_local_rows.insert(
-                    gathered_non_local_rows.end(),
-                    merged_non_local_rows.begin() + begin,
-                    merged_non_local_rows.begin() + end);
-                // FIXME
-                // up until now non_local_cols are stil using
-                // local_idx and we need to convert them to
-                // consequtive compressed idxs
-                gathered_non_local_cols.insert(
-                    gathered_non_local_cols.end(),
-                    merged_non_local_cols.begin() + begin,
-                    merged_non_local_cols.begin() + end);
-                // TODO we don't do anything with non local mapping
-                gathered_non_local_mapping.insert(
-                    gathered_non_local_mapping.end(),
-                    merged_non_local_cols.begin() + begin,
-                    merged_non_local_cols.begin() + end);
-                label size_after = gathered_non_local_rows.size();
-                // if (rank == 0) {
-                // std::cout << __FILE__ << " on rank " << rank
-                //         << " gathered_non_local_rows " <<
-                //         gathered_non_local_rows
-                //         << " begin " << begin << " end " << end
-                //         << " non_local size_before " << size_before
-                //         << " non_local size_after " << size_after
-                //         << "\n";
-                // }
-                gathered_begin.push_back(size_before);
-                gathered_end.push_back(size_after);
-                gathered_ranks.push_back(to_rank);
+        auto recv_counts = std::get<1>(span_comm_pattern);
+        label ctr{0};
+        for (int i = 0; i < ranks_per_gpu; i++) {
+            label comm_rank = rank + i;
+            label num_elems = recv_counts[comm_rank];
+            for (int j = 0; j < num_elems; j++) {
+                locality.emplace_back(is_local[ctr], comm_rank);
+                ctr++;
             }
         }
-        std::cout << __FILE__ << " rank " << rank
-                  << " done merged non_local4\n";
+        // All interfaces that are in is_local need to be accounted for
+        ASSERT_EQ(ctr, is_local.size());
 
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << " gathered_non_local.ranks" << gathered_non_local.ranks
+                  << "\n";
         // for compressed cols we compute a mapping first
         std::map<label, label> compressed_col_idxs{};
         label unique_idx = 0;
-        for (auto idx : gathered_non_local_cols) {
+        for (auto idx : gathered_non_local.cols) {
             auto search = compressed_col_idxs.find(idx);
             if (search == compressed_col_idxs.end()) {
-                std::cout << " insert " << idx << " " << unique_idx << "\n";
                 compressed_col_idxs[idx] = unique_idx;
                 unique_idx += 1;
             };
         }
-        std::cout << __FILE__ << " rank " << rank
-                  << " done merged non_local5\n";
 
-        for (int i = 0; i < gathered_non_local_cols.size(); i++) {
-            label uncompressed = gathered_non_local_cols[i];
+        for (int i = 0; i < gathered_non_local.cols.size(); i++) {
+            label uncompressed = gathered_non_local.cols[i];
             label compressed = compressed_col_idxs[uncompressed];
-            std::cout << " i " << i << " uncompressed " << uncompressed
-                      << " compressed " << compressed << "\n";
-            gathered_non_local_cols[i] = compressed;
+            gathered_non_local.cols[i] = compressed;
         }
-        std::cout << __FILE__ << " rank " << rank
-                  << " done merged non_local6\n";
 
+        if (is_owner()) {
+            auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
+                exec, merged_local_dim, merged_local);
+
+            auto new_non_local_spars_pattern =
+                std::make_shared<SparsityPattern>(
+                    exec,
+                    gko::dim<2>{merged_local_dim[0],
+                                gathered_non_local.rows.size()},
+                    gathered_non_local);
+
+            return std::make_tuple<std::shared_ptr<SparsityPattern>,
+                                   std::shared_ptr<SparsityPattern>,
+                                   std::vector<std::pair<bool, label>>>(
+                std::move(new_local_spars_pattern),
+                std::move(new_non_local_spars_pattern), std::move(locality));
+        } else {
+            auto new_local_spars_pattern =
+                std::make_shared<SparsityPattern>(exec);
+
+            auto new_non_local_spars_pattern =
+                std::make_shared<SparsityPattern>(exec);
+
+            new_local_spars_pattern->dim = merged_local_dim;
+            new_non_local_spars_pattern->dim = merged_local_dim;
+
+            return std::make_tuple<std::shared_ptr<SparsityPattern>,
+                                   std::shared_ptr<SparsityPattern>,
+                                   std::vector<std::pair<bool, label>>>(
+                std::move(new_local_spars_pattern),
+                std::move(new_non_local_spars_pattern),
+                std::vector<std::pair<bool, label>>{});
+        }
+        // TODO Some old documentation see what is still needed
         // add interfaces
         // to add interfaces we go through the non_local_sparsity
         // pattern and check if interface is still non_local
@@ -400,52 +405,6 @@ public:
         // for this we could store ranges when computing
         // repartition_comm_pattern
         //
-
-
-        if (is_owner()) {
-            auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
-                exec, merged_local_rows.size(), merged_local_dim,
-                merged_local_rows, merged_local_cols, merged_ldu_mapping,
-                merged_begin, merged_end, merged_ranks);
-
-            // if (rank == 0) {
-            // std::cout << __FILE__ << " on rank " << rank
-            //           << merged_local_rows
-            //           << " merged_begin " <<  merged_begin
-            //           << " merged_end " <<  merged_end
-            //           << "local dim ["
-            //           << new_local_spars_pattern->dim[0] << " x "
-            //           << new_local_spars_pattern->dim[1] << "] \n";
-            //         }
-
-            auto new_non_local_spars_pattern =
-                std::make_shared<SparsityPattern>(
-                    exec, gathered_non_local_rows.size(),
-                    gko::dim<2>{merged_local_dim[0],
-                                gathered_non_local_rows.size()},
-                    gathered_non_local_rows, gathered_non_local_cols,
-                    gathered_non_local_mapping, gathered_begin, gathered_end,
-                    gathered_ranks);
-
-            return std::make_pair<std::shared_ptr<SparsityPattern>,
-                                  std::shared_ptr<SparsityPattern>>(
-                std::move(new_local_spars_pattern),
-                std::move(new_non_local_spars_pattern));
-        } else {
-            auto new_local_spars_pattern =
-                std::make_shared<SparsityPattern>(exec, 0);
-
-            auto new_non_local_spars_pattern =
-                std::make_shared<SparsityPattern>(exec, 0);
-
-            new_local_spars_pattern->dim = merged_local_dim;
-            new_non_local_spars_pattern->dim = merged_local_dim;
-
-            return std::make_pair<std::shared_ptr<SparsityPattern>,
-                                  std::shared_ptr<SparsityPattern>>(
-                std::move(new_local_spars_pattern),
-                std::move(new_non_local_spars_pattern));
-        }
     }
 
     CommunicationPattern repartition_comm_pattern(
@@ -485,8 +444,6 @@ public:
                 send_idxs.push_back(src_comm_pattern.send_idxs[i]);
             }
         }
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << get_rank()
-                  << " target_ids.size() " << target_ids.size() << "\n";
 
         // send all remaining non local ids and sizes to the new
         // owner rank

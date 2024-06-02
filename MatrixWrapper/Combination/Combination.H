@@ -62,16 +62,13 @@ public:
             device_matrix_data in(
                 exec, comb_->get_size(),
                 gko::array<IndexType>(
-                    exec,
-                    data.get_const_row_idxs() + offset,
+                    exec, data.get_const_row_idxs() + offset,
                     data.get_const_row_idxs() + offset + length),
                 gko::array<IndexType>(
-                    exec,
-                    data.get_const_col_idxs() + offset,
+                    exec, data.get_const_col_idxs() + offset,
                     data.get_const_col_idxs() + offset + length),
                 gko::array<ValueType>(
-                    exec,
-                    data.get_const_values() + offset,
+                    exec, data.get_const_values() + offset,
                     data.get_const_values() + offset + length));
 
             op->read(in);
@@ -94,8 +91,8 @@ public:
      */
     CombinationMatrix &operator=(const CombinationMatrix &other)
     {
-    FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
-                         << abort(FatalError);
+        FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
+                             << abort(FatalError);
     }
 
     /**

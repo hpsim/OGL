@@ -197,9 +197,14 @@ public:
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
 
-        auto [repart_loc_sparsity, repart_non_loc_sparsity] =
+        auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
             repartitioner.repartition_sparsity(local_sparsity_,
                                                non_local_sparsity_);
+
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                << " repart_non_loc_sparsity.rank"
+                <<  repart_non_loc_sparsity->rank
+                << "\n";
 
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
@@ -232,9 +237,9 @@ public:
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
 
-        auto dist_A = generate_dist_mtx_with_inner_type<dist_mtx>(
+        auto dist_A = gko::share(generate_dist_mtx_with_inner_type<dist_mtx>(
             matrix_format, exec, sparse_comm, local_sparsity_,
-            non_local_sparsity_);
+            non_local_sparsity_));
 
         std::cout << __FILE__ << " rank " << rank
                   << " done generate dist_mtx\n";
@@ -260,36 +265,33 @@ public:
             sparse_comm);
 
 
+        update_impl(matrix_format, repartitioner, host_A, dist_A,
+                    local_sparsity_, non_local_sparsity_, src_comm_pattern,
+                    local_interfaces);
 
-        std::cout << __FILE__ << " on rank " << rank << " make_shared "
-                  << " dist_A size " << dist_A->get_size() << "\n";
         auto ret = std::make_shared<RepartDistMatrix>(
             exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
             std::move(dist_A));
-        if (rank == 0) {
-            std::cout << __FILE__ << " on rank " << rank
-                      << "done make_shared\n";
-        }
-        update_impl(matrix_format, repartitioner, host_A, ret, local_sparsity_);
-
 
         return ret;
     };
 
-    void update(
-        word matrix_format, const Repartitioner &repartitioner,
-        std::shared_ptr<const HostMatrixWrapper> host_A)
-        {
+    void update(word matrix_format, const Repartitioner &repartitioner,
+                std::shared_ptr<const HostMatrixWrapper> host_A) {
 
-        };
+    };
 
     // TODO matrix_format can be data member
     static void update_impl(
         word matrix_format, const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A,
-        std::shared_ptr<RepartDistMatrix> dist_A,
-        std::shared_ptr<const SparsityPattern> local_sparsity
-)
+        std::shared_ptr<
+            gko::experimental::distributed::Matrix<scalar, label, label>>
+            dist_A,
+        std::shared_ptr<const SparsityPattern> local_sparsity,
+        std::shared_ptr<const SparsityPattern> non_local_sparsity,
+        CommunicationPattern &src_comm_pattern,
+        std::vector<std::pair<bool,label>> local_interfaces)
     {
         auto &exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_ref_exec();
@@ -298,7 +300,8 @@ public:
         label rank{repartitioner.get_rank()};
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
-
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
 
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
@@ -316,29 +319,34 @@ public:
                                      local_matrix_nnz, upper_nnz, nrows);
 
         scalar *local_ptr;
-        label local_interfaces_count = 0;
 
-        // update values
+        // update main values
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << " is owner " << owner << "done coeffs\n";
         if (owner) {
             using Coo = gko::matrix::Coo<scalar, label>;
+            auto local_mtx = dist_A->get_local_matrix();
+            std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                      << "done coeffs\n";
+
             std::shared_ptr<const Coo> local =
                 gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
                                  dist_A->get_local_matrix())
                                  ->get_combination()
                                  ->get_operators()[0]);
-            local_interfaces_count =
-                gko::as<CombinationMatrix<scalar, label, Coo>>(
-                    dist_A->get_local_matrix())
-                    ->get_combination()
-                    ->get_operators()
-                    .size();
-
             local_ptr = const_cast<scalar *>(local->get_const_values());
         }
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
         communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                            local_ptr);
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
         communicate_values(exec_handler, upper_comm_pattern,
                            host_A->get_upper(), local_ptr);
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
+
         if (host_A->symmetric()) {
             // TODO FIXME
             // if symmetric we can reuse already copied data
@@ -348,24 +356,102 @@ public:
             communicate_values(exec_handler, lower_comm_pattern,
                                host_A->get_lower(), local_ptr);
         }
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
 
+
+        auto comm = *exec_handler.get_communicator().get();
         if (owner) {
-            // next update local and non_local interfaces
-            // TODO FIXME
-            for (int i = 1; i < local_interfaces_count; i++) {
-                using Coo = gko::matrix::Coo<scalar, label>;
-                std::shared_ptr<const Coo> local =
-                    gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
-                                     dist_A->get_local_matrix())
-                                     ->get_combination()
-                                     ->get_operators()[i]);
-                local_ptr = const_cast<scalar *>(local->get_const_values());
+            using Coo = gko::matrix::Coo<scalar, label>;
+            std::shared_ptr<const Coo> mtx;
+            label loc_ctr{1};
+            label nloc_ctr{0};
+            label host_interface_ctr{0};
+            label tag = 0;
+            label comm_rank, comm_size;
+            scalar *recv_buffer_ptr;
+            label remain_host_interfaces = host_A->get_interface_size();
+            for (auto [is_local,comm_rank] : local_interfaces) {
+                label &ctr = (is_local) ? loc_ctr : nloc_ctr;
+                if (is_local) {
+                    mtx = gko::as<Coo>(
+                        gko::as<CombinationMatrix<scalar, label, Coo>>(
+                            dist_A->get_local_matrix())
+                            ->get_combination()
+                            ->get_operators()[ctr]);
+                    comm_size = local_sparsity->interface_spans[ctr].length();
+                } else {
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " non local update\n";
+                    mtx = gko::as<Coo>(
+                        gko::as<CombinationMatrix<scalar, label, Coo>>(
+                            dist_A->get_non_local_matrix())
+                            ->get_combination()
+                            ->get_operators()[ctr]);
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " non local update\n";
+                    comm_size =
+                        non_local_sparsity->interface_spans[ctr].length();
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " non local update\n";
+                    // FIXME this is the communication target not the origin
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " comm_rank " << comm_rank << " comm_size " << comm_size
+                            << " non local update\n";
+                }
+                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
-                // for (int j = 0; j < 10; j++) {
-                //     local_ptr[j] = 1.0;
-                // }
+                // TODO this test is not sufficient
+                // we can determine the number of local data interfaces from the
+                // original matrix since the local interfaces are stored first
+                //
+                //
+                // thus the first n interfaces are from this rank regardless of
+                // the locality
+                // only communicate if data is on on other rank, ie interface orignaly from other
+                // rank
+                if (comm_rank != rank) {
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " recv from "
+                            << comm_rank << " size " << comm_size << "\n";
+                    comm.recv(exec, recv_buffer_ptr, comm_size, comm_rank, tag);
+                } else {
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " remain_host_interfaces "
+                            << remain_host_interfaces << " owner rank update\n";
+                    // if data is already on this rank
+                    auto data_view = gko::array<scalar>::const_view(
+                        exec, comm_size,
+                        host_A->get_interface_data(host_interface_ctr));
+
+                    // TODO FIXME this needs target executor
+                    auto target_view = gko::array<scalar>::view(
+                        exec, comm_size, recv_buffer_ptr);
+
+                    target_view = data_view;
+
+                    host_interface_ctr++;
+                    remain_host_interfaces--;
+                }
+                ctr++;
+            }
+        } else {
+            // the non owner has send all its interfaces to owner
+            // thus all values need to be communicated to the owner as well
+            label num_interfaces = src_comm_pattern.target_ids.get_size();
+            label tag = 0;
+            for (int i = 0; i < num_interfaces; i++) {
+                label comm_size =
+                    src_comm_pattern.target_sizes.get_const_data()[i];
+                const scalar *send_buffer_ptr = host_A->get_interface_data(i);
+                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                            << " send to "
+                            << owner_rank << " size " << comm_size << "\n";
+                comm.send(exec, send_buffer_ptr, comm_size, owner_rank, tag);
             }
         }
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << "done coeffs\n";
 
         // reorder updated values
         if (owner) {
@@ -387,13 +473,12 @@ public:
                 gko::array<scalar>::view(exec, local_elements, local_ptr), 1));
 
             auto mapping_view = gko::array<label>::view(
-                 exec, local_elements, local_sparsity->ldu_mapping.get_data());
+                exec, local_elements, local_sparsity->ldu_mapping.get_data());
 
 
             // TODO this needs to copy ldu_mapping to the device
             auto dense_vec = row_collection->clone();
-            dense_vec->row_gather(&mapping_view,
-                                  row_collection.get());
+            dense_vec->row_gather(&mapping_view, row_collection.get());
             if (rank == 0) {
                 std::cout << __FILE__ << " on rank " << rank
                           << " done row gather\n";
@@ -404,7 +489,7 @@ public:
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
                      communicator comm, gko::dim<2> local_size,
                      gko::dim<2> global_size,
-                     std::unique_ptr<dist_mtx> dist_mtx)
+                     std::shared_ptr<dist_mtx> dist_mtx)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           dist_mtx_(std::move(dist_mtx))
@@ -512,7 +597,7 @@ protected:
 
 
 private:
-    std::unique_ptr<dist_mtx> dist_mtx_;
+    std::shared_ptr<dist_mtx> dist_mtx_;
 
     std::shared_ptr<part_type> partition_;
 

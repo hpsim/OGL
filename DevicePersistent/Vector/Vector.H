@@ -11,8 +11,8 @@
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 #include "DevicePersistent/Partition/Partition.H"
-#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
+#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 #include "Repartitioner/Repartitioner.H"
 #include "common/common.H"
 
@@ -40,8 +40,8 @@ struct VectorInitFunctor {
     const label size_;
 
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
-        const Repartitioner & repartitioner,
-                      const T *other, const label size, const label verbose,
+                      const Repartitioner &repartitioner, const T *other,
+                      const label size, const label verbose,
                       const bool on_device = false)
         : name_(name),
           repartitioner_(repartitioner),
@@ -79,30 +79,35 @@ struct VectorInitFunctor {
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
-        std::cout << __FILE__  << __LINE__ << " on rank " << rank << " before host view \n";
+        std::cout << __FILE__ << __LINE__ << " on rank " << rank
+                  << " before host view \n";
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
         std::cout << __FILE__ << " on rank " << rank << " done host view \n";
 
         // FIXME this shouldn't be needed here also not during an
         // update
-        auto comm_pattern =
-            compute_send_recv_counts(
+        auto comm_pattern = compute_send_recv_counts(
             exec_, repartitioner_.get_ranks_per_gpu(), local_size);
 
         // this should happen on device
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << " before local coeffs  \n" << std::endl;
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
+                  << " before local coeffs  \n"
+                  << std::endl;
         auto local_coeffs = gko::array<scalar>(exec, repart_size);
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << " done local coeffs  \n";
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
+                  << " done local coeffs  \n";
 
         communicate_values(exec_, comm_pattern, host_view.get_data(),
-                        local_coeffs.get_data());
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << "  gather_to_owner done \n";
+                           local_coeffs.get_data());
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
+                  << "  gather_to_owner done \n";
 
-        auto ret =  gko::share(dist_vec::create(
+        auto ret = gko::share(dist_vec::create(
             exec, *comm.get(),
             vec::create(exec, gko::dim<2>{repart_size, 1}, local_coeffs, 1)));
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank << "  done dist vector create \n";
+        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
+                  << "  done dist vector create \n";
         return ret;
     }
 };
@@ -146,15 +151,15 @@ public:
      * @param ranks_per_gpu
      */
     PersistentVector(const T *memory, const label size, const word name,
-                     const Repartitioner & repartitioner,
+                     const Repartitioner &repartitioner,
                      const objectRegistry &db, const ExecutorHandler &exec,
                      const label verbose, const bool update,
                      const bool init_on_device)
         : PersistentBase<gko::experimental::distributed::Vector<T>,
                          VectorInitFunctor<T>>(
               name, db,
-              VectorInitFunctor<T>(exec, name, repartitioner, memory, size, verbose,
-                                   init_on_device),
+              VectorInitFunctor<T>(exec, name, repartitioner, memory, size,
+                                   verbose, init_on_device),
               update, verbose),
           db_(db),
           name_(name),
@@ -171,7 +176,8 @@ public:
         // TODO FIXME
         // auto ref_exec = exec_.get_ref_exec();
         // auto host_buffer_view = gko::array<T>::view(
-        //     exec_.get_device_exec(), size_, get_vector()->get_local_values());
+        //     exec_.get_device_exec(), size_,
+        //     get_vector()->get_local_values());
 
         // auto to_view =
         //     gko::array<T>::view(ref_exec, size_, const_cast<T *>(memory_));

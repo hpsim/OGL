@@ -104,7 +104,7 @@ struct CommunicationPattern {
           send_idxs(idxs)
     {
         ASSERT_EQ(target_ids.get_size(), target_sizes.get_size());
-        //ASSERT_EQ(target_ids.get_size(), send_idxs.size());
+        // ASSERT_EQ(target_ids.get_size(), send_idxs.size());
     };
 
     const gko::experimental::mpi::communicator &get_comm() const

@@ -91,8 +91,7 @@ class StoppingCriterion {
          * or rewritten as || r - ( b - x* ) || + || (b - x*) ||
          *  */
         scalar compute_normfactor_dist(
-            std::shared_ptr<const gko::Executor> device_exec,
-            const dist_vec* r,
+            std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
             std::shared_ptr<const gko::LinOp> gkomatrix,
             std::shared_ptr<const dist_vec> x,
             std::shared_ptr<const dist_vec> b) const;
@@ -190,13 +189,12 @@ public:
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory>
-    build_dist_stopping_criterion(std::shared_ptr<const gko::Executor> device_exec,
-                                  std::shared_ptr<const gko::LinOp> gkomatrix,
-                                  std::shared_ptr<const dist_vec> x,
-                                  std::shared_ptr<const dist_vec> b,
-                                  label verbose, bool export_res,
-                                  label prev_solve_iters,
-                                  scalar prev_rel_cost) const
+    build_dist_stopping_criterion(
+        std::shared_ptr<const gko::Executor> device_exec,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b,
+        label verbose, bool export_res, label prev_solve_iters,
+        scalar prev_rel_cost) const
     {
         label minIter = minIter_;
         label frequency = frequency_;

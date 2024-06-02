@@ -27,7 +27,7 @@ public:
           db_(db),
           sysMatrixName_(sysMatrixName),
           preconditioner_(solverControls_.lookupOrDefault("preconditioner",
-                                                          word("none"))){};
+                                                          word("none"))) {};
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
@@ -92,10 +92,10 @@ public:
            const LduMatrix<vector, scalar, scalar> &matrix,
            const dictionary &solverControls)
         : GKOLduBaseSolver<vector, scalar, GKOACGFactory>(fieldName, matrix,
-                                                          solverControls){};
+                                                          solverControls) {};
 
     //- Destructor
-    virtual ~GKOACG(){};
+    virtual ~GKOACG() {};
 
 
     // Member Functions

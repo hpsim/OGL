@@ -81,8 +81,6 @@ void make_begin_and_ends_consecutive(
     label ranks_per_gpu);
 
 
-
-
 // Free functions
 const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
@@ -289,6 +287,8 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
+    mutable std::vector<const scalar*> interface_ptr_;
+
     /* Iterates all interfaces and collects the coefficients into a vector
     **
     ** @param local whether local or non local coefficients should be collected
@@ -413,6 +413,13 @@ public:
     CommunicationPattern create_communication_pattern(
         const gko::experimental::mpi::communicator &comm) const;
 
+    label get_interface_size() const {
+        return interface_ptr_.size();
+    } const;
+
+    const scalar* get_interface_data(label i) const {
+        return interface_ptr_[i];
+    } const;
 
     bool get_verbose() const { return verbose_; }
 

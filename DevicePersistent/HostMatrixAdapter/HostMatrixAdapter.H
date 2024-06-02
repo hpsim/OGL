@@ -56,8 +56,7 @@ struct lduMatrixInitFunctor {
     const dictionary &solver_controls_;
 
     lduMatrixInitFunctor(const objectRegistry &db, const ExecutorHandler &exec,
-                         const label verbose,
-                         const word field_name,
+                         const label verbose, const word field_name,
                          const lduMatrix &matrix,
                          const FieldField<Field, scalar> &interfaceBouCoeffs,
                          const FieldField<Field, scalar> &interfaceIntCoeffs,
@@ -88,10 +87,9 @@ struct lduMatrixInitFunctor {
         return HostMatrixWrapper::create(
             exec_, db_, matrix_.diag().size(), matrix_.upper().size(),
             matrix_.symmetric(), matrix_.diag().begin(),
-            matrix_.upper().begin(), matrix_.lower().begin(),
-            matrix_.lduAddr(), interfaceBouCoeffs_,
-            interfaceIntCoeffs_, interfaces_, solver_controls_, field_name_,
-            verbose_);
+            matrix_.upper().begin(), matrix_.lower().begin(), matrix_.lduAddr(),
+            interfaceBouCoeffs_, interfaceIntCoeffs_, interfaces_,
+            solver_controls_, field_name_, verbose_);
     }
 };
 
@@ -107,26 +105,26 @@ private:
 
     const word field_name_;
 
-    mutable PersistentBase<HostMatrixWrapper, lduMatrixInitFunctor> host_matrix_;
+    mutable PersistentBase<HostMatrixWrapper, lduMatrixInitFunctor>
+        host_matrix_;
 
 
 public:
-    template<typename matrixType>
-    PersistentHostMatrixAdapter(const objectRegistry &db, const ExecutorHandler &exec,
-                  const dictionary &controlDict, const word field_name,
-                  const label verbose,
-                  const matrixType& matrix,
-                  const FieldField<Field, scalar> &interfaceBouCoeffs,
-                  const FieldField<Field, scalar> &interfaceIntCoeffs,
-                  const lduInterfaceFieldPtrsList &interfaces)
+    template <typename matrixType>
+    PersistentHostMatrixAdapter(
+        const objectRegistry &db, const ExecutorHandler &exec,
+        const dictionary &controlDict, const word field_name,
+        const label verbose, const matrixType &matrix,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList &interfaces)
         : db_(db),
           verbose_(verbose),
           field_name_(field_name),
           host_matrix_{
               field_name_ + "_host_matrix", db,
               lduMatrixInitFunctor(db, exec, verbose_,
-                                   field_name + "_host_matrix",
-                                   matrix,
+                                   field_name + "_host_matrix", matrix,
                                    interfaceBouCoeffs, interfaceIntCoeffs,
                                    interfaces, controlDict),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),
