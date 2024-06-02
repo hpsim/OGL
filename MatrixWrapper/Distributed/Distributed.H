@@ -202,9 +202,8 @@ public:
                                                non_local_sparsity_);
 
         std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                << " repart_non_loc_sparsity.rank"
-                <<  repart_non_loc_sparsity->rank
-                << "\n";
+                  << " repart_non_loc_sparsity.rank"
+                  << repart_non_loc_sparsity->rank << "\n";
 
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
@@ -291,7 +290,7 @@ public:
         std::shared_ptr<const SparsityPattern> local_sparsity,
         std::shared_ptr<const SparsityPattern> non_local_sparsity,
         CommunicationPattern &src_comm_pattern,
-        std::vector<std::pair<bool,label>> local_interfaces)
+        std::vector<std::pair<bool, label>> local_interfaces)
     {
         auto &exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_ref_exec();
@@ -371,7 +370,7 @@ public:
             label comm_rank, comm_size;
             scalar *recv_buffer_ptr;
             label remain_host_interfaces = host_A->get_interface_size();
-            for (auto [is_local,comm_rank] : local_interfaces) {
+            for (auto [is_local, comm_rank] : local_interfaces) {
                 label &ctr = (is_local) ? loc_ctr : nloc_ctr;
                 if (is_local) {
                     mtx = gko::as<Coo>(
@@ -381,44 +380,19 @@ public:
                             ->get_operators()[ctr]);
                     comm_size = local_sparsity->interface_spans[ctr].length();
                 } else {
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " non local update\n";
                     mtx = gko::as<Coo>(
                         gko::as<CombinationMatrix<scalar, label, Coo>>(
                             dist_A->get_non_local_matrix())
                             ->get_combination()
                             ->get_operators()[ctr]);
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " non local update\n";
                     comm_size =
                         non_local_sparsity->interface_spans[ctr].length();
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " non local update\n";
-                    // FIXME this is the communication target not the origin
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " comm_rank " << comm_rank << " comm_size " << comm_size
-                            << " non local update\n";
                 }
                 recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
-                // TODO this test is not sufficient
-                // we can determine the number of local data interfaces from the
-                // original matrix since the local interfaces are stored first
-                //
-                //
-                // thus the first n interfaces are from this rank regardless of
-                // the locality
-                // only communicate if data is on on other rank, ie interface orignaly from other
-                // rank
                 if (comm_rank != rank) {
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " recv from "
-                            << comm_rank << " size " << comm_size << "\n";
                     comm.recv(exec, recv_buffer_ptr, comm_size, comm_rank, tag);
                 } else {
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " remain_host_interfaces "
-                            << remain_host_interfaces << " owner rank update\n";
                     // if data is already on this rank
                     auto data_view = gko::array<scalar>::const_view(
                         exec, comm_size,
@@ -433,7 +407,18 @@ public:
                     host_interface_ctr++;
                     remain_host_interfaces--;
                 }
+
                 ctr++;
+                // interface values need to be multiplied by -1
+                //
+                using vec = gko::matrix::Dense<ValueType>;
+                auto neg_one = gko::initialize<vec>({-1.0}, exec);
+                auto interface_dense = vec::create(
+                    exec, gko::dim<2>{comm_size, 1},
+                    gko::array<scalar>::view(exec, comm_size, recv_buffer_ptr),
+                    1);
+
+                interface_dense->scale(neg_one);
             }
         } else {
             // the non owner has send all its interfaces to owner
@@ -444,14 +429,9 @@ public:
                 label comm_size =
                     src_comm_pattern.target_sizes.get_const_data()[i];
                 const scalar *send_buffer_ptr = host_A->get_interface_data(i);
-                    std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                            << " send to "
-                            << owner_rank << " size " << comm_size << "\n";
                 comm.send(exec, send_buffer_ptr, comm_size, owner_rank, tag);
             }
         }
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
 
         // reorder updated values
         if (owner) {
@@ -479,10 +459,6 @@ public:
             // TODO this needs to copy ldu_mapping to the device
             auto dense_vec = row_collection->clone();
             dense_vec->row_gather(&mapping_view, row_collection.get());
-            if (rank == 0) {
-                std::cout << __FILE__ << " on rank " << rank
-                          << " done row gather\n";
-            }
         }
     };
 
