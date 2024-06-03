@@ -415,11 +415,11 @@ public:
 
     label get_interface_size() const {
         return interface_ptr_.size();
-    } const;
+    };
 
     const scalar* get_interface_data(label i) const {
         return interface_ptr_[i];
-    } const;
+    };
 
     bool get_verbose() const { return verbose_; }
 
