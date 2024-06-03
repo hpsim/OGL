@@ -170,7 +170,8 @@ target_sources(
           HostMatrix/HostMatrixFreeFunctions.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
+          Solver/IR/GKOIR.C
+          # Solver / Multigrid / GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
   # LduMatrix / GKOACG / GKOACG.C
   PUBLIC common/common.H
