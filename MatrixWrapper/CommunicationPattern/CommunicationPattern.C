@@ -159,14 +159,9 @@ std::vector<label> gather_to_owner(
 
     std::vector<label> recv_buffer(total_recv_size);
     auto rank = comm.rank();
-    std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-        << "before alltoallv\n";
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer.data(),
                       recv_counts.data(), recv_offsets.data());
-    std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-        << "after alltoallv\n";
-
     return recv_buffer;
 }
 

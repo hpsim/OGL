@@ -252,7 +252,6 @@ public:
             std::vector{rank}};
         merged_local.end[0] = merged_local.rows.size();
 
-
         if (is_owner()) {
             make_ldu_mapping_consecutive(
                 local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
@@ -305,10 +304,6 @@ public:
                             src_non_local_pattern->rank.size(),
                             src_non_local_pattern->rank.data())};
 
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " merged_non_local.ranks" << merged_non_local.ranks
-                  << "\n";
-
         if (is_owner()) {
             make_begin_and_ends_consecutive(
                 span_comm_pattern, merged_non_local.begin, merged_non_local.end,
@@ -320,23 +315,22 @@ public:
 
         // build vector with locality information
         std::vector<std::pair<bool, label>> locality;
-
-        auto recv_counts = std::get<1>(span_comm_pattern);
         label ctr{0};
-        for (int i = 0; i < ranks_per_gpu; i++) {
-            label comm_rank = rank + i;
-            label num_elems = recv_counts[comm_rank];
-            for (int j = 0; j < num_elems; j++) {
-                locality.emplace_back(is_local[ctr], comm_rank);
-                ctr++;
+
+        if (is_owner()) {
+            auto recv_counts = std::get<1>(span_comm_pattern);
+            for (int i = 0; i < ranks_per_gpu; i++) {
+                label comm_rank = rank + i;
+                label num_elems = recv_counts[comm_rank];
+                for (int j = 0; j < num_elems; j++) {
+                    locality.emplace_back(is_local[ctr], comm_rank);
+                    ctr++;
+                }
             }
         }
         // All interfaces that are in is_local need to be accounted for
         ASSERT_EQ(ctr, is_local.size());
 
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " gathered_non_local.ranks" << gathered_non_local.ranks
-                  << "\n";
         // for compressed cols we compute a mapping first
         std::map<label, label> compressed_col_idxs{};
         label unique_idx = 0;
@@ -457,9 +451,6 @@ public:
             gather_to_owner(exec_handler, comm_pattern, target_sizes.size(),
                             target_sizes.data());
 
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << get_rank()
-                  << " gathered_target_ids " << gathered_target_ids << "\n";
-
         // next the send_ixs need to be updated we send them piecewise since
         // the send_idxs are a vector of gko::arrays
         label rank = get_rank();
@@ -568,8 +559,6 @@ public:
                     std::vector<label>(send_idx_begin, send_idx_end));
             }
         }
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << get_rank()
-                  << " gathered_target_ids " << merged_target_ids << "\n";
 
         // recompute send_idxs
         send_idxs.clear();

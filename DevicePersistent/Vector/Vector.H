@@ -79,11 +79,8 @@ struct VectorInitFunctor {
         msg += (on_device_) ? " on device" : " on host";
         LOG_1(verbose_, msg)
 
-        std::cout << __FILE__ << __LINE__ << " on rank " << rank
-                  << " before host view \n";
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
-                                             const_cast<T *>(other_));
-        std::cout << __FILE__ << " on rank " << rank << " done host view \n";
+        auto host_view =
+            gko::array<T>::const_view(exec_.get_ref_exec(), local_size, other_);
 
         // FIXME this shouldn't be needed here also not during an
         // update
@@ -91,23 +88,14 @@ struct VectorInitFunctor {
             exec_, repartitioner_.get_ranks_per_gpu(), local_size);
 
         // this should happen on device
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
-                  << " before local coeffs  \n"
-                  << std::endl;
         auto local_coeffs = gko::array<scalar>(exec, repart_size);
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
-                  << " done local coeffs  \n";
 
-        communicate_values(exec_, comm_pattern, host_view.get_data(),
+        communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                            local_coeffs.get_data());
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
-                  << "  gather_to_owner done \n";
 
         auto ret = gko::share(dist_vec::create(
             exec, *comm.get(),
             vec::create(exec, gko::dim<2>{repart_size, 1}, local_coeffs, 1)));
-        std::cout << __FILE__ << ":" << __LINE__ << " on rank " << rank
-                  << "  done dist vector create \n";
         return ret;
     }
 };

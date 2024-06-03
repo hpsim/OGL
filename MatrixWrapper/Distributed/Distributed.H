@@ -197,6 +197,9 @@ public:
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
 
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << " before repart sparsity \n";
+
         auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
             repartitioner.repartition_sparsity(local_sparsity_,
                                                non_local_sparsity_);
@@ -208,12 +211,12 @@ public:
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
 
-        std::cout << __FILE__ << " rank " << rank
-                  << " build_localized_partition "
-                  << " dim " << local_sparsity_->dim[0] << " send idxs size "
-                  << dst_comm_pattern.send_idxs.size() << " target ids "
-                  << dst_comm_pattern.target_ids << " target sizes "
-                  << dst_comm_pattern.target_sizes << "\n";
+        // std::cout << __FILE__ << " rank " << rank
+        //           << " build_localized_partition "
+        //           << " dim " << local_sparsity_->dim[0] << " send idxs size "
+        //           << dst_comm_pattern.send_idxs.size() << " target ids "
+        //           << dst_comm_pattern.target_ids << " target sizes "
+        //           << dst_comm_pattern.target_sizes << "\n";
 
         auto localized_partition = local_part_type::build_from_blocked_recv(
             exec, local_sparsity_->dim[0], dst_comm_pattern.send_idxs,
@@ -240,8 +243,8 @@ public:
             matrix_format, exec, sparse_comm, local_sparsity_,
             non_local_sparsity_));
 
-        std::cout << __FILE__ << " rank " << rank
-                  << " done generate dist_mtx\n";
+        // std::cout << __FILE__ << " rank " << rank
+        //           << " done generate dist_mtx\n";
 
         auto local_coeffs = gko::array<scalar>(exec, local_sparsity_->size_);
         auto non_local_coeffs =
@@ -299,9 +302,6 @@ public:
         label rank{repartitioner.get_rank()};
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
-
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
@@ -320,13 +320,9 @@ public:
         scalar *local_ptr;
 
         // update main values
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " is owner " << owner << "done coeffs\n";
         if (owner) {
             using Coo = gko::matrix::Coo<scalar, label>;
             auto local_mtx = dist_A->get_local_matrix();
-            std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                      << "done coeffs\n";
 
             std::shared_ptr<const Coo> local =
                 gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
@@ -335,16 +331,10 @@ public:
                                  ->get_operators()[0]);
             local_ptr = const_cast<scalar *>(local->get_const_values());
         }
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
         communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                            local_ptr);
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
         communicate_values(exec_handler, upper_comm_pattern,
                            host_A->get_upper(), local_ptr);
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
 
         if (host_A->symmetric()) {
             // TODO FIXME
@@ -355,9 +345,6 @@ public:
             communicate_values(exec_handler, lower_comm_pattern,
                                host_A->get_lower(), local_ptr);
         }
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << "done coeffs\n";
-
 
         auto comm = *exec_handler.get_communicator().get();
         if (owner) {
@@ -555,7 +542,6 @@ protected:
     // of these are always true in this example).
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
-        std::cout << __FILE__ << __LINE__ << "call apply\n";
         this->dist_mtx_->apply(b, x);
     }
 

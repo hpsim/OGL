@@ -20,13 +20,19 @@ void StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_Axref_dist(
 
     auto xAvg_host = gko::initialize<gko::matrix::Dense<scalar>>(
         1, {0}, device_exec->get_master());
+
     xAvg->move_to(xAvg_host);
     auto xAvg_vec = gko::share(dist_vec::create(
         device_exec, x->get_communicator(), gko::dim<2>{global_size, 1},
         gko::dim<2>{local_size, 1}));
     xAvg_vec->fill(xAvg_host->at(0));
 
+    ASSERT_EQ(xAvg_host->at(0), xAvg_host->at(0));
+
+    std::cout << __FILE__ << ":" << __LINE__
+              << "Axref apply\n";
     gkomatrix->apply(xAvg_vec.get(), res.get());
+    std::cout << __FILE__ << ":" << __LINE__ << "done Axref apply\n";
 }
 
 scalar
@@ -41,6 +47,10 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
     gko::dim<2> local_size = x->get_local_vector()->get_size();
     gko::dim<2> global_size = x->get_size();
 
+    std::cout << __FILE__ << ":" << __LINE__
+              << " setup Axref local_size" << local_size
+              << " global size " << global_size
+              << "before Axref apply\n";
     auto Axref = gko::share(
         dist_vec::create(device_exec, comm, global_size, local_size));
     Axref->fill(0.0);
@@ -74,7 +84,6 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     gko::array<gko::stopping_status> *stop_status, bool *one_changed,
     const Criterion::Updater &updater)
 {
-    std::cout << __FILE__ << ":" << __LINE__ << "Stopping check \n";
     // Dont check residual norm before minIter is reached
     if (*(parameters_.iter) > 0 &&
         *(parameters_.iter) < parameters_.openfoam_minIter) {
@@ -97,6 +106,11 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});
     norm1_host->copy_from(norm1.get());
     scalar residual_norm = norm1_host->at(0);
+
+    if (residual_norm != residual_norm){
+            FatalErrorInFunction << " Problem with residual norm detected: " << residual_norm
+                                 << exit(FatalError);
+    }
 
     bool result = false;
 

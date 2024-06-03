@@ -33,7 +33,6 @@ public:
 
     void read(const device_matrix_data &data) override
     {
-        std::cout << __FILE__ << " read combination \n";
         // TODO FIXME if no matrix is given because of repartitioning
         // which might remove non_local matrix
         // a zero sized dummy matrix needs to be created
@@ -44,20 +43,6 @@ public:
             auto length = interface.length();
             auto offset = interface.begin;
             auto op = gko::share(InnerMatrixType::create(exec));
-            // auto rows = gko::array<IndexType>(
-            //         exec,
-            //         make_const_array_view(data_exec, length,
-            //                               data.get_const_row_idxs() + offset)
-            //             .copy_to_array());
-
-            // std::cout << __FILE__ << " read combination  interface"
-            //           << " data.size() " << data.get_num_stored_elements()
-            //           << " offset: " <<  offset
-            //           << " length: " <<  length
-            //           << " comb_->get_size() " << comb_->get_size()
-            //           << " rows " << rows
-            //           << " \n";
-
 
             device_matrix_data in(
                 exec, comb_->get_size(),
@@ -140,6 +125,7 @@ protected:
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
         if (interface_ranges_.size() > 0) {
+            std::cout << __FILE__ << ":" << __LINE__ << "apply\n";
             this->comb_->apply(b, x);
         }
     }
@@ -152,6 +138,7 @@ protected:
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
         if (interface_ranges_.size() > 0) {
+        std::cout << __FILE__ << ":" << __LINE__ << "apply 2\n";
             this->comb_->apply(alpha, b, beta, x);
         }
     }
