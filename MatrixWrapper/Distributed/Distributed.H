@@ -197,16 +197,9 @@ public:
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
 
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " before repart sparsity \n";
-
         auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
             repartitioner.repartition_sparsity(local_sparsity_,
                                                non_local_sparsity_);
-
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " repart_non_loc_sparsity.rank"
-                  << repart_non_loc_sparsity->rank << "\n";
 
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
@@ -222,19 +215,19 @@ public:
             exec, local_sparsity_->dim[0], dst_comm_pattern->send_idxs,
             dst_comm_pattern->target_ids, dst_comm_pattern->target_sizes);
 
-        std::cout << __FILE__ << " rank " << rank << " local sparsity size "
-                  << local_sparsity_->size_ << " local sparsity dim ["
-                  << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
-                  << "] non_local sparsity size " << non_local_sparsity_->size_
-                  << " non local sparsity dim [" << non_local_sparsity_->dim[0]
-                  << "x" << non_local_sparsity_->dim[1] << "] target_ids "
-                  << dst_comm_pattern->target_ids << " target_sizes "
-                  << dst_comm_pattern->target_sizes << " target_send_idxs.size "
-                  << dst_comm_pattern->send_idxs.size()
-                  << " non_local_sparsity.size " << non_local_sparsity_->size_
-                  << " get_recv_indices "
-                  << localized_partition->get_recv_indices().get_num_elems()
-                  << " \n";
+        // std::cout << __FILE__ << " rank " << rank << " local sparsity size "
+        //           << local_sparsity_->size_ << " local sparsity dim ["
+        //           << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
+        //           << "] non_local sparsity size " << non_local_sparsity_->size_
+        //           << " non local sparsity dim [" << non_local_sparsity_->dim[0]
+        //           << "x" << non_local_sparsity_->dim[1] << "] target_ids "
+        //           << dst_comm_pattern->target_ids << " target_sizes "
+        //           << dst_comm_pattern->target_sizes << " target_send_idxs.size "
+        //           << dst_comm_pattern->send_idxs.size()
+        //           << " non_local_sparsity.size " << non_local_sparsity_->size_
+        //           << " get_recv_indices "
+        //           << localized_partition->get_recv_indices().get_num_elems()
+        //           << " \n";
 
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
@@ -305,8 +298,6 @@ public:
         bool owner = repartitioner.is_owner();
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
-        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
-                  << " call update_impl \n";
         // size + padding has to be local_matrix_nnz
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
