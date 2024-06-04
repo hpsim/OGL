@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
 # SPDX-License-Identifier: GPL-3.0-or-later
-# SPDX-FileCopyrightText: 2023 NeoFOAM authors
+
 option(
   INSTALL_GTEST
   "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)"

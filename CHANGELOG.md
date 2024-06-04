@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 OGL authors
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # 0.5.4 (unreleased)
 - Notify user of a unsupported executor argument [PR #]
 - Switched to SPDX headers [PR #112](https://github.com/hpsim/OGL/pull/112)

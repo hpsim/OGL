@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 cp .github/bot-pr-format-base.sh /tmp
 source /tmp/bot-pr-format-base.sh
 

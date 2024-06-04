@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 execute_process(
   COMMAND git log --pretty=format:'%h' -n 1
   OUTPUT_VARIABLE GIT_REV

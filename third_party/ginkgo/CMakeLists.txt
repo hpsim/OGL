@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # TODO pass flags from main CMAKE file
 ginkgo_load_git_package(
   ginkgo_external

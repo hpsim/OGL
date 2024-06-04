@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 function(ginkgo_default_includes name)
     # set include path depending on used interface
     target_include_directories("${name}"
