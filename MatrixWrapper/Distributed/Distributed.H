@@ -193,7 +193,7 @@ public:
         auto dst_comm_pattern = repartitioner.repartition_comm_pattern(
             src_comm_pattern, orig_partition);
 
-        label rank{src_comm_pattern.get_comm().rank()};
+        label rank{src_comm_pattern->get_comm().rank()};
         label owner_rank = repartitioner.get_owner_rank();
         bool owner = repartitioner.is_owner();
 
@@ -219,8 +219,8 @@ public:
         //           << dst_comm_pattern.target_sizes << "\n";
 
         auto localized_partition = local_part_type::build_from_blocked_recv(
-            exec, local_sparsity_->dim[0], dst_comm_pattern.send_idxs,
-            dst_comm_pattern.target_ids, dst_comm_pattern.target_sizes);
+            exec, local_sparsity_->dim[0], dst_comm_pattern->send_idxs,
+            dst_comm_pattern->target_ids, dst_comm_pattern->target_sizes);
 
         std::cout << __FILE__ << " rank " << rank << " local sparsity size "
                   << local_sparsity_->size_ << " local sparsity dim ["
@@ -228,9 +228,9 @@ public:
                   << "] non_local sparsity size " << non_local_sparsity_->size_
                   << " non local sparsity dim [" << non_local_sparsity_->dim[0]
                   << "x" << non_local_sparsity_->dim[1] << "] target_ids "
-                  << dst_comm_pattern.target_ids << " target_sizes "
-                  << dst_comm_pattern.target_sizes << " target_send_idxs.size "
-                  << dst_comm_pattern.send_idxs.size()
+                  << dst_comm_pattern->target_ids << " target_sizes "
+                  << dst_comm_pattern->target_sizes << " target_send_idxs.size "
+                  << dst_comm_pattern->send_idxs.size()
                   << " non_local_sparsity.size " << non_local_sparsity_->size_
                   << " get_recv_indices "
                   << localized_partition->get_recv_indices().get_num_elems()
@@ -242,9 +242,6 @@ public:
         auto dist_A = gko::share(generate_dist_mtx_with_inner_type<dist_mtx>(
             matrix_format, exec, sparse_comm, local_sparsity_,
             non_local_sparsity_));
-
-        // std::cout << __FILE__ << " rank " << rank
-        //           << " done generate dist_mtx\n";
 
         auto local_coeffs = gko::array<scalar>(exec, local_sparsity_->size_);
         auto non_local_coeffs =
@@ -273,14 +270,18 @@ public:
 
         auto ret = std::make_shared<RepartDistMatrix>(
             exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
-            std::move(dist_A));
+            std::move(dist_A), local_sparsity_, non_local_sparsity_,
+            src_comm_pattern, local_interfaces);
 
         return ret;
     };
 
     void update(word matrix_format, const Repartitioner &repartitioner,
-                std::shared_ptr<const HostMatrixWrapper> host_A) {
-
+                std::shared_ptr<const HostMatrixWrapper> host_A)
+    {
+        update_impl(matrix_format, repartitioner, host_A, dist_mtx_,
+                    local_sparsity_, non_local_sparsity_, src_comm_pattern_,
+                    local_interfaces_);
     };
 
     // TODO matrix_format can be data member
@@ -292,7 +293,7 @@ public:
             dist_A,
         std::shared_ptr<const SparsityPattern> local_sparsity,
         std::shared_ptr<const SparsityPattern> non_local_sparsity,
-        CommunicationPattern &src_comm_pattern,
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::vector<std::pair<bool, label>> local_interfaces)
     {
         auto &exec_handler = host_A.get()->get_exec_handler();
@@ -304,6 +305,8 @@ public:
         bool owner = repartitioner.is_owner();
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
+        std::cout << __FILE__ << ":" << __LINE__ << "rank " << rank
+                  << " call update_impl \n";
         // size + padding has to be local_matrix_nnz
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
@@ -410,11 +413,11 @@ public:
         } else {
             // the non owner has send all its interfaces to owner
             // thus all values need to be communicated to the owner as well
-            label num_interfaces = src_comm_pattern.target_ids.get_size();
+            label num_interfaces = src_comm_pattern->target_ids.get_size();
             label tag = 0;
             for (int i = 0; i < num_interfaces; i++) {
                 label comm_size =
-                    src_comm_pattern.target_sizes.get_const_data()[i];
+                    src_comm_pattern->target_sizes.get_const_data()[i];
                 const scalar *send_buffer_ptr = host_A->get_interface_data(i);
                 comm.send(exec, send_buffer_ptr, comm_size, owner_rank, tag);
             }
@@ -449,13 +452,21 @@ public:
         }
     };
 
-    RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
-                     communicator comm, gko::dim<2> local_size,
-                     gko::dim<2> global_size,
-                     std::shared_ptr<dist_mtx> dist_mtx)
+    RepartDistMatrix(
+        std::shared_ptr<const gko::Executor> exec, communicator comm,
+        gko::dim<2> local_size, gko::dim<2> global_size,
+        std::shared_ptr<dist_mtx> dist_mtx,
+        std::shared_ptr<const SparsityPattern> local_sparsity,
+        std::shared_ptr<const SparsityPattern> non_local_sparsity,
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+        std::vector<std::pair<bool, label>> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
-          dist_mtx_(std::move(dist_mtx))
+          dist_mtx_(std::move(dist_mtx)),
+          local_sparsity_(local_sparsity),
+          non_local_sparsity_(non_local_sparsity),
+          src_comm_pattern_(src_comm_pattern),
+          local_interfaces_(local_interfaces)
     {
         this->set_size(global_size);
         // partition_ = gko::share(
@@ -525,6 +536,7 @@ public:
         }
     }
 
+    // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
                      communicator comm)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
@@ -561,9 +573,13 @@ protected:
 private:
     std::shared_ptr<dist_mtx> dist_mtx_;
 
-    std::shared_ptr<part_type> partition_;
+    std::shared_ptr<const part_type> partition_;
 
-    std::shared_ptr<SparsityPattern> local_sparsity_;
+    std::shared_ptr<const SparsityPattern> local_sparsity_;
 
-    std::shared_ptr<SparsityPattern> non_local_sparsity_;
+    std::shared_ptr<const SparsityPattern> non_local_sparsity_;
+
+    std::shared_ptr<const CommunicationPattern> src_comm_pattern_;
+
+    std::vector<std::pair<bool, label>> local_interfaces_;
 };

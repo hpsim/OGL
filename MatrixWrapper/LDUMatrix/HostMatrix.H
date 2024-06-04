@@ -410,7 +410,7 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    CommunicationPattern create_communication_pattern(
+    std::shared_ptr<CommunicationPattern> create_communication_pattern(
         const gko::experimental::mpi::communicator &comm) const;
 
     label get_interface_size() const {

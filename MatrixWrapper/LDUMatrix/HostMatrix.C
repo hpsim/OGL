@@ -204,7 +204,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 }
 
 
-CommunicationPattern HostMatrixWrapper::create_communication_pattern(
+std::shared_ptr<CommunicationPattern> HostMatrixWrapper::create_communication_pattern(
     const gko::experimental::mpi::communicator &comm) const
 {
     using comm_size_type = CommunicationPattern::comm_size_type;
@@ -253,7 +253,7 @@ CommunicationPattern HostMatrixWrapper::create_communication_pattern(
         iter++;
     }
 
-    return CommunicationPattern{exec_, target_ids, target_sizes, send_idxs};
+    return std::make_shared<CommunicationPattern>(exec_, target_ids, target_sizes, send_idxs);
 }
 
 

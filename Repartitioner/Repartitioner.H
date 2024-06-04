@@ -401,8 +401,8 @@ public:
         //
     }
 
-    CommunicationPattern repartition_comm_pattern(
-        CommunicationPattern &src_comm_pattern,
+    std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
             partition) const
@@ -410,12 +410,12 @@ public:
         using comm_size_type = label;
 
         if (ranks_per_gpu_ == 1) {
-            return CommunicationPattern(src_comm_pattern);
+            return src_comm_pattern;
         }
 
-        auto &exec_handler = src_comm_pattern.exec_handler;
-        auto exec = src_comm_pattern.target_ids.get_executor();
-        auto comm = src_comm_pattern.get_comm();
+        auto &exec_handler = src_comm_pattern->exec_handler;
+        auto exec = src_comm_pattern->target_ids.get_executor();
+        auto comm = src_comm_pattern->get_comm();
 
         // Step 1. Check if communication partner is non-local after
         // repartitioning. If it is non-local we keep it. Otherwise local
@@ -424,9 +424,9 @@ public:
         std::vector<label> target_ids{};
         std::vector<label> target_sizes{};
         std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-        label communication_partner = src_comm_pattern.target_ids.get_size();
+        label communication_partner = src_comm_pattern->target_ids.get_size();
         for (int i = 0; i < communication_partner; i++) {
-            label target_id = src_comm_pattern.target_ids.get_data()[i];
+            label target_id = src_comm_pattern->target_ids.get_const_data()[i];
             if (!reparts_to_local(target_id)) {
                 // communication pattern is non local, hence we keep it
                 // after repartitioning we now have to communicate with a
@@ -434,8 +434,8 @@ public:
                 // needs to be send to
                 target_ids.push_back(get_owner_rank(target_id));
                 target_sizes.push_back(
-                    src_comm_pattern.target_sizes.get_const_data()[i]);
-                send_idxs.push_back(src_comm_pattern.send_idxs[i]);
+                    src_comm_pattern->target_sizes.get_const_data()[i]);
+                send_idxs.push_back(src_comm_pattern->send_idxs[i]);
             }
         }
 
@@ -511,14 +511,14 @@ public:
             target_ids.emplace_back(get_rank());
             target_sizes.emplace_back(0);
 
-            return CommunicationPattern{
+            return std::make_shared<CommunicationPattern>(
                 exec_handler,
                 gko::array<comm_size_type>{exec, target_ids.begin(),
                                            target_ids.end()},
                 gko::array<comm_size_type>{exec, target_sizes.begin(),
                                            target_sizes.end()},
 
-                send_idxs};
+                send_idxs);
         }
 
         // merge communication
@@ -575,12 +575,12 @@ public:
                 target_id});
         }
 
-        return CommunicationPattern{
+        return std::make_shared<CommunicationPattern>(
             exec_handler,
             gko::array<comm_size_type>{exec, merged_target_ids.begin(),
                                        merged_target_ids.end()},
             gko::array<comm_size_type>{exec, merged_target_sizes.begin(),
                                        merged_target_sizes.end()},
-            send_idxs};
+            send_idxs);
     }
 };
