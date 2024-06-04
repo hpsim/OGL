@@ -439,8 +439,6 @@ public:
             }
         }
 
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " <<  comm.rank() << " target_ids " << target_ids << "\n"; 
-
         // send all remaining non local ids and sizes to the new
         // owner rank
         auto comm_pattern = compute_send_recv_counts(
@@ -452,8 +450,6 @@ public:
         auto gathered_target_sizes =
             gather_to_owner(exec_handler, comm_pattern, target_sizes.size(),
                             target_sizes.data());
-
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " <<  comm.rank() << " gathered_target_ids " << gathered_target_ids << "\n"; 
 
         // next the send_ixs need to be updated we send them piecewise since
         // the send_idxs are a vector of gko::arrays
@@ -507,10 +503,10 @@ public:
             target_ids.clear();
             target_sizes.clear();
             send_idxs.clear();
+        }
 
-            target_ids.emplace_back(get_rank());
-            target_sizes.emplace_back(0);
-
+        // early return if no communication partners are left
+        if (target_sizes.size() == 0) {
             return std::make_shared<CommunicationPattern>(
                 exec_handler,
                 gko::array<comm_size_type>{exec, target_ids.begin(),
@@ -537,13 +533,11 @@ public:
 
         // Step 4.
         // Merge communication pattern with corresponding neighbours
-        // if (target_ids.size() > 0) {
-            merged_target_ids.push_back(target_ids[0]);
-            merged_target_sizes.push_back(target_sizes[0]);
-            merged_send_idxs.emplace_back(std::vector<label>(
-                send_idxs[0].first.get_data(),
-                send_idxs[0].first.get_data() + send_idxs[0].first.get_size()));
-        // }
+        merged_target_ids.push_back(target_ids[0]);
+        merged_target_sizes.push_back(target_sizes[0]);
+        merged_send_idxs.emplace_back(std::vector<label>(
+            send_idxs[0].first.get_data(),
+            send_idxs[0].first.get_data() + send_idxs[0].first.get_size()));
 
         for (int i = 1; i < target_ids.size(); i++) {
             // communicates with same target rank
