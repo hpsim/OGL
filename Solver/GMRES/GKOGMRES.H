@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: GPLv3 
-// SPDX-FileCopyrightText: 2024 OGL authors 
+// SPDX-FileCopyrightText: 2024 OGL authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #ifndef GKOGMRES_H
 #define GKOGMRES_H

@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: GPLv3 
-// SPDX-FileCopyrightText: 2024 OGL authors 
+// SPDX-FileCopyrightText: 2024 OGL authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #ifndef OGL_DeviceIdGuardHandler_INCLUDED_H
 #define OGL_DeviceIdGuardHandler_INCLUDED_H
