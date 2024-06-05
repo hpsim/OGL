@@ -32,12 +32,10 @@ jobs:
 
     - name: Create Compilation Database
       run: |
-        cmake --preset ninja-cpuonly-all \
-          -DNEOFOAM_DEVEL_TOOLS=OFF \
-          -DCMAKE_CXX_COMPILER=clang++-16 \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DNEOFOAM_ENABLE_IWYU=ON
-        cmake --build --preset ninja-cpuonly-all
+        cmake --preset ninja-cpuonly-release \
+        -DCMAKE_CXX_COMPILER=clang++-16 \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cmake --build --preset ninja-cpuonly-release
     - uses: actions/upload-artifact@v4
       with:
         name: build-artifact
