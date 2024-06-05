@@ -1,0 +1,34 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: OGL
+Upstream-Contact: OGL authors <>
+Source: https://github.com/hpsim/OGL
+
+Files: .github/workflows/test_matrix.json
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: common/.common.H.swo
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: test/validation.json
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: test/channel_validation.json
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: Doxyfile
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: CMakePresets.json
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+# Sample paragraph, commented out:
+#
+# Files: src/*
+# Copyright: $YEAR $NAME <$CONTACT>
+# License: ...

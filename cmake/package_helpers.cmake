@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 set(PACKAGE_DOWNLOADER_SCRIPT
     "${CMAKE_CURRENT_LIST_DIR}/DownloadCMakeLists.txt.in")
 

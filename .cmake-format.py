@@ -1,5 +1,7 @@
-# SPDX-License-Identifier: Unlicense
-# SPDX-FileCopyrightText: 2023 NeoFOAM authors
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # ----------------------------------
 # Options affecting listfile parsing
 # ----------------------------------

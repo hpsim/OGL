@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 function(ginkgo_create_test test_name)
   file(RELATIVE_PATH REL_BINARY_DIR
     ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 OGL authors
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 **[Requirements](#requirements)** |
 **[Compilation](#Compilation)** |
 **[Usage](#Usage)** |

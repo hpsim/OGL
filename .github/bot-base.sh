@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 set -e
 
 API_HEADER="Accept: application/vnd.github.v3+json"

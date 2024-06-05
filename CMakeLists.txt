@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 cmake_minimum_required(VERSION 3.13.0)
 
 project(

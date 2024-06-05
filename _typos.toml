@@ -1,5 +1,9 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 [files]
-extend-exclude = ["third_party/*"]
+extend-exclude = ["third_party/*", "Doxyfile"]
 
 [default.extend-words]
 nd = "nd"
