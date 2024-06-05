@@ -276,9 +276,8 @@ public:
         TIME_WITH_FIELDNAME(verbose_, solve, field_name_,
                             solver->apply(dist_b_v, dist_x_v);)
 
-        auto partition = dist_A.get()->get_partition();
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, field_name_,
-                            dist_x.copy_back(partition);)
+                            dist_x.copy_back();)
         auto bandwidth_copy_back = sizeof(scalar) * psi.size() /
                                    (delta_t_copy_x_back + SMALL) / 1000.0;
 

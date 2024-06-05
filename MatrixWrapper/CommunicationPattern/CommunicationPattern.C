@@ -34,8 +34,7 @@ label compute_owner_rank(label rank, label ranks_per_gpu)
     return rank - (rank % ranks_per_gpu);
 };
 
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>>
+CommCounts
 compute_send_recv_counts(const ExecutorHandler &exec_handler,
                          label ranks_per_gpu, label size)
 {
@@ -43,8 +42,49 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
                                     0);
 }
 
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>>
+CommCounts
+compute_scatter_counts(const ExecutorHandler &exec_handler,
+                         label ranks_per_gpu, label size)
+{
+    auto exec = exec_handler.get_device_exec();
+    auto comm = *exec_handler.get_communicator().get();
+
+    label total_ranks{comm.size()};
+    label rank{comm.rank()};
+    label owner_rank = compute_owner_rank(rank, ranks_per_gpu);
+    std::vector<label> send_counts(total_ranks, 0);
+    std::vector<label> recv_counts(total_ranks, 0);
+    std::vector<label> send_offsets(total_ranks, 0);
+    std::vector<label> recv_offsets(total_ranks, 0);
+
+    label tot_recv_elements{0};
+    label comm_elements_buffer{0};
+    if (rank == owner_rank) {
+        // send and recv to it self
+        recv_offsets[owner_rank] = 0;
+        send_counts[owner_rank] = size;
+        recv_counts[owner_rank] = size;
+        // the start of the next rank data
+        tot_recv_elements = size;
+
+        for (int i = 1; i < ranks_per_gpu; i++) {
+            // receive the recv counts
+            comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
+            send_counts[rank + i] = comm_elements_buffer;
+            send_offsets[rank + i] = tot_recv_elements;
+            tot_recv_elements += comm_elements_buffer;
+        }
+    } else {
+        // send how many elements to communicate
+        comm.send(exec, &size, 1, owner_rank, owner_rank);
+        recv_counts[owner_rank] = size;
+    }
+
+    return std::make_tuple(send_counts, recv_counts, send_offsets,
+                           recv_offsets);
+}
+
+CommCounts
 compute_send_recv_counts(const ExecutorHandler &exec_handler,
                          label ranks_per_gpu, label size, label total_size,
                          label padding_before, label padding_after)
@@ -104,10 +144,10 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
                            recv_offsets);
 }
 
+
 void communicate_values (
     const ExecutorHandler &exec_handler,
-    const std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-                     std::vector<label>> &comm_pattern,
+    const CommCounts &comm_pattern,
     const scalar *send_buffer, scalar *recv_buffer)
 {
     auto exec = exec_handler.get_device_exec();
@@ -134,8 +174,7 @@ void communicate_values (
 
 std::vector<label> gather_to_owner(
     const ExecutorHandler &exec_handler,
-    const std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-                     std::vector<label>> &comm_pattern,
+    const CommCounts &comm_pattern,
     label size, const label *data, label offset)
 {
     auto exec = exec_handler.get_ref_exec();

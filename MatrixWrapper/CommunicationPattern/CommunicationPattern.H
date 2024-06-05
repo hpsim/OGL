@@ -37,7 +37,14 @@ SourceFiles
 using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
                               std::vector<label>, std::vector<label>>;
 
+CommCounts
+invert_comm_pattern(CommCounts in_pattern);
 
+CommCounts
+compute_scatter_counts(const ExecutorHandler &exec_handler,
+                         label ranks_per_gpu, label size);
+
+// TODO rename function to compute_gather_to_owner_comm
 /* @brief  This function computes the send and recv counts vectors for
  *repartitioning to an owner rank
  *
@@ -57,6 +64,14 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
  * @parameter size how many elements to send to owner
  * */
 CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_gpu, label size);
+
+/* @brief  This function computes the send and recv counts vectors for
+ *repartitioning to an owner rank
+ *
+ * @parameter size how many elements to send to owner
+ * */
+CommCounts compute_scatter_from_owner_comm(const ExecutorHandler &exec_handler,
                                     label ranks_per_gpu, label size);
 
 /* Given a rank id and ranks_per_gpus this function computes the corresponding

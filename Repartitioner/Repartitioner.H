@@ -331,21 +331,15 @@ public:
         // All interfaces that are in is_local need to be accounted for
         ASSERT_EQ(ctr, is_local.size());
 
-        // for compressed cols we compute a mapping first
-        std::map<label, label> compressed_col_idxs{};
-        label unique_idx = 0;
-        for (auto idx : gathered_non_local.cols) {
-            auto search = compressed_col_idxs.find(idx);
-            if (search == compressed_col_idxs.end()) {
-                compressed_col_idxs[idx] = unique_idx;
-                unique_idx += 1;
-            };
-        }
-
+        // TODO FIXME the correct way would be to check the communication
+        // pattern where a particular face is in the send idxs
+        // since we have already the row id of the other side
+        // it should be doable. Or alternatively we know that we
+        // keep an interface together thus we can just count the idx up to the size.
+        // But we have to make sure that the interfaces are in the same order
+        // on both communication sides.
         for (int i = 0; i < gathered_non_local.cols.size(); i++) {
-            label uncompressed = gathered_non_local.cols[i];
-            label compressed = compressed_col_idxs[uncompressed];
-            gathered_non_local.cols[i] = compressed;
+            gathered_non_local.cols[i] = i;
         }
 
         if (is_owner()) {

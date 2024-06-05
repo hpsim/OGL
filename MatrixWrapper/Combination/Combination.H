@@ -125,7 +125,6 @@ protected:
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
         if (interface_ranges_.size() > 0) {
-            std::cout << __FILE__ << ":" << __LINE__ << "apply\n";
             this->comb_->apply(b, x);
         }
     }
@@ -138,7 +137,6 @@ protected:
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
         if (interface_ranges_.size() > 0) {
-        std::cout << __FILE__ << ":" << __LINE__ << "apply 2\n";
             this->comb_->apply(alpha, b, beta, x);
         }
     }

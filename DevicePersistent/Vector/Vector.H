@@ -123,7 +123,10 @@ class PersistentVector
     // updated even if was found in the object registry
     const bool update_;
 
+    const Repartitioner & repartitioner_;
+
 public:
+
     /* PersistentVector constructor using existing memory
      *
      * @param memory ptr to memory on host from which the gko array is
@@ -154,22 +157,27 @@ public:
           memory_(memory),
           size_(size),
           exec_(exec),
-          update_(update)
+          update_(update),
+          repartitioner_(repartitioner)
     {}
 
     /** Copies the content of the distributed vector back to the original source
      **/
-    void copy_back(std::shared_ptr<const part_type> partition)
+    void copy_back()
     {
-        // TODO FIXME
-        // auto ref_exec = exec_.get_ref_exec();
-        // auto host_buffer_view = gko::array<T>::view(
-        //     exec_.get_device_exec(), size_,
-        //     get_vector()->get_local_values());
+        auto comm_pattern = compute_scatter_counts(
+            exec_, repartitioner_.get_ranks_per_gpu(), size_);
 
-        // auto to_view =
-        //     gko::array<T>::view(ref_exec, size_, const_cast<T *>(memory_));
-        // to_view = host_buffer_view;
+        // std::cout << __FILE__ << ":" << __LINE__ << " rank " << repartitioner_.get_rank()
+        //     << " comm_pattern send " << std::get<0>(comm_pattern)
+        //     << " comm_pattern recv " << std::get<1>(comm_pattern)
+        //     << " comm_pattern send_offs " << std::get<2>(comm_pattern)
+        //     << " comm_pattern recv_offs " << std::get<3>(comm_pattern)
+        //     << "\n";
+
+        communicate_values(exec_, comm_pattern,
+                           get_vector()->get_local_values(),
+                           const_cast<T *>(memory_));
     }
 
     /** Writes the content of the distributed vector to disk

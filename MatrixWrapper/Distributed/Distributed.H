@@ -157,15 +157,12 @@ public:
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->dist_mtx_ = std::move(other.dist_mtx_);
-            this->set_size(this->dist_mtx_->get_size());
+            this->local_sparsity_ =std::move(other.local_sparsity_);
+            this->non_local_sparsity_ =std::move(other.non_local_sparsity_);
+            this->src_comm_pattern_ =std::move(other.src_comm_pattern_);
+            this->local_interfaces_ =std::move(other.local_interfaces_);
         }
         return *this;
-    }
-
-
-    std::shared_ptr<const part_type> get_partition() const
-    {
-        return this->partition_;
     }
 
     static std::shared_ptr<RepartDistMatrix> create(
@@ -272,6 +269,7 @@ public:
     void update(word matrix_format, const Repartitioner &repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A)
     {
+
         update_impl(matrix_format, repartitioner, host_A, dist_mtx_,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern_,
                     local_interfaces_);
@@ -299,9 +297,14 @@ public:
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << "update_impl  0\n";
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
             local_matrix_nnz - nrows, 0);
+
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << "update_impl  1\n";
 
         label upper_nnz = host_A->get_upper_nnz();
         auto upper_comm_pattern = compute_send_recv_counts(
@@ -310,6 +313,9 @@ public:
         auto lower_comm_pattern =
             compute_send_recv_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                      local_matrix_nnz, upper_nnz, nrows);
+
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << "update_impl  2\n";
 
         scalar *local_ptr;
 
@@ -391,7 +397,6 @@ public:
 
                 ctr++;
                 // interface values need to be multiplied by -1
-                //
                 using vec = gko::matrix::Dense<ValueType>;
                 auto neg_one = gko::initialize<vec>({-1.0}, exec);
                 auto interface_dense = vec::create(
@@ -564,7 +569,7 @@ protected:
 private:
     std::shared_ptr<dist_mtx> dist_mtx_;
 
-    std::shared_ptr<const part_type> partition_;
+    // std::shared_ptr<const part_type> partition_;
 
     std::shared_ptr<const SparsityPattern> local_sparsity_;
 
