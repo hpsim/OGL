@@ -165,7 +165,7 @@ void communicate_values (
     //
     // send_buffer should be on the host
     // recv_buffer should be on the device
-    auto rank = comm.rank();
+    // auto rank = comm.rank();
 
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer, recv_counts.data(),

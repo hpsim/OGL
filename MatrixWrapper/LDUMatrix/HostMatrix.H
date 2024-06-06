@@ -364,10 +364,6 @@ public:
             fieldName, verbose);
     };
 
-    void update(const scalar *diag, const scalar *upper, const scalar *lower,
-                const FieldField<Field, scalar> &interfaceBouCoeffs,
-                const FieldField<Field, scalar> &interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList &interfaces);
 
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row

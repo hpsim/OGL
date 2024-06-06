@@ -76,10 +76,14 @@ struct lduMatrixInitFunctor {
     void update(
         std::shared_ptr<HostMatrixWrapper> persistent_device_matrix) const
     {
-        persistent_device_matrix->update(
-            matrix_.diag().begin(), matrix_.upper().begin(),
-            matrix_.lower().begin(), interfaceBouCoeffs_, interfaceIntCoeffs_,
-            interfaces_);
+        auto ret = HostMatrixWrapper::create(
+            exec_, db_, matrix_.diag().size(), matrix_.upper().size(),
+            matrix_.symmetric(), matrix_.diag().begin(),
+            matrix_.upper().begin(), matrix_.lower().begin(), matrix_.lduAddr(),
+            interfaceBouCoeffs_, interfaceIntCoeffs_, interfaces_,
+            solver_controls_, field_name_, verbose_);
+
+        persistent_device_matrix.swap(ret);
     }
 
     std::shared_ptr<HostMatrixWrapper> init() const

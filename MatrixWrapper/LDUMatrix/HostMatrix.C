@@ -529,14 +529,4 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     return sparsity;
 }
 
-void HostMatrixWrapper::update(
-    const scalar *diag, const scalar *upper, const scalar *lower,
-    const FieldField<Field, scalar> &interfaceBouCoeffs,
-    const FieldField<Field, scalar> &interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList &interfaces)
-{
-    // TODO implement a regenerating update
-}
-
-
 }  // namespace Foam
