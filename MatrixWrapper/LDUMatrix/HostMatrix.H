@@ -228,8 +228,6 @@ private:
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
 
-    const ExecutorHandler &exec_;
-
     const DeviceIdGuardHandler device_id_guard_;
 
     const label verbose_;
@@ -379,20 +377,6 @@ public:
     std::shared_ptr<SparsityPattern> compute_local_sparsity(
         std::shared_ptr<const gko::Executor> exec) const;
 
-    /** Copies the LDU matrix coefficients to local_coeffs without changing or
-     ** reinstantiating the sparsity pattern.
-     ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host or device to be in row major order.
-     **/
-    void compute_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
-                              gko::array<scalar> &target_coeffs) const;
-
-    /** Copies the interface matrix coefficients to non_local_coeffs without
-    ** changing or reinstantiating the sparsity pattern.
-    **/
-    void compute_non_local_coeffs(
-        std::shared_ptr<const SparsityPattern> sparsity,
-        gko::array<scalar> &target_coeffs) const;
 
     /** Based on OpenFOAMs interfaces this function computes two
      ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
@@ -411,7 +395,7 @@ public:
      ** @return the CommunicationPattern
      */
     std::shared_ptr<CommunicationPattern> create_communication_pattern(
-        const gko::experimental::mpi::communicator &comm) const;
+        const ExecutorHandler &exec) const;
 
     label get_interface_size() const {
         return interface_ptr_.size();
@@ -443,7 +427,6 @@ public:
 
     gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
 
-    const ExecutorHandler &get_exec_handler() const { return exec_; }
 };
 
 

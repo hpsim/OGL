@@ -61,8 +61,6 @@ private:
 
     const label ranks_per_gpu_;
 
-    const ExecutorHandler &exec_handler_;
-
     std::shared_ptr<const partition> orig_partition_;
 
 
@@ -73,11 +71,10 @@ public:
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
-          exec_handler_(exec_handler),
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
-                  label, label>(exec_handler_.get_device_exec(),
-                                *exec_handler_.get_communicator().get(),
+                  label, label>(exec_handler.get_device_exec(),
+                                *exec_handler.get_communicator().get(),
                                 size))) {};
 
     /* returns the owner rank for a given rank */
@@ -87,23 +84,29 @@ public:
     };
 
     /* returns the owner rank for a given rank */
-    label get_owner_rank() const { return get_owner_rank(get_rank()); };
+    label get_owner_rank(
+ const ExecutorHandler& exec_handler
+) const { return get_owner_rank(get_rank(exec_handler)); };
 
     /* returns if current rank is an owner  */
-    bool is_owner() const { return get_rank() == get_owner_rank(get_rank()); };
+    bool is_owner(
+ const ExecutorHandler& exec_handler
+) const { return get_rank(exec_handler) == get_owner_rank(get_rank(exec_handler)); };
 
     /* @brief check if the given rank gets local after repartitioning
      *
      * */
-    bool reparts_to_local(label rank) const
+    bool reparts_to_local(
+ const ExecutorHandler& exec_handler,
+        label rank) const
     {
-        return get_owner_rank() == compute_owner_rank(rank, ranks_per_gpu_);
+        return get_owner_rank(exec_handler) == compute_owner_rank(rank, ranks_per_gpu_);
     };
 
     /* shortcut to current rank */
-    label get_rank() const
+    label get_rank(const ExecutorHandler& exec_handler) const
     {
-        return exec_handler_.get_communicator().get()->rank();
+        return exec_handler.get_communicator().get()->rank();
     };
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
@@ -147,7 +150,9 @@ public:
      *  the interface was originally from this rank
      */
     std::pair<SparsityPatternVector, std::vector<bool>>
-    build_non_local_interfaces(SparsityPatternVector &loc,
+    build_non_local_interfaces(
+        const ExecutorHandler& exec_handler,
+        SparsityPatternVector &loc,
                                const SparsityPatternVector &non_loc) const
     {
         std::vector<label> rows, cols, ldu_mapping, ranks, begins, ends;
@@ -159,7 +164,7 @@ public:
             // offseted;
             auto begin = non_loc.begin[i];
             auto end = non_loc.end[i];
-            bool local = reparts_to_local(non_loc.ranks[i]);
+            bool local = reparts_to_local(exec_handler, non_loc.ranks[i]);
             is_local.push_back(local);
             if (local) {
                 // TODO depending on the interface simple non
@@ -208,6 +213,7 @@ public:
                std::shared_ptr<SparsityPattern>,
                std::vector<std::pair<bool, label>>>
     repartition_sparsity(
+        const ExecutorHandler& exec_handler,
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const
     {
@@ -221,19 +227,18 @@ public:
         // 4. dim needs to be updated
         // this is not implemented yet, but we can't fail here for
         // debugging reasons
-        auto exec = exec_handler_.get_device_exec();
-        auto comm = *exec_handler_.get_communicator().get();
-        label rank = get_rank();
-        label owner_rank = get_owner_rank();
+        auto exec = exec_handler.get_device_exec();
+        auto comm = *exec_handler.get_communicator().get();
+        label rank = get_rank(exec_handler);
+        label owner_rank = get_owner_rank(exec_handler);
         label ranks_per_gpu = ranks_per_gpu_;
 
         auto local_comm_pattern = compute_send_recv_counts(
-            exec_handler_, ranks_per_gpu, src_local_pattern->size_);
+            exec_handler, ranks_per_gpu, src_local_pattern->size_);
 
         label offset = orig_partition_->get_range_bounds()[rank] -
                        orig_partition_->get_range_bounds()[owner_rank];
 
-        auto &exec_handler = exec_handler_;
         auto gather_closure = [&](auto &comm_pattern, auto &data,
                                   label offset) {
             return gather_to_owner(exec_handler, comm_pattern, data.get_size(),
@@ -252,12 +257,12 @@ public:
             std::vector{rank}};
         merged_local.end[0] = merged_local.rows.size();
 
-        if (is_owner()) {
+        if (is_owner(exec_handler)) {
             make_ldu_mapping_consecutive(
                 local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
         }
 
-        label rows = (is_owner()) ? merged_local.rows.back() + 1 : 0;
+        label rows = (is_owner(exec_handler)) ? merged_local.rows.back() + 1 : 0;
         gko::dim<2> merged_local_dim{rows, rows};
 
         auto non_local_comm_pattern = compute_send_recv_counts(
@@ -304,20 +309,20 @@ public:
                             src_non_local_pattern->rank.size(),
                             src_non_local_pattern->rank.data())};
 
-        if (is_owner()) {
+        if (is_owner(exec_handler)) {
             make_begin_and_ends_consecutive(
                 span_comm_pattern, merged_non_local.begin, merged_non_local.end,
                 rank, ranks_per_gpu);
         }
 
         auto [gathered_non_local, is_local] =
-            build_non_local_interfaces(merged_local, merged_non_local);
+            build_non_local_interfaces(exec_handler, merged_local, merged_non_local);
 
         // build vector with locality information
         std::vector<std::pair<bool, label>> locality;
         label ctr{0};
 
-        if (is_owner()) {
+        if (is_owner(exec_handler)) {
             auto recv_counts = std::get<1>(span_comm_pattern);
             for (int i = 0; i < ranks_per_gpu; i++) {
                 label comm_rank = rank + i;
@@ -342,7 +347,7 @@ public:
             gathered_non_local.cols[i] = i;
         }
 
-        if (is_owner()) {
+        if (is_owner(exec_handler)) {
             auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
                 exec, merged_local_dim, merged_local);
 
@@ -396,6 +401,7 @@ public:
     }
 
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
+        const ExecutorHandler& exec_handler,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
@@ -407,7 +413,6 @@ public:
             return src_comm_pattern;
         }
 
-        auto &exec_handler = src_comm_pattern->exec_handler;
         auto exec = src_comm_pattern->target_ids.get_executor();
         auto comm = src_comm_pattern->get_comm();
 
@@ -421,7 +426,7 @@ public:
         label communication_partner = src_comm_pattern->target_ids.get_size();
         for (int i = 0; i < communication_partner; i++) {
             label target_id = src_comm_pattern->target_ids.get_const_data()[i];
-            if (!reparts_to_local(target_id)) {
+            if (!reparts_to_local(exec_handler, target_id)) {
                 // communication pattern is non local, hence we keep it
                 // after repartitioning we now have to communicate with a
                 // different rank store new owner rank to which repart_target_*
@@ -447,8 +452,8 @@ public:
 
         // next the send_ixs need to be updated we send them piecewise since
         // the send_idxs are a vector of gko::arrays
-        label rank = get_rank();
-        if (is_owner()) {
+        label rank = get_rank(exec_handler);
+        if (is_owner(exec_handler)) {
             auto recv_counts = std::get<1>(comm_pattern);
             label owner_recv_counts = recv_counts[rank];
             // retrieved from i-th neighbor
@@ -482,7 +487,7 @@ public:
                 }
             }
         } else {
-            label owner = get_owner_rank();
+            label owner = get_owner_rank(exec_handler);
             auto send_count = std::get<0>(comm_pattern)[owner];
             for (int i = 0; i < send_count; i++) {
                 auto send_buffer = send_idxs[i].first;
@@ -492,7 +497,7 @@ public:
         }
 
         // clear communcation neighbors on non owning rank
-        if (!is_owner()) {
+        if (!is_owner(exec_handler)) {
             // TODO NOTE should it be gathered_target_ids and is it needed?
             target_ids.clear();
             target_sizes.clear();

@@ -162,6 +162,8 @@ public:
           solver_controls_(solverControls),
           field_name_(fieldName),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          // FIXME NOTE the underlying exec_handler is invalid in the next call but the
+          // exec isnt
           exec_handler_{db_, solver_controls_, fieldName},
           host_A_{
               db_,       exec_handler_, solver_controls_,   fieldName,
@@ -201,7 +203,6 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto ref_exec = exec_handler_.get_ref_exec();
         Repartitioner repartitioner{
             psi.size(),
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
@@ -243,6 +244,7 @@ public:
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
+        auto ref_exec = exec_handler_.get_ref_exec();
         if (scaling != 1) {
             auto dense_scaling =
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(

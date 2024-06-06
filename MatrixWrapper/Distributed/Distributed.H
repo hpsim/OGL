@@ -154,6 +154,8 @@ public:
     RepartDistMatrix &operator=(RepartDistMatrix &&other)
     {
         if (&other != this) {
+            FatalErrorInFunction << "Not implemented"
+                                << abort(FatalError);
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->dist_mtx_ = std::move(other.dist_mtx_);
@@ -166,10 +168,10 @@ public:
     }
 
     static std::shared_ptr<RepartDistMatrix> create(
+        const ExecutorHandler &exec_handler,
         word matrix_format, const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A)
     {
-        auto &exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_device_exec();
         auto comm = *exec_handler.get_communicator().get();
 
@@ -185,17 +187,17 @@ public:
         // create original communicator pattern
         auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
         auto src_comm_pattern =
-            host_A.get()->create_communication_pattern(comm);
+            host_A.get()->create_communication_pattern(exec_handler);
         // create partiton here and pass to constructor
         auto dst_comm_pattern = repartitioner.repartition_comm_pattern(
-            src_comm_pattern, orig_partition);
+            exec_handler, src_comm_pattern, orig_partition);
 
         label rank{src_comm_pattern->get_comm().rank()};
-        label owner_rank = repartitioner.get_owner_rank();
-        bool owner = repartitioner.is_owner();
+        label owner_rank = repartitioner.get_owner_rank(exec_handler);
+        bool owner = repartitioner.is_owner(exec_handler);
 
         auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
-            repartitioner.repartition_sparsity(local_sparsity_,
+            repartitioner.repartition_sparsity(exec_handler, local_sparsity_,
                                                non_local_sparsity_);
 
         local_sparsity_ = repart_loc_sparsity;
@@ -254,7 +256,7 @@ public:
             sparse_comm);
 
 
-        update_impl(matrix_format, repartitioner, host_A, dist_A,
+        update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern,
                     local_interfaces);
 
@@ -266,18 +268,31 @@ public:
         return ret;
     };
 
-    void update(word matrix_format, const Repartitioner &repartitioner,
+    void update(
+        const ExecutorHandler &exec_handler,
+        word matrix_format, const Repartitioner &repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A)
     {
 
-        update_impl(matrix_format, repartitioner, host_A, dist_mtx_,
+        auto exec = exec_handler.get_ref_exec();
+        auto device_exec = exec_handler.get_device_exec();
+        auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+        label rank{repartitioner.get_rank(exec_handler)};
+        label owner_rank = repartitioner.get_owner_rank(exec_handler);
+        bool owner = repartitioner.is_owner(exec_handler);
+        label nrows = host_A->get_local_nrows();
+        label local_matrix_nnz = host_A->get_local_matrix_nnz();
+
+        update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_mtx_,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern_,
                     local_interfaces_);
     };
 
     // TODO matrix_format can be data member
     static void update_impl(
-        word matrix_format, const Repartitioner &repartitioner,
+        const ExecutorHandler &exec_handler,
+        word matrix_format,
+        const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A,
         std::shared_ptr<
             gko::experimental::distributed::Matrix<scalar, label, label>>
@@ -287,13 +302,12 @@ public:
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::vector<std::pair<bool, label>> local_interfaces)
     {
-        auto &exec_handler = host_A.get()->get_exec_handler();
         auto exec = exec_handler.get_ref_exec();
         auto device_exec = exec_handler.get_device_exec();
         auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
-        label rank{repartitioner.get_rank()};
-        label owner_rank = repartitioner.get_owner_rank();
-        bool owner = repartitioner.is_owner();
+        label rank{repartitioner.get_rank(exec_handler)};
+        label owner_rank = repartitioner.get_owner_rank(exec_handler);
+        bool owner = repartitioner.is_owner(exec_handler);
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
@@ -346,6 +360,7 @@ public:
                                host_A->get_lower(), local_ptr);
         }
 
+        // copy interface values
         auto comm = *exec_handler.get_communicator().get();
         if (owner) {
             using Coo = gko::matrix::Coo<scalar, label>;
@@ -465,9 +480,6 @@ public:
           local_interfaces_(local_interfaces)
     {
         this->set_size(global_size);
-        // partition_ = gko::share(
-        //     gko::experimental::distributed::build_partition_from_local_size<
-        //         label, label>(exec, comm, local_size[0]));
     }
 
     void write(const word field_name_, const objectRegistry &db_) const
@@ -568,8 +580,6 @@ protected:
 
 private:
     std::shared_ptr<dist_mtx> dist_mtx_;
-
-    // std::shared_ptr<const part_type> partition_;
 
     std::shared_ptr<const SparsityPattern> local_sparsity_;
 
