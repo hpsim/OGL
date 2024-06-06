@@ -29,10 +29,7 @@ void StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_Axref_dist(
 
     ASSERT_EQ(xAvg_host->at(0), xAvg_host->at(0));
 
-    std::cout << __FILE__ << ":" << __LINE__
-              << "Axref apply\n";
     gkomatrix->apply(xAvg_vec.get(), res.get());
-    std::cout << __FILE__ << ":" << __LINE__ << "done Axref apply\n";
 }
 
 scalar
@@ -47,10 +44,6 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
     gko::dim<2> local_size = x->get_local_vector()->get_size();
     gko::dim<2> global_size = x->get_size();
 
-    std::cout << __FILE__ << ":" << __LINE__
-              << " setup Axref local_size" << local_size
-              << " global size " << global_size
-              << "before Axref apply\n";
     auto Axref = gko::share(
         dist_vec::create(device_exec, comm, global_size, local_size));
     Axref->fill(0.0);
