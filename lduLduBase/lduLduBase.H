@@ -162,8 +162,6 @@ public:
           solver_controls_(solverControls),
           field_name_(fieldName),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
-          // FIXME NOTE the underlying exec_handler is invalid in the next call but the
-          // exec isnt
           exec_handler_{db_, solver_controls_, fieldName},
           host_A_{
               db_,       exec_handler_, solver_controls_,   fieldName,

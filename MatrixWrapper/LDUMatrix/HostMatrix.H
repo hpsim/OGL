@@ -240,11 +240,11 @@ private:
 
     const lduAddressing &addr_;
 
-    const scalar *diag_;
+    mutable const scalar *diag_;
 
-    const scalar *upper_;
+    mutable const scalar *upper_;
 
-    const scalar *lower_;
+    mutable const scalar *lower_;
 
     // multiply the complete system by this factor, ie sAx=sb
     // NOTE this needed to avoid negative diagonal matrix entries, but
@@ -364,6 +364,23 @@ public:
             fieldName, verbose);
     };
 
+    void update_from(std::shared_ptr<HostMatrixWrapper> in) {
+        diag_ = in->get_diag();
+        upper_ = in->get_upper();
+        lower_ = in->get_lower();
+
+        interface_ptr_.clear();
+        auto interfaces = in->get_interfaces();
+        for (label i = 0; i < interfaces.size(); i++) {
+            if (interface_getter(interfaces, i) == nullptr) {
+                continue;
+            }
+            const auto iface{interface_getter(interfaces, i)};
+            interface_ptr_.push_back(in->get_interfaceBouCoeffs()[i].begin());
+        }
+
+    }
+
 
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
@@ -399,6 +416,13 @@ public:
 
     const scalar* get_interface_data(label i) const {
         return interface_ptr_[i];
+    };
+
+    const FieldField<Field, scalar> & get_interfaceBouCoeffs()
+        const {return interfaceBouCoeffs_;};
+
+    const lduInterfaceFieldPtrsList &get_interfaces() const {
+        return interfaces_;
     };
 
     bool get_verbose() const { return verbose_; }

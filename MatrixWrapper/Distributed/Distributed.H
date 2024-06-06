@@ -311,14 +311,10 @@ public:
         label nrows = host_A->get_local_nrows();
         label local_matrix_nnz = host_A->get_local_matrix_nnz();
         // size + padding has to be local_matrix_nnz
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << "update_impl  0\n";
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
             local_matrix_nnz - nrows, 0);
 
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << "update_impl  1\n";
 
         label upper_nnz = host_A->get_upper_nnz();
         auto upper_comm_pattern = compute_send_recv_counts(
@@ -327,9 +323,6 @@ public:
         auto lower_comm_pattern =
             compute_send_recv_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                      local_matrix_nnz, upper_nnz, nrows);
-
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << "update_impl  2\n";
 
         scalar *local_ptr;
 

@@ -83,7 +83,8 @@ struct lduMatrixInitFunctor {
             interfaceBouCoeffs_, interfaceIntCoeffs_, interfaces_,
             solver_controls_, field_name_, verbose_);
 
-        persistent_device_matrix.swap(ret);
+        persistent_device_matrix->update_from(ret);
+
     }
 
     std::shared_ptr<HostMatrixWrapper> init() const
