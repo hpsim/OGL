@@ -217,6 +217,7 @@ public:
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const
     {
+    LOG_1(verbose_, "start repartition sparsity pattern")
         // 1. obtain send recv sizes vector
         // here we can reuse code from repartition_comm_pattern
         //
@@ -347,6 +348,7 @@ public:
             gathered_non_local.cols[i] = i;
         }
 
+    LOG_1(verbose_, "done repartition sparsity pattern")
         if (is_owner(exec_handler)) {
             auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
                 exec, merged_local_dim, merged_local);
