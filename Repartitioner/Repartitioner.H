@@ -61,16 +61,19 @@ private:
 
     const label ranks_per_gpu_;
 
+    const label verbose_;
+
     std::shared_ptr<const partition> orig_partition_;
 
 
 public:
-    Repartitioner(label size, label ranks_per_gpu,
+    Repartitioner(label size, label ranks_per_gpu, label verbose_,
                   const ExecutorHandler &exec_handler)
         : size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
+          verbose_(verbose),
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
                   label, label>(exec_handler.get_device_exec(),

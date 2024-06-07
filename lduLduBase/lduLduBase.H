@@ -204,6 +204,7 @@ public:
         Repartitioner repartitioner{
             psi.size(),
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
+            verbose_,
             exec_handler_};
 
         // create a distributed matrix from the host matrix
