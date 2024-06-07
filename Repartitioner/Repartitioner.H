@@ -87,27 +87,28 @@ public:
     };
 
     /* returns the owner rank for a given rank */
-    label get_owner_rank(
- const ExecutorHandler& exec_handler
-) const { return get_owner_rank(get_rank(exec_handler)); };
+    label get_owner_rank(const ExecutorHandler &exec_handler) const
+    {
+        return get_owner_rank(get_rank(exec_handler));
+    };
 
     /* returns if current rank is an owner  */
-    bool is_owner(
- const ExecutorHandler& exec_handler
-) const { return get_rank(exec_handler) == get_owner_rank(get_rank(exec_handler)); };
+    bool is_owner(const ExecutorHandler &exec_handler) const
+    {
+        return get_rank(exec_handler) == get_owner_rank(get_rank(exec_handler));
+    };
 
     /* @brief check if the given rank gets local after repartitioning
      *
      * */
-    bool reparts_to_local(
- const ExecutorHandler& exec_handler,
-        label rank) const
+    bool reparts_to_local(const ExecutorHandler &exec_handler, label rank) const
     {
-        return get_owner_rank(exec_handler) == compute_owner_rank(rank, ranks_per_gpu_);
+        return get_owner_rank(exec_handler) ==
+               compute_owner_rank(rank, ranks_per_gpu_);
     };
 
     /* shortcut to current rank */
-    label get_rank(const ExecutorHandler& exec_handler) const
+    label get_rank(const ExecutorHandler &exec_handler) const
     {
         return exec_handler.get_communicator().get()->rank();
     };
@@ -153,11 +154,11 @@ public:
      *  the interface was originally from this rank
      */
     std::pair<SparsityPatternVector, std::vector<bool>>
-    build_non_local_interfaces(
-        const ExecutorHandler& exec_handler,
-        SparsityPatternVector &loc,
+    build_non_local_interfaces(const ExecutorHandler &exec_handler,
+                               SparsityPatternVector &loc,
                                const SparsityPatternVector &non_loc) const
     {
+        LOG_1(verbose_, "start build non local interfaces")
         std::vector<label> rows, cols, ldu_mapping, ranks, begins, ends;
         std::vector<bool> is_local;
         label merged_ranks_size = non_loc.ranks.size();
@@ -199,6 +200,7 @@ public:
                 ranks.push_back(get_owner_rank(non_loc.ranks[i]));
             }
         }
+        LOG_1(verbose_, "done build non local interfaces")
         return std::make_pair(
             SparsityPatternVector{rows, cols, ldu_mapping, begins, ends, ranks},
             is_local);
@@ -216,11 +218,11 @@ public:
                std::shared_ptr<SparsityPattern>,
                std::vector<std::pair<bool, label>>>
     repartition_sparsity(
-        const ExecutorHandler& exec_handler,
+        const ExecutorHandler &exec_handler,
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const
     {
-    LOG_1(verbose_, "start repartition sparsity pattern")
+        LOG_1(verbose_, "start repartition sparsity pattern")
         // 1. obtain send recv sizes vector
         // here we can reuse code from repartition_comm_pattern
         //
@@ -266,7 +268,8 @@ public:
                 local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
         }
 
-        label rows = (is_owner(exec_handler)) ? merged_local.rows.back() + 1 : 0;
+        label rows =
+            (is_owner(exec_handler)) ? merged_local.rows.back() + 1 : 0;
         gko::dim<2> merged_local_dim{rows, rows};
 
         auto non_local_comm_pattern = compute_send_recv_counts(
@@ -319,8 +322,8 @@ public:
                 rank, ranks_per_gpu);
         }
 
-        auto [gathered_non_local, is_local] =
-            build_non_local_interfaces(exec_handler, merged_local, merged_non_local);
+        auto [gathered_non_local, is_local] = build_non_local_interfaces(
+            exec_handler, merged_local, merged_non_local);
 
         // build vector with locality information
         std::vector<std::pair<bool, label>> locality;
@@ -344,14 +347,14 @@ public:
         // pattern where a particular face is in the send idxs
         // since we have already the row id of the other side
         // it should be doable. Or alternatively we know that we
-        // keep an interface together thus we can just count the idx up to the size.
-        // But we have to make sure that the interfaces are in the same order
-        // on both communication sides.
+        // keep an interface together thus we can just count the idx up to the
+        // size. But we have to make sure that the interfaces are in the same
+        // order on both communication sides.
         for (int i = 0; i < gathered_non_local.cols.size(); i++) {
             gathered_non_local.cols[i] = i;
         }
 
-    LOG_1(verbose_, "done repartition sparsity pattern")
+        LOG_1(verbose_, "done repartition sparsity pattern")
         if (is_owner(exec_handler)) {
             auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
                 exec, merged_local_dim, merged_local);
@@ -406,7 +409,7 @@ public:
     }
 
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
-        const ExecutorHandler& exec_handler,
+        const ExecutorHandler &exec_handler,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
