@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_COMMON_H
-#define OGL_COMMON_H
+#pragma once
 
 #include "fvCFD.H"
 #include "regIOobject.H"
@@ -126,5 +125,3 @@ void set_next_caching(word sys_matrix_name, const objectRegistry &db,
 
 label get_next_caching(word sys_matrix_name, const objectRegistry &db);
 }  // namespace Foam
-
-#endif

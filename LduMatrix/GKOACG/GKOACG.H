@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef GKOACG_H
-#define GKOACG_H
+#pragma once
 
 #include "GKOCoupledLduBase.H"
 
@@ -116,6 +115,5 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
 
 // ************************************************************************* //

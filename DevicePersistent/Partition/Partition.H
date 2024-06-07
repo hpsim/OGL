@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_DevicePersistentPartition_INCLUDED_H
-#define OGL_DevicePersistentPartition_INCLUDED_H
+#pragma once
 
 #include <functional>
 
@@ -136,5 +135,3 @@ public:
 };
 
 }  // namespace Foam
-
-#endif

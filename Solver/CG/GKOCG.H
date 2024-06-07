@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef GKOCG_H
-#define GKOCG_H
+#pragma once
 
 #include "BaseWrapper/lduBase/GKOlduBase.H"
 
@@ -159,6 +158,5 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
 
 // ************************************************************************* //

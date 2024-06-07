@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_STOPPING_CRITERION_H
-#define OGL_STOPPING_CRITERION_H
+#pragma once
 
 #include <ginkgo/ginkgo.hpp>
 
@@ -247,5 +246,3 @@ public:
     scalar get_res_norm_time() const { return time_; }
 };
 }  // namespace Foam
-
-#endif

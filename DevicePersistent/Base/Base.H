@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_IOPtr_INCLUDED_H
-#define OGL_IOPtr_INCLUDED_H
+#pragma once
 
 #include <ginkgo/ginkgo.hpp>
 #include "fvCFD.H"
@@ -145,5 +144,3 @@ typedef DevicePersistentBase<gko::HipExecutor> GKOHipExecPtr;
 typedef DevicePersistentBase<gko::DpcppExecutor> GKODpcppExecPtr;
 
 }  // namespace Foam
-
-#endif

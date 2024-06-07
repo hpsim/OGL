@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_HostMatrix_INCLUDED_H
-#define OGL_HostMatrix_INCLUDED_H
+#pragma once
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
@@ -442,4 +441,3 @@ public:
 
 
 }  // namespace Foam
-#endif

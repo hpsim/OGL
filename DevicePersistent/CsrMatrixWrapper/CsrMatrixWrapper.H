@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_IOGKOMatrixHandler_INCLUDED_H
-#define OGL_IOGKOMatrixHandler_INCLUDED_H
+#pragma once
 
 
 #include "DevicePersistent/Array/Array.H"
@@ -292,5 +291,3 @@ public:
 };
 
 }  // namespace Foam
-
-#endif
