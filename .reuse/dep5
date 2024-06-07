@@ -27,6 +27,10 @@ Files: CMakePresets.json
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
+Files: AUTHORS.md
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
 # Sample paragraph, commented out:
 #
 # Files: src/*
