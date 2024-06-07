@@ -141,9 +141,20 @@ public:
      */
     RepartDistMatrix &operator=(const RepartDistMatrix &other)
     {
-        FatalErrorInFunction << "Copying the RepartDistMatrix is disallowed "
-                                "for performance reasons"
-                             << abort(FatalError);
+        if (&other != this) {
+            std::cout << __FILE__ << __LINE__ << "WARN issued a copy of RepartDistMatrix\n";
+        // FatalErrorInFunction << "Copying the RepartDistMatrix is disallowed "
+        //                         "for performance reasons"
+        //                      << abort(FatalError);
+            gko::experimental::EnableDistributedLinOp<
+                RepartDistMatrix>::operator=(std::move(other));
+            this->dist_mtx_ = other.dist_mtx_;
+            this->local_sparsity_ = other.local_sparsity_;
+            this->non_local_sparsity_ = other.non_local_sparsity_;
+            this->src_comm_pattern_ =other.src_comm_pattern_;
+            this->local_interfaces_ =other.local_interfaces_;
+        }
+        return *this;
     }
 
     /**
@@ -172,7 +183,7 @@ public:
         word matrix_format, const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A)
     {
-        auto exec = exec_handler.get_device_exec();
+        auto exec = exec_handler.get_ref_exec();
         auto comm = *exec_handler.get_communicator().get();
 
         // repartition things here first by creating device_matrix_data on
@@ -231,6 +242,7 @@ public:
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
 
+        auto device_exec = exec_handler.get_device_exec();
         auto dist_A = gko::share(generate_dist_mtx_with_inner_type<dist_mtx>(
             matrix_format, exec, sparse_comm, local_sparsity_,
             non_local_sparsity_));
@@ -273,16 +285,6 @@ public:
         word matrix_format, const Repartitioner &repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A)
     {
-
-        auto exec = exec_handler.get_ref_exec();
-        auto device_exec = exec_handler.get_device_exec();
-        auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
-        label rank{repartitioner.get_rank(exec_handler)};
-        label owner_rank = repartitioner.get_owner_rank(exec_handler);
-        bool owner = repartitioner.is_owner(exec_handler);
-        label nrows = host_A->get_local_nrows();
-        label local_matrix_nnz = host_A->get_local_matrix_nnz();
-
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_mtx_,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern_,
                     local_interfaces_);
