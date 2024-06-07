@@ -395,6 +395,8 @@ HostMatrixWrapper::collect_cells_on_non_local_interface(
 std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
+    LOG_1(verbose_, "start init non local sparsity pattern")
+
     auto dim = gko::dim<2>{nrows_, non_local_matrix_nnz_};
 
     SparsityPatternVector sparsity;
@@ -432,6 +434,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         prev_rank = rank;
         element_ctr++;
     }
+    LOG_1(verbose_, "done init non local sparsity pattern")
 
     return std::make_shared<SparsityPattern>(exec, dim, sparsity);
 }
@@ -439,7 +442,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
 std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
-    LOG_1(verbose_, "start init host sparsity pattern")
+    LOG_1(verbose_, "start init local sparsity pattern")
 
     auto sparsity{std::make_shared<SparsityPattern>(
         exec->get_master(), local_matrix_w_interfaces_nnz_)};
@@ -525,7 +528,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
         }
     }
 
-    LOG_1(verbose_, "done init host sparsity pattern")
+    LOG_1(verbose_, "done init local sparsity pattern")
     return sparsity;
 }
 
