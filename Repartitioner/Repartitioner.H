@@ -67,7 +67,7 @@ private:
 
 
 public:
-    Repartitioner(label size, label ranks_per_gpu, label verbose_,
+    Repartitioner(label size, label ranks_per_gpu, label verbose,
                   const ExecutorHandler &exec_handler)
         : size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
