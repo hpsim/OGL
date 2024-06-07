@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef GKO_LDUBase_H
-#define GKO_LDUBase_H
+#pragma once
 
 #include "common/common.H"
 #include "lduLduBase/lduLduBase.H"
@@ -36,5 +35,3 @@ public:
 };
 
 }  // End namespace Foam
-
-#endif

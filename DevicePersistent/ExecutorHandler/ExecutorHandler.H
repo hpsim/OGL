@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 
-#ifndef OGL_ExecutorHandler_INCLUDED_H
-#define OGL_ExecutorHandler_INCLUDED_H
+#pragma once
 
 #include "DevicePersistent/Base/Base.H"
 #include "fvCFD.H"
@@ -170,4 +169,3 @@ using PersistentExecutor = ExecutorHandler;
 
 }  // namespace Foam
 // namespace Foam
-#endif

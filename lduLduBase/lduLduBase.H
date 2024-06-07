@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_lduLduBase_INCLUDED_H
-#define OGL_lduLduBase_INCLUDED_H
+#pragma once
 
 #include "DevicePersistent/CsrMatrixWrapper/CsrMatrixWrapper.H"
 #include "DevicePersistent/Vector/Vector.H"
@@ -333,5 +332,3 @@ public:
     };
 };
 }  // namespace Foam
-
-#endif

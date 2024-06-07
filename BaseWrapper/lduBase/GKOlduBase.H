@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef GKOlduBase_H
-#define GKOlduBase_H
+#pragma once
 
 #include "StoppingCriterion/StoppingCriterion.H"
 #include "common/common.H"
@@ -68,6 +67,5 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
 
 // ************************************************************************* //

@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_IOGlobalIndex_INCLUDED_H
-#define OGL_IOGlobalIndex_INCLUDED_H
+#pragma once
 
 #include <ginkgo/ginkgo.hpp>
 #include "fvCFD.H"
@@ -355,6 +354,5 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 
-#endif
 
 // ************************************************************************* //

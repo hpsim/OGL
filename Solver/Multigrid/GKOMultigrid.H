@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_IOGKOMultigrid_INCLUDED_H
-#define OGL_IOGKOMultigrid_INCLUDED_H
+#pragma once
 
 #include "BaseWrapper/lduBase/GKOlduBase.H"
 #include "StoppingCriterion/StoppingCriterion.H"
@@ -283,6 +282,5 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
 
 // ************************************************************************* //

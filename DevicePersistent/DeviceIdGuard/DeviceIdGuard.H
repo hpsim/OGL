@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef OGL_DeviceIdGuardHandler_INCLUDED_H
-#define OGL_DeviceIdGuardHandler_INCLUDED_H
+#pragma once
 
 #include "DevicePersistent/Base/Base.H"
 #include "fvCFD.H"
@@ -45,4 +44,3 @@ public:
 
 }  // namespace Foam
 // namespace Foam
-#endif
