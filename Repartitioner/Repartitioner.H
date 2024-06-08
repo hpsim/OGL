@@ -424,6 +424,9 @@ public:
         auto exec = src_comm_pattern->target_ids.get_executor();
         auto comm = src_comm_pattern->get_comm();
 
+        label rank = comm.rank();
+        bool owner = is_owner(exec_handler);
+
         // Step 1. Check if communication partner is non-local after
         // repartitioning. If it is non-local we keep it. Otherwise local
         // communication can be discarded. Here non-local means:
@@ -460,8 +463,7 @@ public:
 
         // next the send_ixs need to be updated we send them piecewise since
         // the send_idxs are a vector of gko::arrays
-        label rank = get_rank(exec_handler);
-        if (is_owner(exec_handler)) {
+        if (owner) {
             auto recv_counts = std::get<1>(comm_pattern);
             label owner_recv_counts = recv_counts[rank];
             // retrieved from i-th neighbor
@@ -474,6 +476,12 @@ public:
                         gathered_target_sizes[j + owner_recv_counts];
                     std::vector<label> recv_buffer(target_size);
 
+                    // std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                    //           << " recv no  " << j
+                    //           << " recv from  " << rank + i
+                    //           << " recv_count " << recv_count
+                    //           << " target_size " << target_size
+                    //           << " \n";
                     comm.recv(exec, recv_buffer.data(), target_size, rank + i,
                               rank);
 
@@ -499,21 +507,28 @@ public:
             auto send_count = std::get<0>(comm_pattern)[owner];
             for (int i = 0; i < send_count; i++) {
                 auto send_buffer = send_idxs[i].first;
+                // std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                //           << " send to owner " << owner 
+                //           << " count " << i << " of "  <<  send_count
+                //           << " send_buffer.size " << send_buffer.get_size()
+                //           << " \n";
                 comm.send(exec, send_buffer.get_const_data(),
                           send_buffer.get_size(), owner, owner);
             }
         }
 
         // clear communcation neighbors on non owning rank
-        if (!is_owner(exec_handler)) {
+        if (!owner) {
             // TODO NOTE should it be gathered_target_ids and is it needed?
             target_ids.clear();
             target_sizes.clear();
             send_idxs.clear();
         }
 
+
         // early return if no communication partners are left
-        if (target_sizes.size() == 0) {
+        if (gathered_target_ids.size() == 0) {
+
             return std::make_shared<CommunicationPattern>(
                 exec_handler,
                 gko::array<comm_size_type>{exec, target_ids.begin(),
@@ -545,6 +560,7 @@ public:
         merged_send_idxs.emplace_back(std::vector<label>(
             send_idxs[0].first.get_data(),
             send_idxs[0].first.get_data() + send_idxs[0].first.get_size()));
+
 
         for (int i = 1; i < target_ids.size(); i++) {
             // communicates with same target rank
