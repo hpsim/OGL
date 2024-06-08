@@ -142,10 +142,9 @@ public:
     RepartDistMatrix &operator=(const RepartDistMatrix &other)
     {
         if (&other != this) {
-            std::cout << __FILE__ << __LINE__ << "WARN issued a copy of RepartDistMatrix\n";
-        // FatalErrorInFunction << "Copying the RepartDistMatrix is disallowed "
-        //                         "for performance reasons"
-        //                      << abort(FatalError);
+            // FatalErrorInFunction << "Copying the RepartDistMatrix is disallowed "
+            //                         "for performance reasons"
+            //                      << abort(FatalError);
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->dist_mtx_ = other.dist_mtx_;
@@ -197,13 +196,15 @@ public:
 
         // create original communicator pattern
         auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+        label rank{comm.rank()};
+
         auto src_comm_pattern =
             host_A.get()->create_communication_pattern(exec_handler);
         // create partiton here and pass to constructor
+        //
         auto dst_comm_pattern = repartitioner.repartition_comm_pattern(
             exec_handler, src_comm_pattern, orig_partition);
 
-        label rank{src_comm_pattern->get_comm().rank()};
         label owner_rank = repartitioner.get_owner_rank(exec_handler);
         bool owner = repartitioner.is_owner(exec_handler);
 
@@ -214,37 +215,17 @@ public:
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
 
-        // std::cout << __FILE__ << " rank " << rank
-        //           << " build_localized_partition "
-        //           << " dim " << local_sparsity_->dim[0] << " send idxs size "
-        //           << dst_comm_pattern.send_idxs.size() << " target ids "
-        //           << dst_comm_pattern.target_ids << " target sizes "
-        //           << dst_comm_pattern.target_sizes << "\n";
-
         auto localized_partition = local_part_type::build_from_blocked_recv(
             exec, local_sparsity_->dim[0], dst_comm_pattern->send_idxs,
             dst_comm_pattern->target_ids, dst_comm_pattern->target_sizes);
 
-        // std::cout << __FILE__ << " rank " << rank << " local sparsity size "
-        //           << local_sparsity_->size_ << " local sparsity dim ["
-        //           << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
-        //           << "] non_local sparsity size " << non_local_sparsity_->size_
-        //           << " non local sparsity dim [" << non_local_sparsity_->dim[0]
-        //           << "x" << non_local_sparsity_->dim[1] << "] target_ids "
-        //           << dst_comm_pattern->target_ids << " target_sizes "
-        //           << dst_comm_pattern->target_sizes << " target_send_idxs.size "
-        //           << dst_comm_pattern->send_idxs.size()
-        //           << " non_local_sparsity.size " << non_local_sparsity_->size_
-        //           << " get_recv_indices "
-        //           << localized_partition->get_recv_indices().get_num_elems()
-        //           << " \n";
 
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
 
         auto device_exec = exec_handler.get_device_exec();
         auto dist_A = gko::share(generate_dist_mtx_with_inner_type<dist_mtx>(
-            matrix_format, exec, sparse_comm, local_sparsity_,
+            matrix_format, device_exec, sparse_comm, local_sparsity_,
             non_local_sparsity_));
 
         auto local_coeffs = gko::array<scalar>(exec, local_sparsity_->size_);
@@ -256,6 +237,23 @@ public:
             local_coeffs.fill(0.0);
             non_local_coeffs.fill(0.0);
         }
+
+
+         // std::cout << __FILE__ << " rank " << rank << "\n\tlocal sparsity size "
+         //           << local_sparsity_->size_ << " dim ["
+         //           << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
+         //           << "]\n\tnon_local sparsity size " << non_local_sparsity_->size_
+         //           << " dim [" << non_local_sparsity_->dim[0]
+         //           << "x" << non_local_sparsity_->dim[1] << "]\n\tcomm pattern:\n"
+         //           << "\ttarget_ids: "
+         //           << dst_comm_pattern->target_ids << "\n\ttarget_sizes: "
+         //           << dst_comm_pattern->target_sizes << "\n\ttarget_send_idxs.size "
+         //           << dst_comm_pattern->send_idxs.size()
+         //           << "\n\tget_recv_indices "
+         //           << localized_partition->get_recv_indices().get_num_elems()
+         //           << "\n\tget_send_indices "
+         //           << localized_partition->get_send_indices().get_num_elems()
+         //           << "\n";
 
         // FIXME make sure that we work on the device executor
         dist_A->read_distributed(
