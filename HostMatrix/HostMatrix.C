@@ -290,10 +290,10 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     }
 
     // convert to gko::array
-    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(),
-                                          static_cast<comm_size_type>(n_procs)};
-    gko::array<comm_size_type> target_sizes{
-        exec_.get_ref_exec(), static_cast<comm_size_type>(n_procs)};
+    gko::array<label> target_ids{exec_.get_ref_exec(),
+                                 static_cast<gko::size_type>(n_procs)};
+    gko::array<label> target_sizes{exec_.get_ref_exec(),
+                                   static_cast<gko::size_type>(n_procs)};
 
     label iter = 0;
     for (const auto &[proc, interface_cells] : interface_cell_map) {
@@ -540,7 +540,9 @@ void HostMatrixWrapper<MatrixType>::init_local_sparsity_pattern(
             auto [interface_idx, interface_row, interface_col] = interface;
 
             // copy from existing matrix coefficients
-            while ([&]() {
+            while ([&, interface_idx = interface_idx,
+                    interface_row = interface_row,
+                    interface_col = interface_col]() {
                 // check for length
                 if (current_idx_ctr == local_matrix_nnz_) {
                     return false;

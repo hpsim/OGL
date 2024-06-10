@@ -5,10 +5,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 # 0.5.4 (unreleased)
+- Add support for SP scalars and determine label and scalar size from env variable [PR #120](https://github.com/hpsim/OGL/pull/120) 
+- Notify user of a unsupported executor argument [PR #118](https://github.com/hpsim/OGL/pull/118) 
 - Notify user of a unsupported executor argument [PR #]
-- Add a list of all OGL authors [PR #113](https://github.com/hpsim/OGL/pull/113)
-- Replace #ifdef include guard with #pragma once [PR #113](https://github.com/hpsim/OGL/pull/113)
-- Switch to SPDX headers, fix formatting issue[PR #112](https://github.com/hpsim/OGL/pull/112)
+- Add a list of all OGL authors [PR #126](https://github.com/hpsim/OGL/pull/126)
+- Replace #ifdef include guard with #pragma once [PR #126](https://github.com/hpsim/OGL/pull/126)
+- Switch to SPDX headers, fix formatting issue[PR #122](https://github.com/hpsim/OGL/pull/112)
 # 0.5.3 (2024/03/08)
 - Fix issue when building against DP labels [PR #111](https://github.com/hpsim/OGL/pull/111)
 # 0.5.2 (2024/03/08)
