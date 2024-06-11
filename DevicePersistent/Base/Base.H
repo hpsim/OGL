@@ -27,12 +27,12 @@ public:
 
     //- Construct from IOobject and a PtrList
     DevicePersistentBase(const IOobject &io, std::shared_ptr<T> in_ptr)
-        : regIOobject(io), ptr_(in_ptr){};
+        : regIOobject(io), ptr_(in_ptr){}
 
     // get a ptr to the underlying data
-    std::shared_ptr<T> get_ptr() { return ptr_; };
+    std::shared_ptr<T> get_ptr() { return ptr_; }
 
-    bool writeData(Ostream &) const { return false; };
+    bool writeData(Ostream &) const { return false; }
 };
 
 /* Base class for storing ginkgo and OGL data structures in the Objectregistry

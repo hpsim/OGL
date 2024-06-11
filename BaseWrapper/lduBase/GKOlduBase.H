@@ -36,7 +36,7 @@ namespace Foam {
                                                                             \
         if (precond != NULL) return create_precond(exec, precond);          \
         return create_default(exec);                                        \
-    };
+    }
 
 
 template <class SolverFactory>
@@ -50,14 +50,14 @@ public:
                      const dictionary &solverControls)
         : lduLduBase<lduMatrix, SolverFactory>(
               fieldName, matrix, interfaceBouCoeffs, interfaceIntCoeffs,
-              interfaces, solverControls){};
+              interfaces, solverControls){}
 
     virtual solverPerformance solve_impl(word typeName, scalarField &psi,
                                          const scalarField &source,
                                          const direction cmpt = 0) const
     {
         return this->solve_impl_(typeName, psi, source, cmpt);
-    };
+    }
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

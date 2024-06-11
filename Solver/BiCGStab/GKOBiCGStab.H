@@ -41,7 +41,7 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls){}
 
     CREATE_SOLVER_METHODS(bicgstab)
 
@@ -52,7 +52,7 @@ public:
                             .with_criteria(stoppingCriterionVec_)
                             .on(exec);
         return bicgstab;
-    };
+    }
 
     std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_precond(std::shared_ptr<gko::Executor> exec,
@@ -63,7 +63,7 @@ public:
                             .with_generated_preconditioner(precond)
                             .on(exec);
         return bicgstab;
-    };
+    }
 
     scalar get_init_res_norm() const
     {
@@ -140,7 +140,7 @@ public:
                            interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOBiCGStab(){};
+    virtual ~GKOBiCGStab(){}
 
 
     // Member Functions

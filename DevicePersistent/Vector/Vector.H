@@ -184,12 +184,12 @@ public:
     void set_data(T *data)
     {
         this->get_persistent_object()->get_data() = data;
-    };
+    }
 
     const T *get_const_data() const
     {
         return this->get_persistent_object()->get_const_data();
-    };
+    }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 

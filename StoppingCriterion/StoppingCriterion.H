@@ -69,7 +69,7 @@ class StoppingCriterion {
             std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(x, {});
 
             std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(b, {});
-        };
+        }
 
         GKO_ENABLE_CRITERION_FACTORY(OpenFOAMDistStoppingCriterion, parameters,
                                      Factory);

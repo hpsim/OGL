@@ -171,12 +171,12 @@ public:
     void set_data(T *data)
     {
         this->get_persistent_object()->get_data() = data;
-    };
+    }
 
     const T *get_const_data() const
     {
         return this->get_persistent_object()->get_const_data();
-    };
+    }
 
 
     std::shared_ptr<gko::array<T>> get_array() const
