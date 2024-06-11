@@ -56,13 +56,19 @@ struct ExecutorInitFunctor {
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
         }
-        if (executor_name_ == "dpcpp") {
+        if (executor_name_ == "sycl" || "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "SYCL Backend was not compiled. Recompile OGL/Ginkgo "
                        "with SYCL backend enabled."
                     << abort(FatalError);
             };
+
+            if (executor_name_ == "dpcpp"){
+                Info<< "Warning: the executor name dpcpp is deprecated. 
+                        Use sycl as the executor name for the same executor instead." << endl;
+            }
+
             auto devices = gko::DpcppExecutor::get_num_devices("gpu");
             if (devices == 0) {
                 return gko::share(gko::DpcppExecutor::create(0, host_exec));
@@ -97,7 +103,7 @@ struct ExecutorInitFunctor {
 
         FatalErrorInFunction
             << "OGL does not support the executor: " << executor_name_
-            << "\nValid choices are: cuda, hip, dpcpp, omp, or reference"
+            << "\nValid choices are: cuda, hip, sycl, omp, or reference"
             << abort(FatalError);
         return {};
     }
