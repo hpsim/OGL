@@ -103,6 +103,7 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
 
     label tot_recv_elements{0};
     label comm_elements_buffer{0};
+    std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
     if (rank == owner_rank) {
         // send and recv to it self
         recv_offsets[owner_rank] = padding_before;
@@ -111,6 +112,7 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
         // the start of the next rank data
         tot_recv_elements = padding_before + size + padding_after;
 
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         for (int i = 1; i < ranks_per_gpu; i++) {
             // receive the recv counts
             comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
@@ -165,7 +167,14 @@ void communicate_values (
     //
     // send_buffer should be on the host
     // recv_buffer should be on the device
-    // auto rank = comm.rank();
+    // oensrtauto rank = comm.rank();
+// std:::cout
+//     << __FILE__ << ":" << __LINE__
+//     << " send_counts " <<   send_counts
+//     << " recv_counts " << recv_counts
+//     << " send_offsets " << send_offsets
+//     << " recv_offsets " << recv_offsets
+//     << "\n";
 
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer, recv_counts.data(),

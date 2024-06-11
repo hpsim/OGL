@@ -76,9 +76,10 @@ public:
           verbose_(verbose),
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
-                  label, label>(exec_handler.get_device_exec(),
+                  label, label>(exec_handler.get_ref_exec(),
                                 *exec_handler.get_communicator().get(),
-                                size))) {};
+                                size))) {
+	  };
 
     /* returns the owner rank for a given rank */
     label get_owner_rank(label rank) const
@@ -214,7 +215,8 @@ public:
     ** signals whether this is a new local interface (no communication), and the
     ** second entry (label) tracks the original rank of the interface
     */
-    std::tuple<std::shared_ptr<SparsityPattern>,
+    std::tuple<
+	    std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,
                std::vector<std::pair<bool, label>>>
     repartition_sparsity(
@@ -233,17 +235,38 @@ public:
         // 4. dim needs to be updated
         // this is not implemented yet, but we can't fail here for
         // debugging reasons
-        auto exec = exec_handler.get_device_exec();
+        auto exec = exec_handler.get_ref_exec();
         auto comm = *exec_handler.get_communicator().get();
         label rank = get_rank(exec_handler);
         label owner_rank = get_owner_rank(exec_handler);
         label ranks_per_gpu = ranks_per_gpu_;
+	// TODO dont copy
+        if (ranks_per_gpu == 1) {
+               std::vector<std::pair<bool, label>> ret;
+	       for (auto comm_rank:src_non_local_pattern->rank) {
+		       ret.emplace_back(false, rank);
+	       }
 
+
+         	return std::make_tuple<
+	       std::shared_ptr<SparsityPattern>,
+               std::shared_ptr<SparsityPattern>,
+               std::vector<std::pair<bool, label>>>(
+         		std::make_shared<SparsityPattern>(src_local_pattern),
+	        	std::make_shared<SparsityPattern>(src_non_local_pattern),
+	               	std::move(ret)
+        	);
+        }
+
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         auto local_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, src_local_pattern->size_);
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank  << " owner rank" << owner_rank<< "\n";
 
-        label offset = orig_partition_->get_range_bounds()[rank] -
+
+auto	offset =	orig_partition_->get_range_bounds()[rank] -
                        orig_partition_->get_range_bounds()[owner_rank];
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         auto gather_closure = [&](auto &comm_pattern, auto &data,
                                   label offset) {
@@ -251,6 +274,7 @@ public:
                                    data.get_data(), offset);
         };
 
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         SparsityPatternVector merged_local{
             gather_closure(local_comm_pattern, src_local_pattern->row_idxs,
                            offset),
@@ -267,6 +291,7 @@ public:
             make_ldu_mapping_consecutive(
                 local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
         }
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         label rows =
             (is_owner(exec_handler)) ? merged_local.rows.back() + 1 : 0;
@@ -284,6 +309,7 @@ public:
             spans_begin.push_back(elem.begin);
             spans_end.push_back(elem.end);
         }
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         // the non local cols are in local idx of other side
         // thus we need the new offset of the other side
@@ -300,6 +326,7 @@ public:
             std::transform(data, data + size, data,
                            [&](label idx) { return idx + local_offset; });
         }
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         SparsityPatternVector merged_non_local{
             gather_closure(non_local_comm_pattern,
@@ -328,6 +355,7 @@ public:
         // build vector with locality information
         std::vector<std::pair<bool, label>> locality;
         label ctr{0};
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         if (is_owner(exec_handler)) {
             auto recv_counts = std::get<1>(span_comm_pattern);
@@ -354,6 +382,7 @@ public:
             gathered_non_local.cols[i] = i;
         }
 
+	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         LOG_1(verbose_, "done repartition sparsity pattern")
         if (is_owner(exec_handler)) {
             auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
