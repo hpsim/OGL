@@ -64,9 +64,11 @@ struct ExecutorInitFunctor {
                     << abort(FatalError);
             };
 
-            if (executor_name_ == "dpcpp"){
-                Info<< "Warning: the executor name dpcpp is deprecated\n."
-                    << "Use sycl as the executor name for the same executor instead." << endl;
+            if (executor_name_ == "dpcpp") {
+                Info << "Warning: the executor name dpcpp is deprecated\n."
+                     << "Use sycl as the executor name for the same executor "
+                        "instead."
+                     << endl;
             }
 
             auto devices = gko::DpcppExecutor::get_num_devices("gpu");
