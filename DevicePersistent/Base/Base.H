@@ -27,7 +27,8 @@ public:
 
     //- Construct from IOobject and a PtrList
     DevicePersistentBase(const IOobject &io, std::shared_ptr<T> in_ptr)
-        : regIOobject(io), ptr_(in_ptr){}
+        : regIOobject(io), ptr_(in_ptr)
+    {}
 
     // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; }

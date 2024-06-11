@@ -50,7 +50,8 @@ public:
                      const dictionary &solverControls)
         : lduLduBase<lduMatrix, SolverFactory>(
               fieldName, matrix, interfaceBouCoeffs, interfaceIntCoeffs,
-              interfaces, solverControls){}
+              interfaces, solverControls)
+    {}
 
     virtual solverPerformance solve_impl(word typeName, scalarField &psi,
                                          const scalarField &source,

@@ -181,10 +181,7 @@ public:
 
     T *get_data() const { return this->get_persistent_object()->get_data(); }
 
-    void set_data(T *data)
-    {
-        this->get_persistent_object()->get_data() = data;
-    }
+    void set_data(T *data) { this->get_persistent_object()->get_data() = data; }
 
     const T *get_const_data() const
     {

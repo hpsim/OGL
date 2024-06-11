@@ -41,7 +41,8 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){}
+          stoppingCriterion_(solverControls)
+    {}
 
     CREATE_SOLVER_METHODS(bicgstab)
 
@@ -140,7 +141,7 @@ public:
                            interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOBiCGStab(){}
+    virtual ~GKOBiCGStab() {}
 
 
     // Member Functions
