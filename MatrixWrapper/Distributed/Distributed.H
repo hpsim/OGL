@@ -38,8 +38,7 @@ SourceFiles
 template <typename DistMtxType>
 std::unique_ptr<DistMtxType> generate_dist_mtx_with_inner_type(
     word matrix_format, std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const gko::experimental::distributed::sparse_communicator>
-        comm,
+    gko::experimental::mpi::communicator comm,
     std::shared_ptr<const SparsityPattern> local_sparsity,
     std::shared_ptr<const SparsityPattern> non_local_sparsity)
 {
@@ -110,14 +109,10 @@ class RepartDistMatrix
                                                GlobalIndexType>;
 
     using part_type = gko::experimental::distributed::Partition<label, label>;
-    using local_part_type =
-        gko::experimental::distributed::localized_partition<label>;
 
     using vec = gko::matrix::Dense<ValueType>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
-    using sparse_communicator =
-        gko::experimental::distributed::sparse_communicator;
 
 public:
     using gko::experimental::EnableDistributedLinOp<RepartDistMatrix<
@@ -142,7 +137,8 @@ public:
     RepartDistMatrix &operator=(const RepartDistMatrix &other)
     {
         if (&other != this) {
-            // FatalErrorInFunction << "Copying the RepartDistMatrix is disallowed "
+            // FatalErrorInFunction << "Copying the RepartDistMatrix is
+            // disallowed "
             //                         "for performance reasons"
             //                      << abort(FatalError);
             gko::experimental::EnableDistributedLinOp<
@@ -150,8 +146,8 @@ public:
             this->dist_mtx_ = other.dist_mtx_;
             this->local_sparsity_ = other.local_sparsity_;
             this->non_local_sparsity_ = other.non_local_sparsity_;
-            this->src_comm_pattern_ =other.src_comm_pattern_;
-            this->local_interfaces_ =other.local_interfaces_;
+            this->src_comm_pattern_ = other.src_comm_pattern_;
+            this->local_interfaces_ = other.local_interfaces_;
         }
         return *this;
     }
@@ -164,22 +160,21 @@ public:
     RepartDistMatrix &operator=(RepartDistMatrix &&other)
     {
         if (&other != this) {
-            FatalErrorInFunction << "Not implemented"
-                                << abort(FatalError);
+            FatalErrorInFunction << "Not implemented" << abort(FatalError);
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->dist_mtx_ = std::move(other.dist_mtx_);
-            this->local_sparsity_ =std::move(other.local_sparsity_);
-            this->non_local_sparsity_ =std::move(other.non_local_sparsity_);
-            this->src_comm_pattern_ =std::move(other.src_comm_pattern_);
-            this->local_interfaces_ =std::move(other.local_interfaces_);
+            this->local_sparsity_ = std::move(other.local_sparsity_);
+            this->non_local_sparsity_ = std::move(other.non_local_sparsity_);
+            this->src_comm_pattern_ = std::move(other.src_comm_pattern_);
+            this->local_interfaces_ = std::move(other.local_interfaces_);
         }
         return *this;
     }
 
     static std::shared_ptr<RepartDistMatrix> create(
-        const ExecutorHandler &exec_handler,
-        word matrix_format, const Repartitioner &repartitioner,
+        const ExecutorHandler &exec_handler, word matrix_format,
+        const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A)
     {
         auto exec = exec_handler.get_ref_exec();
@@ -215,17 +210,9 @@ public:
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
 
-        auto localized_partition = local_part_type::build_from_blocked_recv(
-            exec, local_sparsity_->dim[0], dst_comm_pattern->send_idxs,
-            dst_comm_pattern->target_ids, dst_comm_pattern->target_sizes);
-
-
-        auto sparse_comm =
-            sparse_communicator::create(comm, localized_partition);
-
         auto device_exec = exec_handler.get_device_exec();
         auto dist_A = gko::share(generate_dist_mtx_with_inner_type<dist_mtx>(
-            matrix_format, device_exec, sparse_comm, local_sparsity_,
+            matrix_format, device_exec, comm, local_sparsity_,
             non_local_sparsity_));
 
         auto local_coeffs = gko::array<scalar>(exec, local_sparsity_->size_);
@@ -238,33 +225,43 @@ public:
             non_local_coeffs.fill(0.0);
         }
 
-
-         // std::cout << __FILE__ << " rank " << rank << "\n\tlocal sparsity size "
-         //           << local_sparsity_->size_ << " dim ["
-         //           << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
-         //           << "]\n\tnon_local sparsity size " << non_local_sparsity_->size_
-         //           << " dim [" << non_local_sparsity_->dim[0]
-         //           << "x" << non_local_sparsity_->dim[1] << "]\n\tcomm pattern:\n"
-         //           << "\ttarget_ids: "
-         //           << dst_comm_pattern->target_ids << "\n\ttarget_sizes: "
-         //           << dst_comm_pattern->target_sizes << "\n\ttarget_send_idxs.size "
-         //           << dst_comm_pattern->send_idxs.size()
-         //           << "\n\tget_recv_indices "
-         //           << localized_partition->get_recv_indices().get_num_elems()
-         //           << "\n\tget_send_indices "
-         //           << localized_partition->get_send_indices().get_num_elems()
-         //           << "\n";
+        // std::cout << __FILE__ << " rank " << rank << "\n\tlocal sparsity size
+        // "
+        //           << local_sparsity_->size_ << " dim ["
+        //           << local_sparsity_->dim[0] << "x" <<
+        //           local_sparsity_->dim[1]
+        //           << "]\n\tnon_local sparsity size " <<
+        //           non_local_sparsity_->size_
+        //           << " dim [" << non_local_sparsity_->dim[0]
+        //           << "x" << non_local_sparsity_->dim[1] << "]\n\tcomm
+        //           pattern:\n"
+        //           << "\ttarget_ids: "
+        //           << dst_comm_pattern->target_ids << "\n\ttarget_sizes: "
+        //           << dst_comm_pattern->target_sizes <<
+        //           "\n\ttarget_send_idxs.size "
+        //           << dst_comm_pattern->send_idxs.size()
+        //           << "\n\tget_recv_indices "
+        //           << localized_partition->get_recv_indices().get_num_elems()
+        //           << "\n\tget_send_indices "
+        //           << localized_partition->get_send_indices().get_num_elems()
+        //           << "\n";
 
         // FIXME make sure that we work on the device executor
         dist_A->read_distributed(
             device_matrix_data(exec, local_sparsity_->dim,
                                local_sparsity_->row_idxs,
                                local_sparsity_->col_idxs, local_coeffs),
-            device_matrix_data(exec, non_local_sparsity_->dim,
-                               non_local_sparsity_->row_idxs,
-                               non_local_sparsity_->col_idxs, non_local_coeffs),
-            sparse_comm);
+            device_matrix_data(
+                exec, non_local_sparsity_->dim, non_local_sparsity_->row_idxs,
+                non_local_sparsity_->col_idxs, non_local_coeffs));
 
+
+        // auto dist_A = DistMtxType::create(
+        //        exec, comm,
+        //        CombinationMatrix<scalar, label, mtx_type>::create(
+        //            exec, local_dim, local_interfaces),
+        //        CombinationMatrix<scalar, label, mtx_type>::create(
+        //            exec, non_local_dim, non_local_interfaces));
 
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern,
@@ -278,20 +275,18 @@ public:
         return ret;
     };
 
-    void update(
-        const ExecutorHandler &exec_handler,
-        word matrix_format, const Repartitioner &repartitioner,
+    void update(const ExecutorHandler &exec_handler, word matrix_format,
+                const Repartitioner &repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A)
     {
-        update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_mtx_,
-                    local_sparsity_, non_local_sparsity_, src_comm_pattern_,
-                    local_interfaces_);
+        update_impl(exec_handler, matrix_format, repartitioner, host_A,
+                    dist_mtx_, local_sparsity_, non_local_sparsity_,
+                    src_comm_pattern_, local_interfaces_);
     };
 
     // TODO matrix_format can be data member
     static void update_impl(
-        const ExecutorHandler &exec_handler,
-        word matrix_format,
+        const ExecutorHandler &exec_handler, word matrix_format,
         const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A,
         std::shared_ptr<

@@ -16,10 +16,11 @@
 namespace Foam {
 
 
+using part_type =
+    gko::experimental::distributed::Partition<label, label>;
+
 struct PartitionInitFunctor {
     using comm_size_type = int;
-    using part_type =
-        gko::experimental::distributed::localized_partition<label>;
 
     const ExecutorHandler &exec_;
 
@@ -57,13 +58,14 @@ struct PartitionInitFunctor {
     std::shared_ptr<part_type> init() const
     {
         auto exec = exec_.get_ref_exec();
+        auto comm = *exec_.get_communicator().get();
 
         word msg{"initialising partition of size " +
                  std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        auto host_partition = part_type::build_from_blocked_recv(
-            exec, local_size_, send_idxs_, target_ids_, target_sizes_);
+        auto host_partition = gko::share(gko::experimental::distributed::build_partition_from_local_size<label,label>(
+            exec, comm, local_size_));
 
         return host_partition;
     }
@@ -78,8 +80,7 @@ struct PartitionInitFunctor {
  * reference or omp.
  * */
 class PersistentPartition
-    : public PersistentBase<
-          gko::experimental::distributed::localized_partition<label>,
+    : public PersistentBase<part_type,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
@@ -90,8 +91,6 @@ class PersistentPartition
     const ExecutorHandler &exec_;
 
 public:
-    using part_type =
-        gko::experimental::distributed::localized_partition<label>;
 
     /* PersistentPartition constructor using existing memory
      *
