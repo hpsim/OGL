@@ -65,7 +65,7 @@ struct ExecutorInitFunctor {
             };
 
             if (executor_name_ == "dpcpp") {
-                Info << "Warning: the executor name dpcpp is deprecated\n."
+                Info << "Warning: the executor name dpcpp is deprecated.\n"
                      << "Use sycl as the executor name for the same executor "
                         "instead."
                      << endl;
