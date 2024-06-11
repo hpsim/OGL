@@ -47,6 +47,16 @@ struct SparsityPattern {
           rank(std::vector<label>{})
     {}
 
+    SparsityPattern(std::shared_ptr<const SparsityPattern> other)
+        : size_(other->size_),
+          row_idxs(other->row_idxs),
+          col_idxs(other->col_idxs),
+          ldu_mapping(other->ldu_mapping),
+          dim(other->dim),
+          interface_spans(other->interface_spans),
+          rank(other->rank)
+    {}
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, label size)
         : size_(size),
           row_idxs{exec, static_cast<gko::size_type>(size_)},
