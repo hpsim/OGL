@@ -215,10 +215,30 @@ public:
         local_sparsity_ = repart_loc_sparsity;
         non_local_sparsity_ = repart_non_loc_sparsity;
 
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " build_localized_partition \n";
+                 //<< " dim " << local_sparsity_->dim[0] << " send idxs size "
+                 //<< dst_comm_pattern.send_idxs.size() << " target ids "
+                 //<< dst_comm_pattern.target_ids << " target sizes "
+                 //<< dst_comm_pattern.target_sizes << "\n";
+
         auto localized_partition = local_part_type::build_from_blocked_recv(
             exec, local_sparsity_->dim[0], dst_comm_pattern->send_idxs,
             dst_comm_pattern->target_ids, dst_comm_pattern->target_sizes);
 
+        std::cout << __FILE__ << " rank " << rank << " local sparsity size "
+                  << local_sparsity_->size_ << " local sparsity dim ["
+                  << local_sparsity_->dim[0] << "x" << local_sparsity_->dim[1]
+                  << "] non_local sparsity size " << non_local_sparsity_->size_
+                  << " non local sparsity dim [" << non_local_sparsity_->dim[0]
+                  << "x" << non_local_sparsity_->dim[1] << "] target_ids "
+                  << dst_comm_pattern->target_ids << " target_sizes "
+                  << dst_comm_pattern->target_sizes << " target_send_idxs.size "
+                  << dst_comm_pattern->send_idxs.size()
+                  << " non_local_sparsity.size " << non_local_sparsity_->size_
+                  << " get_recv_indices "
+                  << localized_partition->get_recv_indices().get_num_elems()
+                  << " \n";
 
         auto sparse_comm =
             sparse_communicator::create(comm, localized_partition);
@@ -264,11 +284,15 @@ public:
                                non_local_sparsity_->row_idxs,
                                non_local_sparsity_->col_idxs, non_local_coeffs),
             sparse_comm);
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " dnoe read distributed  \n";
 
 
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern,
                     local_interfaces);
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " dnoe update impl  \n";
 
         auto ret = std::make_shared<RepartDistMatrix>(
             exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
@@ -305,6 +329,8 @@ public:
         auto exec = exec_handler.get_ref_exec();
         auto device_exec = exec_handler.get_device_exec();
         auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+	bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
+
         label rank{repartitioner.get_rank(exec_handler)};
         label owner_rank = repartitioner.get_owner_rank(exec_handler);
         bool owner = repartitioner.is_owner(exec_handler);
@@ -314,29 +340,43 @@ public:
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
             local_matrix_nnz - nrows, 0);
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " diag comm pattern  \n";
 
 
         label upper_nnz = host_A->get_upper_nnz();
         auto upper_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, upper_nnz, local_matrix_nnz, 0,
             local_matrix_nnz - upper_nnz);
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " upper comm pattern  \n";
         auto lower_comm_pattern =
             compute_send_recv_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                      local_matrix_nnz, upper_nnz, nrows);
 
         scalar *local_ptr;
+        scalar *local_ptr_2;
+	label nnz=0;
 
         // update main values
+	std::vector<scalar> loc_buffer;
         if (owner) {
             using Coo = gko::matrix::Coo<scalar, label>;
             auto local_mtx = dist_A->get_local_matrix();
+
 
             std::shared_ptr<const Coo> local =
                 gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
                                  dist_A->get_local_matrix())
                                  ->get_combination()
                                  ->get_operators()[0]);
-            local_ptr = const_cast<scalar *>(local->get_const_values());
+	    if (requires_host_buffer) {
+		    loc_buffer.resize(local->get_num_stored_elements());
+		    local_ptr = loc_buffer.data();
+		    local_ptr_2 = const_cast<scalar *>(local->get_const_values());
+	    } else {
+		    local_ptr = const_cast<scalar *>(local->get_const_values());
+	    }
         }
         communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                            local_ptr);
@@ -352,6 +392,18 @@ public:
             communicate_values(exec_handler, lower_comm_pattern,
                                host_A->get_lower(), local_ptr);
         }
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " done comm local mtx \n";
+
+	if (requires_host_buffer) {	
+		auto host_buffer_view =
+            gko::array<scalar>::view(exec, nnz, local_ptr);
+		auto target_buffer_view =
+            gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
+		target_buffer_view = host_buffer_view;
+	}
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " done copy to device  \n";
 
         // copy interface values
         auto comm = *exec_handler.get_communicator().get();
@@ -364,6 +416,7 @@ public:
             label tag = 0;
             label comm_rank, comm_size;
             scalar *recv_buffer_ptr;
+	    std::vector<scalar> host_recv_buffer;
             label remain_host_interfaces = host_A->get_interface_size();
             for (auto [is_local, comm_rank] : local_interfaces) {
                 label &ctr = (is_local) ? loc_ctr : nloc_ctr;
@@ -383,9 +436,18 @@ public:
                     comm_size =
                         non_local_sparsity->interface_spans[ctr].length();
                 }
-                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+
+		if (requires_host_buffer) {
+			host_recv_buffer.resize(comm_size);
+			recv_buffer_ptr = host_recv_buffer.data();
+		} else {
+			recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+		}
 
                 if (comm_rank != rank) {
+		   std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+				  << " comm_rank " << comm_rank << " rank " << rank << "  \n";
+
                     comm.recv(exec, recv_buffer_ptr, comm_size, comm_rank, tag);
                 } else {
                     // if data is already on this rank
@@ -427,33 +489,47 @@ public:
             }
         }
 
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << " reorder \n";
         // reorder updated values
-        if (owner) {
-            // NOTE local sparsity size includes the interfaces
-            using Coo = gko::matrix::Coo<scalar, label>;
-            using dim_type = gko::dim<2>::dimension_type;
-            std::shared_ptr<const Coo> local =
-                gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
-                                 dist_A->get_local_matrix())
-                                 ->get_combination()
-                                 ->get_operators()[0]);
-            auto local_elements = local->get_num_stored_elements();
-            local_ptr = const_cast<scalar *>(local->get_const_values());
-            // TODO make sure this doesn't copy
-            // create a non owning dense matrix of local_values
+      if (owner) {
+          // NOTE local sparsity size includes the interfaces
+          using Coo = gko::matrix::Coo<scalar, label>;
+          using dim_type = gko::dim<2>::dimension_type;
+          std::shared_ptr<const Coo> local =
+              gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
+                               dist_A->get_local_matrix())
+                               ->get_combination()
+                               ->get_operators()[0]);
+          auto local_elements = local->get_num_stored_elements();
+          local_ptr = const_cast<scalar *>(local->get_const_values());
+          // TODO make sure this doesn't copy
+          // create a non owning dense matrix of local_values
 
-            auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-                exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
-                gko::array<scalar>::view(exec, local_elements, local_ptr), 1));
+          auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+              device_exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
+              gko::array<scalar>::view(device_exec, local_elements, local_ptr), 1));
+      	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << " local_elements " << local_elements
+      		  << " reorder \n";
 
-            auto mapping_view = gko::array<label>::view(
-                exec, local_elements, local_sparsity->ldu_mapping.get_data());
+          auto mapping_view = gko::array<label>::view(
+              exec, local_elements, local_sparsity->ldu_mapping.get_data());
+      	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+      		  << " reorder \n";
 
 
-            // TODO this needs to copy ldu_mapping to the device
-            auto dense_vec = row_collection->clone();
-            dense_vec->row_gather(&mapping_view, row_collection.get());
-        }
+          // TODO this needs to copy ldu_mapping to the device
+           auto dense_vec = row_collection->clone();
+        //auto dense_vec = gko::share(gko::matrix::Dense<scalar>::create(exec, row_collection->get_size()));
+
+      	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+      		  << " reorder \n";
+          dense_vec->row_gather(&mapping_view, row_collection.get());
+      	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+      		  << " reorder \n";
+      }
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
+                  << "done reorder \n";
     };
 
     RepartDistMatrix(
