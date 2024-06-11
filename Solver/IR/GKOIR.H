@@ -50,19 +50,28 @@ public:
           outerStoppingCriterion_(solverControls),
           innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)){};
 
-    CREATE_SOLVER_METHODS(ir)
+
+    std::unique_ptr<ir::Factory, std::default_delete<ir::Factory>>  
+    create_dist_solver(                                                     
+        std::shared_ptr<gko::Executor> exec,                                
+        std::shared_ptr<gko::LinOp> gkomatrix, std::shared_ptr<dist_vec> x, 
+        std::shared_ptr<dist_vec> b, const label verbose,                   
+        const bool export_res, std::shared_ptr<gko::LinOp> precond) const   
+    {                                                                       
+        outerStoppingCriterionVec_.push_back(                                    
+            outerStoppingCriterion_.build_dist_stopping_criterion(               
+                exec, gkomatrix, x, b, verbose, export_res,                 
+                get_prev_number_of_iterations(),                            
+                get_solve_prev_rel_res_cost()));                            
+                                                                            
+        return create_default(exec);                                        
+    };
+
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                   std::shared_ptr<vec> b, const label verbose) const
+    create_default(std::shared_ptr<gko::Executor> exec) const
     {
-        innerStoppingCriterionVec_.push_back(
-            innerStoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, false, 0));
-
-
         auto inner = gko::share(gko::solver::Cg<scalar>::build()
                                     .with_criteria(innerStoppingCriterionVec_)
                                     .on(exec));
@@ -75,29 +84,6 @@ public:
         return ir;
     };
 
-    std::unique_ptr<gko::solver::Ir<scalar>::Factory,
-                    std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_scalar_jacobi(std::shared_ptr<gko::Executor> exec,
-                         std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                         std::shared_ptr<vec> b, const label verbose) const
-    {
-        using bj = gko::preconditioner::Jacobi<>;
-        label blockSize =
-            innerSolverControls_.lookupOrDefault("maxBlockSize", label(1));
-        auto bj_factory = bj::build()
-                              .with_max_block_size(blockSize)
-                              .with_skip_sorting(true)
-                              // .with_storage_optimization(
-                              //     gko::precision_reduction::autodetect())
-                              .on(exec);
-
-        auto ir = ir::build()
-                      .with_solver(gko::share(bj_factory))
-                      .with_criteria(outerStoppingCriterionVec_)
-                      .on(exec);
-
-        return ir;
-    };
 
     scalar get_init_res_norm() const
     {
@@ -111,7 +97,7 @@ public:
 
     scalar get_res_norm_time() const
     {
-        return stoppingCriterion_.get_res_norm_time();
+        return outerStoppingCriterion_.get_res_norm_time();
     }
 
 
@@ -123,15 +109,33 @@ public:
     void store_number_of_iterations() const
     {
         set_solve_prev_iters(sysMatrixName_, db_,
-                             stoppingCriterion_.get_num_iters(),
-                             stoppingCriterion_.get_is_final());
+                             outerStoppingCriterion_.get_num_iters(),
+                             outerStoppingCriterion_.get_is_final());
     }
 
     label get_prev_number_of_iterations() const
     {
         return get_solve_prev_iters(sysMatrixName_, db_,
-                                    stoppingCriterion_.get_is_final());
+                                    outerStoppingCriterion_.get_is_final());
     }
+
+    label get_number_of_iterations() const
+    {
+        return outerStoppingCriterion_.get_num_iters();
+    }
+
+    // TODO FIXME add via macro or base class
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
+
+    scalar get_solve_prev_rel_res_cost() const
+    {
+        return ::Foam::get_solve_prev_rel_res_cost(sysMatrixName_, db_);
+    }
+
 };
 
 /*---------------------------------------------------------------------------*\
