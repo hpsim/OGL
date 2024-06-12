@@ -94,6 +94,9 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     const auto exec = this->get_executor();
 
     auto dense_r = gko::as<dist_vec>(updater.residual_);
+    auto dense_r_local = dense_r->get_local_vector();
+
+
     auto norm1 = vec::create(exec, gko::dim<2>{1});
     dense_r->compute_norm1(norm1.get());
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});

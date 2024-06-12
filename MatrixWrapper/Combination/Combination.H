@@ -33,9 +33,6 @@ public:
 
     void read(const device_matrix_data &data) override
     {
-        // TODO FIXME if no matrix is given because of repartitioning
-        // which might remove non_local matrix
-        // a zero sized dummy matrix needs to be created
         auto exec = this->get_executor();
         auto data_exec = data.get_executor();
 

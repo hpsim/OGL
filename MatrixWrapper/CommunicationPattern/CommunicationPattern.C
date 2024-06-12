@@ -34,17 +34,15 @@ label compute_owner_rank(label rank, label ranks_per_gpu)
     return rank - (rank % ranks_per_gpu);
 };
 
-CommCounts
-compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                         label ranks_per_gpu, label size)
+CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_gpu, label size)
 {
     return compute_send_recv_counts(exec_handler, ranks_per_gpu, size, size, 0,
                                     0);
 }
 
-CommCounts
-compute_scatter_counts(const ExecutorHandler &exec_handler,
-                         label ranks_per_gpu, label size)
+CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
+                                  label ranks_per_gpu, label size)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -84,10 +82,10 @@ compute_scatter_counts(const ExecutorHandler &exec_handler,
                            recv_offsets);
 }
 
-CommCounts
-compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                         label ranks_per_gpu, label size, label total_size,
-                         label padding_before, label padding_after)
+CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_gpu, label size,
+                                    label total_size, label padding_before,
+                                    label padding_after)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -112,7 +110,7 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
         // the start of the next rank data
         tot_recv_elements = padding_before + size + padding_after;
 
-	std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
+        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         for (int i = 1; i < ranks_per_gpu; i++) {
             // receive the recv counts
             comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
@@ -147,10 +145,9 @@ compute_send_recv_counts(const ExecutorHandler &exec_handler,
 }
 
 
-void communicate_values (
-    const ExecutorHandler &exec_handler,
-    const CommCounts &comm_pattern,
-    const scalar *send_buffer, scalar *recv_buffer)
+void communicate_values(const ExecutorHandler &exec_handler,
+                        const CommCounts &comm_pattern,
+                        const scalar *send_buffer, scalar *recv_buffer)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -167,24 +164,23 @@ void communicate_values (
     //
     // send_buffer should be on the host
     // recv_buffer should be on the device
-    // auto rank = comm.rank();
-    std::cout
-	    << __FILE__ << ":" << __LINE__
-	    << " send_counts " <<   send_counts
-	    << " recv_counts " << recv_counts
-	    << " send_offsets " << send_offsets
-	    << " recv_offsets " << recv_offsets
-	    << "\n";
+    // oensrtauto rank = comm.rank();
+    // std:::cout
+    //     << __FILE__ << ":" << __LINE__
+    //     << " send_counts " <<   send_counts
+    //     << " recv_counts " << recv_counts
+    //     << " send_offsets " << send_offsets
+    //     << " recv_offsets " << recv_offsets
+    //     << "\n";
 
     comm.all_to_all_v(exec, send_buffer, send_counts.data(),
                       send_offsets.data(), recv_buffer, recv_counts.data(),
                       recv_offsets.data());
 };
 
-std::vector<label> gather_to_owner(
-    const ExecutorHandler &exec_handler,
-    const CommCounts &comm_pattern,
-    label size, const label *data, label offset)
+std::vector<label> gather_to_owner(const ExecutorHandler &exec_handler,
+                                   const CommCounts &comm_pattern, label size,
+                                   const label *data, label offset)
 {
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
