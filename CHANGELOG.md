@@ -8,7 +8,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - Add a warning message to users who use dpcpp as the executor name [PR #129](https://github.com/hpsim/OGL/pull/129)
 - Add support for SP scalars and determine label and scalar size from env variable [PR #120](https://github.com/hpsim/OGL/pull/120) 
 - Notify user of a unsupported executor argument [PR #118](https://github.com/hpsim/OGL/pull/118) 
-- Notify user of a unsupported executor argument [PR #]
 - Add a list of all OGL authors [PR #126](https://github.com/hpsim/OGL/pull/126)
 - Replace #ifdef include guard with #pragma once [PR #126](https://github.com/hpsim/OGL/pull/126)
 - Switch to SPDX headers, fix formatting issue[PR #122](https://github.com/hpsim/OGL/pull/112)
