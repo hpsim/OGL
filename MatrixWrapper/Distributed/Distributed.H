@@ -315,10 +315,10 @@ public:
 
         scalar *local_ptr;
         scalar *local_ptr_2;
-    label nnz=0;
+        label nnz = 0;
 
         // update main values
-    std::vector<scalar> loc_buffer;
+        std::vector<scalar> loc_buffer;
         if (owner) {
             using Coo = gko::matrix::Coo<scalar, label>;
             auto local_mtx = dist_A->get_local_matrix();
@@ -329,14 +329,14 @@ public:
                                  dist_A->get_local_matrix())
                                  ->get_combination()
                                  ->get_operators()[0]);
-        nnz = local->get_num_stored_elements();
-        if (requires_host_buffer) {
-            loc_buffer.resize(nnz);
-            local_ptr = loc_buffer.data();
-            local_ptr_2 = const_cast<scalar *>(local->get_const_values());
-        } else {
-            local_ptr = const_cast<scalar *>(local->get_const_values());
-        }
+            nnz = local->get_num_stored_elements();
+            if (requires_host_buffer) {
+                loc_buffer.resize(nnz);
+                local_ptr = loc_buffer.data();
+                local_ptr_2 = const_cast<scalar *>(local->get_const_values());
+            } else {
+                local_ptr = const_cast<scalar *>(local->get_const_values());
+            }
         }
         communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                            local_ptr);
@@ -353,23 +353,23 @@ public:
                                host_A->get_lower(), local_ptr);
         }
 
-    if (requires_host_buffer) {    
-        auto host_buffer_view =
-            gko::array<scalar>::view(exec, nnz, local_ptr);
-        auto target_buffer_view =
-            gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
-        target_buffer_view = host_buffer_view;
-    }
+        if (requires_host_buffer) {
+            auto host_buffer_view =
+                gko::array<scalar>::view(exec, nnz, local_ptr);
+            auto target_buffer_view =
+                gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
+            target_buffer_view = host_buffer_view;
+        }
         std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
                   << " done copy to device  \n";
 
-    if (requires_host_buffer) {    
-    auto host_buffer_view =
-            gko::array<scalar>::view(exec, nnz, local_ptr);
-    auto target_buffer_view =
-            gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
-        target_buffer_view = host_buffer_view;
-    }
+        if (requires_host_buffer) {
+            auto host_buffer_view =
+                gko::array<scalar>::view(exec, nnz, local_ptr);
+            auto target_buffer_view =
+                gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
+            target_buffer_view = host_buffer_view;
+        }
         // copy interface values
         auto comm = *exec_handler.get_communicator().get();
         if (owner) {
@@ -382,7 +382,7 @@ public:
             label comm_rank, comm_size;
             scalar *recv_buffer_ptr;
             scalar *recv_buffer_ptr_2;
-        std::vector<scalar> host_recv_buffer;
+            std::vector<scalar> host_recv_buffer;
             label remain_host_interfaces = host_A->get_interface_size();
             for (auto [is_local, comm_rank] : local_interfaces) {
                 label &ctr = (is_local) ? loc_ctr : nloc_ctr;
@@ -403,23 +403,26 @@ public:
                         non_local_sparsity->interface_spans[ctr].length();
                 }
 
-        if (requires_host_buffer) {
-            host_recv_buffer.resize(comm_size);
-            recv_buffer_ptr = host_recv_buffer.data();
-            recv_buffer_ptr_2 = const_cast<scalar *>(mtx->get_const_values());
-        } else {
-            recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
-        }
+                if (requires_host_buffer) {
+                    host_recv_buffer.resize(comm_size);
+                    recv_buffer_ptr = host_recv_buffer.data();
+                    recv_buffer_ptr_2 =
+                        const_cast<scalar *>(mtx->get_const_values());
+                } else {
+                    recv_buffer_ptr =
+                        const_cast<scalar *>(mtx->get_const_values());
+                }
 
                 if (comm_rank != rank) {
-                    comm.recv(device_exec, recv_buffer_ptr, comm_size, comm_rank, tag);
-        if (requires_host_buffer) {
-                auto host_buffer_view =
-                    gko::array<scalar>::view(exec, comm_size, recv_buffer_ptr);
-                auto target_buffer_view =
-                    gko::array<scalar>::view(device_exec, comm_size, recv_buffer_ptr_2);
-                target_buffer_view = host_buffer_view;
-            }
+                    comm.recv(device_exec, recv_buffer_ptr, comm_size,
+                              comm_rank, tag);
+                    if (requires_host_buffer) {
+                        auto host_buffer_view = gko::array<scalar>::view(
+                            exec, comm_size, recv_buffer_ptr);
+                        auto target_buffer_view = gko::array<scalar>::view(
+                            device_exec, comm_size, recv_buffer_ptr_2);
+                        target_buffer_view = host_buffer_view;
+                    }
 
                 } else {
                     // if data is already on this rank
@@ -428,7 +431,8 @@ public:
                         host_A->get_interface_data(host_interface_ctr));
 
                     // TODO FIXME this needs target executor
-            recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+                    recv_buffer_ptr =
+                        const_cast<scalar *>(mtx->get_const_values());
                     auto target_view = gko::array<scalar>::view(
                         device_exec, comm_size, recv_buffer_ptr);
 
@@ -442,10 +446,11 @@ public:
                 // interface values need to be multiplied by -1
                 using vec = gko::matrix::Dense<ValueType>;
                 auto neg_one = gko::initialize<vec>({-1.0}, exec);
-                auto interface_dense = vec::create(
-                    exec, gko::dim<2>{comm_size, 1},
-                    gko::array<scalar>::view(device_exec, comm_size, recv_buffer_ptr),
-                    1);
+                auto interface_dense =
+                    vec::create(exec, gko::dim<2>{comm_size, 1},
+                                gko::array<scalar>::view(device_exec, comm_size,
+                                                         recv_buffer_ptr),
+                                1);
 
                 interface_dense->scale(neg_one);
             }
@@ -458,37 +463,43 @@ public:
                 label comm_size =
                     src_comm_pattern->target_sizes.get_const_data()[i];
                 const scalar *send_buffer_ptr = host_A->get_interface_data(i);
-                comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
+                comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank,
+                          tag);
             }
         }
         // reorder updated values
-      if (owner) {
-          // NOTE local sparsity size includes the interfaces
-          using Coo = gko::matrix::Coo<scalar, label>;
-          using dim_type = gko::dim<2>::dimension_type;
-          std::shared_ptr<const Coo> local =
-              gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
-                               dist_A->get_local_matrix())
-                               ->get_combination()
-                               ->get_operators()[0]);
-          auto local_elements = local->get_num_stored_elements();
-          local_ptr = const_cast<scalar *>(local->get_const_values());
-          // TODO make sure this doesn't copy
-          // create a non owning dense matrix of local_values
+        if (owner) {
+            // NOTE local sparsity size includes the interfaces
+            using Coo = gko::matrix::Coo<scalar, label>;
+            using dim_type = gko::dim<2>::dimension_type;
+            std::shared_ptr<const Coo> local =
+                gko::as<Coo>(gko::as<CombinationMatrix<scalar, label, Coo>>(
+                                 dist_A->get_local_matrix())
+                                 ->get_combination()
+                                 ->get_operators()[0]);
+            auto local_elements = local->get_num_stored_elements();
+            local_ptr = const_cast<scalar *>(local->get_const_values());
+            // TODO make sure this doesn't copy
+            // create a non owning dense matrix of local_values
 
-          auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-              device_exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
-              gko::array<scalar>::view(device_exec, local_elements, local_ptr), 1));
-          auto mapping_view = gko::array<label>::view(
-              exec, local_elements, local_sparsity->ldu_mapping.get_data());
+            auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+                device_exec,
+                gko::dim<2>{static_cast<dim_type>(local_elements), 1},
+                gko::array<scalar>::view(device_exec, local_elements,
+                                         local_ptr),
+                1));
+            auto mapping_view = gko::array<label>::view(
+                exec, local_elements, local_sparsity->ldu_mapping.get_data());
 
 
-          // TODO this needs to copy ldu_mapping to the device
-           auto dense_vec = row_collection->clone();
-        //auto dense_vec = gko::share(gko::matrix::Dense<scalar>::create(exec, row_collection->get_size()));
+            // TODO this needs to copy ldu_mapping to the device
+            auto dense_vec = row_collection->clone();
+            // auto dense_vec =
+            // gko::share(gko::matrix::Dense<scalar>::create(exec,
+            // row_collection->get_size()));
 
-          dense_vec->row_gather(&mapping_view, row_collection.get());
-      }
+            dense_vec->row_gather(&mapping_view, row_collection.get());
+        }
     };
 
     RepartDistMatrix(
