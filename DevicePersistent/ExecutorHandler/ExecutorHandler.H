@@ -51,7 +51,7 @@ struct ExecutorInitFunctor {
                     << "CUDA Backend was not compiled. Recompile OGL/Ginkgo "
                        "with CUDA backend enabled."
                     << abort(FatalError);
-            };
+            }
 
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
@@ -62,7 +62,7 @@ struct ExecutorInitFunctor {
                     << "SYCL Backend was not compiled. Recompile OGL/Ginkgo "
                        "with SYCL backend enabled."
                     << abort(FatalError);
-            };
+            }
 
             if (executor_name_ == "dpcpp") {
                 Info << "Warning: the executor name dpcpp is deprecated.\n"
@@ -85,7 +85,7 @@ struct ExecutorInitFunctor {
                     << "HIP Backend was not compiled. Recompile OGL/Ginkgo "
                        "with HIP backend enabled."
                     << abort(FatalError);
-            };
+            }
             auto ret = gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec));
             return ret;

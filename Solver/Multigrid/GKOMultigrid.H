@@ -82,8 +82,9 @@ public:
               innerSolverControls_.lookupOrDefault("coarseMaxIters", label(4))),
           max_levels_(
               innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
-          min_coarse_rows_(innerSolverControls_.lookupOrDefault("minCoarseRows",
-                                                                label(10))){};
+          min_coarse_rows_(
+              innerSolverControls_.lookupOrDefault("minCoarseRows", label(10)))
+    {}
 
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
     create_dist_solver(std::shared_ptr<gko::Executor> exec,
@@ -139,7 +140,7 @@ public:
                        .on(exec);
 
         return ret;
-    };
+    }
 
     // Create solver
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
@@ -195,7 +196,7 @@ public:
                        .on(exec);
 
         return ret;
-    };
+    }
 
     scalar get_init_res_norm() const
     {
@@ -258,10 +259,11 @@ public:
                  const lduInterfaceFieldPtrsList &interfaces,
                  const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls)
+    {}
 
     //- Destructor
-    virtual ~GKOMultigrid(){};
+    virtual ~GKOMultigrid() {}
 
 
     // Member Functions

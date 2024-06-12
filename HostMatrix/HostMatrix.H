@@ -405,7 +405,7 @@ public:
     const CommunicationPattern &get_communication_pattern() const
     {
         return communication_pattern_;
-    };
+    }
 
     label get_local_nrows() const { return nrows_; }
 
@@ -416,27 +416,27 @@ public:
     PersistentArray<label> &get_local_col_idxs() const
     {
         return local_sparsity_.col_idxs_;
-    };
+    }
 
     PersistentArray<label> &get_local_row_idxs() const
     {
         return local_sparsity_.row_idxs_;
-    };
+    }
 
     PersistentArray<scalar> &get_non_local_coeffs() const
     {
         return non_local_coeffs_;
-    };
+    }
 
     PersistentArray<label> &get_non_local_col_idxs() const
     {
         return non_local_sparsity_.col_idxs_;
-    };
+    }
 
     PersistentArray<label> &get_non_local_row_idxs() const
     {
         return non_local_sparsity_.row_idxs_;
-    };
+    }
 };
 
 

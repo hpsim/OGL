@@ -39,7 +39,7 @@ public:
         if (preconditioner_ == "none")
             return create_default(exec, criterion_vec);
         if (preconditioner_ == "BJ") return create_BJ(exec, criterion_vec);
-    };
+    }
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
@@ -51,7 +51,7 @@ public:
         return gko::solver::Cg<scalar>::build()
             .with_criteria(criterion_vec)
             .on(exec);
-    };
+    }
 
     std::unique_ptr<gko::solver::Cg<double>::Factory,
                     std::default_delete<gko::solver::Cg<double>::Factory>>
@@ -64,7 +64,7 @@ public:
             .with_criteria(criterion_vec)
             .with_preconditioner(bj::build().with_max_block_size(8u).on(exec))
             .on(exec);
-    };
+    }
 };
 
 /*---------------------------------------------------------------------------*\

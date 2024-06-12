@@ -37,7 +37,8 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls)
+    {}
 
     CREATE_SOLVER_METHODS(cg)
 
@@ -46,7 +47,7 @@ public:
     {
         auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
         return cg;
-    };
+    }
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
     create_precond(std::shared_ptr<gko::Executor> exec,
@@ -57,7 +58,7 @@ public:
                       .with_generated_preconditioner(precond)
                       .on(exec);
         return cg;
-    };
+    }
 
     scalar get_init_res_norm() const
     {
@@ -134,10 +135,11 @@ public:
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls)
+    {}
 
     //- Destructor
-    virtual ~GKOCG(){};
+    virtual ~GKOCG() {}
 
 
     // Member Functions

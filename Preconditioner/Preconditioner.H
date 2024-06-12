@@ -428,6 +428,6 @@ public:
         po->get_ptr();
 
         return generated_precond;
-    };
+    }
 };
 }  // namespace Foam
