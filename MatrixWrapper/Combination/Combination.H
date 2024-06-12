@@ -76,8 +76,19 @@ public:
      */
     CombinationMatrix &operator=(const CombinationMatrix &other)
     {
-        FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
-                             << abort(FatalError);
+        // FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
+        //                      << abort(FatalError);
+        std::cout << __FILE__ << ":" << __LINE__ << "FIXME why is copy neeeded?\n";
+        if (&other != this) {
+            gko::EnableLinOp<CombinationMatrix>::operator=(other);
+            for (auto range: other.interface_ranges_){
+                interface_ranges_.emplace_back(range.begin, range.end);
+            }
+            comb_ = other.comb_;
+            // restore other invariant
+            // other.row_ptrs_.resize_and_reset(1);
+        }
+        return *this;
     }
 
     /**

@@ -236,8 +236,6 @@ public:
                   << dst_comm_pattern->target_sizes << " target_send_idxs.size "
                   << dst_comm_pattern->send_idxs.size()
                   << " non_local_sparsity.size " << non_local_sparsity_->size_
-                  << " get_recv_indices "
-                  << localized_partition->get_recv_indices().get_num_elems()
                   << " \n";
 
         // FIXME make sure that we work on the device executor
@@ -260,8 +258,6 @@ public:
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern,
                     local_interfaces);
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << " dnoe update impl  \n";
 
         auto ret = std::make_shared<RepartDistMatrix>(
             exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
@@ -307,16 +303,11 @@ public:
         auto diag_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
             local_matrix_nnz - nrows, 0);
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << " diag comm pattern  \n";
-
 
         label upper_nnz = host_A->get_upper_nnz();
         auto upper_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, upper_nnz, local_matrix_nnz, 0,
             local_matrix_nnz - upper_nnz);
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << " upper comm pattern  \n";
         auto lower_comm_pattern =
             compute_send_recv_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                      local_matrix_nnz, upper_nnz, nrows);
