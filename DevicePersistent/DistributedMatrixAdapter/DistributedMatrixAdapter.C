@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <ginkgo/ginkgo.hpp>
-#include "CsrMatrixWrapper.H"
+
+#include "HostMatrixAdapter.H"
 #include "common/common.H"
 
 namespace Foam {}  // namespace Foam

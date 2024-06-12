@@ -4,6 +4,8 @@
 
 #include "Base.H"
 
+#include "MatrixWrapper/Distributed/Distributed.H"
+
 namespace Foam {
 
 // to store the std::shared_ptr<T> in the IO registry the type needs to be
@@ -26,11 +28,14 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
 
 // typedef needed  to avoid confusion with the comma separated template
 // arguments as macro arguments
-typedef gko::experimental::distributed::localized_partition<label> Partition;
+typedef gko::experimental::distributed::Partition<label, label> Partition;
 defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
                                "PersistentPartition");
 
-typedef gko::experimental::distributed::Matrix<scalar, label, label> GkoMatrix;
-defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
+typedef RepartDistMatrix<scalar, label, label> RepartDistMatrix;
+defineTemplateTypeNameWithName(DevicePersistentBase<RepartDistMatrix>,
                                "PersistentMatrix");
+
+defineTemplateTypeNameWithName(DevicePersistentBase<HostMatrixWrapper>,
+                               "PersistentHostMatrixWrapper");
 }  // namespace Foam

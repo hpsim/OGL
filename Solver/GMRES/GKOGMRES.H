@@ -38,12 +38,12 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls) {};
 
     CREATE_SOLVER_METHODS(gmres)
 
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(std::shared_ptr<const gko::Executor> exec) const
     {
         auto gmres =
             gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
@@ -51,7 +51,7 @@ public:
     };
 
     std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
+    create_precond(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto gmres = gmres::build()
@@ -137,10 +137,10 @@ public:
              const lduInterfaceFieldPtrsList &interfaces,
              const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls) {};
 
     //- Destructor
-    virtual ~GKOGMRES(){};
+    virtual ~GKOGMRES() {};
 
 
     // Member Functions

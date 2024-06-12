@@ -20,7 +20,7 @@ OGL is a wrapper for [ginkgo](https://github.com/ginkgo-project/ginkgo) solvers 
 
 OGL has the following requirements
 
-*   _cmake 3.13+_
+*   _cmake 3.13+_ or 3.25+ for CMakePresets
 *   _OpenFOAM 6+_ or _v2106_
 *   _Ginkgo 1.5.0+_ (It is recommended to install via OGL)
 *   C++17 compliant compiler (gcc or clang)
@@ -50,7 +50,7 @@ Then, compile and install by
 
 ### CMakePresets and Ninja builds
 
-If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times. We also provide a list of Cmake presets which can be used a recent version of Cmake (>3.20). To display available presets use: 
+If you have a recent cmake version (3.25+) and  Ninja installed on your system we recommend to use ninja over gnu make for better compilation times. We also provide a list of Cmake presets which can be used a recent version of Cmake (>3.20). To display available presets use: 
 
     cmake --list-preset
     

@@ -90,12 +90,24 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
+#define ASSERT_EQ(_val1, _val2)                                                \
+    if (_val1 != _val2) {                                                      \
+        throw ::gko::ValueMismatch(__FILE__, __LINE__, __func__, _val1, _val2, \
+                                   "expected equal values");                   \
+    }
+
 #define OGL_NOT_IMPLEMENTED GKO_NOT_IMPLEMENTED
+
+std::ostream &operator<<(std::ostream &out, const std::vector<label> &e);
+
+std::ostream &operator<<(std::ostream &out, const gko::array<label> &e);
 
 std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
+
+// TODO move to somewhere else
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time);
@@ -103,9 +115,10 @@ void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
                 const objectRegistry &db);
 
-void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
-                const word local, const objectRegistry &db,
-                const word matrixFormat);
+template <typename Mtx>
+void export_mtx(const word fieldName,
+                std::vector<std::shared_ptr<const gko::LinOp>> &As,
+                const objectRegistry &db);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters, const bool is_final);

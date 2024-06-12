@@ -6,7 +6,19 @@
    "path": "openfoam",
    "repo": "https://develop.openfoam.com/Development/openfoam.git",
    "cyclic_case": "periodicPlaneChannel" ,
-   "foam_user_libbin": "/github/home/OpenFOAM/user-v2312/platforms/linux64GccDPInt32Opt/lib/"
+   "foam_user_libbin": "/github/home/OpenFOAM/user-v2312/platforms/linux64GccDPInt32Opt/lib/",
+   "CC": "gcc",
+   "CXX": "g++"
+    },
+  {
+   "version": "v2212",
+   "fork": "ESI",
+   "path": "openfoam",
+   "repo": "https://develop.openfoam.com/Development/openfoam.git",
+   "cyclic_case": "periodicPlaneChannel" ,
+   "foam_user_libbin": "/github/home/OpenFOAM/user-v2312/platforms/linux64GccDPInt32Opt/lib/",
+   "CC": "clang",
+   "CXX": "clang++"
     },
   {
    "version": "10",
@@ -14,7 +26,9 @@
    "path": "OpenFOAM-10",
    "repo": "https://github.com/OpenFOAM/OpenFOAM-10.git",
    "cyclic_case": "channel395" ,
-   "foam_user_libbin": "/github/home/OpenFOAM/user-10/platforms/linux64GccDPInt32Opt/lib"
+   "foam_user_libbin": "/github/home/OpenFOAM/user-10/platforms/linux64GccDPInt32Opt/lib",
+   "CC": "gcc",
+   "CXX": "g++"
     }
 ]
 }

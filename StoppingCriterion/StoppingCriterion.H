@@ -15,7 +15,6 @@ namespace Foam {
 
 class StoppingCriterion {
     using vec = gko::matrix::Dense<scalar>;
-    using mtx = gko::matrix::Csr<scalar>;
     using val_array = gko::array<scalar>;
     using idx_array = gko::array<label>;
 
@@ -64,11 +63,12 @@ class StoppingCriterion {
 
             bool GKO_FACTORY_PARAMETER(export_res, false);
 
-            std::shared_ptr<gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix, {});
+            std::shared_ptr<const gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix,
+                                                                    {});
 
-            std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(x, {});
+            std::shared_ptr<const dist_vec> GKO_FACTORY_PARAMETER(x, {});
 
-            std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(b, {});
+            std::shared_ptr<const dist_vec> GKO_FACTORY_PARAMETER(b, {});
         };
 
         GKO_ENABLE_CRITERION_FACTORY(OpenFOAMDistStoppingCriterion, parameters,
@@ -189,12 +189,12 @@ public:
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory>
-    build_dist_stopping_criterion(std::shared_ptr<gko::Executor> device_exec,
-                                  std::shared_ptr<gko::LinOp> gkomatrix,
-                                  std::shared_ptr<dist_vec> x,
-                                  std::shared_ptr<dist_vec> b, label verbose,
-                                  bool export_res, label prev_solve_iters,
-                                  scalar prev_rel_cost) const
+    build_dist_stopping_criterion(
+        std::shared_ptr<const gko::Executor> device_exec,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b,
+        label verbose, bool export_res, label prev_solve_iters,
+        scalar prev_rel_cost) const
     {
         label minIter = minIter_;
         label frequency = frequency_;

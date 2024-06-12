@@ -41,12 +41,12 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls) {};
 
     CREATE_SOLVER_METHODS(bicgstab)
 
     std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(std::shared_ptr<const gko::Executor> exec) const
     {
         auto bicgstab = gko::solver::Bicgstab<scalar>::build()
                             .with_criteria(stoppingCriterionVec_)
@@ -55,7 +55,7 @@ public:
     };
 
     std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
+    create_precond(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto bicgstab = bicgstab::build()
@@ -137,10 +137,10 @@ public:
                 const lduInterfaceFieldPtrsList &interfaces,
                 const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls) {};
 
     //- Destructor
-    virtual ~GKOBiCGStab(){};
+    virtual ~GKOBiCGStab() {};
 
 
     // Member Functions

@@ -12,13 +12,9 @@ namespace Foam {
 
 class GKOCGFactory {
 private:
-    using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
     using cg = gko::solver::Cg<scalar>;
-
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
-    using dist_mtx =
-        gko::experimental::distributed::Matrix<scalar, label, label>;
 
     const dictionary &solverControls_;
 
@@ -37,19 +33,19 @@ public:
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
-          stoppingCriterion_(solverControls){};
+          stoppingCriterion_(solverControls) {};
 
     CREATE_SOLVER_METHODS(cg)
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    create_default(std::shared_ptr<const gko::Executor> exec) const
     {
         auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
         return cg;
     };
 
     std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
+    create_precond(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
         auto cg = cg::build()
@@ -134,10 +130,10 @@ public:
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls) {};
 
     //- Destructor
-    virtual ~GKOCG(){};
+    virtual ~GKOCG() {};
 
 
     // Member Functions

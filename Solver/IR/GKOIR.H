@@ -48,13 +48,13 @@ public:
           db_(db),
           sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls),
-          innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)){};
+          innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)) {};
 
     CREATE_SOLVER_METHODS(ir)
 
     std::unique_ptr<ir::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec,
+    create_default(std::shared_ptr<const gko::Executor> exec,
                    std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                    std::shared_ptr<vec> b, const label verbose) const
     {
@@ -77,7 +77,7 @@ public:
 
     std::unique_ptr<gko::solver::Ir<scalar>::Factory,
                     std::default_delete<gko::solver::Ir<scalar>::Factory>>
-    create_scalar_jacobi(std::shared_ptr<gko::Executor> exec,
+    create_scalar_jacobi(std::shared_ptr<const gko::Executor> exec,
                          std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
                          std::shared_ptr<vec> b, const label verbose) const
     {
@@ -161,10 +161,10 @@ public:
           const lduInterfaceFieldPtrsList &interfaces,
           const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls){};
+                           interfaceIntCoeffs, interfaces, solverControls) {};
 
     //- Destructor
-    virtual ~GKOIR(){};
+    virtual ~GKOIR() {};
 
 
     // Member Functions

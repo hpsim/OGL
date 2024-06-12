@@ -11,7 +11,6 @@
 
 namespace Foam {
 class Preconditioner {
-    using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
@@ -46,8 +45,8 @@ public:
 
     template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
         if (Pstream::parRun()) {
@@ -65,8 +64,8 @@ public:
 
     template <typename PrecondFactory, typename Factorization>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond,
         std::shared_ptr<Factorization> factorization) const
     {
@@ -82,15 +81,15 @@ public:
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::Executor> device_exec) const
     {
         bool skip_sorting =
             controls.lookupOrDefault<Switch>("skipSorting", true);
 
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            label max_block_size(
+            const unsigned int max_block_size(
                 controls.lookupOrDefault("maxBlockSize", label(1)));
 
             word msg = "Generate preconditioner " + name + " MaxBlockSize " +
@@ -148,9 +147,9 @@ public:
             auto trisolve_factory =
                 ir::build()
                     .with_solver(
-                        bj::build().with_max_block_size(1).on(device_exec))
+                        bj::build().with_max_block_size(1u).on(device_exec))
                     .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(5).on(
+                        gko::stop::Iteration::build().with_max_iters(5u).on(
                             device_exec))
                     .on(device_exec);
 
@@ -263,7 +262,7 @@ public:
             auto smoother_gen = gko::share(
                 ir::build()
                     .with_solver(inner_solver_gen)
-                    .with_relaxation_factor(0.9)
+                    //.with_relaxation_factor(0.9)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(2u).on(
                             device_exec))
@@ -294,7 +293,7 @@ public:
             //                                      .on(device_exec))
             //                   .on(device_exec));
 
-            const label coarse_solver_iters(
+            const unsigned int coarse_solver_iters(
                 controls.lookupOrDefault("coarseSolverIters", label(4)));
             auto coarsest_gen = gko::share(
                 cg::build()
@@ -311,8 +310,9 @@ public:
             if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
 
             // Create multigrid factory
-            label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
-            label min_coarse_rows(
+            const unsigned int max_levels(
+                controls.lookupOrDefault("maxLevels", label(9)));
+            const unsigned int min_coarse_rows(
                 controls.lookupOrDefault("minCoarseRows", label(10)));
             bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
 
@@ -351,8 +351,8 @@ public:
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
         const fileName path = precond_store_name;

@@ -10,6 +10,8 @@
 #include <filesystem>
 #include "common.H"
 
+#include "MatrixWrapper/Combination/Combination.H"
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam {
@@ -36,26 +38,38 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
     export_x(fn, x);
 }
 
-void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
-                const word local, const objectRegistry &db,
-                const word matrixFormat)
+template <typename Mtx>
+void export_mtx(const word fieldName,
+                std::vector<std::shared_ptr<const gko::LinOp>> &As,
+                const objectRegistry &db)
 {
     std::string folder{db.time().timePath()};
     std::filesystem::create_directories(folder);
-    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "exporting " << fn << std::endl;
-    std::ofstream stream{fn};
-    stream << std::setprecision(15);
-    if (matrixFormat == "Coo") {
-        gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
-    }
-    if (matrixFormat == "Csr") {
-        gko::write(stream, (const gko::matrix::Csr<scalar> *)A.get());
-    }
-    if (matrixFormat == "Ell") {
-        gko::write(stream, (const gko::matrix::Ell<scalar> *)A.get());
+
+    std::cout << __FILE__ << " exporting to " << folder << " " << As.size() << "\n";
+
+    for (int i = 0; i < As.size(); i++) {
+        std::string fn{folder + "/" + fieldName + "_A_" + std::to_string(i) +
+                       ".mtx"};
+        std::cout << "exporting " << fn << std::endl;
+        std::ofstream stream{fn};
+        stream << std::setprecision(15);
+
+        gko::write(stream, gko::as<Mtx>(As[i]).get());
     }
 }
+
+template void export_mtx<gko::matrix::Coo<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
+
+template void export_mtx<gko::matrix::Csr<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
+template void export_mtx<gko::matrix::Ell<scalar, label>>(
+    const word fieldName, std::vector<std::shared_ptr<const gko::LinOp>> &As,
+    const objectRegistry &db);
+
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
@@ -145,6 +159,26 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
     return get_gko_solver_property(sys_matrix_name, iters_name, db, label(1));
 }
 
+std::ostream& operator<<(std::ostream& out, const std::vector<label>& e){
+    out << " vector: [";
+    for (int i = 0; i < e.size(); i++) {
+        out << e[i] << " ";
+
+    }
+    out << "]";
+    return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const gko::array<label>& e){
+    out << " array: [";
+    for (int i = 0; i < e.get_size(); i++) {
+        out << e.get_const_data()[i] << " ";
+
+    }
+    out << "]";
+    return out;
+} 
+
 std::ostream &operator<<(std::ostream &os,
                          const std::shared_ptr<gko::matrix::Dense<scalar>> in)
 {
@@ -169,4 +203,6 @@ std::ostream &operator<<(std::ostream &os,
     }
     return os;
 }
+
+
 }  // namespace Foam

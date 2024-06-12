@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     needs: setup_build_matrix
-    name: build-${{matrix.OF.version}}
+    name: build-${{matrix.OF.version}}-${{matrix.OF.CXX}}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup_build_matrix.outputs.matrix) }}
@@ -76,31 +76,16 @@ jobs:
         path: |
           ${{matrix.OF.foam_user_libbin}}
 
-    - name: Configure CMake
+    - name: Configure and build
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{github.workspace}}
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         mkdir -p ${{matrix.OF.foam_user_libbin}}
-        mkdir -p build
-        cd build
-        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -GNinja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
-
-    - name: Build OGL
-      working-directory: ${{github.workspace}}/build
-      run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --build . --config $BUILD_TYPE
-
-    - name: Install OGL
-      working-directory: ${{github.workspace}}
-      run: |
-        source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --install ./build
-        ls $FOAM_USER_LIBBIN
-        ls ${{matrix.OF.foam_user_libbin}}
+        # [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
+        CC=${{matrix.OF.CC }} CXX=${{matrix.OF.CXX}} cmake --preset ninja-cpuonly-release -DOGL_BUILD_UNITTEST=ON 
+        cmake --build --preset ninja-cpuonly-release --target install
 
 
     - name: Check folders

@@ -12,6 +12,7 @@
 
 namespace Foam {
 
+
 struct ExecutorInitFunctor {
     mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
 
@@ -30,14 +31,14 @@ struct ExecutorInitFunctor {
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_((Pstream::parRun()) ? comm_->rank() / gpus_per_rank : 0),
+          device_id_(comm_->rank() / gpus_per_rank),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
     {}
 
-
     void update(std::shared_ptr<gko::Executor>) const {}
+
 
     const std::string not_compiled_tag = "not compiled";
     const gko::version_info version = gko::version_info::get();
@@ -120,7 +121,10 @@ private:
 
     const word device_executor_name_;
 
+
 public:
+    ExecutorHandler(const ExecutorHandler &) = delete;
+
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name)
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
@@ -151,12 +155,12 @@ public:
     }
 
 
-    const std::shared_ptr<gko::Executor> get_device_exec() const
+    std::shared_ptr<const gko::Executor> get_device_exec() const
     {
         return this->get_persistent_object();
     }
 
-    const std::shared_ptr<gko::Executor> get_ref_exec() const
+    std::shared_ptr<const gko::Executor> get_ref_exec() const
     {
         return get_device_exec()->get_master();
     }
@@ -170,14 +174,12 @@ public:
             MPI_COMM_WORLD, gko_force_host_buffer_);
     }
 
-    std::shared_ptr<gko::experimental::mpi::communicator>
-    get_gko_mpi_device_comm() const
+    std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
+        const
     {
         return this->device_comm_;
     }
 };
-
-using PersistentExecutor = ExecutorHandler;
 
 }  // namespace Foam
 // namespace Foam

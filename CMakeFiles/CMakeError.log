@@ -1,0 +1,228 @@
+Performing C SOURCE FILE Test OGL_C_TSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3f5c5/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3f5c5.dir/build.make CMakeFiles/cmTC_3f5c5.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3f5c5.dir/src.c.o
+/usr/lib64/ccache/cc -DOGL_C_TSAN_SUPPORTED  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC -o CMakeFiles/cmTC_3f5c5.dir/src.c.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_3f5c5
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3f5c5.dir/link.txt --verbose=1
+/usr/lib64/ccache/cc CMakeFiles/cmTC_3f5c5.dir/src.c.o -o cmTC_3f5c5  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC 
+/usr/bin/ld: cannot find -ltsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_3f5c5.dir/build.make:99: cmTC_3f5c5] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_3f5c5/fast] Error 2
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C SOURCE FILE Test OGL_C_ASAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_b8d05/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_b8d05.dir/build.make CMakeFiles/cmTC_b8d05.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_b8d05.dir/src.c.o
+/usr/lib64/ccache/cc -DOGL_C_ASAN_SUPPORTED  -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/cmTC_b8d05.dir/src.c.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_b8d05
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b8d05.dir/link.txt --verbose=1
+/usr/lib64/ccache/cc CMakeFiles/cmTC_b8d05.dir/src.c.o -o cmTC_b8d05  -fsanitize=address -fno-omit-frame-pointer 
+/usr/bin/ld: cannot find /usr/lib64/libasan.so.5.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_b8d05.dir/build.make:99: cmTC_b8d05] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_b8d05/fast] Error 2
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C SOURCE FILE Test OGL_C_LSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_3dddb/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_3dddb.dir/build.make CMakeFiles/cmTC_3dddb.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_3dddb.dir/src.c.o
+/usr/lib64/ccache/cc -DOGL_C_LSAN_SUPPORTED  -fsanitize=leak -o CMakeFiles/cmTC_3dddb.dir/src.c.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_3dddb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3dddb.dir/link.txt --verbose=1
+/usr/lib64/ccache/cc CMakeFiles/cmTC_3dddb.dir/src.c.o -o cmTC_3dddb  -fsanitize=leak 
+/usr/bin/ld: cannot find /usr/lib64/liblsan.so.0.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_3dddb.dir/build.make:99: cmTC_3dddb] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_3dddb/fast] Error 2
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C SOURCE FILE Test OGL_C_UBSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_98217/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_98217.dir/build.make CMakeFiles/cmTC_98217.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_98217.dir/src.c.o
+/usr/lib64/ccache/cc -DOGL_C_UBSAN_SUPPORTED  -fsanitize=undefined -static-libubsan -o CMakeFiles/cmTC_98217.dir/src.c.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_98217
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_98217.dir/link.txt --verbose=1
+/usr/lib64/ccache/cc CMakeFiles/cmTC_98217.dir/src.c.o -o cmTC_98217  -fsanitize=undefined -static-libubsan 
+/usr/bin/ld: cannot find -lubsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_98217.dir/build.make:99: cmTC_98217] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_98217/fast] Error 2
+
+
+Source file was:
+int main(void) { return 0; }
+Performing C++ SOURCE FILE Test OGL_CXX_TSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_eb8da/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_eb8da.dir/build.make CMakeFiles/cmTC_eb8da.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_eb8da.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_CXX_TSAN_SUPPORTED  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC -o CMakeFiles/cmTC_eb8da.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_eb8da
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_eb8da.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_eb8da.dir/src.cxx.o -o cmTC_eb8da  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC 
+/usr/bin/ld: cannot find -ltsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_eb8da.dir/build.make:99: cmTC_eb8da] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_eb8da/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_CXX_ASAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_25176/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_25176.dir/build.make CMakeFiles/cmTC_25176.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_25176.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_CXX_ASAN_SUPPORTED  -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/cmTC_25176.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_25176
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_25176.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_25176.dir/src.cxx.o -o cmTC_25176  -fsanitize=address -fno-omit-frame-pointer 
+/usr/bin/ld: cannot find /usr/lib64/libasan.so.5.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_25176.dir/build.make:99: cmTC_25176] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_25176/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_CXX_LSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_b4bbc/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_b4bbc.dir/build.make CMakeFiles/cmTC_b4bbc.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_b4bbc.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_CXX_LSAN_SUPPORTED  -fsanitize=leak -o CMakeFiles/cmTC_b4bbc.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_b4bbc
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b4bbc.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_b4bbc.dir/src.cxx.o -o cmTC_b4bbc  -fsanitize=leak 
+/usr/bin/ld: cannot find /usr/lib64/liblsan.so.0.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_b4bbc.dir/build.make:99: cmTC_b4bbc] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_b4bbc/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_CXX_UBSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_6c762/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_6c762.dir/build.make CMakeFiles/cmTC_6c762.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_6c762.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_CXX_UBSAN_SUPPORTED  -fsanitize=undefined -static-libubsan -o CMakeFiles/cmTC_6c762.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_6c762
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6c762.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_6c762.dir/src.cxx.o -o cmTC_6c762  -fsanitize=undefined -static-libubsan 
+/usr/bin/ld: cannot find -lubsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_6c762.dir/build.make:99: cmTC_6c762] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_6c762/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_HIP_TSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_132bb/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_132bb.dir/build.make CMakeFiles/cmTC_132bb.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_132bb.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_HIP_TSAN_SUPPORTED  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC -o CMakeFiles/cmTC_132bb.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_132bb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_132bb.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_132bb.dir/src.cxx.o -o cmTC_132bb  -fsanitize=thread -static-libtsan -fno-omit-frame-pointer -fPIC 
+/usr/bin/ld: cannot find -ltsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_132bb.dir/build.make:99: cmTC_132bb] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_132bb/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_HIP_ASAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_e61e9/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_e61e9.dir/build.make CMakeFiles/cmTC_e61e9.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_e61e9.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_HIP_ASAN_SUPPORTED  -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/cmTC_e61e9.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_e61e9
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e61e9.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_e61e9.dir/src.cxx.o -o cmTC_e61e9  -fsanitize=address -fno-omit-frame-pointer 
+/usr/bin/ld: cannot find /usr/lib64/libasan.so.5.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_e61e9.dir/build.make:99: cmTC_e61e9] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_e61e9/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_HIP_LSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_26bce/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_26bce.dir/build.make CMakeFiles/cmTC_26bce.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_26bce.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_HIP_LSAN_SUPPORTED  -fsanitize=leak -o CMakeFiles/cmTC_26bce.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_26bce
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_26bce.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_26bce.dir/src.cxx.o -o cmTC_26bce  -fsanitize=leak 
+/usr/bin/ld: cannot find /usr/lib64/liblsan.so.0.0.0
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_26bce.dir/build.make:99: cmTC_26bce] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_26bce/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test OGL_HIP_UBSAN_SUPPORTED failed with the following output:
+Change Dir: /home/greole/data/code/OGL/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_dd64e/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_dd64e.dir/build.make CMakeFiles/cmTC_dd64e.dir/build
+gmake[1]: Entering directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_dd64e.dir/src.cxx.o
+/usr/lib64/ccache/c++ -DOGL_HIP_UBSAN_SUPPORTED  -fsanitize=undefined -static-libubsan -o CMakeFiles/cmTC_dd64e.dir/src.cxx.o -c /home/greole/data/code/OGL/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_dd64e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_dd64e.dir/link.txt --verbose=1
+/usr/lib64/ccache/c++ CMakeFiles/cmTC_dd64e.dir/src.cxx.o -o cmTC_dd64e  -fsanitize=undefined -static-libubsan 
+/usr/bin/ld: cannot find -lubsan
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [CMakeFiles/cmTC_dd64e.dir/build.make:99: cmTC_dd64e] Error 1
+gmake[1]: Leaving directory '/home/greole/data/code/OGL/CMakeFiles/CMakeTmp'
+gmake: *** [Makefile:127: cmTC_dd64e/fast] Error 2
+
+
+Source file was:
+int main() { return 0; }

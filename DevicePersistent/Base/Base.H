@@ -27,7 +27,7 @@ public:
 
     //- Construct from IOobject and a PtrList
     DevicePersistentBase(const IOobject &io, std::shared_ptr<T> in_ptr)
-        : regIOobject(io), ptr_(in_ptr){};
+        : regIOobject(io), ptr_(in_ptr) {};
 
     // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; };
@@ -72,7 +72,6 @@ private:
 
 public:
     PersistentBase(const word name, const objectRegistry &db,
-                   // const ExecutorHandler &exec,
                    const InitFunctor f, const bool update, const label verbose)
         : name_(name),
           db_(db),
