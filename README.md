@@ -143,6 +143,19 @@ title = {{Ginkgo: A Modern Linear Operator Algebra Framework for High Performanc
 volume = {48},
 year = {2022}
 }
+
+@Article{Olenik2024,
+author={Olenik, Gregor and Koch, Marcel and Boutanios, Ziad and Anzt, Hartwig},
+title={Towards a platform-portable linear algebra backend for OpenFOAM},
+journal={Meccanica},
+year={2024},
+month={Jun},
+day={12},
+issn={1572-9648},
+doi={10.1007/s11012-024-01806-1},
+url={https://doi.org/10.1007/s11012-024-01806-1}
+}
+
 ```
 
 ## Example
