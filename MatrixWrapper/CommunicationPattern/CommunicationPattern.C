@@ -96,8 +96,9 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
     label owner_rank = compute_owner_rank(rank, ranks_per_gpu);
     std::vector<label> send_counts(total_ranks, 0);
     std::vector<label> recv_counts(total_ranks, 0);
-    std::vector<label> send_offsets(total_ranks, 0);
-    std::vector<label> recv_offsets(total_ranks, 0);
+    // last entry of offsets vector for total sum
+    std::vector<label> send_offsets(total_ranks + 1, 0);
+    std::vector<label> recv_offsets(total_ranks + 1, 0);
 
     label tot_recv_elements{0};
     label comm_elements_buffer{0};
@@ -137,6 +138,11 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
         // send how much padding after is needed
         comm.send(exec, &padding_after, 1, owner_rank, owner_rank);
     }
+
+    send_offsets[total_ranks] =
+        std::accumulate(send_counts.begin(), send_counts.end(), 0);
+    recv_offsets[total_ranks] =
+        std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
 
     return std::make_tuple(send_counts, recv_counts, send_offsets,
                            recv_offsets);

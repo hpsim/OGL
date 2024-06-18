@@ -75,10 +75,9 @@ public:
     {
         // FatalErrorInFunction << "Copying CombinationMatrix is not allowed"
         //                      << abort(FatalError);
-        std::cout << __FILE__ << ":" << __LINE__ << "FIXME why is copy neeeded?\n";
         if (&other != this) {
             gko::EnableLinOp<CombinationMatrix>::operator=(other);
-            for (auto range: other.interface_ranges_){
+            for (auto range : other.interface_ranges_) {
                 interface_ranges_.emplace_back(range.begin, range.end);
             }
             comb_ = other.comb_;

@@ -37,12 +37,10 @@ SourceFiles
 using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
                               std::vector<label>, std::vector<label>>;
 
-CommCounts
-invert_comm_pattern(CommCounts in_pattern);
+CommCounts invert_comm_pattern(CommCounts in_pattern);
 
-CommCounts
-compute_scatter_counts(const ExecutorHandler &exec_handler,
-                         label ranks_per_gpu, label size);
+CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
+                                  label ranks_per_gpu, label size);
 
 // TODO rename function to compute_gather_to_owner_comm
 /* @brief  This function computes the send and recv counts vectors for
@@ -72,7 +70,7 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
  * @parameter size how many elements to send to owner
  * */
 CommCounts compute_scatter_from_owner_comm(const ExecutorHandler &exec_handler,
-                                    label ranks_per_gpu, label size);
+                                           label ranks_per_gpu, label size);
 
 /* Given a rank id and ranks_per_gpus this function computes the corresponding
  * owner rank  */
@@ -125,6 +123,54 @@ struct CommunicationPattern {
     const gko::experimental::mpi::communicator &get_comm() const
     {
         return *exec_handler.get_communicator().get();
+    }
+
+
+    gko::array<label> total_rank_send_idx() const
+    {
+        std::vector<label> tmp;
+
+        for (auto &[arr, id] : send_idxs) {
+            label arr_size = arr.get_size();
+            tmp.insert(tmp.end(), arr.get_const_data(),
+                       arr.get_const_data() + arr_size);
+        }
+
+        return gko::array<label>(exec_handler.get_ref_exec(), tmp.begin(),
+                                 tmp.end());
+    }
+
+
+    CommCounts send_recv_pattern() const
+    {
+        auto comm = *exec_handler.get_communicator().get();
+        label total_ranks{comm.size()};
+
+        std::vector<label> send_counts(comm.size());
+        std::vector<label> send_offsets(comm.size() + 1);
+        std::vector<label> recv_counts(comm.size());
+        std::vector<label> recv_offsets(comm.size() + 1);
+
+        label comm_ranks = target_ids.get_size();
+        label tot_comm_size = 0;
+        for (label i = 0; i < comm_ranks; i++) {
+            auto comm_rank = target_ids.get_const_data()[i];
+            auto comm_size = target_sizes.get_const_data()[i];
+            tot_comm_size += comm_size;
+            send_counts[comm_rank] = comm_size;
+            recv_counts[comm_rank] = comm_size;
+        }
+
+        recv_offsets[comm.size()] = tot_comm_size;
+        std::partial_sum(recv_counts.begin(), recv_counts.end(),
+                         recv_offsets.begin() + 1);
+        recv_offsets[0] = 0;
+
+        std::partial_sum(send_counts.begin(), send_counts.end(),
+                         send_offsets.begin() + 1);
+        send_offsets[0] = 0;
+
+        return CommCounts(send_offsets, send_counts, recv_offsets, recv_counts);
     }
 };
 

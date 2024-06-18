@@ -98,7 +98,6 @@ struct VectorInitFunctor {
             exec_.get_device_exec(), *comm.get(),
             vec::create(exec, gko::dim<2>{repart_size, 1}, local_coeffs, 1)));
 
-
         return ret;
     }
 };
@@ -126,10 +125,9 @@ class PersistentVector
     // updated even if was found in the object registry
     const bool update_;
 
-    const Repartitioner & repartitioner_;
+    const Repartitioner &repartitioner_;
 
 public:
-
     /* PersistentVector constructor using existing memory
      *
      * @param memory ptr to memory on host from which the gko array is
@@ -171,7 +169,7 @@ public:
         auto comm_pattern = compute_scatter_counts(
             exec_, repartitioner_.get_ranks_per_gpu(), size_);
 
-        // std::cout << __FILE__ << ":" << __LINE__ << " rank " << repartitioner_.get_rank()
+        // std::cout << __FILE__ << ":" << __LINE__
         //     << " comm_pattern send " << std::get<0>(comm_pattern)
         //     << " comm_pattern recv " << std::get<1>(comm_pattern)
         //     << " comm_pattern send_offs " << std::get<2>(comm_pattern)
@@ -179,26 +177,25 @@ public:
         //     << "\n";
 
         std::vector<scalar> host_send_buffer;
-	scalar  *send_ptr;
+        scalar *send_ptr;
 
-	if (true){
-		label repart_size = repartitioner_.get_repart_size();
-		host_send_buffer.resize(repart_size);
-		send_ptr = host_send_buffer.data();
-		auto host_exec = exec_.get_ref_exec(); 
-		auto device_exec = exec_.get_device_exec(); 
-		auto host_buffer_view =
-		    gko::array<scalar>::view(host_exec, repart_size, send_ptr);
-		auto target_buffer_view =
-		    gko::array<scalar>::view(device_exec, repart_size, get_vector()->get_local_values()
-				    );
-		target_buffer_view = host_buffer_view;
-	} else {
-		send_ptr = get_vector()->get_local_values();
-	}
+        if (true) {
+            label repart_size = repartitioner_.get_repart_size();
+            host_send_buffer.resize(repart_size);
+            send_ptr = host_send_buffer.data();
+            auto host_exec = exec_.get_ref_exec();
+            auto device_exec = exec_.get_device_exec();
+            auto host_buffer_view =
+                gko::array<scalar>::view(host_exec, repart_size, send_ptr);
+            auto target_buffer_view = gko::array<scalar>::view(
+                device_exec, repart_size, get_vector()->get_local_values());
+            host_buffer_view = target_buffer_view;
+        } else {
+            send_ptr = get_vector()->get_local_values();
+        }
 
-	communicate_values(exec_, comm_pattern, send_ptr,
-				   const_cast<T *>(memory_));
+        communicate_values(exec_, comm_pattern, send_ptr,
+                           const_cast<T *>(memory_));
     }
 
     /** Writes the content of the distributed vector to disk

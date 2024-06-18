@@ -239,20 +239,18 @@ public:
         label owner_rank = get_owner_rank(exec_handler);
         label ranks_per_gpu = ranks_per_gpu_;
         // TODO dont copy
-        if (ranks_per_gpu == 1) {
-            std::vector<std::pair<bool, label>> ret;
-            for (auto comm_rank : src_non_local_pattern->rank) {
-                ret.emplace_back(false, rank);
-            }
-
-
-            return std::make_tuple<std::shared_ptr<SparsityPattern>,
-                                   std::shared_ptr<SparsityPattern>,
-                                   std::vector<std::pair<bool, label>>>(
-                std::make_shared<SparsityPattern>(src_local_pattern),
-                std::make_shared<SparsityPattern>(src_non_local_pattern),
-                std::move(ret));
-        }
+        // if (ranks_per_gpu == 1) {
+        //     std::vector<std::pair<bool, label>> ret;
+        //     for (auto comm_rank : src_non_local_pattern->rank) {
+        //         ret.emplace_back(false, rank);
+        //     }
+        //     return std::make_tuple<std::shared_ptr<SparsityPattern>,
+        //                            std::shared_ptr<SparsityPattern>,
+        //                            std::vector<std::pair<bool, label>>>(
+        //         std::make_shared<SparsityPattern>(src_local_pattern),
+        //         std::make_shared<SparsityPattern>(src_non_local_pattern),
+        //         std::move(ret));
+        // }
 
         auto local_comm_pattern = compute_send_recv_counts(
             exec_handler, ranks_per_gpu, src_local_pattern->size_);
@@ -344,7 +342,6 @@ public:
         // build vector with locality information
         std::vector<std::pair<bool, label>> locality;
         label ctr{0};
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
 
         if (is_owner(exec_handler)) {
             auto recv_counts = std::get<1>(span_comm_pattern);
@@ -371,7 +368,6 @@ public:
             gathered_non_local.cols[i] = i;
         }
 
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank << "\n";
         LOG_1(verbose_, "done repartition sparsity pattern")
         if (is_owner(exec_handler)) {
             auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
@@ -396,8 +392,15 @@ public:
             auto new_non_local_spars_pattern =
                 std::make_shared<SparsityPattern>(exec);
 
-            new_local_spars_pattern->dim = merged_local_dim;
-            new_non_local_spars_pattern->dim = merged_local_dim;
+            // FIXME
+            // std::cout << __FILE__ << ":" << __LINE__ << " rank " <<
+            // comm.rank() <<
+            //     " merged_local dim " <<
+            new_local_spars_pattern->dim =
+                gko::dim<2>{0, 0};  // merged_local_dim;
+            new_non_local_spars_pattern->dim =
+                gko::dim<2>{0, 0};  // merged_local_dim;
+
 
             return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                    std::shared_ptr<SparsityPattern>,
@@ -434,13 +437,15 @@ public:
             partition) const
     {
         using comm_size_type = label;
+        auto exec = src_comm_pattern->target_ids.get_executor();
+        auto comm = src_comm_pattern->get_comm();
 
         if (ranks_per_gpu_ == 1) {
+            std::cout << __FILE__ << ":" << __LINE__ << " rank " << comm.rank()
+                      << *src_comm_pattern.get() << "\n";
             return src_comm_pattern;
         }
 
-        auto exec = src_comm_pattern->target_ids.get_executor();
-        auto comm = src_comm_pattern->get_comm();
 
         label rank = comm.rank();
         bool owner = is_owner(exec_handler);

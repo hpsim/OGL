@@ -239,13 +239,22 @@ public:
                   << " \n";
 
         // FIXME make sure that we work on the device executor
+        auto comm_pattern = compute_send_recv_counts(
+            exec_handler, 1, non_local_sparsity_->size_);
+
+        auto send_idxs = dst_comm_pattern->total_rank_send_idx();
+        auto comm_counts = dst_comm_pattern->send_recv_pattern();
+
+
         dist_A->read_distributed(
             device_matrix_data(exec, local_sparsity_->dim,
                                local_sparsity_->row_idxs,
                                local_sparsity_->col_idxs, local_coeffs),
-            device_matrix_data(
-                exec, non_local_sparsity_->dim, non_local_sparsity_->row_idxs,
-                non_local_sparsity_->col_idxs, non_local_coeffs));
+            device_matrix_data(exec, non_local_sparsity_->dim,
+                               non_local_sparsity_->row_idxs,
+                               non_local_sparsity_->col_idxs, non_local_coeffs),
+            std::get<0>(comm_counts), std::get<1>(comm_counts),
+            std::get<2>(comm_counts), std::get<3>(comm_counts), send_idxs);
 
 
         // auto dist_A = DistMtxType::create(
@@ -258,8 +267,6 @@ public:
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
                     local_sparsity_, non_local_sparsity_, src_comm_pattern,
                     local_interfaces);
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << " dnoe update impl  \n";
 
         auto ret = std::make_shared<RepartDistMatrix>(
             exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
@@ -360,8 +367,6 @@ public:
                 gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
             target_buffer_view = host_buffer_view;
         }
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-                  << " done copy to device  \n";
 
         if (requires_host_buffer) {
             auto host_buffer_view =
@@ -445,9 +450,10 @@ public:
                 ctr++;
                 // interface values need to be multiplied by -1
                 using vec = gko::matrix::Dense<ValueType>;
-                auto neg_one = gko::initialize<vec>({-1.0}, exec);
+                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+                auto neg_one = gko::initialize<vec>({-1.0}, device_exec);
                 auto interface_dense =
-                    vec::create(exec, gko::dim<2>{comm_size, 1},
+                    vec::create(device_exec, gko::dim<2>{comm_size, 1},
                                 gko::array<scalar>::view(device_exec, comm_size,
                                                          recv_buffer_ptr),
                                 1);
