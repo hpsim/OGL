@@ -1,14 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: "Olenik"
-    given-names: "Gregor"
-  - family-names: "Koch"
-    given-names: "Marcel"
-  - family-names: "Boutanios"
-    given-names: "Ziad"
-  - family-names: "Anzt"
-    given-names: "Hartwig" 
+  - names: "The OGL authors"
 title: "The OpenFOAM Ginkgo Layer (OGL)"
 version: 0.5.3
 date-released: 2024-03-08
@@ -25,7 +18,7 @@ preferred-citation:
   - family-names: "Anzt"
     given-names: "Hartwig" 
   doi: "10.1007/s11012-024-01806-1"
-  journal: " Meccanica"
+  journal: "Meccanica"
   month: 6
   title: "Towards a platform‑portable linear algebra backend for OpenFOAM"
   year: 2024
