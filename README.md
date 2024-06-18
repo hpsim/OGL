@@ -132,18 +132,6 @@ When using OGL please cite the main Ginkgo paper describing Ginkgo's purpose, de
 available through the following reference:
 
 ``` bibtex
-@article{Anzt_Ginkgo_A_Modern_2022,
-author = {Anzt, Hartwig and Cojean, Terry and Flegar, Goran and Göbel, Fritz and Grützmacher, Thomas and Nayak, Pratik and Ribizel, Tobias and Tsai, Yuhsiang and Quintana-Ortí, Enrique S.},
-doi = {10.1145/3480935},
-journal = {ACM Transactions on Mathematical Software},
-month = mar,
-number = {1},
-pages = {1--33},
-title = {{Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing}},
-volume = {48},
-year = {2022}
-}
-
 @Article{Olenik2024,
 author={Olenik, Gregor and Koch, Marcel and Boutanios, Ziad and Anzt, Hartwig},
 title={Towards a platform-portable linear algebra backend for OpenFOAM},
@@ -156,6 +144,17 @@ doi={10.1007/s11012-024-01806-1},
 url={https://doi.org/10.1007/s11012-024-01806-1}
 }
 
+@article{Anzt_Ginkgo_A_Modern_2022,
+author = {Anzt, Hartwig and Cojean, Terry and Flegar, Goran and Göbel, Fritz and Grützmacher, Thomas and Nayak, Pratik and Ribizel, Tobias and Tsai, Yuhsiang and Quintana-Ortí, Enrique S.},
+doi = {10.1145/3480935},
+journal = {ACM Transactions on Mathematical Software},
+month = mar,
+number = {1},
+pages = {1--33},
+title = {{Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing}},
+volume = {48},
+year = {2022}
+}
 ```
 
 ## Example
