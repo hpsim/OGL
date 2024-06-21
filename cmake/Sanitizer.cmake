@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Unlicense
 # SPDX-FileCopyrightText: 2023 Jason Turner
 # SPDX-FileCopyrightText: 2023 NeoFOAM authors
+
 ##############################################################################
 # This function will enable sanitizers                                       #
 # from here                                                                  #
