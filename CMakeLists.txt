@@ -85,7 +85,7 @@ include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
 include(cmake/Sanitizer.cmake)
 
-ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.7.0)
+ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 
 add_subdirectory(third_party)
 
