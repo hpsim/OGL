@@ -1,34 +1,66 @@
 {
-  "version": 2,
+  "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 20,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "default",
+      "hidden": true,
       "displayName": "Default Config",
       "description": "Default build using Ninja generator",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/Release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
       }
     },
     {
-      "name": "ninja-cpuonly-release",
-      "inherits": "default",
-      "displayName": "No GPU, Ninja",
-      "description": "Release build without GPU support using Ninja Multi-Config generator",
-      "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/ReleaseCPUOnly",
+      "name": "debug",
+      "hidden": true,
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
+      }
+    },
+    {
+      "name": "ninja",
+      "hidden": true,
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja"
+    },
+    {
+      "name": "cpuonly",
+      "hidden": true,
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
       "cacheVariables": {
         "OGL_ALLOW_REFERENCE_ONLY": {
           "type": "BOOL",
           "value": "ON"
         }
       }
+    },
+    {
+      "name": "ninja-cpuonly-debug",
+      "displayName": "No GPU, Ninja",
+      "inherits": ["debug", "ninja", "cpuonly"],
+      "description": "Debug build without GPU support using Ninja Multi-Config generator",
+      "binaryDir": "${sourceDir}/build/DebugCPUOnly"
+    },
+    {
+      "name": "ninja-cpuonly-release",
+      "inherits": ["default", "ninja", "cpuonly"],
+      "displayName": "No GPU, Ninja",
+      "description": "Debug build without GPU support using Ninja Multi-Config generator",
+      "binaryDir": "${sourceDir}/build/ReleaseCPUOnly"
     },
     {
       "name": "ninja-cuda-release",
@@ -84,6 +116,11 @@
       "configuration": "Release"
     },
     {
+      "name": "ninja-cpuonly-debug",
+      "configurePreset": "ninja-cpuonly-debug",
+      "configuration": "Release"
+    },
+    {
       "name": "ninja-cuda-release",
       "configurePreset": "ninja-cuda-release",
       "configuration": "Release"
@@ -98,6 +135,20 @@
       "configurePreset": "ninja-sycl-release",
       "configuration": "Release"
     }
+  ],
+  "workflowPresets": [
+    {
+      "name": "ninja-cpuonly-release",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ninja-cpuonly-release"
+        },
+        {
+          "type": "build",
+          "name": "ninja-cpuonly-release"
+        }
+      ]
+    }
   ]
-  
 }
