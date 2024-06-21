@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2024 OGL authors
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-# 0.5.4 (unreleased)
+# 0.5.4 (2024/06/21)
 - Add a warning message to users who use dpcpp as the executor name [PR #129](https://github.com/hpsim/OGL/pull/129)
 - Add support for SP scalars and determine label and scalar size from env variable [PR #120](https://github.com/hpsim/OGL/pull/120) 
 - Notify user of a unsupported executor argument [PR #118](https://github.com/hpsim/OGL/pull/118) 
