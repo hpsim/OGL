@@ -86,8 +86,7 @@ include(cmake/Sanitizer.cmake)
 include(cmake/OpenFOAM.cmake)
 
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
-
-add_subdirectory(third_party)
+include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
@@ -166,39 +165,28 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
-          DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.C
           Preconditioner/Preconditioner.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          MatrixWrapper/LDUMatrix/HostMatrix.C
-          MatrixWrapper/LDUMatrix/HostMatrixFreeFunctions.C
-          MatrixWrapper/CommunicationPattern/CommunicationPattern.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
-          # Solver / IR / GKOIR.C Solver / Multigrid / GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
-  # LduMatrix / GKOACG / GKOACG.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
-         MatrixWrapper/LDUMatrix/HostMatrix.H
-         MatrixWrapper/Combination/Combination.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H
          DevicePersistent/Vector/Vector.H
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
-         DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H
          Preconditioner/Preconditioner.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
-         # Solver / Multigrid / GKOMultigrid.H
          Solver/BiCGStab/GKOBiCGStab.H
          Solver/GMRES/GKOGMRES.H
-  # LduMatrix / GKOACG / GKOACG.H
 )
 
 enable_sanitizers(

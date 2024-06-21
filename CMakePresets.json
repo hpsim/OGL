@@ -7,22 +7,18 @@
   },
   "configurePresets": [
     {
-      "name": "default",
+      "name": "release",
       "hidden": true,
-      "displayName": "Default Config",
       "description": "Default build using Ninja generator",
-      "generator": "Ninja",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
       }
     },
     {
       "name": "debug",
       "hidden": true,
-      "displayName": "Default Config",
       "description": "Default build using Ninja generator",
-      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/.."
@@ -31,16 +27,13 @@
     {
       "name": "ninja",
       "hidden": true,
-      "displayName": "Default Config",
       "description": "Default build using Ninja generator",
       "generator": "Ninja"
     },
     {
       "name": "cpuonly",
       "hidden": true,
-      "displayName": "Default Config",
       "description": "Default build using Ninja generator",
-      "generator": "Ninja",
       "cacheVariables": {
         "OGL_ALLOW_REFERENCE_ONLY": {
           "type": "BOOL",
@@ -57,17 +50,16 @@
     },
     {
       "name": "ninja-cpuonly-release",
-      "inherits": ["default", "ninja", "cpuonly"],
+      "inherits": ["release", "ninja", "cpuonly"],
       "displayName": "No GPU, Ninja",
       "description": "Debug build without GPU support using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/ReleaseCPUOnly"
     },
     {
       "name": "ninja-cuda-release",
-      "inherits": "default",
+      "inherits": ["release", "ninja", "cpuonly"],
       "displayName": "CUDA, Ninja",
       "description": "Release build for cuda using Ninja Multi-Config generator",
-      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build/ReleaseCuda",
       "cacheVariables": {
         "GINKGO_BUILD_CUDA": {
@@ -78,10 +70,9 @@
     },
     {
       "name": "ninja-hip-release",
-      "inherits": "default",
+      "inherits": ["release", "ninja", "cpuonly"],
       "displayName": "HIP, Ninja",
       "description": "Release build for hip using Ninja Multi-Config generator",
-      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build/ReleaseHip",
       "cacheVariables": {
         "GINKGO_BUILD_HIP": {
@@ -92,11 +83,9 @@
     },
     {
       "name": "ninja-sycl-release",
-      "inherits": "default",
+      "inherits": ["release", "ninja", "cpuonly"],
       "displayName": "SYCL, Ninja",
       "description": "Release build for sycl using Ninja Multi-Config generator",
-      "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/ReleaseSycl",
       "cacheVariables": {
         "GINKGO_BUILD_SYCL": {
           "type": "BOOL",
@@ -106,10 +95,6 @@
     }
   ],
   "buildPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default"
-    },
     {
       "name": "ninja-cpuonly-release",
       "configurePreset": "ninja-cpuonly-release",
