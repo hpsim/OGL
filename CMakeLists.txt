@@ -16,11 +16,10 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(BUILD_SHARED_LIBS ON)
 
 # Configuration options
 include(cmake/build_type_helpers.cmake)
-include(cmake/OpenFOAM.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 
 include(CheckIncludeFileCXX)
@@ -84,6 +83,7 @@ include(cmake/package_helpers.cmake)
 include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
 include(cmake/Sanitizer.cmake)
+include(cmake/OpenFOAM.cmake)
 
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 
@@ -92,7 +92,7 @@ add_subdirectory(third_party)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE
     "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -Wextra -march=native -fopenmp -fPIC -Wno-undefined-var-template"
+  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template"
 )
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -130,7 +130,6 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
       ")
 endif()
 
-option(BUILD_SHARED_LIBS "Build shared library" ON)
 add_library(OGL "")
 
 target_compile_definitions(OGL PUBLIC NoRepository)
