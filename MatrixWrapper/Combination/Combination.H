@@ -69,8 +69,13 @@ public:
             this->comb_->add_operators(
                 gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
         }
+
+ 
         // NOTE find a better place
         this->set_size(comb_->get_size());
+
+        // TODO validate the size, needs assertions
+        // OGL_ASSERT(this->get_size()[0] == this.interface_ranges_.back().end);
     }
 
     std::shared_ptr<gko::Combination<ValueType>> get_combination() const
@@ -116,9 +121,15 @@ protected:
         : gko::EnableLinOp<CombinationMatrix>(exec)
     {}
 
-    // This constructor will be called by the create method.
-    // Here we initialize, the interface_ranges to create the
-    // the linear combination during the read call
+    /*
+     * This constructor will be called by the create method.
+     * Here we initialize, the interface_ranges to create the
+     * the linear combination during the read call
+     * @param executor where combitination matrix data resides on
+     * @param the global size of the matrices, eg. max (row, col idxs)
+     * @param interfaces ranges required for read to separate interfaces
+     *        from consecutive matrix_data input
+     */
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
                       gko::dim<2> size, std::vector<gko::span> interface_ranges)
         : gko::EnableLinOp<CombinationMatrix>(exec),
