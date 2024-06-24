@@ -151,6 +151,6 @@ protected:
 private:
     std::vector<gko::span>
         interface_ranges_;  // vector containing start and end indices of the
-                            // individual matrices in the consequtive data
+                            // individual matrices in the consecutive data
     std::shared_ptr<gko::Combination<ValueType>> comb_;
 };
