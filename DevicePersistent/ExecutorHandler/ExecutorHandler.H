@@ -31,7 +31,7 @@ struct ExecutorInitFunctor {
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_(if (gpus_per_rank != 0) ? comm_->rank() / gpus_per_rank : comm_->get_num_ranks()),
+          device_id_((gpus_per_rank != 0) ? comm_->rank() / gpus_per_rank : comm_->size()),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
