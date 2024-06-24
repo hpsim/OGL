@@ -139,6 +139,7 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
+
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
   -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template")
 
@@ -164,6 +165,7 @@ elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   set(CMAKE_CXX_FLAGS_DEBUG
       "${CMAKE_CXX_FLAGS_DEBUG} \
       --coverage\
+      --fopenmp \
       -fprofile-arcs \
       -ggdb3 \
       ")
