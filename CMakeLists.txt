@@ -202,6 +202,8 @@ add_custom_command(
           ${GINKGO_CHECKOUT_VERSION}
   COMMENT "Create a version file")
 
+add_subdirectory(include)
+
 target_sources(
   OGL
   PRIVATE src/common.C
@@ -220,9 +222,8 @@ target_sources(
           src/MatrixWrapper/HostMatrix.C
           src/Solver/CG/GKOCG.C
           src/Solver/BiCGStab/GKOBiCGStab.C
-          src/Solver/GMRES/GKOGMRES.C)
-
-add_subdirectory(include)
+          src/Solver/GMRES/GKOGMRES.C
+)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
