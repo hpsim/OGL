@@ -5,36 +5,41 @@
 name: Static checks
 run-name: Static checks
 
+defaults:
+ run:
+  shell: bash -o pipefail -i {0}
+
 on:
     pull_request:
       types: [opened, synchronize]
+
+env:
+  USER: user
+  BUILD_TYPE: Release
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+
+
 jobs:
   build-compilation-db:
     name: Build with IWYU
     runs-on: ubuntu-latest
+    container: greole/ofbase
     steps:
     - uses: actions/checkout@v4
-
-    - name: Add clang repo
-      run: |
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
-        wget https://apt.llvm.org/llvm-snapshot.gpg.key
-        sudo apt-key add llvm-snapshot.gpg.key
-
     - name: Install dependencies
       run: |
-        sudo apt update
-        sudo apt install \
+        apt update
+        apt install -y \
            ninja-build \
-           iwyu \
-           clang-16 \
-           libomp-16-dev
-
+           libomp-dev \
+           iwyu
     - name: Create Compilation Database
       run: |
+        source /root/OpenFOAM/openfoam/etc/bashrc
         cmake --preset ninja-cpuonly-release \
-        -DCMAKE_CXX_COMPILER=clang++-16 \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         cmake --build --preset ninja-cpuonly-release
     - uses: actions/upload-artifact@v4
       with:
@@ -43,40 +48,33 @@ jobs:
   clang-tidy-check:
     name: Clang-tidy Check
     runs-on: ubuntu-latest
+    container: greole/ofbase
     needs: [build-compilation-db]
     steps:
     - uses: actions/checkout@v4
-
-    - name: Add clang repo
-      run: |
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
-        wget https://apt.llvm.org/llvm-snapshot.gpg.key
-        sudo apt-key add llvm-snapshot.gpg.key
-
     - name: Install dependencies
       run: |
-        sudo apt update
-        sudo apt install \
-           clang-tidy-16 \
-           libomp-16-dev
-
+        apt update
+        apt install -y \
+           clang-tidy \
+           jq
     - uses: actions/download-artifact@v4
       with:
         name: build-artifact
         path: build
-
     - name: Run clang-tidy
       run: |
-        # Create list of .cpp files belonging to this repository
-        git ls-files | grep -E "\.(cpp)" > pattern
+        git config --global --add safe.directory /__w/OGL/OGL
+        # Create list of all source files belonging to this repository
+        git ls-files | grep -E "\.(C)" > pattern
         # Create list of .cpp files that are in this repository and part of the
         # compilation database
         # also filters out " at the begin and end of the filename
-        jq ".[] | .file" build/ReleaseAll/compile_commands.json \
+        jq ".[] | .file" build/ReleaseCPUOnly/compile_commands.json \
           | sed 's/^"\(.*\)"$/\1/' \
           | grep -F -f pattern - > files
         # run clang-tidy on all specified files
-        clang-tidy-16 --fix --extra-arg=-w -p build/ReleaseAll $(cat files)
+        clang-tidy --fix --extra-arg=-w -p build/ReleaseCPUOnly $(cat files)
 
     - name: Check for fixes
       run: |

@@ -58,7 +58,7 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
@@ -86,7 +86,11 @@ jobs:
         mkdir -p build
         cd build
         [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -GNinja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
+        cmake -GNinja \
+          -DOGL_ALLOW_REFERENCE_ONLY=On \
+          -DOGL_BUILD_UNITTEST=ON \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
 
     - name: Build OGL
       working-directory: ${{github.workspace}}/build
