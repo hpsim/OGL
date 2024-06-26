@@ -19,7 +19,7 @@ namespace Foam {
 struct PartitionInitFunctor {
     using comm_size_type = int;
     using part_type =
-        gko::experimental::distributed::localized_partition<label>;
+        gko::experimental::distributed::Partition<label, label>;
 
     const ExecutorHandler &exec_;
 
@@ -63,10 +63,7 @@ struct PartitionInitFunctor {
                  std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        auto host_partition = part_type::build_from_blocked_recv(
-            exec, local_size_, send_idxs_, target_ids_, target_sizes_);
-
-        if (ranks_per_gpu_ == 1) return host_partition;
+        if (ranks_per_gpu_ == 1) return {};
     }
 };
 
@@ -80,7 +77,7 @@ struct PartitionInitFunctor {
  * */
 class PersistentPartition
     : public PersistentBase<
-          gko::experimental::distributed::localized_partition<label>,
+          gko::experimental::distributed::Partition<label, label>,
           PartitionInitFunctor> {
     const int ranks_per_gpu_;
 
@@ -92,7 +89,7 @@ class PersistentPartition
 
 public:
     using part_type =
-        gko::experimental::distributed::localized_partition<label>;
+        gko::experimental::distributed::Partition<label, label>;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage

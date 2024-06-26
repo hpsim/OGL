@@ -192,17 +192,6 @@ struct MatrixInitFunctor {
         auto dist_A = generate_dist_mtx_with_inner_type(
             exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
 
-        auto sparse_comm =
-            gko::experimental::distributed::sparse_communicator::create(
-                *comm.get(), partition_.get_localized_partition());
-
-        auto recv_sizes = sparse_comm->get_recv_sizes();
-        auto recv_offs = sparse_comm->get_recv_offsets();
-        auto send_sizes = sparse_comm->get_send_sizes();
-        auto send_offs = sparse_comm->get_send_offsets();
-
-        dist_A->read_distributed(A_data, non_local_A_data, sparse_comm);
-
         auto device_mat = generate_dist_mtx_with_inner_type(
             exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
         dist_A->move_to(device_mat.get());

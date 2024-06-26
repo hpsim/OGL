@@ -99,7 +99,7 @@ public:
 
             auto pre_factory = bj::build()
                                    .with_skip_sorting(skip_sorting)
-                                   .with_max_block_size(max_block_size)
+                                   .with_max_block_size(static_cast<gko::uint32>(max_block_size))
                                    .on(device_exec);
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
@@ -148,9 +148,9 @@ public:
             auto trisolve_factory =
                 ir::build()
                     .with_solver(
-                        bj::build().with_max_block_size(1).on(device_exec))
+                        bj::build().with_max_block_size(1u).on(device_exec))
                     .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(5).on(
+                        gko::stop::Iteration::build().with_max_iters(5u).on(
                             device_exec))
                     .on(device_exec);
 
@@ -299,7 +299,7 @@ public:
             auto coarsest_gen = gko::share(
                 cg::build()
                     .with_criteria(gko::stop::Iteration::build()
-                                       .with_max_iters(coarse_solver_iters)
+                                        .with_max_iters(static_cast<gko::uint32>(coarse_solver_iters))
                                        .on(device_exec))
                     .on(device_exec));
 
@@ -324,9 +324,9 @@ public:
 
             auto pre_factory =
                 mg::build()
-                    .with_max_levels(max_levels)
+                    .with_max_levels(static_cast<gko::uint32>(max_levels))
                     .with_cycle(cycle)
-                    .with_min_coarse_rows(min_coarse_rows)
+                    .with_min_coarse_rows(static_cast<gko::uint32>(min_coarse_rows))
                     .with_pre_smoother(smoother_gen)
                     .with_post_uses_pre(true)
                     .with_mg_level(

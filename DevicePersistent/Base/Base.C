@@ -26,10 +26,6 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
 
 // typedef needed  to avoid confusion with the comma separated template
 // arguments as macro arguments
-typedef gko::experimental::distributed::localized_partition<label> Partition;
-defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
-                               "PersistentPartition");
-
 typedef gko::experimental::distributed::Matrix<scalar, label, label> GkoMatrix;
 defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
                                "PersistentMatrix");
