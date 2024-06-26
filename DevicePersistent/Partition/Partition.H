@@ -18,8 +18,7 @@ namespace Foam {
 
 struct PartitionInitFunctor {
     using comm_size_type = int;
-    using part_type =
-        gko::experimental::distributed::Partition<label, label>;
+    using part_type = gko::experimental::distributed::Partition<label, label>;
 
     const ExecutorHandler &exec_;
 
@@ -88,8 +87,7 @@ class PersistentPartition
     const ExecutorHandler &exec_;
 
 public:
-    using part_type =
-        gko::experimental::distributed::Partition<label, label>;
+    using part_type = gko::experimental::distributed::Partition<label, label>;
     /* PersistentPartition constructor using existing memory
      *
      * @param objectRegistry reference to registry for storage
