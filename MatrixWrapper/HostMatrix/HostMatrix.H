@@ -1,8 +1,29 @@
-// SPDX-FileCopyrightText: 2024 OGL authors
-//
-// SPDX-License-Identifier: GPL-3.0-or-later
+/*---------------------------------------------------------------------------*\
+License
+    This file is part of OGL.
 
-#pragma once
+    OGL is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OGL is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OGL.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Author: Gregor Olenik <go@hpsim.de>
+
+SourceFiles
+    HostMatrix.H
+
+\*---------------------------------------------------------------------------*/
+#ifndef OGL_HostMatrix_INCLUDED_H
+#define OGL_HostMatrix_INCLUDED_H
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
@@ -12,72 +33,77 @@
 #include "DevicePersistent/Array/Array.H"
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
+#include "MatrixWrapper/Combination/Combination.H"
+#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 
 namespace Foam {
 
 
-struct PersistentSparsityPattern {
-    PersistentSparsityPattern(
-      const word &fieldName,
-      const objectRegistry &db,
-      const ExecutorHandler &exec,
-      const label size,
-      const label verbose):
-    col_idxs_{
-        fieldName + "_cols",
-        db,
-        exec,
-        size,
-        verbose,
-        false,  // For now we assume columns and rows to be constant
-        false   // we don't init on device since the indices are written using the pointer
-                // to the data
-    },
-    row_idxs_{
-        fieldName + "_rows",
-        db,
-        exec,
-        size,
-        verbose,
-        false,  // For now we assume columns and rows to be constant
-        false   // same as for cols don't init on device
-    },
-    ldu_mapping_{
-        fieldName + "_ldu_map",
-        db,
-        exec,
-        size,
-        verbose,
-        false,
-        false // same as for rows and cols dont init on device
-    }
+struct SparsityPattern {
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
+        : size_(size),
+          row_idxs{exec, static_cast<gko::size_type>(size)},
+          col_idxs{exec, static_cast<gko::size_type>(size)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size)}
     {}
 
-    mutable PersistentArray<label> col_idxs_;
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
+                    gko::dim<2> dim, std::vector<label> &rows,
+                    std::vector<label> &cols, std::vector<label> &map,
+                    std::vector<label> &spans_begin,
+                    std::vector<label> &spans_end, std::vector<label> &ranks)
+        : size_(size),
+          dim(dim),
+          row_idxs{exec, static_cast<gko::size_type>(size)},
+          col_idxs{exec, static_cast<gko::size_type>(size)},
+          ldu_mapping{exec, static_cast<gko::size_type>(size)}
+    {
+        ASSERT_EQ(size, rows.size());
+        std::copy(rows.begin(), rows.end(), row_idxs.get_data());
 
-    mutable PersistentArray<label> row_idxs_;
+        ASSERT_EQ(size, cols.size());
+        std::copy(cols.begin(), cols.end(), col_idxs.get_data());
+
+        ASSERT_EQ(size, map.size());
+        std::copy(map.begin(), map.end(), ldu_mapping.get_data());
+
+        ASSERT_EQ(spans_begin.size(), spans_end.size());
+        std::transform(spans_begin.begin(), spans_begin.end(),
+                       spans_end.begin(), std::back_inserter(interface_spans),
+                       [](const auto begin, const auto end) {
+                           return gko::span{static_cast<gko::size_type>(begin),
+                                            static_cast<gko::size_type>(end)};
+                       });
+
+        ASSERT_EQ(spans_begin.size(), ranks.size());
+        rank = ranks;
+    }
+
+    // TODO rename the public members and remove trailing _
+    // number of nnz entries
+    const label size_;
+
+    mutable gko::Array<label> row_idxs;
+
+    mutable gko::Array<label> col_idxs;
 
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
-    mutable PersistentArray<label> ldu_mapping_;
+    mutable gko::Array<label> ldu_mapping;
+
+    // dimensions of the resulting matrix
+    mutable gko::dim<2> dim;
+
+    // A vector of spans indicating begin and end of each interface
+    // this is used to keep all col and row idx consecutive in memory
+    mutable std::vector<gko::span> interface_spans;
+
+    // keep track of original (communication) rank of each interface or matrix
+    // block
+    mutable std::vector<label> rank;
 };
-
-struct CommunicationPattern {
-    using comm_size_type = int;
-    // an array storing to which rank to communicate
-    gko::array<comm_size_type> target_ids;
-
-    // an array storing how many elements to communicate
-    // to the corresponding target_id
-    gko::array<comm_size_type> target_sizes;
-
-    // send_idx stores the index_set ie which cells
-    // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-};
-
 
 // Free functions
 const lduInterfaceField *interface_getter(
@@ -215,12 +241,13 @@ void non_symmetric_update_w_interface(
  * format into Ginkgo array data structures
  *
  * It mainly generates:
- * - sparsity pattern/device_matrix_data of the local_matrix and
- * - non_local_matrix (with global columns)
+ * - sparsity pattern of the local_matrix and
+ *   non_local_matrix (with global columns)
  * - CommunicationPattern
+ * - implements an interfaces so that
+ *   RepartDistMatrix can read_distributed(A_host)
  * */
-template <class MatrixType>
-class HostMatrixWrapper : public MatrixType::solver {
+class HostMatrixWrapper {
 private:
     using vec = gko::matrix::Dense<scalar>;
     using idx_array = gko::array<label>;
@@ -231,30 +258,41 @@ private:
 
     const label verbose_;
 
+    const word field_name_;
+
     // Whether the matrix coefficients should be reordered
     // during copy or on device
-    // NOTE Not implemented
     const bool reorder_on_copy_;
 
+    const lduAddressing &addr_;
+
+    const scalar *diag_;
+
+    const scalar *upper_;
+
+    const scalar *lower_;
+
     // multiply the complete system by this factor, ie sAx=sb
-    // NOTE this could be also achieved by just fliping the sign
+    // NOTE this needed to avoid negative diagonal matrix entries, but
+    // this could be also achieved by just fliping the sign
     const scalar scaling_;
 
     // number of local matrix rows
     const label nrows_;
+
+    // number of local upper elements
+    // ie coefficients which column_idx < nrows_
+    const label upper_nnz_;
+
+    const bool symmetric_;
 
     // number of local elements on interfaces
     // ie number of interfaces which column_idx is < nrows_
     // and have to be sorted into local matrix
     const label local_interface_nnz_;
 
-    // number of local upper elements
-    // ie coefficients which column_idx < nrows_
-    const label upper_nnz_;
-
     // total number of local upper and lower elements
     // ie 2*upper_nnz_ since the sparsity pattern is symmetric
-    // TODO should this include the local_interface_nnz_ ?
     const label non_diag_nnz_;
 
     // nnz of local matrix wo local interfaces
@@ -263,27 +301,15 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
-    mutable PersistentSparsityPattern local_sparsity_;
-
-    // matrix coefficients
-    mutable PersistentArray<scalar> local_coeffs_;
+    // TODO remove
+    // mutable SparsityPattern local_sparsity_pattern_;
 
     // non-local indices
     const label non_local_matrix_nnz_;
 
-    const CommunicationPattern communication_pattern_;
+    const lduInterfaceFieldPtrsList &interfaces_;
 
-    mutable PersistentSparsityPattern non_local_sparsity_;
-
-    mutable PersistentArray<scalar> non_local_coeffs_;
-
-    // FIXME TODO unused
-    const word permutation_matrix_name_;
-
-    const bool permutation_stored_;
-
-    mutable std::shared_ptr<gko::LinOp> P_;
-
+    const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
     /* Iterates all interfaces and collects the coefficients into a vector
     **
@@ -315,16 +341,6 @@ private:
         const lduInterfaceFieldPtrsList &interfaces_) const;
 
 
-    /** Iterates all interfaces and counts the number of unique neighbour
-     ** processors and number of interfaces in total for this processor
-     ** and collects all interface cells of this rank.
-     **
-     ** @param interfaces The list of interfaces for the search
-     ** @return the CommunicationPattern
-     */
-    CommunicationPattern create_communication_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
-
     /** Iterates all interfaces and collect the corresponding cell id (row)
     ** and a unique counter
     **
@@ -334,16 +350,71 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label>> collect_cells_on_non_local_interface(
+    std::vector<std::tuple<label, label, label, label>>
+    collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
+
+
+    // updater
+
+
+public:
+    // segregated matrix wrapper constructor
+    HostMatrixWrapper(const ExecutorHandler &exec, const objectRegistry &db,
+                      label nrows, label upper_nnz, bool symmetric,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower, const lduAddressing &addr,
+                      const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      const lduInterfaceFieldPtrsList &interfaces,
+                      const dictionary &solverControls, const word &fieldName,
+                      label verbose);
+
+    // getter
+
+public:
+    static std::shared_ptr<HostMatrixWrapper> create(
+        const ExecutorHandler &exec, const objectRegistry &db, label nrows,
+        label upper_nnz, bool symmetric, const scalar *diag,
+        const scalar *upper, const scalar *lower, const lduAddressing &addr,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const FieldField<Field, scalar> &interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList &interfaces,
+        const dictionary &solverControls, const word &fieldName, label verbose)
+    {
+        return std::make_shared<HostMatrixWrapper>(
+            exec, db, nrows, upper_nnz, symmetric, diag, upper, lower, addr,
+            interfaceBouCoeffs, interfaceIntCoeffs, interfaces, solverControls,
+            fieldName, verbose);
+    };
+
+    void update(const scalar *diag, const scalar *upper, const scalar *lower,
+                const FieldField<Field, scalar> &interfaceBouCoeffs,
+                const FieldField<Field, scalar> &interfaceIntCoeffs,
+                const lduInterfaceFieldPtrsList &interfaces);
 
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
      ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
      ** which are required to create to a ginkgo matrix
      **/
-    void init_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
+    std::shared_ptr<SparsityPattern> compute_local_sparsity(
+        std::shared_ptr<const gko::Executor> exec) const;
+
+    /** Copies the LDU matrix coefficients to local_coeffs without changing or
+     ** reinstantiating the sparsity pattern.
+     ** This uses the local_sparsity_.ldu_mapping to permute the data already
+     ** on the host or device to be in row major order.
+     **/
+    void compute_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
+                              gko::array<scalar> &target_coeffs) const;
+
+    /** Copies the interface matrix coefficients to non_local_coeffs without
+    ** changing or reinstantiating the sparsity pattern.
+    **/
+    void compute_non_local_coeffs(
+        std::shared_ptr<const SparsityPattern> sparsity,
+        gko::array<scalar> &target_coeffs) const;
 
     /** Based on OpenFOAMs interfaces this function computes two
      ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
@@ -351,93 +422,29 @@ private:
      ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
      ** matrix
      **/
-    void init_non_local_sparsity_pattern(
-        const lduInterfaceFieldPtrsList &interfaces) const;
+    std::shared_ptr<SparsityPattern> compute_non_local_sparsity(
+        std::shared_ptr<const gko::Executor> exec) const;
 
-    // updater
-
-    /** Copies the LDU matrix coefficients to local_coeffs without changing or
-     ** reinstantiating the sparsity pattern.
-     ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host or device to be in row major order.
-     **/
-    void update_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
-
-    /** Copies the interface matrix coefficients to non_local_coeffs without
-    ** changing or reinstantiating the sparsity pattern.
-    **/
-    void update_non_local_matrix_data(
-        const lduInterfaceFieldPtrsList &interfaces,
-        const FieldField<Field, scalar> &interfaceBouCoeffs) const;
-
-public:
-    // segregated wrapper constructor
-    // TODO - compute local_interface_nnzs these are matrix coefficient
-    //      that are on an interface but not on a different rank
-    //      - then a new array/vector is needed to store local_interfaces
-    //      - if local interfaces are present init_local_sparsity_pattern
-    //      needs to be adapted
-    //      - local_sparsity_.ldu_mapping needs a new section for interfaces
-    HostMatrixWrapper(
-        const objectRegistry &db, const MatrixType &matrix,
-        // coeffs for cells on boundaries
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        // coeffs for internal cells
-        const FieldField<Field, scalar> &interfaceIntCoeffs,
-        // pointers to interfaces can be used to access concrete
-        // functions such as transferring indices, patch neighbours etc
-        const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls, const word &fieldName);
-
-    // TODO reimplement this at some point
-    // coupled wrapper constructor
-    HostMatrixWrapper(const objectRegistry &db, const MatrixType &matrix,
-                      const dictionary &solverControls, const word &fieldName);
+    /** Iterates all interfaces and counts the number of unique neighbour
+     ** processors and number of interfaces in total for this processor
+     ** and collects all interface cells of this rank.
+     **
+     ** @param interfaces The list of interfaces for the search
+     ** @return the CommunicationPattern
+     */
+    CommunicationPattern create_communication_pattern(
+        const gko::experimental::mpi::communicator &comm) const;
 
 
-    // getter
-
-public:
     bool get_verbose() const { return verbose_; }
-
-    const CommunicationPattern &get_communication_pattern() const
-    {
-        return communication_pattern_;
-    }
 
     label get_local_nrows() const { return nrows_; }
 
+    gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
+
     const ExecutorHandler &get_exec_handler() const { return exec_; }
-
-    PersistentArray<scalar> &get_local_coeffs() const { return local_coeffs_; };
-
-    PersistentArray<label> &get_local_col_idxs() const
-    {
-        return local_sparsity_.col_idxs_;
-    }
-
-    PersistentArray<label> &get_local_row_idxs() const
-    {
-        return local_sparsity_.row_idxs_;
-    }
-
-    PersistentArray<scalar> &get_non_local_coeffs() const
-    {
-        return non_local_coeffs_;
-    }
-
-    PersistentArray<label> &get_non_local_col_idxs() const
-    {
-        return non_local_sparsity_.col_idxs_;
-    }
-
-    PersistentArray<label> &get_non_local_row_idxs() const
-    {
-        return non_local_sparsity_.row_idxs_;
-    }
 };
 
 
 }  // namespace Foam
+#endif
