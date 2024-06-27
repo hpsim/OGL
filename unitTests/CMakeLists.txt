@@ -29,6 +29,7 @@ target_compile_definitions(matrixConversion PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTI
 target_link_libraries(
   matrixConversion
   PUBLIC GTest::gtest_main
+         Ginkgo::ginkgo
          $ENV{FOAM_LIBBIN}/libOpenFOAM.so
          $ENV{FOAM_LIBBIN}/libfiniteVolume.so
          $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
