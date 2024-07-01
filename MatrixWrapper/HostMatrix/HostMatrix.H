@@ -50,7 +50,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
 
 
 
-/* The HostMatrixWrapper class is a thin wrapper to simplify acess 
+/* The HostMatrixWrapper class is a thin wrapper to simplify access
  * to OpenFOAM LDU matrix 
  * */
 class HostMatrixWrapper {
