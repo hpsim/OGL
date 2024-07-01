@@ -115,6 +115,7 @@ public:
  */
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public OGL_Info,
+                   public MatrixType::solver,
                    public SolverFactory,
                    public Preconditioner {
 private:
@@ -149,6 +150,8 @@ public:
                const lduInterfaceFieldPtrsList &interfaces,
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
+          MatrixType::solver(fieldName, matrix, interfaceBouCoeffs,
+                             interfaceIntCoeffs, interfaces, solverControls),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          solverControls.lookupOrDefault<label>("verbose", 0)),
@@ -202,15 +205,15 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        PersistentPartition partition{
-            db_,
-            this->get_exec_handler(),
-            verbose_,
-            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-            psi.size(),  // number of elements
-            this->get_communication_pattern()};
-
         // TODO removed to make it compile since we need distributed matrix
+        // PersistentPartition partition{
+        //     db_,
+        //     exec_handler_,
+        //     verbose_,
+        //     solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
+        //     psi.size(),  // number of elements
+        //     this->get_communication_pattern()};
+
         // wrapper
         // // TODO this is now the local matrix part for dist_A
         // MatrixWrapper dist_A{db_,
