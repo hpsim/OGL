@@ -42,4 +42,4 @@ target_link_libraries(
 
 include(GoogleTest)
 
-add_test(communicationPattern COMMAND mpirun -np 4 communicationPattern)
+add_test(NAME communicationPattern COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/communicationPattern)
