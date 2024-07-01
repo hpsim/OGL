@@ -117,7 +117,6 @@ public:
 template <class MatrixType, class SolverFactory>
 class lduLduBase : public OGL_Info,
                    public SolverFactory,
-                   public HostMatrixWrapper<MatrixType>,
                    public Preconditioner {
 private:
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
@@ -136,8 +135,14 @@ private:
 
     const label verbose_;
 
+    const ExecutorHandler exec_handler_;
+
+    const HostMatrixWrapper host_matrix_wapper_;
+
 public:
-    // constructor for segregated solver
+
+    /** Constructor for segregated solvers
+     */
     lduLduBase(const word &fieldName, const lduMatrix &matrix,
                const FieldField<Field, scalar> &interfaceBouCoeffs,
                const FieldField<Field, scalar> &interfaceIntCoeffs,
@@ -145,37 +150,35 @@ public:
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>{matrix.mesh().thisDb(),
-                                        matrix,
-                                        interfaceBouCoeffs,
-                                        interfaceIntCoeffs,
-                                        interfaces,
-                                        solverControls,
-                                        fieldName},
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
           solver_controls_(solverControls),
-          verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0),
+          exec_handler_{db_, solver_controls_, fieldName},
+          host_A_{
+              db_,       exec_handler_, solver_controls_,   fieldName,
+              verbose_,  matrix_,       interfaceBouCoeffs, interfaceIntCoeffs,
+              interfaces}
+)
     {}
 
 
     /**
-     * Constructor from matrix components and solver controls
-     *
+     * Constructor for coupled matrix solvers
      */
     lduLduBase(const word &fieldName, const MatrixType &matrix,
                const dictionary &solverControls)
         : OGL_Info(fieldName, solverControls, matrix.mesh().thisDb()),
           SolverFactory{solverControls, matrix.mesh().thisDb(), fieldName},
-          HostMatrixWrapper<MatrixType>(matrix.mesh().thisDb(), matrix,
-                                        solverControls, fieldName),
           Preconditioner(fieldName, matrix.mesh().thisDb(), solverControls,
                          this->get_verbose()),
           db_(matrix.mesh().thisDb()),
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0))
-    {}
+    {
+        OGL_NOT_IMPLEMENTED;
+    }
 
 
     // the solve_impl_ version called from the LduMatrix, ie for
@@ -190,7 +193,6 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        auto ref_exec = this->get_exec_handler().get_ref_exec();
 
         PersistentPartition partition{
             db_,
@@ -241,6 +243,7 @@ public:
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
+        auto ref_exec = exec_handler_.get_ref_exec();
         if (scaling != 1) {
             auto dense_scaling =
                 gko::share(gko::initialize<gko::matrix::Dense<scalar>>(

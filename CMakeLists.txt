@@ -89,10 +89,8 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE
-    "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template"
-)
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
+  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("Compiling with clang")
@@ -167,7 +165,7 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
-	  MatrixWrapper/HostMatrix/HostMatrix.C
+          MatrixWrapper/HostMatrix/HostMatrix.C
           Preconditioner/Preconditioner.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
@@ -184,12 +182,11 @@ target_sources(
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          Preconditioner/Preconditioner.H
-	 MatrixWrapper/HostMatrix/HostMatrix.C
+         MatrixWrapper/HostMatrix/HostMatrix.C
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
-         Solver/GMRES/GKOGMRES.H
-)
+         Solver/GMRES/GKOGMRES.H)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
