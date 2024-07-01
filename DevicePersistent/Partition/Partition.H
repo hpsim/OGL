@@ -8,13 +8,12 @@
 
 #include <ginkgo/ginkgo.hpp>
 
+#include "CommunicationPattern/CommunicationPattern.H"
 #include "DevicePersistent/Base/Base.H"
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
-#include "HostMatrix/HostMatrix.H"
 #include "common/common.H"
 
 namespace Foam {
-
 
 struct PartitionInitFunctor {
     using comm_size_type = int;

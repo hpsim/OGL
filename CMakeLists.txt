@@ -207,6 +207,7 @@ target_sources(
   PRIVATE common/common.C
           BaseWrapper/lduBase/GKOlduBase.C
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
+          CommunicationPattern/CommunicationPattern.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
@@ -226,6 +227,7 @@ target_sources(
          lduLduBase/lduLduBase.H
          BaseWrapper/lduBase/GKOlduBase.H
          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
+         CommunicationPattern/CommunicationPattern.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H
