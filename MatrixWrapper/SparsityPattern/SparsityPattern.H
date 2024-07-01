@@ -9,7 +9,12 @@
 namespace Foam {
 
 
-/* The HostMatrixWrapper class handles the conversion from OpenFOAMs lduMatrix
+/* The SparsityPattern holds row and column index data using gko::arrays.
+ * This struct is used for easy generation of (distributed) ginkgo matrices.
+ *
+ * Additionally it keeps track which parts of the sparsity pattern belongs to
+ * which interface.
+ *
  * */
 struct SparsityPattern {
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
