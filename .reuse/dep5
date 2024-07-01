@@ -34,6 +34,11 @@ License: GPL-3.0-or-later
 Files: CITATION.cff
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
+
+Files: .pre-commit-config.yaml
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
 # Sample paragraph, commented out:
 #
 # Files: src/*

@@ -37,6 +37,7 @@ option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
+option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
@@ -67,14 +68,63 @@ if((NOT OGL_ALLOW_REFERENCE_ONLY) AND (NOT OGL_USE_EXTERNAL_GINKGO))
      AND (NOT GINKGO_BUILD_SYCL))
     message(
       FATAL_ERROR
-        "No GPU Backend was selected, set either:\n -DGINKGO_BUILD_CUDA=True\n -DGINKGO_BUILD_HIP=True\n -DGINKGO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check"
-    )
+        "No GPU Backend was selected, set either:\n\
+-DGINKGO_BUILD_CUDA=True\n\
+-DGINKGO_BUILD_HIP=True\n\
+-DGINKGO_BUILD_SYCL=True\n\
+or set:\n\
+-DOGL_ALLOW_REFERENCE_ONLY=True\n\
+to turn off this check")
   endif()
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
     "ogl_rebase_1.8.0"
     CACHE STRING "Use specific version of ginkgo")
+
+if(OGL_DEVEL_TOOLS)
+  find_program(PRE_COMMIT pre-commit)
+  if(NOT PRE_COMMIT)
+    message(
+      FATAL_ERROR
+        "The pre-commit command was not found. "
+        "It is necessary if you want to commit changes to OGL. "
+        "If that is not the case, set OGL_DEVEL_TOOLS=OFF. "
+        "Otherwise install pre-commit via pipx (or pip) using:\n"
+        "    pipx install pre-commit")
+  endif()
+
+  execute_process(
+    COMMAND "${PRE_COMMIT}" "install"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE pre-commit-result
+    OUTPUT_VARIABLE pre-commit-output
+    ERROR_VARIABLE pre-commit-error)
+  if(pre-commit-result)
+    message(
+      FATAL_ERROR
+        "Failed to install the git hooks via pre-commit."
+        "Please check the error message:\n"
+        "${pre-commit-output}\n${pre-commit-error}")
+  endif()
+  if(pre-commit-output MATCHES "^Running in migration mode with existing hooks")
+    message(
+      WARNING
+        "An existing git hook was encountered during `pre-commit install`."
+        "The old git hook will also be executed."
+        "Consider removing it with `pre-commit install -f`")
+  elseif(NOT pre-commit-output MATCHES "^pre-commit installed at")
+    message(WARNING "`pre-commit install` did not exit normally."
+                    "Please check the output message:\n" "${pre-commit-output}")
+  endif()
+
+  add_custom_target(
+    pre-commit
+    COMMENT "execute precommit"
+    COMMAND bash -c "${PRE_COMMIT} run"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    VERBATIM)
+endif()
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
@@ -89,10 +139,8 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE
-    "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template"
-)
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
+  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("Compiling with clang")
@@ -151,7 +199,8 @@ add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
          ${CMAKE_CURRENT_BINARY_DIR}/_version.C
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake
-          ${GINKGO_CHECKOUT_VERSION})
+          ${GINKGO_CHECKOUT_VERSION}
+  COMMENT "Create a version file")
 
 target_sources(
   OGL
@@ -186,8 +235,7 @@ target_sources(
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
-         Solver/GMRES/GKOGMRES.H
-)
+         Solver/GMRES/GKOGMRES.H)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
@@ -226,7 +274,8 @@ endif()
 add_custom_target(
   cmake-format
   COMMAND find . -name CMakeLists.txt -exec cmake-format -i {} +
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  COMMENT "a target to format cmake files")
 
 install(
   TARGETS OGL
