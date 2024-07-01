@@ -37,6 +37,7 @@ option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
+option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
        FALSE)
@@ -75,6 +76,47 @@ endif()
 set(GINKGO_CHECKOUT_VERSION
     "ogl_rebase_1.8.0"
     CACHE STRING "Use specific version of ginkgo")
+
+if(OGL_DEVEL_TOOLS)
+  find_program(PRE_COMMIT pre-commit)
+  if(NOT PRE_COMMIT)
+    message(
+      FATAL_ERROR
+        "The pre-commit command was not found. "
+        "It is necessary if you want to commit changes to OGL. "
+        "If that is not the case, set OGL_DEVEL_TOOLS=OFF. "
+        "Otherwise install pre-commit via pipx (or pip) using:\n"
+        "    pipx install pre-commit")
+  endif()
+
+  execute_process(
+    COMMAND "${PRE_COMMIT}" "install"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE pre-commit-result
+    OUTPUT_VARIABLE pre-commit-output
+    ERROR_VARIABLE pre-commit-error)
+  if(pre-commit-result)
+    message(
+      FATAL_ERROR "Failed to install the git hooks via pre-commit."
+                  "Please check the error message:\n" "${pre-commit-output}\n${pre-commit-error}")
+  endif()
+  if(pre-commit-output MATCHES "^Running in migration mode with existing hooks")
+    message(WARNING "An existing git hook was encountered during `pre-commit install`."
+                    "The old git hook will also be executed."
+                    "Consider removing it with `pre-commit install -f`")
+  elseif(NOT pre-commit-output MATCHES "^pre-commit installed at")
+    message(WARNING "`pre-commit install` did not exit normally."
+                    "Please check the output message:\n" "${pre-commit-output}")
+  endif()
+
+  add_custom_target(
+    pre-commit
+    COMMENT "execute precommit"
+    COMMAND bash -c "${PRE_COMMIT} run"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    VERBATIM)
+endif()
+
 
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
