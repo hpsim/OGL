@@ -216,7 +216,7 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
-	  MatrixWrapper/HostMatrix/HostMatrix.C
+          MatrixWrapper/HostMatrix/HostMatrix.C
           Preconditioner/Preconditioner.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
@@ -233,7 +233,7 @@ target_sources(
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          Preconditioner/Preconditioner.H
-	 MatrixWrapper/HostMatrix/HostMatrix.C
+         MatrixWrapper/HostMatrix/HostMatrix.C
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
