@@ -16,7 +16,7 @@
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
 #include "MatrixWrapper/SparsityPattern/SparsityPattern.H"
-#include "CommunicationPattern/CommunicationPattern.H"
+#include "src/CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 
