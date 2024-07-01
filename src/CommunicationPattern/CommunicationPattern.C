@@ -6,27 +6,27 @@
 #include "common/common.H"
 
 
-label compute_owner_rank(label rank, label ranks_per_gpu)
+label compute_owner_rank(label rank, label ranks_per_owner)
 {
-    return rank - (rank % ranks_per_gpu);
+    return rank - (rank % ranks_per_owner);
 };
 
-CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_gpu, label size)
+CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_owner, label size)
 {
-    return compute_send_recv_counts(exec_handler, ranks_per_gpu, size, size, 0,
+    return compute_gather_to_owner_counts(exec_handler, ranks_per_owner, size, size, 0,
                                     0);
 }
 
-CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
-                                  label ranks_per_gpu, label size)
+CommCounts comput_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
+                                  label ranks_per_owner, label size)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
 
     label total_ranks{comm.size()};
     label rank{comm.rank()};
-    label owner_rank = compute_owner_rank(rank, ranks_per_gpu);
+    label owner_rank = compute_owner_rank(rank, ranks_per_owner);
     std::vector<label> send_counts(total_ranks, 0);
     std::vector<label> recv_counts(total_ranks, 0);
     std::vector<label> send_offsets(total_ranks, 0);
@@ -42,7 +42,7 @@ CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
         // the start of the next rank data
         tot_recv_elements = size;
 
-        for (int i = 1; i < ranks_per_gpu; i++) {
+        for (int i = 1; i < ranks_per_owner; i++) {
             // receive the recv counts
             comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
             send_counts[rank + i] = comm_elements_buffer;
@@ -59,8 +59,8 @@ CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
                            recv_offsets);
 }
 
-CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_gpu, label size,
+CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
+                                    label ranks_per_owner, label size,
                                     label total_size, label padding_before,
                                     label padding_after)
 {
@@ -70,7 +70,7 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
     ASSERT_EQ(total_size, size + padding_before + padding_after);
     label total_ranks{comm.size()};
     label rank{comm.rank()};
-    label owner_rank = compute_owner_rank(rank, ranks_per_gpu);
+    label owner_rank = compute_owner_rank(rank, ranks_per_owner);
     std::vector<label> send_counts(total_ranks, 0);
     std::vector<label> recv_counts(total_ranks, 0);
     // last entry of offsets vector for total sum
@@ -87,7 +87,7 @@ CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
         // the start of the next rank data
         tot_recv_elements = padding_before + size + padding_after;
 
-        for (int i = 1; i < ranks_per_gpu; i++) {
+        for (int i = 1; i < ranks_per_owner; i++) {
             // receive the recv counts
             comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
             recv_counts[rank + i] = comm_elements_buffer;
@@ -133,19 +133,11 @@ void communicate_values(const ExecutorHandler &exec_handler,
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
     auto [send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
+
     // TODO add some sanity checks for comm pattern
     // 1. length needs to be same as mpi ranks
     // 2. recv_buffer length should match ie at least length of recv_counts
 
-    // NOTE old holes are captured by comm_pattern
-    // the default comm pattern needs to be adjusted
-    // since we might also need to leave "holes" between the
-    // gathered blocks thus the offset / distance between data
-    // should be before repartitioning
-    //
-    // send_buffer should be on the host
-    // recv_buffer should be on the device
-    // oensrtauto rank = comm.rank();
     // std:::cout
     //     << __FILE__ << ":" << __LINE__
     //     << " send_counts " <<   send_counts
@@ -159,32 +151,30 @@ void communicate_values(const ExecutorHandler &exec_handler,
                       recv_offsets.data());
 };
 
-std::vector<label> gather_to_owner(const ExecutorHandler &exec_handler,
-                                   const CommCounts &comm_pattern, label size,
-                                   const label *data, label offset)
+std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
+                                   const CommCounts &comm_pattern, 
+                                   const label *send_buffer,
+                                   label send_size,
+                                   label offset)
 {
-    auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
-    std::vector<label> send_buffer_copy(size);
+    std::vector<label> send_buffer_copy;
+    // create a copy if offset is needed
     if (offset > 0) {
-        std::transform(data, data + size, send_buffer_copy.data(),
+        send_buffer.resize(send_size);
+        std::transform(send_buffer, send_buffer + send_size, send_buffer_copy.data(),
                        [&](label idx) { return idx + offset; });
     }
 
-    const label *send_buffer = (offset > 0) ? send_buffer_copy.data() : data;
+    auto total_recv_size = std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
 
-    auto &[send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
-
-    // compute total recv buffer size
-    // TODO account for holes
-    auto total_recv_size = 0;
-    for (int i = 0; i < recv_counts.size(); i++) {
-        total_recv_size += recv_counts[i];
-    }
-
+    auto exec = exec_handler.get_ref_exec();
+    auto comm = *exec_handler.get_communicator().get();
     std::vector<label> recv_buffer(total_recv_size);
     auto rank = comm.rank();
-    comm.all_to_all_v(exec, send_buffer, send_counts.data(),
+    auto &[send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
+    comm.all_to_all_v(exec,
+            (offset > 0) ? send_buffer_copy.data() : send_buffer
+            send_counts.data(),
                       send_offsets.data(), recv_buffer.data(),
                       recv_counts.data(), recv_offsets.data());
     return recv_buffer;

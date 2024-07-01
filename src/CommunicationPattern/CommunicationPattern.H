@@ -3,70 +3,105 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
 
 #include "DevicePersistent/ExecutorHandler/ExecutorHandler.H"
 
-// TODO move this file to top level since it is not really a matrix-wrapper
-
 using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
                               std::vector<label>, std::vector<label>>;
 
-CommCounts invert_comm_pattern(CommCounts in_pattern);
-
-CommCounts compute_scatter_counts(const ExecutorHandler &exec_handler,
-                                  label ranks_per_gpu, label size);
-
-// TODO rename function to compute_gather_to_owner_comm
 /* @brief  This function computes the send and recv counts vectors for
- *repartitioning to an owner rank
+ * for scattering from an owner to non  owner ranks
  *
- * @parameter size how many elements to send to owner
- * @parameter total_size size of the block of memory on the receiver site
- * @parameter padding_before unused elements before inserting size elements
- * @parameter padding_after unused elements after insesting size elements
+ * @param exec_handler The executor handler
+ * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @param size how many elements to send to owner
  * */
-CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_gpu, label size,
-                                    label total_size, label padding_before,
-                                    label padding_after);
+CommCounts comput_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
+                                            label ranks_per_owner, label size);
 
-/* @brief  This function computes the send and recv counts vectors for
- *repartitioning to an owner rank
+/* @brief  This function computes the send and recv counts and offset vectors
+ *for repartitioning to an owner rank
  *
- * @parameter size how many elements to send to owner
+ * @param exec_handler The executor handler
+ * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @param size how many elements to send to owner
+ * @param total_size Size of the total buffer
+ * @param padding_before Number of unused elements before
+ * @param padding_after Number of unused elements after
+ * @return The CommCounts
  * */
-CommCounts compute_send_recv_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_gpu, label size);
+CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
+                                          label ranks_per_owner, label size,
+                                          label total_size,
+                                          label padding_before,
+                                          label padding_after);
+
+/* @brief  This function computes the send and recv counts and offset vectors
+ *for repartitioning to an owner rank
+ *
+ * @param exec_handler The executor handler
+ * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @parameter size how many elements to send to owner
+ * @return The CommCounts
+ * */
+CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
+                                          label ranks_per_owner, label size);
 
 /* @brief  This function computes the send and recv counts vectors for
- *repartitioning to an owner rank
+ * for communication back to neighbours from an owner rank
  *
+ * @param exec_handler The executor handler
+ * @param ranks_per_owner Ratio of total ranks to owner ranks
  * @parameter size how many elements to send to owner
+ * @return The CommCounts
  * */
 CommCounts compute_scatter_from_owner_comm(const ExecutorHandler &exec_handler,
-                                           label ranks_per_gpu, label size);
+                                           label ranks_per_owner, label size);
 
-/* Given a rank id and ranks_per_gpus this function computes the corresponding
- * owner rank  */
-label compute_owner_rank(label rank, label ranks_per_gpu);
+/** @brief Given a rank id and ranks_per_owners this function computes the
+ * corresponding owner rank
+ *
+ * @param rank The rank under consideration
+ * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @return The corresponding owner of this ranks
+ * */
+label compute_owner_rank(label rank, label ranks_per_owner);
 
-// TODO these are separate functions, the scalar version generally operates
-// on the device where as labels are only communicated on the host side
-// create gather_coeffs, gather_idx, and a templated impl function
-/* Given a comm_pattern this function executes the communication
-**
-*/
+/* @brief Given a comm_pattern this function executes the communication
+ *
+ * The purpose of this function is to have a uniform function for communication
+ * calls so that we can inspect the communication for debugging purposes
+ *
+ * @param exec_handler The executor handler
+ * @param comm_pattern The communication pattern / send recv counts and offsets
+ * @param send_buffer Pointer to the data buffer to send
+ * @param recv_buffer Pointer to the data buffer to recv
+ */
 void communicate_values(const ExecutorHandler &exec_handler,
                         const CommCounts &comm_pattern,
                         const scalar *send_buffer, scalar *recv_buffer);
 
-/* Returns a vector of length total received elements + padding */
-std::vector<label> gather_to_owner(const ExecutorHandler &exec_handler,
-                                   const CommCounts &comm_pattern, label size,
-                                   const label *data, label offset = 0);
+/* @brief A function that can perform an offseted gather to owner rank
+ *
+ * This function is similar to communicate_values. However, it takes care of
+ * allocating the revc_buffer on the owner rank and can add a prescribed offset
+ * to all elements. The latter is often required when gathering indices to the
+ * owner rank.
+ *
+ * @param exec_handler The executor handler
+ * @param send_buffer Pointer to send data
+ * @param send_size How many elements to send to owner
+ * @param offset Value to add to all elements in the send_buffer
+ * Returns a vector of labels with a length equal the total received elements +
+ * padding */
+std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
+                                          const CommCounts &comm_pattern,
+                                          const label *send_buffer,
+                                          label send_size, label offset = 0);
 
 struct CommunicationPattern {
     using comm_size_type = label;
