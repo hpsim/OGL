@@ -15,6 +15,7 @@
 #include "DevicePersistent/Array/Array.H"
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
+#include "MatrixWrapper/SparsityPattern/SparsityPattern.H"
 #include "CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
@@ -178,26 +179,6 @@ public:
     // getter
 
 public:
-    static std::shared_ptr<HostMatrixWrapper> create(
-        const ExecutorHandler &exec, const objectRegistry &db, label nrows,
-        label upper_nnz, bool symmetric, const scalar *diag,
-        const scalar *upper, const scalar *lower, const lduAddressing &addr,
-        const FieldField<Field, scalar> &interfaceBouCoeffs,
-        const FieldField<Field, scalar> &interfaceIntCoeffs,
-        const lduInterfaceFieldPtrsList &interfaces,
-        const dictionary &solverControls, const word &fieldName, label verbose)
-    {
-        return std::make_shared<HostMatrixWrapper>(
-            exec, db, nrows, upper_nnz, symmetric, diag, upper, lower, addr,
-            interfaceBouCoeffs, interfaceIntCoeffs, interfaces, solverControls,
-            fieldName, verbose);
-    };
-
-    void update(const scalar *diag, const scalar *upper, const scalar *lower,
-                const FieldField<Field, scalar> &interfaceBouCoeffs,
-                const FieldField<Field, scalar> &interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList &interfaces);
-
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
      ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
@@ -237,9 +218,7 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    CommunicationPattern create_communication_pattern(
-        const gko::experimental::mpi::communicator &comm) const;
-
+    CommunicationPattern create_communication_pattern() const;
 
     bool get_verbose() const { return verbose_; }
 

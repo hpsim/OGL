@@ -138,9 +138,7 @@ void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
 }
 
 
-CommunicationPattern HostMatrixWrapper::create_communication_pattern(
-    const gko::experimental::mpi::communicator& comm
-    ) const
+CommunicationPattern HostMatrixWrapper::create_communication_pattern() const
 {
     using comm_size_type = CommunicationPattern::comm_size_type;
     // temp map, mapping from neighbour rank interface cells
@@ -188,7 +186,7 @@ CommunicationPattern HostMatrixWrapper::create_communication_pattern(
         iter++;
     }
 
-    return CommunicationPattern{comm, target_ids, target_sizes, send_idxs};
+    return CommunicationPattern{get_exec_handler(), target_ids, target_sizes, send_idxs};
 }
 
 
@@ -461,149 +459,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
 
     LOG_1(verbose_, "done init host sparsity pattern")
     return sparsity;
-}
-
-void HostMatrixWrapper::update(
-    const scalar *diag, const scalar *upper, const scalar *lower,
-    const FieldField<Field, scalar> &interfaceBouCoeffs,
-    const FieldField<Field, scalar> &interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList &interfaces)
-{
-    // TODO implement a regenerating update
-}
-
-void HostMatrixWrapper::compute_local_coeffs(
-    std::shared_ptr<const SparsityPattern> sparsity,
-    gko::array<scalar> &local_coeffs) const
-{
-    auto ref_exec = exec_.get_ref_exec();
-    auto permute = sparsity->ldu_mapping.get_data();
-
-    if (reorder_on_copy_) {
-        // TODO assert array is on master
-        // TODO assert
-        auto dense = local_coeffs.get_data();
-        if (local_interface_nnz_) {
-            auto couple_coeffs = collect_interface_coeffs(
-                interfaces_, interfaceBouCoeffs_, true);
-            if (symmetric_) {
-                symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_, permute,
-                    scaling_, diag_, upper_, couple_coeffs.data(), dense);
-
-            } else {
-                non_symmetric_update_w_interface(
-                    local_matrix_w_interfaces_nnz_, nrows_, upper_nnz_, permute,
-                    scaling_, diag_, upper_, lower_, couple_coeffs.data(),
-                    dense);
-            }
-        } else {
-            if (symmetric_) {
-                symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                 scaling_, diag_, upper_, dense);
-            } else {
-                non_symmetric_update(local_matrix_nnz_, upper_nnz_, permute,
-                                     scaling_, diag_, upper_, lower_, dense);
-            }
-        }
-    }
-    // } else {
-    //     // TODO
-    //     // - this should be moved to separate function to avoid making this
-    //     // too long
-    //
-    //     using dim_type = gko::dim<2>::dimension_type;
-    //
-    //     auto target_exec =
-    //         (reorder_on_copy_) ? ref_exec : exec_.get_device_exec();
-    //
-    //     // copy upper
-    //     auto u_host_view =
-    //         gko::array<scalar>::const_view(ref_exec, upper_nnz_, upper_);
-    //     auto u_device_view = gko::array<scalar>::view(target_exec,
-    //     upper_nnz_,
-    //                                                   local_coeffs.get_data());
-    //     u_device_view = u_host_view;
-    //
-    //     // for the non-symmetric case copy lower to the device
-    //     if (!symmetric_) {
-    //         auto l_host_view =
-    //             gko::array<scalar>::const_view(ref_exec, upper_nnz_, lower_);
-    //         auto l_device_view = gko::array<scalar>::view(
-    //             target_exec, upper_nnz_,
-    //             &local_coeffs.get_data()[upper_nnz_]);
-    //         l_device_view = l_host_view;
-    //     }
-    //
-    //     // copy diag
-    //     auto diag_host_view =
-    //         gko::array<scalar>::const_view(ref_exec, nrows_, diag_);
-    //     const label diag_start = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
-    //     auto diag_device_view = gko::array<scalar>::view(
-    //         target_exec, nrows_, &local_coeffs.get_data()[diag_start]);
-    //     diag_device_view = diag_host_view;
-    //
-    //     // copy local interfaces
-    //     if (local_interface_nnz_) {
-    //         const label interface_start = diag_start + nrows_;
-    //         auto couple_coeffs =
-    //             collect_interface_coeffs(interfaces, interfaceBouCoeffs,
-    //             true);
-    //         auto interface_host_view = gko::array<scalar>::view(
-    //             ref_exec, local_interface_nnz_, couple_coeffs.data());
-    //         auto interface_device_view = gko::array<scalar>::view(
-    //             target_exec, local_interface_nnz_,
-    //             &local_coeffs.get_data()[interface_start]);
-    //         interface_device_view = interface_host_view;
-    //     }
-    //
-    //     // permute and update local_coeffs
-    //     auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-    //         target_exec,
-    //         gko::dim<2>{static_cast<dim_type>(local_matrix_w_interfaces_nnz_),
-    //                     1}));
-    //
-    //     auto dense_vec = vec::create(
-    //         target_exec,
-    //         gko::dim<2>{static_cast<dim_type>(local_matrix_w_interfaces_nnz_),
-    //                     1},
-    //         gko::array<scalar>::view(target_exec,
-    //                                  local_matrix_w_interfaces_nnz_,
-    //                                  local_coeffs.get_data()),
-    //         1);
-    //
-    //     // TODO this needs to copy ldu_mapping to the device
-    //     dense_vec->row_gather(&local_sparsity_pattern_.ldu_mapping_,
-    //                           row_collection.get());
-    //
-    //     dense_vec->copy_from(row_collection);
-    // }
-    //
-}
-
-
-void HostMatrixWrapper::compute_non_local_coeffs(
-    std::shared_ptr<const SparsityPattern>, gko::array<scalar> &coeffs) const
-{
-    auto ref_exec = exec_.get_ref_exec();
-    auto interface_coeffs =
-        collect_interface_coeffs(interfaces_, interfaceBouCoeffs_, false);
-
-    // copy interfaces
-    auto tmp_contiguous_iface =
-        gko::array<scalar>(ref_exec, non_local_matrix_nnz_);
-    auto contiguous_iface = tmp_contiguous_iface.get_data();
-
-    for (label element_ctr = 0; element_ctr < non_local_matrix_nnz_;
-         element_ctr++) {
-        contiguous_iface[element_ctr] = interface_coeffs[element_ctr];
-    }
-
-    // copy to persistent
-    auto i_device_view = gko::array<scalar>::view(
-        ref_exec, non_local_matrix_nnz_, coeffs.get_data());
-
-    i_device_view = tmp_contiguous_iface;
 }
 
 }  // namespace Foam
