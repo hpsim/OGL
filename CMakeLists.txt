@@ -235,7 +235,7 @@ target_sources(
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          Preconditioner/Preconditioner.H
-         MatrixWrapper/HostMatrix/HostMatrix.C
+         MatrixWrapper/HostMatrix/HostMatrix.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
