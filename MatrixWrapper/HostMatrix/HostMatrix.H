@@ -107,9 +107,6 @@ private:
     // nnzs of local matrix including local interfaces
     const label local_matrix_w_interfaces_nnz_;
 
-    // TODO remove
-    // mutable SparsityPattern local_sparsity_pattern_;
-
     // non-local indices
     const label non_local_matrix_nnz_;
 
@@ -121,19 +118,19 @@ private:
     **
     ** @param local whether local or non local coefficients should be collected
     */
-    std::vector<scalar> collect_interface_coeffs(
+    [[nodiscard]] std::vector<scalar> collect_interface_coeffs(
         const lduInterfaceFieldPtrsList &interfaces_,
         const FieldField<Field, scalar> &interfaceBouCoeffs,
         const bool local) const;
-
 
     /* Iterates all interfaces and counts the number of elements
     **
     ** @param interfaces The list of interfaces for the search
     ** @param proc_interfaces Count only elements on (true)
     *processorLduInterfaces or exclude processorLduInterfaces (false)
+    * @return number of elments on interfaces
     */
-    label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
+    [[nodiscard]] label count_interface_nnz(const lduInterfaceFieldPtrsList &interfaces,
                               bool proc_interfaces) const;
 
     /** Iterates all local interfaces and returns the relative order and
@@ -156,13 +153,9 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    std::vector<std::tuple<label, label, label, label>>
+    [[nodiscard]] std::vector<std::tuple<label, label, label, label>>
     collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
-
-
-    // updater
-
 
 public:
     // segregated matrix wrapper constructor
@@ -176,15 +169,12 @@ public:
                       const dictionary &solverControls, const word &fieldName,
                       label verbose);
 
-    // getter
-
-public:
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
      ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
      ** which are required to create to a ginkgo matrix
      **/
-    std::shared_ptr<SparsityPattern> compute_local_sparsity(
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_local_sparsity(
         std::shared_ptr<const gko::Executor> exec) const;
 
     /** Copies the LDU matrix coefficients to local_coeffs without changing or
@@ -208,7 +198,7 @@ public:
      ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
      ** matrix
      **/
-    std::shared_ptr<SparsityPattern> compute_non_local_sparsity(
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_non_local_sparsity(
         std::shared_ptr<const gko::Executor> exec) const;
 
     /** Iterates all interfaces and counts the number of unique neighbour
@@ -218,7 +208,7 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    CommunicationPattern create_communication_pattern() const;
+    [[nodiscard]] CommunicationPattern create_communication_pattern() const;
 
     bool get_verbose() const { return verbose_; }
 
