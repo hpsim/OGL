@@ -175,6 +175,12 @@ public:
     {
         return this->device_comm_;
     }
+
+    std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
+    const
+    {
+        return this->device_comm_;
+    }
 };
 
 using PersistentExecutor = ExecutorHandler;

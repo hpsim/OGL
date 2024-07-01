@@ -4,17 +4,18 @@
 
 #pragma once
 
+#include <vector>
+
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
 #include "processorLduInterface.H"
 
-#include <vector>
+
 #include "DevicePersistent/Array/Array.H"
 #include "DevicePersistent/DeviceIdGuard/DeviceIdGuard.H"
 #include "DevicePersistent/IOGlobalIndex/gkoGlobalIndex.H"
-#include "MatrixWrapper/Combination/Combination.H"
-#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
+#include "CommunicationPattern/CommunicationPattern.H"
 #include "common/common.H"
 
 
