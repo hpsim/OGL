@@ -16,6 +16,19 @@
       }
     },
     {
+      "name": "develop",
+      "hidden": true,
+      "description": "Default build using Ninja generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "$env{FOAM_USER_LIBBIN}/..",
+        "OGL_BUILD_UNITTEST": {
+          "type": "BOOL",
+          "value": "ON"
+        }
+      }
+    },
+    {
       "name": "debug",
       "hidden": true,
       "description": "Default build using Ninja generator",
@@ -40,6 +53,13 @@
           "value": "ON"
         }
       }
+    },
+    {
+      "name": "ninja-cpuonly-develop",
+      "displayName": "No GPU, Ninja",
+      "inherits": ["develop", "ninja", "cpuonly"],
+      "description": "Debug build without GPU support using Ninja Multi-Config generator",
+      "binaryDir": "${sourceDir}/build/DebugCPUOnly"
     },
     {
       "name": "ninja-cpuonly-debug",
@@ -95,6 +115,10 @@
     }
   ],
   "buildPresets": [
+    {
+      "name": "ninja-cpuonly-develop",
+      "configurePreset": "ninja-cpuonly-release"
+    },
     {
       "name": "ninja-cpuonly-release",
       "configurePreset": "ninja-cpuonly-release",
