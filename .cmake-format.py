@@ -1,7 +1,5 @@
-# SPDX-FileCopyrightText: 2024 OGL authors
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-
+# SPDX-License-Identifier: Unlicense
+# SPDX-FileCopyrightText: 2023 NeoFOAM authors
 # ----------------------------------
 # Options affecting listfile parsing
 # ----------------------------------
@@ -29,7 +27,7 @@ with section("format"):
   disable = False
 
   # How wide to allow formatted cmake files
-  line_width = 80
+  line_width = 100
 
   # How many spaces to tab for indent
   tab_size = 2
@@ -168,7 +166,7 @@ with section("markup"):
 with section("lint"):
 
   # a list of lint codes to disable
-  disabled_codes = []
+  disabled_codes = ["C0103"]
 
   # regular expression pattern describing valid function names
   function_pattern = '[0-9a-z_]+'
@@ -242,4 +240,3 @@ with section("misc"):
   # A dictionary containing any per-command configuration overrides. Currently
   # only `command_case` is supported.
   per_command = {}
-

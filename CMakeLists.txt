@@ -7,8 +7,7 @@ cmake_minimum_required(VERSION 3.13.0)
 project(
   OGL
   LANGUAGES C CXX
-  DESCRIPTION
-    "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
+  DESCRIPTION "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
 
 if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
@@ -25,13 +24,11 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
 option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
-option(OGL_USE_FOAM_FOUNDATION_VERSION
-       "Build OGL for the OpenFOAM Foundation version" FALSE)
+option(OGL_USE_FOAM_FOUNDATION_VERSION "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-option(OGL_ALLOW_REFERENCE_ONLY
-       "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
 option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
@@ -39,8 +36,7 @@ option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
 option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
-option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
-       FALSE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
@@ -68,8 +64,13 @@ if((NOT OGL_ALLOW_REFERENCE_ONLY) AND (NOT OGL_USE_EXTERNAL_GINKGO))
      AND (NOT GINKGO_BUILD_SYCL))
     message(
       FATAL_ERROR
-        "No GPU Backend was selected, set either:\n -DGINKGO_BUILD_CUDA=True\n -DGINKGO_BUILD_HIP=True\n -DGINKGO_BUILD_SYCL=True\n or set:\n -DOGL_ALLOW_REFERENCE_ONLY=True\n to turn off this check"
-    )
+        "No GPU Backend was selected, set either:\n\
+-DGINKGO_BUILD_CUDA=True\n\
+-DGINKGO_BUILD_HIP=True\n\
+-DGINKGO_BUILD_SYCL=True\n\
+or set:\n\
+-DOGL_ALLOW_REFERENCE_ONLY=True\n\
+to turn off this check")
   endif()
 endif()
 
@@ -117,7 +118,6 @@ if(OGL_DEVEL_TOOLS)
     VERBATIM)
 endif()
 
-
 include(CheckIncludeFileCXX)
 check_include_file_cxx(cxxabi.h GKO_HAVE_CXXABI_H)
 
@@ -131,10 +131,8 @@ ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
 include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE
-    "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template"
-)
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
+  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("Compiling with clang")
@@ -186,14 +184,13 @@ else()
   target_link_libraries(OGL PRIVATE stdc++fs)
 endif()
 
-# Add a custom command that produces version.cpp, plus a dummy output that's not
-# actually produced, in order to always force re-run version.cmake before the
-# build
+# Add a custom command that produces version.cpp, plus a dummy output that's not actually produced,
+# in order to always force re-run version.cmake before the build
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
-         ${CMAKE_CURRENT_BINARY_DIR}/_version.C
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C ${CMAKE_CURRENT_BINARY_DIR}/_version.C
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake
-          ${GINKGO_CHECKOUT_VERSION})
+          ${GINKGO_CHECKOUT_VERSION}
+  COMMENT "Create a version file")
 
 target_sources(
   OGL
@@ -228,13 +225,11 @@ target_sources(
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
-         Solver/GMRES/GKOGMRES.H
-)
+         Solver/GMRES/GKOGMRES.H)
 
 enable_sanitizers(
-  OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
-  ${OGL_ENABLE_SANITIZE_UB} ${OGL_ENABLE_SANITIZE_THREAD}
-  ${OGL_ENABLE_SANITIZE_MEMORY})
+  OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK} ${OGL_ENABLE_SANITIZE_UB}
+  ${OGL_ENABLE_SANITIZE_THREAD} ${OGL_ENABLE_SANITIZE_MEMORY})
 
 target_include_directories(OGL SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -268,7 +263,8 @@ endif()
 add_custom_target(
   cmake-format
   COMMAND find . -name CMakeLists.txt -exec cmake-format -i {} +
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  COMMENT "a target to format cmake files")
 
 install(
   TARGETS OGL
