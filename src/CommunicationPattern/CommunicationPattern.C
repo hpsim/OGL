@@ -18,7 +18,7 @@ CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
                                     0);
 }
 
-CommCounts comput_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
+CommCounts compute_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
                                   label ranks_per_owner, label size)
 {
     auto exec = exec_handler.get_device_exec();
@@ -152,7 +152,7 @@ void communicate_values(const ExecutorHandler &exec_handler,
 };
 
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
-                                   const CommCounts &comm_pattern, 
+                                   const CommCounts &comm_pattern,
                                    const label *send_buffer,
                                    label send_size,
                                    label offset)

@@ -20,8 +20,8 @@ using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
  * @param ranks_per_owner Ratio of total ranks to owner ranks
  * @param size how many elements to send to owner
  * */
-CommCounts comput_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
-                                            label ranks_per_owner, label size);
+CommCounts compute_scatter_from_owner_counts(
+    const ExecutorHandler &exec_handler, label ranks_per_owner, label size);
 
 /* @brief  This function computes the send and recv counts and offset vectors
  *for repartitioning to an owner rank
