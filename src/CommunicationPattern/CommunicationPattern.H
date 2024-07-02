@@ -14,10 +14,10 @@ using CommCounts = std::tuple<std::vector<label>, std::vector<label>,
                               std::vector<label>, std::vector<label>>;
 
 /* @brief  This function computes the send and recv counts vectors for
- * for scattering from an owner to non  owner ranks
+ * scattering from an owner to non  owner ranks
  *
  * @param exec_handler The executor handler
- * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @param ranks_per_owner Ratio of the total number of ranks to owner ranks
  * @param size how many elements to send to owner
  * */
 CommCounts compute_scatter_from_owner_counts(
@@ -27,7 +27,7 @@ CommCounts compute_scatter_from_owner_counts(
  *for repartitioning to an owner rank
  *
  * @param exec_handler The executor handler
- * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @param ranks_per_owner Ratio of the total number of ranks to owner ranks
  * @param size how many elements to send to owner
  * @param total_size Size of the total buffer
  * @param padding_before Number of unused elements before
@@ -51,23 +51,12 @@ CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
 CommCounts compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
                                           label ranks_per_owner, label size);
 
-/* @brief  This function computes the send and recv counts vectors for
- * for communication back to neighbours from an owner rank
- *
- * @param exec_handler The executor handler
- * @param ranks_per_owner Ratio of total ranks to owner ranks
- * @parameter size how many elements to send to owner
- * @return The CommCounts
- * */
-CommCounts compute_scatter_from_owner_comm(const ExecutorHandler &exec_handler,
-                                           label ranks_per_owner, label size);
-
-/** @brief Given a rank id and ranks_per_owners this function computes the
+/** @brief Given a rank id and ranks_per_owner this function computes the
  * corresponding owner rank
  *
  * @param rank The rank under consideration
  * @param ranks_per_owner Ratio of total ranks to owner ranks
- * @return The corresponding owner of this ranks
+ * @return The corresponding owner of this rank
  * */
 label compute_owner_rank(label rank, label ranks_per_owner);
 
@@ -77,7 +66,8 @@ label compute_owner_rank(label rank, label ranks_per_owner);
  * calls so that we can inspect the communication for debugging purposes
  *
  * @param exec_handler The executor handler
- * @param comm_pattern The communication pattern / send recv counts and offsets
+ * @param comm_pattern The communication pattern i.e. the send, recv counts and
+ * offsets
  * @param send_buffer Pointer to the data buffer to send
  * @param recv_buffer Pointer to the data buffer to recv
  */
