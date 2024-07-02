@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "src/CommunicationPattern/CommunicationPattern.H"
+
 #include "gtest/gtest.h"
+
 #include "mpi.h"
 
 class CommunicationPatternFixture : public testing::Test {
