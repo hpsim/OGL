@@ -23,14 +23,15 @@ struct ExecutorInitFunctor {
 
     const label verbose_;
 
-    ExecutorInitFunctor(const word executor_name, const word field_name,
-                        const label verbose, const label gpus_per_rank,
+    ExecutorInitFunctor(bool par_run, const word executor_name,
+                        const word field_name, const label verbose,
+                        const label gpus_per_rank,
                         const bool force_host_buffer = false)
-        : comm_((Pstream::parRun())  // TODO make this DRY
+        : comm_((par_run)  // TODO make this DRY
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_((Pstream::parRun()) ? comm_->rank() / gpus_per_rank : 0),
+          device_id_((par_run) ? comm_->rank() / gpus_per_rank : 0),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
@@ -116,18 +117,21 @@ class ExecutorHandler
 private:
     const bool gko_force_host_buffer_;
 
+    const bool par_run_;
+
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
 
     const word device_executor_name_;
 
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
-                    const word field_name)
+                    const word field_name, bool par_run = Pstream::parRun())
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
               db,
               ExecutorInitFunctor(
+                  par_run,
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
@@ -136,8 +140,9 @@ public:
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
+          par_run_(par_run),
           device_comm_(
-              (Pstream::parRun())
+              (par_run_)
                   ? std::make_shared<gko::experimental::mpi::communicator>(
                         MPI_COMM_WORLD, gko_force_host_buffer_)
                   : NULL),
@@ -177,7 +182,7 @@ public:
     }
 
     std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
-    const
+        const
     {
         return this->device_comm_;
     }
