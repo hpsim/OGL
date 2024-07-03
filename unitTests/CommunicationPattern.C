@@ -56,12 +56,12 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     std::vector<std::vector<int>> offset_results(comm->size(), send_offsets);
 
     // test send counts and revc counts
-    EXPECT_EQ(std::get<0>(comm_counts), send_results[comm->rank()]);
-    EXPECT_EQ(std::get<1>(comm_counts), send_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.recv_counts, send_results[comm->rank()]);
 
     // test send counts and revc offsets
-    EXPECT_EQ(std::get<2>(comm_counts), offset_results[comm->rank()]);
-    EXPECT_EQ(std::get<3>(comm_counts), offset_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_offsets, offset_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.recv_offsets, offset_results[comm->rank()]);
 }
 
 
@@ -87,12 +87,12 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     recv_offsets_results[0] = std::vector<int>{0, 10, 20, 30, 40};
 
     // test send counts and revc counts
-    EXPECT_EQ(std::get<0>(comm_counts), send_results[comm->rank()]);
-    EXPECT_EQ(std::get<1>(comm_counts), recv_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.recv_counts, recv_results[comm->rank()]);
 
     // test send counts and revc offsets
-    EXPECT_EQ(std::get<2>(comm_counts), send_offsets_results[comm->rank()]);
-    EXPECT_EQ(std::get<3>(comm_counts), recv_offsets_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_offsets, send_offsets_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets_results[comm->rank()]);
 }
 
 int main(int argc, char *argv[])
