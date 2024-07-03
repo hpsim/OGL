@@ -205,6 +205,9 @@ add_custom_command(
 target_sources(
   OGL
   PRIVATE common/common.C
+          BaseWrapper/lduBase/GKOlduBase.C
+          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
+          src/CommunicationPattern/CommunicationPattern.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           lduLduBase/lduLduBase.C
           StoppingCriterion/StoppingCriterion.C
@@ -214,15 +217,17 @@ target_sources(
           DevicePersistent/Vector/Vector.C
           DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           DevicePersistent/ExecutorHandler/ExecutorHandler.C
+          src/MatrixWrapper/HostMatrix/HostMatrix.C
           Preconditioner/Preconditioner.C
-          BaseWrapper/lduBase/GKOlduBase.C
-          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
           Solver/GMRES/GKOGMRES.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
          lduLduBase/lduLduBase.H
+         BaseWrapper/lduBase/GKOlduBase.H
+         BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
+         src/CommunicationPattern/CommunicationPattern.H
          DevicePersistent/Base/Base.H
          DevicePersistent/Partition/Partition.H
          DevicePersistent/Array/Array.H
@@ -230,8 +235,7 @@ target_sources(
          DevicePersistent/ExecutorHandler/ExecutorHandler.H
          DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
          Preconditioner/Preconditioner.H
-         BaseWrapper/lduBase/GKOlduBase.H
-         BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
+         src/MatrixWrapper/HostMatrix/HostMatrix.H
          Solver/CG/GKOCG.H
          Solver/IR/GKOIR.H
          Solver/BiCGStab/GKOBiCGStab.H
