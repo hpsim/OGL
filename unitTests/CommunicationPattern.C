@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "src/CommunicationPattern/CommunicationPattern.H"
+#include "OGL/CommunicationPattern.H"
 
 #include "gtest/gtest.h"
 
@@ -26,13 +26,13 @@ protected:
 
 TEST_F(CommunicationPatternFixture, can_get_comm_size)
 {
-    auto comm = exec->get_gko_mpi_device_comm();
+    auto comm = exec->get_gko_mpi_host_comm();
     EXPECT_EQ(comm->size(), 4);
 }
 
 TEST_F(CommunicationPatternFixture, compute_owner_rank)
 {
-    auto comm = exec->get_gko_mpi_device_comm();
+    auto comm = exec->get_gko_mpi_host_comm();
     auto owner_rank = compute_owner_rank(comm->rank(), comm->size());
     // if ranks_per_owner is same as total number of ranks all ranks have
     // zero as owner
@@ -41,7 +41,7 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank)
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
-    auto comm = exec->get_gko_mpi_device_comm();
+    auto comm = exec->get_gko_mpi_host_comm();
     auto comm_counts =
         compute_gather_to_owner_counts(*exec.get(), 1, label(10));
     // expected results
@@ -67,7 +67,7 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 {
-    auto comm = exec->get_gko_mpi_device_comm();
+    auto comm = exec->get_gko_mpi_host_comm();
     auto comm_counts =
         compute_gather_to_owner_counts(*exec.get(), comm->size(), label(10));
 

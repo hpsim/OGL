@@ -6,12 +6,12 @@
 #pragma once
 
 #include "OGL/DevicePersistent/Base.H"
+
 #include "fvCFD.H"
 
 #include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
-
 
 struct ExecutorInitFunctor {
     mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
@@ -24,22 +24,22 @@ struct ExecutorInitFunctor {
 
     const label verbose_;
 
-    ExecutorInitFunctor(const word executor_name, const word field_name,
-                        const label verbose, const label gpus_per_rank,
+    ExecutorInitFunctor(bool par_run, const word executor_name,
+                        const word field_name, const label verbose,
+                        const label gpus_per_rank,
                         const bool force_host_buffer = false)
-        : comm_((Pstream::parRun())  // TODO make this DRY
+        : comm_((par_run)  // TODO make this DRY
                     ? std::make_shared<gko::experimental::mpi::communicator>(
                           MPI_COMM_WORLD, force_host_buffer)
                     : NULL),
-          device_id_((gpus_per_rank != 0) ? comm_->rank() / gpus_per_rank
-                                          : comm_->size()),
+          device_id_((par_run) ? comm_->rank() / gpus_per_rank : 0),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
     {}
 
-    void update(std::shared_ptr<gko::Executor>) const {}
 
+    void update(std::shared_ptr<gko::Executor>) const {}
 
     const std::string not_compiled_tag = "not compiled";
     const gko::version_info version = gko::version_info::get();
@@ -53,18 +53,26 @@ struct ExecutorInitFunctor {
                     << "CUDA Backend was not compiled. Recompile OGL/Ginkgo "
                        "with CUDA backend enabled."
                     << abort(FatalError);
-            };
+            }
 
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
         }
-        if (executor_name_ == "dpcpp") {
+        if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "SYCL Backend was not compiled. Recompile OGL/Ginkgo "
                        "with SYCL backend enabled."
                     << abort(FatalError);
-            };
+            }
+
+            if (executor_name_ == "dpcpp") {
+                Info << "Warning: the executor name dpcpp is deprecated.\n"
+                     << "Use sycl as the executor name for the same executor "
+                        "instead."
+                     << endl;
+            }
+
             auto devices = gko::DpcppExecutor::get_num_devices("gpu");
             if (devices == 0) {
                 return gko::share(gko::DpcppExecutor::create(0, host_exec));
@@ -79,7 +87,7 @@ struct ExecutorInitFunctor {
                     << "HIP Backend was not compiled. Recompile OGL/Ginkgo "
                        "with HIP backend enabled."
                     << abort(FatalError);
-            };
+            }
             auto ret = gko::share(gko::HipExecutor::create(
                 device_id_ % gko::HipExecutor::get_num_devices(), host_exec));
             return ret;
@@ -99,7 +107,7 @@ struct ExecutorInitFunctor {
 
         FatalErrorInFunction
             << "OGL does not support the executor: " << executor_name_
-            << "\nValid choices are: cuda, hip, dpcpp, omp, or reference"
+            << "\nValid choices are: cuda, hip, sycl, omp, or reference"
             << abort(FatalError);
         return {};
     }
@@ -110,21 +118,21 @@ class ExecutorHandler
 private:
     const bool gko_force_host_buffer_;
 
+    const bool par_run_;
+
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
 
     const word device_executor_name_;
 
-
 public:
-    ExecutorHandler(const ExecutorHandler &) = delete;
-
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
-                    const word field_name)
+                    const word field_name, bool par_run = Pstream::parRun())
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
               db,
               ExecutorInitFunctor(
+                  par_run,
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
@@ -133,8 +141,9 @@ public:
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
+          par_run_(par_run),
           device_comm_(
-              (Pstream::parRun())
+              (par_run_)
                   ? std::make_shared<gko::experimental::mpi::communicator>(
                         MPI_COMM_WORLD, gko_force_host_buffer_)
                   : NULL),
@@ -148,12 +157,12 @@ public:
     }
 
 
-    std::shared_ptr<const gko::Executor> get_device_exec() const
+    const std::shared_ptr<gko::Executor> get_device_exec() const
     {
         return this->get_persistent_object();
     }
 
-    std::shared_ptr<const gko::Executor> get_ref_exec() const
+    const std::shared_ptr<gko::Executor> get_ref_exec() const
     {
         return get_device_exec()->get_master();
     }
@@ -167,12 +176,20 @@ public:
             MPI_COMM_WORLD, gko_force_host_buffer_);
     }
 
+    std::shared_ptr<gko::experimental::mpi::communicator>
+    get_gko_mpi_device_comm() const
+    {
+        return this->device_comm_;
+    }
+
     std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
         const
     {
         return this->device_comm_;
     }
 };
+
+using PersistentExecutor = ExecutorHandler;
 
 }  // namespace Foam
 // namespace Foam

@@ -205,19 +205,19 @@ add_custom_command(
 target_sources(
   OGL
   PRIVATE src/common.C
+          src/CommunicationPattern.C
+          src/Preconditioner.C
+          src/lduLduBase.C
+          src/StoppingCriterion.C
           src/BaseWrapper/lduBase/GKOlduBase.C
           src/BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          src/CommunicationPattern.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
-          src/lduLduBase/lduLduBase.C
-          src/StoppingCriterion/StoppingCriterion.C
           src/DevicePersistent/Base/Base.C
           src/DevicePersistent/Partition/Partition.C
           src/DevicePersistent/Vector/Vector.C
           src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
-          src/Preconditioner/Preconditioner.C
           src/Solver/CG/GKOCG.C
           src/Solver/BiCGStab/GKOBiCGStab.C
           src/Solver/GMRES/GKOGMRES.C)
