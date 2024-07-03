@@ -194,3 +194,51 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
     // out << "}\n";
     return out;
 }
+
+
+gko::array<label> CommunicationPattern::total_rank_send_idx() const
+{
+    std::vector<label> tmp;
+
+    for (auto &[arr, id] : send_idxs) {
+        label arr_size = arr.get_size();
+        tmp.insert(tmp.end(), arr.get_const_data(),
+                   arr.get_const_data() + arr_size);
+    }
+
+    return gko::array<label>(exec_handler.get_ref_exec(), tmp.begin(),
+                             tmp.end());
+}
+
+
+AllToAllPattern CommunicationPattern::send_recv_pattern() const {
+        auto comm = *exec_handler.get_communicator().get();
+        label total_ranks{comm.size()};
+
+        std::vector<label> send_counts(comm.size());
+        std::vector<label> send_offsets(comm.size() + 1);
+        std::vector<label> recv_counts(comm.size());
+        std::vector<label> recv_offsets(comm.size() + 1);
+
+        label comm_ranks = target_ids.get_size();
+        label tot_comm_size = 0;
+        for (label i = 0; i < comm_ranks; i++) {
+            auto comm_rank = target_ids.get_const_data()[i];
+            auto comm_size = target_sizes.get_const_data()[i];
+            tot_comm_size += comm_size;
+            send_counts[comm_rank] = comm_size;
+            recv_counts[comm_rank] = comm_size;
+        }
+
+        recv_offsets[comm.size()] = tot_comm_size;
+        std::partial_sum(recv_counts.begin(), recv_counts.end(),
+                         recv_offsets.begin() + 1);
+        recv_offsets[0] = 0;
+
+        std::partial_sum(send_counts.begin(), send_counts.end(),
+                         send_offsets.begin() + 1);
+        send_offsets[0] = 0;
+
+        return AllToAllPattern{send_counts, send_offsets, recv_counts,
+                               recv_offsets};
+}
