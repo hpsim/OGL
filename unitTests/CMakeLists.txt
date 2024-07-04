@@ -4,42 +4,31 @@
 
 option(
   INSTALL_GTEST
-  "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)"
+  "Enable installation of googletest.\
+(Projects embedding googletest may want to turn this OFF.)"
   OFF)
-
 include(FetchContent)
-
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+  URL
+  https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
-
 FetchContent_MakeAvailable(googletest)
-
-add_executable(communicationPattern "CommunicationPattern.C")
-
+include(GoogleTest)
 find_package(MPI REQUIRED)
 
-target_include_directories(
-  communicationPattern SYSTEM
-  PUBLIC $ENV{FOAM_SRC}/finiteVolume/lnInclude
-         $ENV{FOAM_SRC}/meshTools/lnInclude $ENV{FOAM_SRC}/OpenFOAM/lnInclude
-         $ENV{FOAM_SRC}/OSspecific/POSIX/lnInclude ${CMAKE_CURRENT_SOURCE_DIR})
+macro(ogl_unit_test TEST FILE)
+  add_executable(${TEST} ${FILE})
+  target_link_libraries(${TEST}
+      OpenFOAM
+      GTest::gtest_main
+      OGL
+      Ginkgo::ginkgo
+      ${CMAKE_DL_LIBS})
 
-target_compile_definitions(communicationPattern PUBLIC WM_LABEL_SIZE=32 WM_ARCH_OPTION=64
-                              NoRepository WM_DP)
+  add_test(NAME ${TEST} COMMAND mpirun -np 4
+                                ${CMAKE_CURRENT_BINARY_DIR}/${TEST})
+endmacro()
 
-target_link_libraries(
-  communicationPattern
-  PUBLIC GTest::gtest_main
-         Ginkgo::ginkgo
-         $ENV{FOAM_LIBBIN}/libOpenFOAM.so
-         $ENV{FOAM_LIBBIN}/libfiniteVolume.so
-         $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so
-         OGL
-         # MPI::MPI_CXX
-         ${CMAKE_DL_LIBS})
-
-include(GoogleTest)
-
-add_test(NAME communicationPattern COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/communicationPattern)
+ogl_unit_test(CommunicationPattern "CommunicationPattern.C")
+ogl_unit_test(HostMatrix "HostMatrix.C")
