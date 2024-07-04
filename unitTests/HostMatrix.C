@@ -2,15 +2,63 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
 #include "OGL/MatrixWrapper/HostMatrix.H"
 
 #include "gtest/gtest.h"
 
-TEST(HostMatrixConversion, symmetric_update)
+class HostMatrixFixture : public testing::Test {
+
+protected:
+    HostMatrixFixture()
+        : time(Foam::Time::New()), db(Foam::objectRegistry(*time)),
+         interfaces(), interfaceBouCoeffs(), interfaceIntCoeffs()
+    {
+
+        std::vector<scalar> d{1., 2., 3., 4., 5.};
+        // for OpenFOAMs addressing see
+        // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
+        std::vector<scalar> u{10., 11., 20., 12., 21., 13.};
+        std::vector<label> p{6, 0, 2, 0, 7, 1, 4, 1, 8, 3, 2, 3, 9, 5, 4, 5, 10};
+
+        Foam::labelList rows_exp({0, 0, 0, 1, 1, 1, 1, 2, 2,
+                                    2, 3, 3, 3, 3, 4, 4, 4});
+        Foam::labelList  cols_exp({0, 1, 3, 0, 1, 2, 4, 1, 2,
+                                    3, 0, 2, 3, 4, 1, 3, 4});
+
+        label total_nnz{17};
+        label upper_nnz{6};
+
+        dict.add("executor", "reference");
+        exec = std::make_shared<ExecutorHandler>(db, dict, "dummy", true);
+
+        auto lduPrimitiveMesh = Foam::lduPrimitiveMesh(
+                0, rows_exp, cols_exp, 0, true );
+
+        hostMatrix = std::make_shared<HostMatrixWrapper>(
+                *exec.get(), db, 5, upper_nnz, true,
+                d.data(), u.data(), u.data(), lduPrimitiveMesh.lduAddr(),
+                interfaceBouCoeffs, interfaceIntCoeffs, interfaces,
+                dict, "fieldName", 0
+                );
+    }
+
+    const Foam::Time *time;
+    Foam::objectRegistry db;
+    Foam::dictionary dict;
+    const Foam::lduInterfaceFieldPtrsList interfaces;
+    const Foam::FieldField<Field, scalar> interfaceBouCoeffs;
+    const Foam::FieldField<Field, scalar> interfaceIntCoeffs;
+    std::shared_ptr<ExecutorHandler> exec;
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix;
+
+};
+
+
+TEST_F(HostMatrixFixture, returnsCorrectSize)
 {
-    const lduInterfaceFieldPtrsList interfaces();
-  const FieldField<Field, scalar> &interfaceBouCoeffs();
-  const FieldField<Field, scalar> &interfaceIntCoeffs();
+    EXPECT_EQ(hostMatrix->get_size()[0], 5);
+    EXPECT_EQ(hostMatrix->get_size()[1], 5);
 
 }
 
@@ -25,14 +73,6 @@ TEST(HostMatrixConversion, symmetric_update)
 //      * | .  21  .  13   5 |
 //      */
 //
-//     std::vector<scalar> d{1., 2., 3., 4., 5.};
-//     // for OpenFOAMs addressing see
-//     // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
-//     std::vector<scalar> u{10., 11., 20., 12., 21., 13.};
-//     std::vector<label> p{6, 0, 2, 0, 7, 1, 4, 1, 8, 3, 2, 3, 9, 5, 4, 5, 10};
-//
-//     label total_nnz{17};
-//     label upper_nnz{6};
 //
 //     std::vector<scalar> res{0., 0., 0., 0., 0., 0., 0., 0., 0.,
 //                             0., 0., 0., 0., 0., 0., 0., 0.};
@@ -114,3 +154,15 @@ TEST(HostMatrixConversion, symmetric_update)
 //     EXPECT_EQ(cols, cols_exp);
 //     EXPECT_EQ(permute, permute_exp);
 // }
+
+int main(int argc, char *argv[])
+{
+    int result = 0;
+
+    ::testing::InitGoogleTest(&argc, argv);
+    MPI_Init(&argc, &argv);
+    result = RUN_ALL_TESTS();
+    MPI_Finalize();
+
+    return result;
+}
