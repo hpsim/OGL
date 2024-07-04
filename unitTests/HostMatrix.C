@@ -54,7 +54,6 @@ protected:
 
 };
 
-
 TEST_F(HostMatrixFixture, returnsCorrectSize)
 {
     EXPECT_EQ(hostMatrix->get_size()[0], 5);
@@ -62,28 +61,11 @@ TEST_F(HostMatrixFixture, returnsCorrectSize)
 
 }
 
-// TEST(HostMatrixConversion, symmetric_update)
-// {
-//     /* test a 5x5 symmetric matrix
-//      * A =
-//      * | 1  10  .  20  .  |
-//      * | 10  2  11  .  21 |
-//      * | .  11   3  12  . |
-//      * | 20  .  12  4  13 |
-//      * | .  21  .  13   5 |
-//      */
-//
-//
-//     std::vector<scalar> res{0., 0., 0., 0., 0., 0., 0., 0., 0.,
-//                             0., 0., 0., 0., 0., 0., 0., 0.};
-//     std::vector<scalar> exp{1.,  10., 20., 10., 2.,  11., 21., 11., 3.,
-//                             12., 20., 12., 4.,  13., 21., 13., 5.};
-//
-//     Foam::symmetric_update(total_nnz, upper_nnz, p.data(), 1.0, d.data(),
-//                            u.data(), res.data());
-//
-//     EXPECT_EQ(res, exp);
-// }
+TEST_F(HostMatrixFixture, canGenerateLocalSparsityPattern)
+{
+ //   auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
+}
+
 //
 // TEST(HostMatrixConversion, non_symmetric_update)
 // {
