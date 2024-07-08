@@ -61,9 +61,14 @@ TEST_F(HostMatrixFixture, returnsCorrectSize)
 
 }
 
+TEST_F(HostMatrixFixture, canCreateCommunicationPattern){
+
+    auto commPattern = hostMatrix->create_communication_pattern();
+}
+
 TEST_F(HostMatrixFixture, canGenerateLocalSparsityPattern)
 {
- //   auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
+    // auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
 }
 
 //
