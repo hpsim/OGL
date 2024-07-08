@@ -19,7 +19,7 @@ struct AllToAllPattern {
     std::vector<label> recv_offsets;
 };
 
-/* @brief  This function computes the send and recv counts vectors for
+/* @brief  This function computes the send and recv counts vectors and the send and recv offsets vectors for
  * scattering from an owner to non  owner ranks
  *
  * @param exec_handler The executor handler
@@ -59,7 +59,7 @@ AllToAllPattern compute_gather_to_owner_counts(
  * corresponding owner rank
  *
  * @param rank The rank under consideration
- * @param ranks_per_owner Ratio of total ranks to owner ranks
+ * @param ranks_per_owner Ratio of the total number of ranks to owner ranks
  * @return The corresponding owner of this rank
  * */
 label compute_owner_rank(label rank, label ranks_per_owner);
@@ -109,7 +109,7 @@ struct CommunicationPattern {
     // to the corresponding target_id
     gko::array<comm_size_type> target_sizes;
 
-    // send_idx stores the index_set ie which cells
+    // send_idxs stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
 
