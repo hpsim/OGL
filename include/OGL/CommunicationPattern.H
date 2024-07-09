@@ -19,12 +19,12 @@ struct AllToAllPattern {
     std::vector<label> recv_offsets;
 };
 
-/* @brief  This function computes the send and recv counts vectors and the send and recv offsets vectors for
- * scattering from an owner to non  owner ranks
+/* @brief  This function computes the send and recv counts vectors and the send
+ * and recv offsets vectors for scattering from an owner to non  owner ranks
  *
  * @param exec_handler The executor handler
  * @param ranks_per_owner Ratio of the total number of ranks to owner ranks
- * @param size how many elements to send to owner
+ * @param size how many elements to send from the owner back to neighbour ranks
  * */
 AllToAllPattern compute_scatter_from_owner_counts(
     const ExecutorHandler &exec_handler, label ranks_per_owner, label size);

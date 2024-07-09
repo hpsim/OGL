@@ -35,7 +35,7 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank)
     auto comm = exec->get_gko_mpi_host_comm();
     auto owner_rank = compute_owner_rank(comm->rank(), comm->size());
     // if ranks_per_owner is same as total number of ranks all ranks have
-    // zero as owner
+    // when all ranks have the rank 0 as the owner rank
     EXPECT_EQ(owner_rank, 0);
 }
 
@@ -59,7 +59,7 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
     EXPECT_EQ(comm_counts.recv_counts, send_results[comm->rank()]);
 
-    // test send counts and revc offsets
+    // test send offsets and revc offsets
     EXPECT_EQ(comm_counts.send_offsets, offset_results[comm->rank()]);
     EXPECT_EQ(comm_counts.recv_offsets, offset_results[comm->rank()]);
 }
@@ -90,7 +90,7 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
     EXPECT_EQ(comm_counts.recv_counts, recv_results[comm->rank()]);
 
-    // test send counts and revc offsets
+    // test send offsets and revc offsets
     EXPECT_EQ(comm_counts.send_offsets, send_offsets_results[comm->rank()]);
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets_results[comm->rank()]);
 }
