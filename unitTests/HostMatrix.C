@@ -32,12 +32,11 @@ protected:
         dict.add("executor", "reference");
         exec = std::make_shared<ExecutorHandler>(db, dict, "dummy", true);
 
-        auto lduPrimitiveMesh = Foam::lduPrimitiveMesh(
-                0, rows_exp, cols_exp, 0, true );
+        mesh = std::make_shared<Foam::lduPrimitiveMesh>(0, rows_exp, cols_exp, 0, true );
 
         hostMatrix = std::make_shared<HostMatrixWrapper>(
                 *exec.get(), db, 5, upper_nnz, true,
-                d.data(), u.data(), u.data(), lduPrimitiveMesh.lduAddr(),
+                d.data(), u.data(), u.data(), mesh->lduAddr(),
                 interfaceBouCoeffs, interfaceIntCoeffs, interfaces,
                 dict, "fieldName", 0
                 );
@@ -50,6 +49,7 @@ protected:
     const Foam::FieldField<Field, scalar> interfaceBouCoeffs;
     const Foam::FieldField<Field, scalar> interfaceIntCoeffs;
     std::shared_ptr<ExecutorHandler> exec;
+    std::shared_ptr<lduPrimitiveMesh> mesh;
     std::shared_ptr<const HostMatrixWrapper> hostMatrix;
 
 };
@@ -58,17 +58,15 @@ TEST_F(HostMatrixFixture, returnsCorrectSize)
 {
     EXPECT_EQ(hostMatrix->get_size()[0], 5);
     EXPECT_EQ(hostMatrix->get_size()[1], 5);
-
 }
 
 TEST_F(HostMatrixFixture, canCreateCommunicationPattern){
-
     auto commPattern = hostMatrix->create_communication_pattern();
 }
 
 TEST_F(HostMatrixFixture, canGenerateLocalSparsityPattern)
 {
-    // auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
+    auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
 }
 
 //
