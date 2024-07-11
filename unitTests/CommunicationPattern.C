@@ -26,22 +26,27 @@ protected:
 
 TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
 {
+    // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
+
+    // Act
     auto owner_rank = compute_owner_rank(comm->rank(), comm->size());
 
-    // if ranks_per_owner is same as total number of ranks all ranks have
-    // when all ranks have the rank 0 as the owner rank
+    // Assert
     EXPECT_EQ(owner_rank, 0);
 }
 
 TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
 {
+    // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
     auto comm_rank = comm->rank();
     auto comm_size = comm->size();
 
+    // Act
     auto owner_rank = compute_owner_rank(comm_rank, comm_size/2);
 
+    // Assert
     if (comm_rank < comm_size/2)
         EXPECT_EQ(owner_rank, 0);
     else
@@ -50,22 +55,24 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
 
 TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
 {
+    // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
     auto comm_rank = comm->rank();
 
+    // Act
     auto owner_rank = compute_owner_rank(comm_rank, 1);
 
+    // Assert
     EXPECT_EQ(owner_rank, comm_rank);
 }
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
+    // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
-    auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), 1, label(10));
 
     // expected results
-    // if gathering to just one owner all 10 elements are send to it self
+    // if gathering to just one owner, all 10 elements are send to itself
     std::vector<int> send_counts(comm->size(), 0);
     send_counts[comm->rank()] = 10;
     std::vector<std::vector<int>> send_results(comm->size(), send_counts);
@@ -76,6 +83,11 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     send_offsets.back() = 10;
     std::vector<std::vector<int>> offset_results(comm->size(), send_offsets);
 
+    // Act
+    auto comm_counts =
+        compute_gather_to_owner_counts(*exec.get(), 1, label(10));
+
+    // Assert
     // test send counts and revc counts
     EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
     EXPECT_EQ(comm_counts.recv_counts, send_results[comm->rank()]);
@@ -85,12 +97,11 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     EXPECT_EQ(comm_counts.recv_offsets, offset_results[comm->rank()]);
 }
 
-
+// Given 4 processes in the communicator
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 {
+    // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
-    auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), comm->size(), label(10));
 
     // if gathering to just one owner all 10 elements are send to rank 0
     std::vector<std::vector<int>> send_results(comm->size(),
@@ -107,6 +118,11 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
                                           std::vector<int>{0, 0, 0, 0, 0});
     recv_offsets_results[0] = std::vector<int>{0, 10, 20, 30, 40};
 
+    // Act
+    auto comm_counts =
+        compute_gather_to_owner_counts(*exec.get(), comm->size(), label(10));
+
+    // Assert
     // test if the total number of processes is 4, which is hardcoded here
     EXPECT_EQ(comm->size(), 4);
 
