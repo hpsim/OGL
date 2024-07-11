@@ -104,37 +104,38 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
+    auto comm_size = comm->size();
 
     // if gathering to just one owner, all 10 elements are send to rank 0
-    std::vector<std::vector<int>> send_results(comm->size(),
-                                          std::vector<int>{num_elements, 0, 0, 0});
+    std::vector<int> send_counts{num_elements, 0, 0, 0};
+ 
     // no rank should recv anything except rank 0
-    std::vector<std::vector<int>> recv_results(comm->size(),
-                                          std::vector<int>{0, 0, 0, 0});
-    recv_results[0] = std::vector<int>{num_elements, num_elements, num_elements, num_elements};
+    std::vector<int> recv_counts(comm_size) ;
+    if (comm->rank() == 0)
+        recv_counts = std::vector<int>(comm_size, num_elements);
+  
+    std::vector<int> send_offsets(comm_size+1);
+    send_offsets[comm_size] = num_elements;
 
-    std::vector<std::vector<int>> send_offsets_results(comm->size() + 1,
-                                          std::vector<int>{0, 0, 0, 0, num_elements});
-
-    std::vector<std::vector<int>> recv_offsets_results(comm->size() + 1,
-                                          std::vector<int>{0, 0, 0, 0, 0});
-    recv_offsets_results[0] = std::vector<int>{0, num_elements, num_elements*2, num_elements*3, num_elements*4};
+    std::vector<int> recv_offsets(comm_size+1);
+    if (comm->rank() == 0)
+    recv_offsets = std::vector<int>{0, num_elements, num_elements*2, num_elements*3, num_elements*4};
 
     // Act
     auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), comm->size(), label(num_elements));
+        compute_gather_to_owner_counts(*exec.get(), comm_size, label(num_elements));
 
     // Assert
     // test if the total number of processes is 4, which is hardcoded here
-    EXPECT_EQ(comm->size(), 4);
+    EXPECT_EQ(comm_size, 4);
 
     // test send counts and revc counts
-    EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
-    EXPECT_EQ(comm_counts.recv_counts, recv_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_counts, send_counts);
+    EXPECT_EQ(comm_counts.recv_counts, recv_counts);
 
-    // test send offsets and revc offsets
-    EXPECT_EQ(comm_counts.send_offsets, send_offsets_results[comm->rank()]);
-    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets_results[comm->rank()]);
+    // test send counts and revc offsets
+    EXPECT_EQ(comm_counts.send_offsets, send_offsets);
+    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
 int main(int argc, char *argv[])
