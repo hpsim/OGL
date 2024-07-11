@@ -30,25 +30,30 @@ TEST_F(CommunicationPatternFixture, can_get_comm_size)
     EXPECT_EQ(comm->size(), 4);
 }
 
-TEST_F(CommunicationPatternFixture, compute_owner_rank)
+TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
 {
     auto comm = exec->get_gko_mpi_host_comm();
     auto owner_rank = compute_owner_rank(comm->rank(), comm->size());
+
     // if ranks_per_owner is same as total number of ranks all ranks have
     // when all ranks have the rank 0 as the owner rank
     EXPECT_EQ(owner_rank, 0);
 }
+
+// TEST_F(CommunicationPatternFixture, com)
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
     auto comm = exec->get_gko_mpi_host_comm();
     auto comm_counts =
         compute_gather_to_owner_counts(*exec.get(), 1, label(10));
+
     // expected results
     // if gathering to just one owner all 10 elements are send to it self
     std::vector<int> send_counts(comm->size(), 0);
     send_counts[comm->rank()] = 10;
     std::vector<std::vector<int>> send_results(comm->size(), send_counts);
+    
     // all offsets should be zero
     // last entry in offsets is total number of send elements
     std::vector<int> send_offsets(comm->size() + 1, 0);
