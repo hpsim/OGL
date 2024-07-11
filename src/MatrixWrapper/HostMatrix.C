@@ -151,6 +151,26 @@ HostMatrixWrapper::HostMatrixWrapper(
       non_local_matrix_nnz_{count_interface_nnz(interfaces, true)}
 {}
 
+HostMatrixWrapper::HostMatrixWrapper(
+    const ExecutorHandler &exec, const objectRegistry &db,
+    const lduAddressing &addr,
+    bool symmetric,
+    const scalar *diag, const scalar *upper, const scalar *lower,
+    const FieldField<Field, scalar> &interfaceBouCoeffs,
+    const FieldField<Field, scalar> &interfaceIntCoeffs,
+    const lduInterfaceFieldPtrsList &interfaces,
+    const dictionary &solverControls, const word &fieldName, label verbose) :
+HostMatrixWrapper::HostMatrixWrapper(
+    exec, db, addr.size(),
+    addr.lowerAddr().size(),
+    symmetric, diag, upper,
+    lower, addr,
+    interfaceBouCoeffs,
+    interfaceIntCoeffs,
+    interfaces,
+    solverControls, fieldName, verbose)
+{}
+
 
 label HostMatrixWrapper::count_interface_nnz(
     const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const

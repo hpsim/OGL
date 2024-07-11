@@ -166,6 +166,17 @@ public:
                       const dictionary &solverControls, const word &fieldName,
                       label verbose);
 
+    // segregated matrix wrapper constructor
+    HostMatrixWrapper(const ExecutorHandler &exec, const objectRegistry &db,
+                      const lduAddressing &addr, bool symmetric,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower,
+                      const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      const lduInterfaceFieldPtrsList &interfaces,
+                      const dictionary &solverControls, const word &fieldName,
+                      label verbose);
+
     /** Based on OpenFOAMs ldu matrix format this function computes two
      ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
      ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
