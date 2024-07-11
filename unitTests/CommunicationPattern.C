@@ -70,22 +70,23 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
     // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
+    auto num_elements = 10;
 
     // expected results
     // if gathering to just one owner, all 10 elements are send to itself
     std::vector<int> send_counts(comm->size(), 0);
-    send_counts[comm->rank()] = 10;
+    send_counts[comm->rank()] = num_elements;
     std::vector<std::vector<int>> send_results(comm->size(), send_counts);
     
     // all offsets should be zero
     // last entry in offsets is total number of send elements
     std::vector<int> send_offsets(comm->size() + 1, 0);
-    send_offsets.back() = 10;
+    send_offsets.back() = num_elements;
     std::vector<std::vector<int>> offset_results(comm->size(), send_offsets);
 
     // Act
     auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), 1, label(10));
+        compute_gather_to_owner_counts(*exec.get(), 1, label(num_elements));
 
     // Assert
     // test send counts and revc counts
