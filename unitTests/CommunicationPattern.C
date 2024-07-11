@@ -98,7 +98,6 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-// Given 4 processes in the communicator
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 {
     // Arrange
@@ -107,7 +106,8 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     auto comm_size = comm->size();
 
     // if gathering to just one owner, all 10 elements are send to rank 0
-    std::vector<int> send_counts{num_elements, 0, 0, 0};
+    std::vector<int> send_counts(comm_size);
+    send_counts[0] = num_elements;
  
     // no rank should recv anything except rank 0
     std::vector<int> recv_counts(comm_size) ;
@@ -119,16 +119,18 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 
     std::vector<int> recv_offsets(comm_size+1);
     if (comm->rank() == 0)
-    recv_offsets = std::vector<int>{0, num_elements, num_elements*2, num_elements*3, num_elements*4};
+    {
+        for (int i = 0; i < comm_size+1; i++)
+        {
+            recv_offsets[i] = num_elements*i;
+        }
+    }
 
     // Act
     auto comm_counts =
         compute_gather_to_owner_counts(*exec.get(), comm_size, label(num_elements));
 
     // Assert
-    // test if the total number of processes is 4, which is hardcoded here
-    EXPECT_EQ(comm_size, 4);
-
     // test send counts and revc counts
     EXPECT_EQ(comm_counts.send_counts, send_counts);
     EXPECT_EQ(comm_counts.recv_counts, recv_counts);
