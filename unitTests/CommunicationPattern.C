@@ -48,6 +48,16 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
         EXPECT_EQ(owner_rank, comm_size/2);
 }
 
+TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
+{
+    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm_rank = comm->rank();
+
+    auto owner_rank = compute_owner_rank(comm_rank, 1);
+
+    EXPECT_EQ(owner_rank, comm_rank);
+}
+
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
     auto comm = exec->get_gko_mpi_host_comm();
