@@ -76,13 +76,13 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
     // if gathering to just one owner, all 10 elements are send to itself
     std::vector<int> send_counts(comm->size(), 0);
     send_counts[comm->rank()] = num_elements;
-    std::vector<std::vector<int>> send_results(comm->size(), send_counts);
+    std::vector<int> recv_counts(send_counts);
     
     // all offsets should be zero
     // last entry in offsets is total number of send elements
     std::vector<int> send_offsets(comm->size() + 1, 0);
     send_offsets.back() = num_elements;
-    std::vector<std::vector<int>> offset_results(comm->size(), send_offsets);
+    std::vector<int> recv_offsets(send_offsets);
 
     // Act
     auto comm_counts =
@@ -90,12 +90,12 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 
     // Assert
     // test send counts and revc counts
-    EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
-    EXPECT_EQ(comm_counts.recv_counts, send_results[comm->rank()]);
+    EXPECT_EQ(comm_counts.send_counts, send_counts);
+    EXPECT_EQ(comm_counts.recv_counts, recv_counts);
 
-    // test send offsets and revc offsets
-    EXPECT_EQ(comm_counts.send_offsets, offset_results[comm->rank()]);
-    EXPECT_EQ(comm_counts.recv_offsets, offset_results[comm->rank()]);
+    // test send counts and revc offsets
+    EXPECT_EQ(comm_counts.send_offsets, send_offsets);
+    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
 // Given 4 processes in the communicator
