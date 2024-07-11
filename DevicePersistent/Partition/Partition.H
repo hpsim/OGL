@@ -62,7 +62,11 @@ struct PartitionInitFunctor {
                  std::to_string(local_size_)};
         LOG_1(verbose_, msg)
 
-        if (ranks_per_gpu_ == 1) return {};
+
+        auto host_partition = gko::share(gko::experimental::distributed::build_partition_from_local_size<label,label>(
+            exec, *comm.get(), local_size_));
+
+        return host_partition;
     }
 };
 

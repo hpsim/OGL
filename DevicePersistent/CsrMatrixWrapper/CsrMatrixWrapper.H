@@ -38,6 +38,8 @@ struct MatrixInitFunctor {
 
     const PersistentArray<scalar> &non_local_coeffs_;
 
+    const CommunicationPattern &communication_pattern_;
+
     const word matrix_format_;
 
     const bool regenerate_;
@@ -54,6 +56,7 @@ struct MatrixInitFunctor {
                       const PersistentArray<label> &non_local_col_idxs,
                       const PersistentArray<label> &non_local_row_idxs,
                       const PersistentArray<scalar> &non_local_coeffs,
+                      const CommunicationPattern &communication_pattern,
                       const word matrix_format, const bool regenerate,
                       const label verbose, const word field_name)
         : db_(db),
@@ -65,6 +68,7 @@ struct MatrixInitFunctor {
           non_local_col_idxs_(non_local_col_idxs),
           non_local_row_idxs_(non_local_row_idxs),
           non_local_coeffs_(non_local_coeffs),
+          communication_pattern_(communication_pattern),
           matrix_format_(matrix_format),
           regenerate_(regenerate),
           verbose_(verbose),
@@ -137,27 +141,44 @@ struct MatrixInitFunctor {
 
     std::shared_ptr<dist_mtx> generate_dist_mtx_with_inner_type(
         std::shared_ptr<gko::Executor> exec,
-        std::shared_ptr<gko::experimental::mpi::communicator> comm) const
+        std::shared_ptr<gko::experimental::mpi::communicator> comm,
+        gko::dim<2> global_dim,
+        gko::device_matrix_data<scalar, label> &local_A_data,
+        gko::device_matrix_data<scalar, label> &non_local_A_data) const
     {
+        auto [recv_sizes, recv_offsets] =
+            communication_pattern_.recv_sizes_offsets(comm);
+        auto recv_gather_idxs =
+            communication_pattern_.total_rank_send_idx(exec->get_master());
+
         if (matrix_format_ == "Csr") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Csr>());
+            auto local_linop =
+                gko::share(gko::matrix::Csr<scalar, label>::create(exec));
+            local_linop->read(local_A_data);
+            auto non_local_linop =
+                gko::share(gko::matrix::Csr<scalar, label>::create(exec));
+            non_local_linop->read(non_local_A_data);
+            return dist_mtx::create(exec, *comm.get(), global_dim, local_linop,
+                                    non_local_linop, recv_sizes, recv_offsets,
+                                    recv_gather_idxs);
         }
-        if (matrix_format_ == "Ell") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Ell>());
-        }
-        // if (matrix_format_ == "Hybrid") {
-        //     return dist_mtx::create(
-        //         *comm.get(), gko::with_matrix_type<gko::matrix::Hybrid>());
-        // }
         if (matrix_format_ == "Coo") {
-            return dist_mtx::create(exec, *comm.get(),
-                                    gko::with_matrix_type<gko::matrix::Coo>());
+            auto local_linop =
+                gko::share(gko::matrix::Coo<scalar, label>::create(exec));
+            local_linop->read(local_A_data);
+            auto non_local_linop =
+                gko::share(gko::matrix::Coo<scalar, label>::create(exec));
+            non_local_linop->read(non_local_A_data);
+
+            auto dist = dist_mtx::create(
+                exec, *comm.get(), global_dim, local_linop, non_local_linop,
+                recv_sizes, recv_offsets, recv_gather_idxs);
+            return dist;
         }
 
-        FatalErrorInFunction << "Matrix format " << matrix_format_
-                             << " not supported " << abort(FatalError);
+
+        // FatalErrorInFunction << "Matrix format " << matrix_format_
+        //                      << " not supported " << abort(FatalError);
     }
 
     std::shared_ptr<dist_mtx> init() const
@@ -178,6 +199,7 @@ struct MatrixInitFunctor {
         auto exec = exec_.get_ref_exec();
 
         auto num_rows = partition_.get_local_size();
+        auto global_num_rows = partition_.get_total_size();
         gko::device_matrix_data<scalar, label> A_data(
             exec, gko::dim<2>(num_rows, num_rows), *rows.get(), *cols.get(),
             *coeffs.get());
@@ -187,15 +209,12 @@ struct MatrixInitFunctor {
             *non_local_rows.get(), *non_local_cols.get(),
             *non_local_coeffs.get());
 
-
         auto comm = exec_.get_gko_mpi_host_comm();
-        auto dist_A = generate_dist_mtx_with_inner_type(
-            exec_.get_ref_exec(), exec_.get_gko_mpi_host_comm());
 
-        auto device_mat = generate_dist_mtx_with_inner_type(
-            exec_.get_device_exec(), exec_.get_gko_mpi_device_comm());
-        dist_A->move_to(device_mat.get());
-        return device_mat;
+        return generate_dist_mtx_with_inner_type(
+            exec_.get_device_exec(), exec_.get_gko_mpi_host_comm(),
+            gko::dim<2>{global_num_rows, global_num_rows}, A_data,
+            non_local_A_data);
     }
 };
 
@@ -228,6 +247,7 @@ public:
                   const PersistentArray<label> &non_local_col_idxs,
                   const PersistentArray<label> &non_local_row_idxs,
                   const PersistentArray<scalar> &non_local_coeffs,
+                  const CommunicationPattern &communication_pattern,
                   const PersistentPartition &partition,
                   const dictionary &controlDict, const word sys_matrix_name,
                   const label verbose)
@@ -242,7 +262,7 @@ public:
               MatrixInitFunctor(
                   db, exec, partition, col_idxs, row_idxs, coeffs,
                   non_local_col_idxs, non_local_row_idxs, non_local_coeffs,
-                  matrix_format_,
+                  communication_pattern, matrix_format_,
                   controlDict.lookupOrDefault<Switch>("regenerate", false),
                   verbose_, sys_matrix_name),
               controlDict.lookupOrDefault<Switch>("updateSysMatrix", true),

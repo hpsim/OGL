@@ -76,6 +76,49 @@ struct CommunicationPattern {
     // send_idx stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
+
+    gko::array<label> total_rank_send_idx(std::shared_ptr<gko::Executor> exec) const
+    {
+        std::vector<label> tmp {};
+
+        for (auto [arr, id] : send_idxs) {
+            label arr_size = arr.get_size();
+            tmp.insert(tmp.end(), arr.get_const_data(),
+                       arr.get_const_data() + arr_size);
+        }
+
+        auto ret = gko::array<label>::const_view(exec, 
+                tmp.size(),
+                tmp.data()
+                );
+
+        return ret.copy_to_array();
+    }
+
+    std::pair<std::vector<label>, std::vector<label>> recv_sizes_offsets(
+        std::shared_ptr<gko::experimental::mpi::communicator> comm
+            ) const
+    {
+        std::vector<label> recv_counts(comm->size());
+        std::vector<label> recv_offsets(comm->size() + 1);
+
+        label comm_ranks = target_ids.get_size();
+        label tot_comm_size = 0;
+        for (label i = 0; i < comm_ranks; i++) {
+            auto comm_rank = target_ids.get_const_data()[i];
+            auto comm_size = target_sizes.get_const_data()[i];
+            tot_comm_size += comm_size;
+            recv_counts[comm_rank] = comm_size;
+        }
+
+        recv_offsets[comm->size()] = tot_comm_size;
+        std::partial_sum(recv_counts.begin(), recv_counts.end(),
+                         recv_offsets.begin() + 1);
+        recv_offsets[0] = 0;
+
+        return {recv_counts, recv_offsets};
+    }
+
 };
 
 

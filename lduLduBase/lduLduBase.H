@@ -200,7 +200,6 @@ public:
             psi.size(),  // number of elements
             this->get_communication_pattern()};
 
-        // TODO this is now the local matrix part for dist_A
         MatrixWrapper dist_A{db_,
                              this->get_exec_handler(),  // get exec
                              this->get_local_col_idxs(),
@@ -209,6 +208,7 @@ public:
                              this->get_non_local_col_idxs(),
                              this->get_non_local_row_idxs(),
                              this->get_non_local_coeffs(),
+                             this->get_communication_pattern(),
                              partition,
                              solver_controls_,
                              this->fieldName(),
@@ -271,7 +271,7 @@ public:
 
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
-        LOG_1(verbose_, "solve solver done")
+        LOG_1(verbose_, "create solver done")
         TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                             solver->apply(dist_b_v, dist_x_v);)
 

@@ -283,10 +283,9 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
+        auto arr = gko::array<label>::const_view(exec, interface_cells.size(), interface_cells.data());
         send_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
-            gko::array<label>(exec, interface_cells.begin(),
-                              interface_cells.end()),
-            proc));
+            arr.copy_to_array(), proc));
     }
 
     // convert to gko::array
@@ -459,7 +458,7 @@ void HostMatrixWrapper<MatrixType>::init_non_local_sparsity_pattern(
     label element_ctr = 0;
     for (auto [interface_idx, row] : non_local_row_indices) {
         rows[element_ctr] = row;
-        cols[element_ctr] = interface_idx;
+        cols[element_ctr] =  interface_idx;
         permute[element_ctr] = interface_idx;
         element_ctr += 1;
     }

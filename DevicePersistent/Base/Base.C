@@ -29,4 +29,10 @@ defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
 typedef gko::experimental::distributed::Matrix<scalar, label, label> GkoMatrix;
 defineTemplateTypeNameWithName(DevicePersistentBase<GkoMatrix>,
                                "PersistentMatrix");
+
+// typedef needed  to avoid confusion with the comma separated template
+// arguments as macro arguments
+typedef gko::experimental::distributed::Partition<label,label> Partition;
+defineTemplateTypeNameWithName(DevicePersistentBase<Partition>,
+                               "PersistentPartition");
 }  // namespace Foam

@@ -158,6 +158,8 @@ target_sources(
   PRIVATE common/common.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           lduLduBase/lduLduBase.C
+          HostMatrix/HostMatrix.C
+          HostMatrix/HostMatrixFreeFunctions.C
           StoppingCriterion/StoppingCriterion.C
           DevicePersistent/Base/Base.C
           DevicePersistent/Partition/Partition.C
@@ -170,6 +172,8 @@ target_sources(
           BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           Solver/CG/GKOCG.C
           Solver/BiCGStab/GKOBiCGStab.C
+          # Solver / IR / GKOIR.C
+          Solver/Multigrid/GKOMultigrid.C
           Solver/GMRES/GKOGMRES.C
   PUBLIC common/common.H
          StoppingCriterion/StoppingCriterion.H
