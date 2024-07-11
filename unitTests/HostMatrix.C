@@ -7,13 +7,28 @@
 
 #include "gtest/gtest.h"
 
+//---------------------------------------------
+// some_header.h
+extern int my_argc;
+extern char** my_argv;
+// eof
+//---------------------------------------------
+
+//---------------------------------------------
+// main.cpp
+int my_argc;
+char** my_argv;
+
+
 class HostMatrixFixture : public testing::Test {
 
 protected:
     HostMatrixFixture()
-        : time(Foam::Time::New()), db(Foam::objectRegistry(*time)),
-         interfaces(), interfaceBouCoeffs(), interfaceIntCoeffs()
-    {
+        : interfaces(), interfaceBouCoeffs(), interfaceIntCoeffs()
+    {}
+
+    void SetUp(const std::string &filename) {
+        std::cout << "call setup\n";
         // for OpenFOAMs addressing see
         // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
         //
@@ -24,65 +39,69 @@ protected:
         label upper_nnz{6};
 
         dict.add("executor", "reference");
-        exec = std::make_shared<ExecutorHandler>(db, dict, "dummy", true);
 
         // Foam::labelList rows({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4});
         // Foam::labelList cols({0, 1, 3, 0, 1, 2, 4, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4});
         // std::make_shared<Foam::lduPrimitiveMesh>(0, rows, cols, 0, true );
         //
 
-        Foam::argList args({}, ::testing::internal::GetArgvs());
-        args.setOption("parallel");
-        Foam::Time runTime("case", {});
+        std::cout << __FILE__ << "create argList\n";
+        args_ =std::make_shared<Foam::argList> (argc, argv, false, false, false);
+        std::cout << __FILE__ << "set parallel option\n";
+        args_->setOption("parallel");
 
-
-        word meshRegion {""};
+        std::cout << __FILE__ << "create runtime\n";
+        runTime_ = std::make_shared<Foam::Time>("case", *args_.get());
+        std::cout << __FILE__ << "create mesh\n";
         mesh =
             std::make_shared<Foam::fvMesh>
             (
                 Foam::IOobject
                 (
-                    meshRegion,
-                    runTime.timeName(),
-                    runTime,
+                    word {""},
+                    runTime_->timeName(),
+                    *runTime_.get(),
                     Foam::IOobject::MUST_READ
                 ),
                 false
             );
 
-        // word fieldName {"p"};
-        // dimensionSet ds {};
-        // auto field = GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>
-        // (
-        //         Foam::IOobject
-        //         (
-        //             fieldName,
-        //             runTime.timeName(),
-        //             runTime,
-        //             Foam::IOobject::MUST_READ
-        //         ),
-        //     *mesh.get(),
-        //     ds
-        // );
+        exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict, "dummy", true);
+        word fieldName {"p"};
+        dimensionSet ds {};
+        auto field = GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>
+        (
+                Foam::IOobject
+                (
+                    fieldName,
+                    runTime_->timeName(),
+                    runTime_->thisDb(),
+                    Foam::IOobject::MUST_READ
+                ),
+            *mesh.get(),
+            ds
+        );
         //
         // auto matrix = fvMatrix<scalar>(field, ds);
 
         hostMatrix = std::make_shared<HostMatrixWrapper>(
-                *exec.get(), runTime, 5, upper_nnz, true,
+                *exec.get(), runTime_->thisDb(), 5, upper_nnz, true,
                 d.data(), u.data(), u.data(), mesh->lduAddr(),
                 interfaceBouCoeffs, interfaceIntCoeffs, interfaces,
                 dict, "fieldName", 0
                 );
     }
 
-    const Foam::Time *time;
-    Foam::objectRegistry db;
+    int argc {0};
+    char** argv;
+    std::shared_ptr<Foam::argList> args_;
+    std::shared_ptr<Foam::Time> runTime_;
+    std::shared_ptr<fvMesh> mesh;
     Foam::dictionary dict;
     const Foam::lduInterfaceFieldPtrsList interfaces;
     const Foam::FieldField<Field, scalar> interfaceBouCoeffs;
     const Foam::FieldField<Field, scalar> interfaceIntCoeffs;
     std::shared_ptr<ExecutorHandler> exec;
-    std::shared_ptr<fvMesh> mesh;
     std::shared_ptr<const HostMatrixWrapper> hostMatrix;
 };
 
@@ -126,6 +145,10 @@ int main(int argc, char *argv[])
     int result = 0;
 
     ::testing::InitGoogleTest(&argc, argv);
+
+    my_argc = argc;
+    my_argv = argv;
+
     MPI_Init(&argc, &argv);
     result = RUN_ALL_TESTS();
     MPI_Finalize();
