@@ -15,12 +15,12 @@ class GKOMultigridFactory {
 private:
     using cg = gko::solver::Cg<scalar>;
     using mtx = gko::matrix::Csr<scalar>;
-    using vec = gko::matrix::Dense<scalar>;
     using ir = gko::solver::Ir<scalar>;
     using mg = gko::solver::Multigrid;
     using bj = gko::preconditioner::Jacobi<scalar, label>;
     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
 
+    using vec = gko::matrix::Dense<scalar>;
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
@@ -87,113 +87,100 @@ public:
 
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
     create_dist_solver(std::shared_ptr<const gko::Executor> exec,
-                       std::shared_ptr<gko::LinOp> gkomatrix,
-                       std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> b,
+                       std::shared_ptr<const gko::LinOp> gkomatrix,
+                       std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b,
                        const label verbose, const bool export_res,
                        std::shared_ptr<gko::LinOp> precond) const
     {
-        outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_dist_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, export_res,
-                get_prev_number_of_iterations()));
-
-        auto inner_solver_gen =
-            gko::share(bj::build()
-                           .with_skip_sorting(true)
-                           .with_max_block_size(max_block_size_)
-                           .on(exec));
-
-        auto smoother_gen = gko::share(
-            ir::build()
-                .with_solver(inner_solver_gen)
-                .with_relaxation_factor(smoother_relaxation_factor_)
-                .with_criteria(gko::stop::Iteration::build()
-                                   .with_max_iters(smoother_max_iters_)
-                                   .on(exec))
-                .on(exec));
-        // Create MultigridLevel factory
-        auto mg_level_gen = amgx_pgm::build()
-                                .with_deterministic(true)
-                                .with_skip_sorting(true)
-                                .on(exec);
-        // Create CoarsestSolver factory
-        auto coarsest_gen =
-            gko::share(ir::build()
-                           .with_solver(inner_solver_gen)
-                           .with_relaxation_factor(inner_relaxation_factor_)
-                           .with_criteria(gko::stop::Iteration::build()
-                                              .with_max_iters(coarse_max_iters_)
-                                              .on(exec))
-                           .on(exec));
-
-        // Create multigrid factory
-        auto ret = mg::build()
-                       .with_max_levels(max_levels_)
-                       .with_min_coarse_rows(min_coarse_rows_)
-                       .with_pre_smoother(smoother_gen)
-                       .with_post_uses_pre(true)
-                       .with_mg_level(gko::share(mg_level_gen))
-                       .with_coarsest_solver(coarsest_gen)
-                       .with_zero_guess(false)
-                       .with_criteria(outerStoppingCriterionVec_)
-                       .on(exec);
-
+        std::cout << __FILE__ << ":" << __LINE__ << "create mg solver\n";
+        const scalar reduction_factor{1e-8};
+        label num_iters {100};
+        auto ret = gko::solver::Multigrid::build()
+                    .with_mg_level(    
+                        gko::multigrid::Pgm<scalar>::build()
+                            .with_deterministic(false))
+                    .with_min_coarse_rows(                          
+                        16u)  // necessary since the test matrices have less
+                              // rows than the default value
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(
+                            num_iters),
+                        gko::stop::ResidualNorm<scalar>::build()
+                            .with_baseline(gko::stop::mode::absolute)
+                            .with_reduction_factor(reduction_factor))
+                    .on(exec);
         return ret;
     };
 
     // Create solver
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
     create_solver(std::shared_ptr<const gko::Executor> exec,
-                  std::shared_ptr<mtx> gkomatrix, std::shared_ptr<vec> x,
-                  std::shared_ptr<vec> b, const label verbose,
+                  std::shared_ptr<dist_mtx> gkomatrix, std::shared_ptr<dist_vec> x,
+                  std::shared_ptr<dist_vec> b, const label verbose,
                   const bool export_res,
                   std::shared_ptr<gko::LinOp> precond) const
     {
-        outerStoppingCriterionVec_.push_back(
-            outerStoppingCriterion_.build_stopping_criterion(
-                exec, gkomatrix, x, b, verbose, export_res, 0));
-
-        auto inner_solver_gen =
-            gko::share(bj::build()
-                           .with_skip_sorting(true)
-                           .with_max_block_size(max_block_size_)
-                           .on(exec));
-
-        auto smoother_gen = gko::share(
-            ir::build()
-                .with_solver(inner_solver_gen)
-                .with_relaxation_factor(smoother_relaxation_factor_)
-                .with_criteria(gko::stop::Iteration::build()
-                                   .with_max_iters(smoother_max_iters_)
-                                   .on(exec))
-                .on(exec));
-        // Create MultigridLevel factory
-        auto mg_level_gen = amgx_pgm::build()
-                                .with_deterministic(true)
-                                .with_skip_sorting(true)
-                                .on(exec);
-        // Create CoarsestSolver factory
-        auto coarsest_gen =
-            gko::share(ir::build()
-                           .with_solver(inner_solver_gen)
-                           .with_relaxation_factor(inner_relaxation_factor_)
-                           .with_criteria(gko::stop::Iteration::build()
-                                              .with_max_iters(coarse_max_iters_)
-                                              .on(exec))
-                           .on(exec));
-
-        // Create multigrid factory
-        auto ret = mg::build()
-                       .with_max_levels(max_levels_)
-                       .with_min_coarse_rows(min_coarse_rows_)
-                       .with_pre_smoother(smoother_gen)
-                       .with_post_uses_pre(true)
-                       .with_mg_level(gko::share(mg_level_gen))
-                       .with_coarsest_solver(coarsest_gen)
-                       .with_zero_guess(false)
-                       .with_criteria(outerStoppingCriterionVec_)
-                       .on(exec);
-
+        // outerStoppingCriterionVec_.push_back(
+        //     outerStoppingCriterion_.build_dist_stopping_criterion(
+        //         exec, gkomatrix, x, b, verbose, export_res, 0, 0));
+        //
+        // auto inner_solver_gen =
+        //     gko::share(bj::build()
+        //                    .with_skip_sorting(true)
+        //                    .with_max_block_size(max_block_size_)
+        //                    .on(exec));
+        //
+        // auto smoother_gen = gko::share(
+        //     ir::build()
+        //         .with_solver(inner_solver_gen)
+        //         .with_relaxation_factor(smoother_relaxation_factor_)
+        //         .with_criteria(gko::stop::Iteration::build()
+        //                            .with_max_iters(smoother_max_iters_)
+        //                            .on(exec))
+        //         .on(exec));
+        // // Create MultigridLevel factory
+        // auto mg_level_gen = amgx_pgm::build()
+        //                         .with_deterministic(true)
+        //                         .with_skip_sorting(true)
+        //                         .on(exec);
+        // // Create CoarsestSolver factory
+        // auto coarsest_gen =
+        //     gko::share(ir::build()
+        //                    .with_solver(inner_solver_gen)
+        //                    .with_relaxation_factor(inner_relaxation_factor_)
+        //                    .with_criteria(gko::stop::Iteration::build()
+        //                                       .with_max_iters(coarse_max_iters_)
+        //                                       .on(exec))
+        //                    .on(exec));
+        //
+        // // Create multigrid factory
+        // auto ret = mg::build()
+        //                .with_max_levels(max_levels_)
+        //                .with_min_coarse_rows(min_coarse_rows_)
+        //                .with_pre_smoother(smoother_gen)
+        //                .with_post_uses_pre(true)
+        //                .with_mg_level(gko::share(mg_level_gen))
+        //                .with_coarsest_solver(coarsest_gen)
+        //                .with_zero_guess(false)
+        //                .with_criteria(outerStoppingCriterionVec_)
+        //                .on(exec);
+        std::cout << __FILE__ << ":" << __LINE__ << "create mg solver\n";
+        const scalar reduction_factor{1e-8};
+        label num_iters {100};
+        auto ret = gko::solver::Multigrid::build()
+                    .with_mg_level(    
+                        gko::multigrid::Pgm<scalar>::build()
+                            .with_deterministic(false))
+                    .with_min_coarse_rows(                          
+                        16u)  // necessary since the test matrices have less
+                              // rows than the default value
+                    .with_criteria(
+                        gko::stop::Iteration::build().with_max_iters(
+                            num_iters),
+                        gko::stop::ResidualNorm<scalar>::build()
+                            .with_baseline(gko::stop::mode::absolute)
+                            .with_reduction_factor(reduction_factor))
+                    .on(exec);
         return ret;
     };
 
@@ -212,18 +199,33 @@ public:
         return outerStoppingCriterion_.get_res_norms();
     }
 
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
+
     void store_number_of_iterations() const
     {
-        set_solve_prev_iters(sysMatrixName_, db_,
-                             stoppingCriterion_.get_num_iters(),
-                             stoppingCriterion_.get_is_final());
+        // set_solve_prev_iters(sysMatrixName_, db_,
+        //                      stoppingCriterion_.get_num_iters(),
+        //                      stoppingCriterion_.get_is_final());
     }
 
     label get_prev_number_of_iterations() const
     {
-        return get_solve_prev_iters(sysMatrixName_, db_,
-                                    stoppingCriterion_.get_is_final());
+        // return get_solve_prev_iters(sysMatrixName_, db_,
+        //                             stoppingCriterion_.get_is_final());
+        return 0;
     }
+
+    label get_res_norm_time() const
+    {
+        // return get_solve_prev_iters(sysMatrixName_, db_,
+        //                             stoppingCriterion_.get_is_final());
+        return 0;
+    }
+
 
     label get_number_of_iterations() const
     {
