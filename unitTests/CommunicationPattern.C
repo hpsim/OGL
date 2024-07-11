@@ -24,12 +24,6 @@ protected:
 };
 
 
-TEST_F(CommunicationPatternFixture, can_get_comm_size)
-{
-    auto comm = exec->get_gko_mpi_host_comm();
-    EXPECT_EQ(comm->size(), 4);
-}
-
 TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
 {
     auto comm = exec->get_gko_mpi_host_comm();
@@ -39,8 +33,6 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
     // when all ranks have the rank 0 as the owner rank
     EXPECT_EQ(owner_rank, 0);
 }
-
-// TEST_F(CommunicationPatternFixture, com)
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
 {
@@ -90,6 +82,9 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     std::vector<std::vector<int>> recv_offsets_results(comm->size() + 1,
                                           std::vector<int>{0, 0, 0, 0, 0});
     recv_offsets_results[0] = std::vector<int>{0, 10, 20, 30, 40};
+
+    // test if the total number of processes is 4, which is hardcoded here
+    EXPECT_EQ(comm->size(), 4);
 
     // test send counts and revc counts
     EXPECT_EQ(comm_counts.send_counts, send_results[comm->rank()]);
