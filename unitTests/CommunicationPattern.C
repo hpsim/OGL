@@ -72,31 +72,35 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
+    auto comm_rank = comm->rank();
 
-    // if gathering to just one owner, all 10 elements are send to rank 0
+    // Gather different number of elements to the only owner
     std::vector<int> send_counts(comm_size);
-    send_counts[0] = num_elements;
+    send_counts[0] = num_elements * comm_rank;
  
-    // no rank should recv anything except rank 0
+    // no rank should receive anything except the owner prcocess (rank 0)
     std::vector<int> recv_counts(comm_size) ;
-    if (comm->rank() == 0)
-        recv_counts = std::vector<int>(comm_size, num_elements);
+    if (comm_rank == 0)
+        for (int i = 0; i < comm_size; i++)
+        {
+            recv_counts[i] = num_elements*i;
+        }
   
     std::vector<int> send_offsets(comm_size+1);
-    send_offsets[comm_size] = num_elements;
+    send_offsets.back() = num_elements * comm_rank;
 
     std::vector<int> recv_offsets(comm_size+1);
-    if (comm->rank() == 0)
+    if (comm_rank == 0)
     {
         for (int i = 0; i < comm_size+1; i++)
         {
-            recv_offsets[i] = num_elements*i;
+            recv_offsets[i+1] = recv_offsets[i] + num_elements*i;
         }
     }
-
+    
     // Act
     auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), comm_size, label(num_elements));
+        compute_gather_to_owner_counts(*exec.get(), comm_size, label(num_elements * comm_rank));
 
     // Assert
     // test send counts and revc counts
@@ -171,22 +175,22 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owners)
     // Arrange
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
+    auto comm_rank = comm->rank();
 
     // expected results
-    // if gathering to just one owner, all 10 elements are send to itself
     std::vector<int> send_counts(comm->size(), 0);
-    send_counts[comm->rank()] = num_elements;
+    send_counts[comm->rank()] = num_elements * comm_rank;
     std::vector<int> recv_counts(send_counts);
     
     // all offsets should be zero
     // last entry in offsets is total number of send elements
     std::vector<int> send_offsets(comm->size() + 1, 0);
-    send_offsets.back() = num_elements;
+    send_offsets.back() = num_elements * comm_rank;
     std::vector<int> recv_offsets(send_offsets);
 
     // Act
     auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), 1, label(num_elements));
+        compute_gather_to_owner_counts(*exec.get(), 1, label(num_elements * comm_rank));
 
     // Assert
     // test send counts and revc counts
@@ -197,6 +201,7 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owners)
     EXPECT_EQ(comm_counts.send_offsets, send_offsets);
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
+
 int main(int argc, char *argv[])
 {
     int result = 0;
