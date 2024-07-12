@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 add_library(OpenFOAM::core SHARED IMPORTED)
+add_library(OpenFOAM::meshtools SHARED IMPORTED)
 add_library(OpenFOAM::finiteVolume SHARED IMPORTED)
 add_library(OpenFOAM::Pstream SHARED IMPORTED)
 
@@ -34,10 +35,14 @@ else()
   set_target_properties(
     OpenFOAM::Pstream PROPERTIES IMPORTED_LOCATION
                                  $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.so)
+  set_target_properties(
+    OpenFOAM::meshtools PROPERTIES IMPORTED_LOCATION
+                                   $ENV{FOAM_LIBBIN}/libmeshTools.so)
 endif()
 
 add_library(OpenFOAM INTERFACE)
 target_link_libraries(
   OpenFOAM
   PUBLIC
-  INTERFACE OpenFOAM::core OpenFOAM::finiteVolume OpenFOAM::Pstream)
+  INTERFACE OpenFOAM::core OpenFOAM::finiteVolume OpenFOAM::Pstream
+            OpenFOAM::meshtools)

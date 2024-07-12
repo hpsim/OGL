@@ -10,84 +10,66 @@
 //---------------------------------------------
 // some_header.h
 extern int my_argc;
-extern char** my_argv;
+extern char **my_argv;
 // eof
 //---------------------------------------------
 
 //---------------------------------------------
 // main.cpp
 int my_argc;
-char** my_argv;
+char **my_argv;
 
 
 class HostMatrixEnvironment : public testing::Environment {
-
 public:
-
-    void SetUp() {
-        // for OpenFOAMs addressing see
-        // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
-        //
-        std::vector<scalar> d{1., 2., 3., 4., 5.};
-        std::vector<scalar> u{10., 11., 20., 12., 21., 13.};
-
-        label total_nnz{17};
-        label upper_nnz{6};
-
+    void SetUp()
+    {
         dict.add("executor", "reference");
 
-        // Foam::labelList rows({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4});
-        // Foam::labelList cols({0, 1, 3, 0, 1, 2, 4, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4});
-        // std::make_shared<Foam::lduPrimitiveMesh>(0, rows, cols, 0, true );
-        //
-
-        args_ = std::make_shared<Foam::argList> (my_argc, my_argv);
+        args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
         runTime_ = std::make_shared<Foam::Time>("controlDict", *args_.get());
 
-        mesh =
-            std::make_shared<Foam::fvMesh>
-            (
-                Foam::IOobject
-                (
-                    word {""},
-                    runTime_->timeName(),
-                    *runTime_.get(),
-                    Foam::IOobject::MUST_READ
-                ),
-                false
-            );
+        mesh = std::make_shared<Foam::fvMesh>(
+            Foam::IOobject(word{""}, runTime_->timeName(), *runTime_.get(),
+                           Foam::IOobject::MUST_READ),
+            false);
 
-        exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict, "dummy", true);
+        exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
+                                                 "dummy", true);
 
-       ::testing::TestEventListeners& listeners =
-       ::testing::UnitTest::GetInstance()->listeners();
-           if (Foam::Pstream::myProcNo() != 0) {
-               delete listeners.Release(listeners.default_result_printer());
-           }
+        // delete listerner on ranks != 0
+        // to clean up output
+        ::testing::TestEventListeners &listeners =
+            ::testing::UnitTest::GetInstance()->listeners();
+        if (Foam::Pstream::myProcNo() != 0) {
+            delete listeners.Release(listeners.default_result_printer());
+        }
 
-        word fieldName {"p"};
-        dimensionSet ds {};
-        auto field = GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>
-        (
-                Foam::IOobject
-                (
-                    fieldName,
-                    runTime_->timeName(),
-                    runTime_->thisDb(),
-                    Foam::IOobject::MUST_READ
-                ),
-            *mesh.get(),
-            ds
-        );
+        word fieldName{"p"};
+        dimensionSet ds{};
+        auto field = GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>(
+            Foam::IOobject(fieldName, runTime_->timeName(), runTime_->thisDb(),
+                           Foam::IOobject::MUST_READ),
+            *mesh.get(), ds);
 
-    hostMatrix = std::make_shared<HostMatrixWrapper>(
-                *exec.get(), runTime_->thisDb(),
-                 mesh->lduAddr(),
-                 true,
-                d.data(), u.data(), u.data(),
-                interfaceBouCoeffs, interfaceIntCoeffs, interfaces,
-                dict, "fieldName", 0
-                );
+        Foam::fvMatrix<scalar> fvMatrix {
+            field, ds
+        };
+
+        Foam::lduInterfaceFieldPtrsList interfaces{};
+        Foam::PtrDynList<Foam::lduInterfaceField> newInterfaces{};
+
+        // TODO currently I dont know a way to create interfaces
+        // fvMatrix.setInterfaces(interfaces, newInterfaces);
+
+        hostMatrix = std::make_shared<HostMatrixWrapper>(
+            *exec.get(), runTime_->thisDb(), mesh->lduAddr(), true,
+            fvMatrix.diag().data(),
+            fvMatrix.upper().data(),
+            fvMatrix.lower().data(),
+            fvMatrix.boundaryCoeffs(),
+            fvMatrix.internalCoeffs(),
+            interfaces, dict, "fieldName", 0);
     }
 
     std::shared_ptr<Foam::argList> args_;
@@ -101,58 +83,94 @@ public:
     std::shared_ptr<const HostMatrixWrapper> hostMatrix;
 };
 
-const testing::Environment* global_env = AddGlobalTestEnvironment(new HostMatrixEnvironment);
+const testing::Environment *global_env =
+    AddGlobalTestEnvironment(new HostMatrixEnvironment);
 
-TEST(HostMatrix, hasCorrectNumberArgsSize){
-    EXPECT_EQ(((HostMatrixEnvironment*)global_env)->args_->size(), 1);
+TEST(HostMatrix, hasCorrectNumberArgsSize)
+{
+    EXPECT_EQ(((HostMatrixEnvironment *)global_env)->args_->size(), 1);
 }
 
-TEST(HostMatrix, runsInParallelWithCorrectNumberOfRanks){
+TEST(HostMatrix, runsInParallelWithCorrectNumberOfRanks)
+{
     EXPECT_EQ(Pstream::parRun(), true);
-    EXPECT_EQ(Pstream::nProcs() , 4);
+    EXPECT_EQ(Pstream::nProcs(), 4);
 }
 
 
 TEST(HostMatrix, returnsCorrectSize)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-    std::shared_ptr<const fvMesh> mesh  = ((HostMatrixEnvironment*)global_env)->mesh;
-    std::shared_ptr<const HostMatrixWrapper> hostMatrix  = ((HostMatrixEnvironment*)global_env)->hostMatrix;
+    auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+
     // the local size is 9
     EXPECT_EQ(mesh->C().size(), 9);
     // which results in a 9x9 matrix
     EXPECT_EQ(hostMatrix->get_size()[0], 9);
     EXPECT_EQ(hostMatrix->get_size()[1], 9);
+
+    EXPECT_EQ(hostMatrix->get_local_nrows(), 9);
 }
 
 
-// TEST_F(HostMatrixFixture, canCreateCommunicationPattern){
-//     auto commPattern = hostMatrix->create_communication_pattern();
-// }
-//
-// TEST_F(HostMatrixFixture, canGenerateLocalSparsityPattern)
-// {
-//     auto localSparsity = hostMatrix->compute_local_sparsity(exec->get_device_exec());
-//     std::vector<label> rows({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4});
-//     std::vector<label> cols({0, 1, 3, 0, 1, 2, 4, 1, 2, 3, 0, 2, 3, 4, 1, 3, 4});
-//
-//     // we have 5x5 matrix with 17 nnz entries
-//     EXPECT_EQ(localSparsity->size_, 17);
-//     EXPECT_EQ(localSparsity->dim[0], 5);
-//     EXPECT_EQ(localSparsity->dim[1], 5);
-//
-//     // since we don't have any processor interfaces we only have
-//     // a single interface span ranging from 0 to 17
-//     EXPECT_EQ(localSparsity->interface_spans.size(), 1);
-//     EXPECT_EQ(localSparsity->interface_spans[0].begin, 0);
-//     EXPECT_EQ(localSparsity->interface_spans[0].end, 17);
-//
-//     // TODO implement
-//     for (int i=0;i<rows.size();i++) {
-//     //     EXPECT_EQ(localSparsity->row_idxs.get_data()[i], rows[i]);
-//     //     EXPECT_EQ(localSparsity->col_idxs.get_data()[i], cols[i]);
-//     }
-// }
+TEST(HostMatrix, canCreateCommunicationPattern)
+{
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix =
+        ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto commPattern = hostMatrix->create_communication_pattern();
+
+    EXPECT_EQ(commPattern.send_idxs.size(), 0);
+}
+
+TEST(HostMatrix, canGenerateLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+
+    auto localSparsity =
+        hostMatrix->compute_local_sparsity(exec->get_device_exec());
+    std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3,
+                                      3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
+                                      5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8});
+    std::vector<label> cols_expected({0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0,
+                                      3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
+                                      8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
+
+    // we have 9x9 matrix with 33 nnz entries
+    EXPECT_EQ(localSparsity->size_, 33);
+    EXPECT_EQ(localSparsity->dim[0], 9);
+    EXPECT_EQ(localSparsity->dim[1], 9);
+
+    // since we don't have any processor interfaces we only have
+    // a single interface span ranging from 0 to 17
+    EXPECT_EQ(localSparsity->interface_spans.size(), 1);
+    EXPECT_EQ(localSparsity->interface_spans[0].begin, 0);
+    EXPECT_EQ(localSparsity->interface_spans[0].end, 33);
+
+    auto res_size{localSparsity->col_idxs.get_size()};
+    std::vector<label> rows_res(localSparsity->row_idxs.get_data(),
+                                localSparsity->row_idxs.get_data() + res_size);
+    std::vector<label> cols_res(localSparsity->col_idxs.get_data(),
+                                localSparsity->col_idxs.get_data() + res_size);
+
+
+    EXPECT_EQ(rows_expected, rows_res);
+    EXPECT_EQ(cols_expected, cols_res);
+}
+
+TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+
+    // auto nonLocalSparsity =
+    //      hostMatrix->compute_non_local_sparsity(exec->get_device_exec());
+
+    // NOTE since we dont fully create interfaces atm its size should be zero
+    // EXPECT_EQ(nonLocalSparsity->interface_spans.size(), 0);
+}
+
 
 
 int main(int argc, char *argv[])
@@ -161,7 +179,8 @@ int main(int argc, char *argv[])
 
     ::testing::InitGoogleTest(&argc, argv);
 
-    std::shared_ptr<const ExecutorHandler> exec = ((HostMatrixEnvironment*)global_env)->exec;
+    std::shared_ptr<const ExecutorHandler> exec =
+        ((HostMatrixEnvironment *)global_env)->exec;
 
     my_argc = argc;
     my_argv = argv;
