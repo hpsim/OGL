@@ -66,38 +66,6 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
     EXPECT_EQ(owner_rank, comm_rank);
 }
 
-TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
-{
-    // Arrange
-    auto comm = exec->get_gko_mpi_host_comm();
-    auto num_elements = 10;
-
-    // expected results
-    // if gathering to just one owner, all 10 elements are send to itself
-    std::vector<int> send_counts(comm->size(), 0);
-    send_counts[comm->rank()] = num_elements;
-    std::vector<int> recv_counts(send_counts);
-    
-    // all offsets should be zero
-    // last entry in offsets is total number of send elements
-    std::vector<int> send_offsets(comm->size() + 1, 0);
-    send_offsets.back() = num_elements;
-    std::vector<int> recv_offsets(send_offsets);
-
-    // Act
-    auto comm_counts =
-        compute_gather_to_owner_counts(*exec.get(), 1, label(num_elements));
-
-    // Assert
-    // test send counts and revc counts
-    EXPECT_EQ(comm_counts.send_counts, send_counts);
-    EXPECT_EQ(comm_counts.recv_counts, recv_counts);
-
-    // test send counts and revc offsets
-    EXPECT_EQ(comm_counts.send_offsets, send_offsets);
-    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
-}
-
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 {
     // Arrange
@@ -140,6 +108,37 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
+TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owner)
+{
+    // Arrange
+    auto comm = exec->get_gko_mpi_host_comm();
+    auto num_elements = 10;
+
+    // expected results
+    // if gathering to just one owner, all 10 elements are send to itself
+    std::vector<int> send_counts(comm->size(), 0);
+    send_counts[comm->rank()] = num_elements;
+    std::vector<int> recv_counts(send_counts);
+    
+    // all offsets should be zero
+    // last entry in offsets is total number of send elements
+    std::vector<int> send_offsets(comm->size() + 1, 0);
+    send_offsets.back() = num_elements;
+    std::vector<int> recv_offsets(send_offsets);
+
+    // Act
+    auto comm_counts =
+        compute_gather_to_owner_counts(*exec.get(), 1, label(num_elements));
+
+    // Assert
+    // test send counts and revc counts
+    EXPECT_EQ(comm_counts.send_counts, send_counts);
+    EXPECT_EQ(comm_counts.recv_counts, recv_counts);
+
+    // test send counts and revc offsets
+    EXPECT_EQ(comm_counts.send_offsets, send_offsets);
+    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
+}
 int main(int argc, char *argv[])
 {
     int result = 0;
