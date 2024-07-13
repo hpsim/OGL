@@ -47,38 +47,31 @@ public:
 
         word fieldName{"p"};
         dimensionSet ds{};
-        auto field = GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>(
+        field = std::make_shared<
+            GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>>(
             Foam::IOobject(fieldName, runTime_->timeName(), runTime_->thisDb(),
                            Foam::IOobject::MUST_READ),
             *mesh.get(), ds);
 
-        Foam::fvMatrix<scalar> fvMatrix {
-            field, ds
-        };
+        Foam::fvMatrix<scalar> fvMatrix{*field.get(), ds};
 
-        Foam::lduInterfaceFieldPtrsList interfaces{};
-        Foam::PtrDynList<Foam::lduInterfaceField> newInterfaces{};
-
-        // TODO currently I dont know a way to create interfaces
-        // fvMatrix.setInterfaces(interfaces, newInterfaces);
+        interfaces = field->boundaryField().scalarInterfaces();
 
         hostMatrix = std::make_shared<HostMatrixWrapper>(
             *exec.get(), runTime_->thisDb(), mesh->lduAddr(), true,
-            fvMatrix.diag().data(),
-            fvMatrix.upper().data(),
-            fvMatrix.lower().data(),
-            fvMatrix.boundaryCoeffs(),
-            fvMatrix.internalCoeffs(),
-            interfaces, dict, "fieldName", 0);
+            fvMatrix.diag().data(), fvMatrix.upper().data(),
+            fvMatrix.lower().data(), fvMatrix.boundaryCoeffs(),
+            fvMatrix.internalCoeffs(), interfaces, dict, "fieldName", 0);
     }
 
+    Foam::lduInterfaceFieldPtrsList interfaces;
+    Foam::PtrDynList<Foam::lduInterfaceField> newInterfaces;
     std::shared_ptr<Foam::argList> args_;
     std::shared_ptr<Foam::Time> runTime_;
     std::shared_ptr<fvMesh> mesh;
     Foam::dictionary dict;
-    const Foam::lduInterfaceFieldPtrsList interfaces;
-    const Foam::FieldField<Field, scalar> interfaceBouCoeffs;
-    const Foam::FieldField<Field, scalar> interfaceIntCoeffs;
+    std::shared_ptr<GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>>
+        field;
     std::shared_ptr<const ExecutorHandler> exec;
     std::shared_ptr<const HostMatrixWrapper> hostMatrix;
 };
@@ -119,8 +112,21 @@ TEST(HostMatrix, canCreateCommunicationPattern)
     std::shared_ptr<const HostMatrixWrapper> hostMatrix =
         ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto commPattern = hostMatrix->create_communication_pattern();
+    auto comm = commPattern.get_comm();
 
-    EXPECT_EQ(commPattern.send_idxs.size(), 0);
+    EXPECT_EQ(commPattern.send_idxs.size(), 2);
+
+    std::vector<std::vector<label>> target_ids_exp{
+        {1, 2}, {0, 3}, {0, 3}, {1, 2}};
+    std::vector<label> target_ids_res(commPattern.target_ids.get_data(),
+                                      commPattern.target_ids.get_data() + 2);
+    EXPECT_EQ(target_ids_exp[comm.rank()], target_ids_res);
+
+    std::vector<std::vector<label>> target_sizes_exp{
+        {3, 3}, {3, 3}, {3, 3}, {3, 3}};
+    std::vector<label> target_size_res(commPattern.target_sizes.get_data(),
+                                       commPattern.target_sizes.get_data() + 2);
+    EXPECT_EQ(target_sizes_exp[comm.rank()], target_size_res);
 }
 
 TEST(HostMatrix, canGenerateLocalSparsityPattern)
@@ -163,14 +169,35 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
 {
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto comm = exec->get_gko_mpi_device_comm();
 
-    // auto nonLocalSparsity =
-    //      hostMatrix->compute_non_local_sparsity(exec->get_device_exec());
+    auto nonLocalSparsity =
+        hostMatrix->compute_non_local_sparsity(exec->get_device_exec());
 
-    // NOTE since we dont fully create interfaces atm its size should be zero
-    // EXPECT_EQ(nonLocalSparsity->interface_spans.size(), 0);
+    // corresponds to cell ids
+    std::vector<std::vector<label>> rows_expected({{2, 5, 8, 6, 7, 8},
+                                                   {0, 3, 6, 6, 7, 8},
+                                                   {0, 1, 2, 2, 5, 8},
+                                                   {0, 1, 2, 0, 3, 6}});
+    // corresponds to cell ids
+    std::vector<std::vector<label>> cols_expected({{0, 1, 2, 3, 4, 5},
+                                                   {0, 3, 6, 6, 7, 8},
+                                                   {0, 1, 2, 2, 5, 8},
+                                                   {0, 1, 2, 0, 3, 6}});
+
+    EXPECT_EQ(nonLocalSparsity->interface_spans.size(), 2);
+
+    EXPECT_EQ(nonLocalSparsity->interface_spans[0].begin, 0);
+    EXPECT_EQ(nonLocalSparsity->interface_spans[0].end, 3);
+    EXPECT_EQ(nonLocalSparsity->interface_spans[1].begin, 3);
+    EXPECT_EQ(nonLocalSparsity->interface_spans[1].end, 6);
+
+    auto res_size{nonLocalSparsity->row_idxs.get_size()};
+    std::vector<label> rows_res(
+        nonLocalSparsity->row_idxs.get_data(),
+        nonLocalSparsity->row_idxs.get_data() + res_size);
+    EXPECT_EQ(rows_expected[comm->rank()], rows_res);
 }
-
 
 
 int main(int argc, char *argv[])

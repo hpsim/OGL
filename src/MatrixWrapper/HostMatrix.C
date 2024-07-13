@@ -506,11 +506,9 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     auto sparsity{std::make_shared<SparsityPattern>(
         exec->get_master(), local_matrix_w_interfaces_nnz_)};
 
-    std::cout << __FILE__ << ":" << __LINE__ << "\n";
     auto lower_local = idx_array::view(
         exec, upper_nnz_, const_cast<label *>(addr_.lowerAddr().begin()));
 
-    std::cout << __FILE__ << ":" << __LINE__ << "\n";
     // TODO const_view ?
     auto upper_local = idx_array::view(
         exec, upper_nnz_, const_cast<label *>(addr_.upperAddr().begin()));
@@ -550,9 +548,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
         // remove the unnessary copy via the vector of tuples and
         // let collect_local_interface_indices_impl write directly to rows,
         // cols, permute etc
-    std::cout << __FILE__ << ":" << __LINE__ << "\n";
         auto local_interfaces = collect_local_interface_indices(interfaces_);
-    std::cout << __FILE__ << ":" << __LINE__ << "\n";
 
         label local_interface_ctr{0};
         for (label i = local_matrix_nnz_; i < local_matrix_w_interfaces_nnz_;
