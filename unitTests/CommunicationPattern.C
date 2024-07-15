@@ -57,9 +57,13 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
 
     // Assert
     if (comm_rank < comm_size/2)
+    {
         EXPECT_EQ(owner_rank, 0);
+    }
     else
+    {
         EXPECT_EQ(owner_rank, comm_size/2);
+    }
 }
 
 TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
@@ -87,18 +91,24 @@ TEST_F(CommunicationPatternFixture, compute_scatter_from_owner_counts_single_own
     std::vector<int> send_counts(comm_size);
     
     if (comm_rank == 0)
+    {
         for (int i = 0; i < comm_size; i++)
+        {
             send_counts[i] = num_elements*i;
-
+        }
+    }
     std::vector<int> recv_counts(comm_size);
 
     recv_counts[0] = num_elements*comm_rank;
 
     std::vector<int> send_offsets(comm_size+1);
     if (comm_rank == 0)
+    {
         for (int i = 0; i < comm_size; i++)
+        {
             send_offsets[i+1] = send_offsets[i] + num_elements*i;
-    
+        }
+    }
     std::vector<int> recv_offsets(comm_size+1);
     recv_offsets.back() = num_elements * comm_rank;
 
@@ -109,8 +119,8 @@ TEST_F(CommunicationPatternFixture, compute_scatter_from_owner_counts_single_own
     // Assert
     EXPECT_EQ(comm_counts.send_counts, send_counts);
     EXPECT_EQ(comm_counts.recv_counts, recv_counts);
-    // EXPECT_EQ(comm_counts.send_offsets, send_offsets);
-    // EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
+    EXPECT_EQ(comm_counts.send_offsets, send_offsets);
+    EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
 
@@ -172,11 +182,12 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     // no rank should receive anything except the owner prcocess (rank 0)
     std::vector<int> recv_counts(comm_size) ;
     if (comm_rank == 0)
+    {
         for (int i = 0; i < comm_size; i++)
         {
             recv_counts[i] = num_elements*i;
         }
-  
+    }
     std::vector<int> send_offsets(comm_size+1);
     send_offsets.back() = num_elements * comm_rank;
 
@@ -214,20 +225,28 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_two_owners)
     // Expected results for send counts and recv counts
     std::vector<int> send_counts(comm_size, 0);
     if (comm_rank < comm_size/2)
+    {
         send_counts[0] = num_elements;
+    }
     else
+    {
         send_counts[comm_size/2] = num_elements;
-    
+    }
+
     std::vector<int> recv_counts(comm_size, 0);
     if (comm_rank == 0)
     {
         for (int i = 0; i < comm_size/2; i++)
+        {
             recv_counts[i] = num_elements;
+        }
     }
     else if (comm_rank == comm_size/2)
     {
         for (int i = comm_size/2; i < comm_size; i++)
+        {
             recv_counts[i] = num_elements;
+        }
     }        
     
     // Expected results for send offsets and recv offsets
@@ -238,15 +257,17 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_two_owners)
     if (comm_rank == 0)
     {
         for (int i = 0; i < comm_size/2; i++)
+        {
             recv_offsets[i] = num_elements * i;
-        
+        }
         recv_offsets.back() = num_elements * comm_size/2;
     }
     else if (comm_rank == comm_size/2)
     {
         for (int i = comm_size/2, j = 0; i < comm_size; i++, j++)
+        {
             recv_offsets[i] = num_elements * j;
-        
+        }
         recv_offsets.back() = num_elements * comm_size/2;
     }
 
