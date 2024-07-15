@@ -78,7 +78,7 @@ TEST_F(CommunicationPatternFixture, compute_scatter_from_owner_counts_single_own
     std::vector<int> send_counts(comm_size);
     
     if (comm_rank == 0)
-        for (int i = 0; i < comm_size; i++)
+        for (int i = 1; i < comm_size; i++)
             send_counts[i] = num_elements*i;
       
     std::vector<int> recv_counts(comm_size);
@@ -104,6 +104,7 @@ TEST_F(CommunicationPatternFixture, compute_scatter_from_owner_counts_single_own
     EXPECT_EQ(comm_counts.send_offsets, send_offsets);
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
+
 
 TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
 {
