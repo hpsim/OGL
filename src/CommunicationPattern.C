@@ -29,10 +29,9 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
     std::vector<label> send_counts(total_ranks, 0);
     std::vector<label> recv_counts(total_ranks, 0);
-    std::vector<label> send_offsets(total_ranks, 0);
-    std::vector<label> recv_offsets(total_ranks, 0);
+    std::vector<label> send_offsets(total_ranks + 1, 0);
+    std::vector<label> recv_offsets(total_ranks + 1, 0);
 
-    label tot_recv_elements{0};
     label comm_elements_buffer{0};
     if (rank == owner_rank) {
         // send and recv to it self
@@ -40,20 +39,25 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
         send_counts[owner_rank] = size;
         recv_counts[owner_rank] = size;
         // the start of the next rank data
-        tot_recv_elements = size;
+	label tot_send_elements{size};
 
         for (int i = 1; i < ranks_per_owner; i++) {
             // receive the recv counts
             comm.recv(exec, &comm_elements_buffer, 1, rank + i, rank);
             send_counts[rank + i] = comm_elements_buffer;
-            send_offsets[rank + i] = tot_recv_elements;
-            tot_recv_elements += comm_elements_buffer;
+            send_offsets[rank + i] = tot_send_elements;
+            tot_send_elements += comm_elements_buffer;
         }
+	send_offsets.back() = tot_send_elements;
     } else {
         // send how many elements to communicate
         comm.send(exec, &size, 1, owner_rank, owner_rank);
         recv_counts[owner_rank] = size;
     }
+
+    // the total amount of received elements should be
+    // always size
+    recv_offsets.back() = size;
 
     return AllToAllPattern{
         send_counts,
