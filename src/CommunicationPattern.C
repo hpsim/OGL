@@ -39,7 +39,7 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
         send_counts[owner_rank] = size;
         recv_counts[owner_rank] = size;
         // the start of the next rank data
-	label tot_send_elements{size};
+        label tot_send_elements{size};
 
         for (int i = 1; i < ranks_per_owner; i++) {
             // receive the recv counts
@@ -48,7 +48,7 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
             send_offsets[rank + i] = tot_send_elements;
             tot_send_elements += comm_elements_buffer;
         }
-	send_offsets.back() = tot_send_elements;
+        send_offsets.back() = tot_send_elements;
     } else {
         // send how many elements to communicate
         comm.send(exec, &size, 1, owner_rank, owner_rank);
@@ -60,7 +60,7 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
     recv_offsets.back() = size;
 
     return AllToAllPattern{
-        send_counts,
+            send_counts,
             send_offsets,
             recv_counts,
             recv_offsets

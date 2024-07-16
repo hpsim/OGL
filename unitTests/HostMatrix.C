@@ -206,9 +206,6 @@ int main(int argc, char *argv[])
 
     ::testing::InitGoogleTest(&argc, argv);
 
-    std::shared_ptr<const ExecutorHandler> exec =
-        ((HostMatrixEnvironment *)global_env)->exec;
-
     my_argc = argc;
     my_argv = argv;
 
