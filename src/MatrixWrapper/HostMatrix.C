@@ -479,7 +479,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         if (interface_idx > prev_interface_ctr || last_element) {
             // this check will be reached one element earlier if we reached
             // the end of the non_local_indices thus we need to increment
-            // the elment_ctr once more
+            // the element_ctr once more
             end = (last_element) ? element_ctr + 1 : element_ctr;
             sparsity->interface_spans.emplace_back(start, end);
             sparsity->rank.emplace_back(prev_rank);

@@ -37,7 +37,7 @@ public:
         exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
                                                  "dummy", true);
 
-        // delete listerner on ranks != 0
+        // delete listener on ranks != 0
         // to clean up output
         ::testing::TestEventListeners &listeners =
             ::testing::UnitTest::GetInstance()->listeners();

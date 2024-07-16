@@ -10,7 +10,7 @@
 
 #include "OGL/DevicePersistent/ExecutorHandler.H"
 
-/** Struct holding vectors needded for MPI all to all communcation
+/** Struct holding vectors needded for MPI all to all communication
  */
 struct AllToAllPattern {
     std::vector<label> send_counts;
@@ -80,7 +80,7 @@ void communicate_values(const ExecutorHandler &exec_handler,
                         const AllToAllPattern &comm_pattern,
                         const scalar *send_buffer, scalar *recv_buffer);
 
-/* @brief A function that can perform an offseted gather to owner rank
+/* @brief A function that can perform an offsetted gather to owner rank
  *
  * This function is similar to communicate_values. However, it takes care of
  * allocating the revc_buffer on the owner rank and can add a prescribed offset

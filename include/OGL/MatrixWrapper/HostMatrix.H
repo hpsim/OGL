@@ -124,7 +124,7 @@ private:
     ** @param interfaces The list of interfaces for the search
     ** @param proc_interfaces Count only elements on (true)
     *processorLduInterfaces or exclude processorLduInterfaces (false)
-    * @return number of elments on interfaces
+    * @return number of elements on interfaces
     */
     [[nodiscard]] label count_interface_nnz(
         const lduInterfaceFieldPtrsList &interfaces,

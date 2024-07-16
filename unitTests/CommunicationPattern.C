@@ -41,7 +41,7 @@ public:
                       << std::endl;
             std::abort();
         }
-        // delete listerner on ranks != 0
+        // delete listener on ranks != 0
         // to clean up output
         ::testing::TestEventListeners &listeners =
             ::testing::UnitTest::GetInstance()->listeners();
