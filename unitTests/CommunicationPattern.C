@@ -25,7 +25,6 @@ char **my_argv;
 
 class CommunicationPatternEnvironment : public testing::Environment {
 public:
-
     void SetUp()
     {
         args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
@@ -33,7 +32,8 @@ public:
         db = std::make_shared<Foam::objectRegistry>(*time.get());
         Foam::dictionary dict;
         dict.add("executor", "reference");
-        exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy", true);
+        exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy",
+                                                 true);
 
         auto comm = exec->get_gko_mpi_host_comm();
         if (comm->size() < 2) {
@@ -106,8 +106,7 @@ TEST(CommunicationPattern, compute_owner_rank_all_owners)
     EXPECT_EQ(owner_rank, comm_rank);
 }
 
-TEST(CommunicationPattern,
-       compute_scatter_from_owner_counts_single_owner)
+TEST(CommunicationPattern, compute_scatter_from_owner_counts_single_owner)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
@@ -148,8 +147,7 @@ TEST(CommunicationPattern,
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-TEST(CommunicationPattern,
-       compute_scatter_from_owner_counts_two_owners)
+TEST(CommunicationPattern, compute_scatter_from_owner_counts_two_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
