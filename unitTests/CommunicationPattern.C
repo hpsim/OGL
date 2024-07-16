@@ -10,13 +10,30 @@
 
 #include <cstdlib>
 
-class CommunicationPatternFixture : public testing::Test {
-protected:
-    CommunicationPatternFixture()
-        : time(Foam::Time::New()), db(Foam::objectRegistry(*time))
+//---------------------------------------------
+// some_header.h
+extern int my_argc;
+extern char **my_argv;
+// eof
+//---------------------------------------------
+
+//---------------------------------------------
+// main.cpp
+int my_argc;
+char **my_argv;
+
+
+class CommunicationPatternEnvironment : public testing::Environment {
+public:
+
+    void SetUp()
     {
+        args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
+        time = std::make_shared<Foam::Time>("controlDict", *args_.get());
+        db = std::make_shared<Foam::objectRegistry>(*time.get());
+        Foam::dictionary dict;
         dict.add("executor", "reference");
-        exec = std::make_shared<ExecutorHandler>(db, dict, "dummy", true);
+        exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy", true);
 
         auto comm = exec->get_gko_mpi_host_comm();
         if (comm->size() < 2) {
@@ -24,18 +41,29 @@ protected:
                       << std::endl;
             std::abort();
         }
+        // delete listerner on ranks != 0
+        // to clean up output
+        ::testing::TestEventListeners &listeners =
+            ::testing::UnitTest::GetInstance()->listeners();
+        if (comm->rank() != 0) {
+            delete listeners.Release(listeners.default_result_printer());
+        }
     }
 
-    const Foam::Time *time;
-    Foam::objectRegistry db;
-    Foam::dictionary dict;
+    std::shared_ptr<Foam::argList> args_;
+    std::shared_ptr<const Foam::Time> time;
+    std::shared_ptr<Foam::objectRegistry> db;
     std::shared_ptr<ExecutorHandler> exec;
 };
 
+const testing::Environment *global_env =
+    AddGlobalTestEnvironment(new CommunicationPatternEnvironment);
 
-TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
+
+TEST(CommunicationPattern, compute_owner_rank_single_owner)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
 
     // Act
@@ -45,9 +73,10 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_single_owner)
     EXPECT_EQ(owner_rank, 0);
 }
 
-TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
+TEST(CommunicationPattern, compute_owner_rank_two_owners)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto comm_rank = comm->rank();
     auto comm_size = comm->size();
@@ -63,9 +92,10 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_two_owners)
     }
 }
 
-TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
+TEST(CommunicationPattern, compute_owner_rank_all_owners)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto comm_rank = comm->rank();
 
@@ -76,10 +106,11 @@ TEST_F(CommunicationPatternFixture, compute_owner_rank_all_owners)
     EXPECT_EQ(owner_rank, comm_rank);
 }
 
-TEST_F(CommunicationPatternFixture,
+TEST(CommunicationPattern,
        compute_scatter_from_owner_counts_single_owner)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
@@ -117,10 +148,11 @@ TEST_F(CommunicationPatternFixture,
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-TEST_F(CommunicationPatternFixture,
+TEST(CommunicationPattern,
        compute_scatter_from_owner_counts_two_owners)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
@@ -174,9 +206,10 @@ TEST_F(CommunicationPatternFixture,
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
+TEST(CommunicationPattern, compute_gather_to_owner_counts_single_owner)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
@@ -217,9 +250,10 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_single_owner)
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_two_owners)
+TEST(CommunicationPattern, compute_gather_to_owner_counts_two_owners)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_rank = comm->rank();
@@ -272,9 +306,10 @@ TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_two_owners)
     EXPECT_EQ(comm_counts.recv_offsets, recv_offsets);
 }
 
-TEST_F(CommunicationPatternFixture, compute_gather_to_owner_counts_all_owners)
+TEST(CommunicationPattern, compute_gather_to_owner_counts_all_owners)
 {
     // Arrange
+    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_host_comm();
     auto num_elements = 10;
     auto comm_rank = comm->rank();
@@ -309,9 +344,11 @@ int main(int argc, char *argv[])
     int result = 0;
 
     ::testing::InitGoogleTest(&argc, argv);
-    MPI_Init(&argc, &argv);
+
+    my_argc = argc;
+    my_argv = argv;
+
     result = RUN_ALL_TESTS();
-    MPI_Finalize();
 
     return result;
 }
