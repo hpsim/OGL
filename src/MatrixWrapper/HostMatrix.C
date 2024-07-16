@@ -540,7 +540,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     if (local_interface_nnz_) {
         // NOTE currently, this copies the interface indizes first to a vector
         // of tuples before inserting it into the persistent arrays. We could
-        // remove the unnessary copy via the vector of tuples and
+        // remove the unnecessary copy via the vector of tuples and
         // let collect_local_interface_indices_impl write directly to rows,
         // cols, permute etc
         auto local_interfaces = collect_local_interface_indices(interfaces_);
