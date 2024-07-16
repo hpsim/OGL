@@ -20,7 +20,7 @@ macro(ogl_unit_test TEST FILE)
 
   add_test(
     NAME ${TEST}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/case
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/unitTests/case
     COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/${TEST} -parallel)
 endmacro()
 
