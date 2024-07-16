@@ -11,15 +11,15 @@ label compute_owner_rank(label rank, label ranks_per_owner)
     return rank - (rank % ranks_per_owner);
 }
 
-AllToAllPattern compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_owner, label size)
+AllToAllPattern compute_gather_to_owner_counts(
+    const ExecutorHandler &exec_handler, label ranks_per_owner, label size)
 {
-    return compute_gather_to_owner_counts(exec_handler, ranks_per_owner, size, size, 0,
-                                    0);
+    return compute_gather_to_owner_counts(exec_handler, ranks_per_owner, size,
+                                          size, 0, 0);
 }
 
-AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_handler,
-                                  label ranks_per_owner, label size)
+AllToAllPattern compute_scatter_from_owner_counts(
+    const ExecutorHandler &exec_handler, label ranks_per_owner, label size)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -59,18 +59,13 @@ AllToAllPattern compute_scatter_from_owner_counts(const ExecutorHandler &exec_ha
     // always size
     recv_offsets.back() = size;
 
-    return AllToAllPattern{
-            send_counts,
-            send_offsets,
-            recv_counts,
-            recv_offsets
-    };
+    return AllToAllPattern{send_counts, send_offsets, recv_counts,
+                           recv_offsets};
 }
 
-AllToAllPattern compute_gather_to_owner_counts(const ExecutorHandler &exec_handler,
-                                    label ranks_per_owner, label size,
-                                    label total_size, label padding_before,
-                                    label padding_after)
+AllToAllPattern compute_gather_to_owner_counts(
+    const ExecutorHandler &exec_handler, label ranks_per_owner, label size,
+    label total_size, label padding_before, label padding_after)
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -129,9 +124,8 @@ AllToAllPattern compute_gather_to_owner_counts(const ExecutorHandler &exec_handl
     recv_offsets[total_ranks] =
         std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
 
-    return AllToAllPattern{
-        send_counts, send_offsets,
-            recv_counts,recv_offsets};
+    return AllToAllPattern{send_counts, send_offsets, recv_counts,
+                           recv_offsets};
 }
 
 
@@ -155,36 +149,37 @@ void communicate_values(const ExecutorHandler &exec_handler,
     //     << "\n";
 
     comm.all_to_all_v(exec, send_buffer, comm_pattern.send_counts.data(),
-                      comm_pattern.send_offsets.data(), recv_buffer, comm_pattern.recv_counts.data(),
+                      comm_pattern.send_offsets.data(), recv_buffer,
+                      comm_pattern.recv_counts.data(),
                       comm_pattern.recv_offsets.data());
 }
 
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
-                                   const AllToAllPattern &comm_pattern,
-                                   const label *send_buffer,
-                                   label send_size,
-                                   label offset)
+                                          const AllToAllPattern &comm_pattern,
+                                          const label *send_buffer,
+                                          label send_size, label offset)
 {
     std::vector<label> send_buffer_copy;
     // create a copy if offset is needed
     if (offset > 0) {
         send_buffer_copy.resize(send_size);
-        std::transform(send_buffer, send_buffer + send_size, send_buffer_copy.data(),
+        std::transform(send_buffer, send_buffer + send_size,
+                       send_buffer_copy.data(),
                        [&](label idx) { return idx + offset; });
     }
 
     auto &[send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
-    auto total_recv_size = std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
+    auto total_recv_size =
+        std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
 
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
     std::vector<label> recv_buffer(total_recv_size);
     auto rank = comm.rank();
-    comm.all_to_all_v(exec,
-            (offset > 0) ? send_buffer_copy.data() : send_buffer,
-            send_counts.data(),
-                      send_offsets.data(), recv_buffer.data(),
-                      recv_counts.data(), recv_offsets.data());
+    comm.all_to_all_v(
+        exec, (offset > 0) ? send_buffer_copy.data() : send_buffer,
+        send_counts.data(), send_offsets.data(), recv_buffer.data(),
+        recv_counts.data(), recv_offsets.data());
     return recv_buffer;
 }
 
@@ -215,34 +210,35 @@ gko::array<label> CommunicationPattern::total_rank_send_idx() const
 }
 
 
-AllToAllPattern CommunicationPattern::send_recv_pattern() const {
-        auto comm = *exec_handler.get_communicator().get();
-        label total_ranks{comm.size()};
+AllToAllPattern CommunicationPattern::send_recv_pattern() const
+{
+    auto comm = *exec_handler.get_communicator().get();
+    label total_ranks{comm.size()};
 
-        std::vector<label> send_counts(comm.size());
-        std::vector<label> send_offsets(comm.size() + 1);
-        std::vector<label> recv_counts(comm.size());
-        std::vector<label> recv_offsets(comm.size() + 1);
+    std::vector<label> send_counts(comm.size());
+    std::vector<label> send_offsets(comm.size() + 1);
+    std::vector<label> recv_counts(comm.size());
+    std::vector<label> recv_offsets(comm.size() + 1);
 
-        label comm_ranks = target_ids.get_size();
-        label tot_comm_size = 0;
-        for (label i = 0; i < comm_ranks; i++) {
-            auto comm_rank = target_ids.get_const_data()[i];
-            auto comm_size = target_sizes.get_const_data()[i];
-            tot_comm_size += comm_size;
-            send_counts[comm_rank] = comm_size;
-            recv_counts[comm_rank] = comm_size;
-        }
+    label comm_ranks = target_ids.get_size();
+    label tot_comm_size = 0;
+    for (label i = 0; i < comm_ranks; i++) {
+        auto comm_rank = target_ids.get_const_data()[i];
+        auto comm_size = target_sizes.get_const_data()[i];
+        tot_comm_size += comm_size;
+        send_counts[comm_rank] = comm_size;
+        recv_counts[comm_rank] = comm_size;
+    }
 
-        recv_offsets[comm.size()] = tot_comm_size;
-        std::partial_sum(recv_counts.begin(), recv_counts.end(),
-                         recv_offsets.begin() + 1);
-        recv_offsets[0] = 0;
+    recv_offsets[comm.size()] = tot_comm_size;
+    std::partial_sum(recv_counts.begin(), recv_counts.end(),
+                     recv_offsets.begin() + 1);
+    recv_offsets[0] = 0;
 
-        std::partial_sum(send_counts.begin(), send_counts.end(),
-                         send_offsets.begin() + 1);
-        send_offsets[0] = 0;
+    std::partial_sum(send_counts.begin(), send_counts.end(),
+                     send_offsets.begin() + 1);
+    send_offsets[0] = 0;
 
-        return AllToAllPattern{send_counts, send_offsets, recv_counts,
-                               recv_offsets};
+    return AllToAllPattern{send_counts, send_offsets, recv_counts,
+                           recv_offsets};
 }
