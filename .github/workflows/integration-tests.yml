@@ -19,7 +19,7 @@ env:
   WM_LINK_LANGUAGE: c++
   WM_LABEL_OPTION:  Int32
   WM_MPLIB: SYSTEMOPENMPI
-  MPI_BUFFER_SIZE: 20000000 
+  MPI_BUFFER_SIZE: 20000000
   BUILD_TYPE: Release
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -27,7 +27,7 @@ env:
   OBR_RUN_CMD: "mpirun --oversubscribe -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
   GINKGO_EXECUTOR: reference
 
-on: 
+on:
   workflow_call:
     inputs:
       path:
@@ -74,10 +74,10 @@ jobs:
       run: |
          ls
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
          obr --version
@@ -89,7 +89,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init -gy --config /__w/OGL/OGL/test/integration.yaml 
+        obr init -gy --config /__w/OGL/OGL/test/integration.yaml
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -108,7 +108,7 @@ jobs:
     name: run-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
@@ -137,10 +137,10 @@ jobs:
       working-directory: /github/home/
       run: |
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
 
@@ -193,7 +193,7 @@ jobs:
     name: validate-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
@@ -204,10 +204,10 @@ jobs:
       run: |
          ls
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
 

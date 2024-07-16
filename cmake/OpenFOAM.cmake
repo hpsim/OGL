@@ -26,7 +26,6 @@ if(APPLE)
     PROPERTIES IMPORTED_LOCATION
                $ENV{FOAM_LIBBIN}/$ENV{FOAM_MPI}/libPstream.dylib)
   set_target_properties(
-
     OpenFOAM::meshtools PROPERTIES IMPORTED_LOCATION
                                    $ENV{FOAM_LIBBIN}/libmeshTools.dylib)
 else()

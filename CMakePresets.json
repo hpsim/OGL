@@ -44,20 +44,32 @@
     {
       "name": "ninja-cpuonly-debug",
       "displayName": "No GPU, Ninja",
-      "inherits": ["debug", "ninja", "cpuonly"],
+      "inherits": [
+        "debug",
+        "ninja",
+        "cpuonly"
+      ],
       "description": "Debug build without GPU support using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/DebugCPUOnly"
     },
     {
       "name": "ninja-cpuonly-release",
-      "inherits": ["release", "ninja", "cpuonly"],
+      "inherits": [
+        "release",
+        "ninja",
+        "cpuonly"
+      ],
       "displayName": "No GPU, Ninja",
       "description": "Debug build without GPU support using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/ReleaseCPUOnly"
     },
     {
       "name": "ninja-cuda-release",
-      "inherits": ["release", "ninja", "cpuonly"],
+      "inherits": [
+        "release",
+        "ninja",
+        "cpuonly"
+      ],
       "displayName": "CUDA, Ninja",
       "description": "Release build for cuda using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/ReleaseCuda",
@@ -70,7 +82,11 @@
     },
     {
       "name": "ninja-hip-release",
-      "inherits": ["release", "ninja", "cpuonly"],
+      "inherits": [
+        "release",
+        "ninja",
+        "cpuonly"
+      ],
       "displayName": "HIP, Ninja",
       "description": "Release build for hip using Ninja Multi-Config generator",
       "binaryDir": "${sourceDir}/build/ReleaseHip",
@@ -83,7 +99,11 @@
     },
     {
       "name": "ninja-sycl-release",
-      "inherits": ["release", "ninja", "cpuonly"],
+      "inherits": [
+        "release",
+        "ninja",
+        "cpuonly"
+      ],
       "displayName": "SYCL, Ninja",
       "description": "Release build for sycl using Ninja Multi-Config generator",
       "cacheVariables": {

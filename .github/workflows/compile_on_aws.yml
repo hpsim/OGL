@@ -44,9 +44,9 @@ jobs:
             ]
           pre-runner-script: |
                  #!/bin/bash
-                 sudo yum update -y && \ 
+                 sudo yum update -y && \
                  sudo yum install docker git libicu ninja-build libasan10 -y
-                 sudo amazon-linux-extras install epel -y 
+                 sudo amazon-linux-extras install epel -y
                  sudo yum install Lmod -y
                  sudo systemctl enable docker
                  sudo curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
@@ -84,7 +84,7 @@ jobs:
           module load conda
           conda activate
           python3 -m pip install --upgrade pip
-          pip install setuptools --upgrade 
+          pip install setuptools --upgrade
           git clone https://github.com/exasim-project/OBR
           cd OBR
           pip install .
@@ -123,8 +123,8 @@ jobs:
           module load openmpi
           module load OpenFOAM
           export GINKGO_EXECUTOR=cuda
-          obr init -g --config test/integration.yaml 
-          obr run -o runParallelSolver 
+          obr init -g --config test/integration.yaml
+          obr run -o runParallelSolver
           obr status
 
   stop-runner:
