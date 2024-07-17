@@ -149,7 +149,7 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     EXPECT_EQ(localSparsity->dim[1], 9);
 
     // since we don't have any processor interfaces we only have
-    // a single interface span ranging from 0 to 17
+    // a single interface span ranging from 0 to 33
     EXPECT_EQ(localSparsity->interface_spans.size(), 1);
     EXPECT_EQ(localSparsity->interface_spans[0].begin, 0);
     EXPECT_EQ(localSparsity->interface_spans[0].end, 33);
