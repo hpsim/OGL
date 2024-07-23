@@ -31,7 +31,7 @@ void StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_Axref_dist(
 
 scalar
 StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
-    std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
+    std::shared_ptr<const gko::Executor> device_exec, const dist_vec* r,
     std::shared_ptr<const gko::LinOp> gkomatrix,
     std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b) const
 {
@@ -65,7 +65,9 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
     auto res_host = vec::create(device_exec->get_master(), gko::dim<2>{1});
     res_host->copy_from(res.get());
 
-    return res_host->get_values()[0] + SMALL;
+    auto normfactor = res_host->get_values()[0] + SMALL;
+
+    return normfactor;
 }
 
 bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
@@ -74,6 +76,7 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     const Criterion::Updater &updater)
 {
     // Dont check residual norm before minIter is reached
+
     if (*(parameters_.iter) > 0 &&
         *(parameters_.iter) < parameters_.openfoam_minIter) {
         *(parameters_.iter) += 1;
@@ -89,7 +92,20 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto start_eval = std::chrono::steady_clock::now();
     const auto exec = this->get_executor();
 
-    auto *dense_r = gko::as<dist_vec>(updater.residual_);
+    std::shared_ptr<dist_vec> dense_r_vec;
+    // auto dense_r = gko::share(dist_vec::create_with_config_of(gko::as<dist_vec>(updater.solution_)));
+    // multigrid does not set residual for out iterations
+    if (updater.residual_ == nullptr) {
+
+        dense_r_vec = parameters_.b->clone();
+
+        auto one{gko::initialize<gko::matrix::Dense<scalar>>({1}, exec)};
+        auto neg_one{gko::initialize<gko::matrix::Dense<scalar>>({-1}, exec)};
+        parameters_.gkomatrix->apply(neg_one, updater.solution_, one, dense_r_vec);
+    }
+
+    const dist_vec* dense_r = (updater.residual_ == nullptr) ? dense_r_vec.get() : gko::as<dist_vec>(updater.residual_);
+
     auto norm1 = vec::create(exec, gko::dim<2>{1});
     dense_r->compute_norm1(norm1.get());
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});

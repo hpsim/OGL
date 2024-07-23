@@ -97,8 +97,6 @@ class PersistentArray
 
     mutable label size_;
 
-    const ExecutorHandler &exec_;
-
     // indicating if the underlying array needs to
     // updated even if was found in the object registry
     const bool update_;
@@ -133,7 +131,6 @@ public:
               ArrayInitFunctor<T>(exec, name, size, verbose, on_device), update,
               verbose),
           size_(size),
-          exec_(exec),
           update_(update)
     {}
 
@@ -160,7 +157,6 @@ public:
               update, verbose),
           memory_(memory),
           size_(size),
-          exec_(exec),
           update_(update)
     {}
 
@@ -183,16 +179,16 @@ public:
 
     /* Create a Dense<T> vector from underlying data
      * */
-    std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
-    {
-        auto array = get_array();
-        auto result = gko::share(vec::create(
-            exec_.get_device_exec(), gko::dim<2>(array->get_num_elems(), 1),
-            gko::array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
-                                get_data()),
-            1));
-        return result;
-    }
+    // std::shared_ptr<gko::matrix::Dense<T>> get_dense_vec() const
+    // {
+    //     auto array = get_array();
+    //     auto result = gko::share(vec::create(
+    //         exec_.get_device_exec(), gko::dim<2>(array->get_num_elems(), 1),
+    //         gko::array<T>::view(exec_.get_device_exec(), array->get_num_elems(),
+    //                             get_data()),
+    //         1));
+    //     return result;
+    // }
 
     /* Copies from a distributed::Vector<T> back into raw host memory
      *
@@ -201,31 +197,28 @@ public:
     void copy_back(
         const std::shared_ptr<gko::experimental::distributed::Vector<T>> dist_x)
     {
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
+        auto dist_device_exec = dist_x->get_executor();
+        auto host_view = gko::array<T>::view(dist_device_exec->get_master(), size_,
                                              const_cast<T *>(memory_));
 
-        auto dist_device_exec = dist_x->get_executor();
         auto x_view = gko::array<T>::view(dist_device_exec, size_,
                                           dist_x->get_local()->get_values());
 
         host_view = x_view;
     }
 
-    void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
-    {
-        auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
-                                             const_cast<T *>(memory_));
-
-        auto x_view = gko::array<T>::view(exec_.get_device_exec(), size_,
-                                          device_x->get_values());
-
-        host_view = x_view;
-    }
+    // void copy_back(const std::shared_ptr<gko::matrix::Dense<T>> device_x)
+    // {
+    //     auto host_view = gko::array<T>::view(exec_.get_ref_exec(), size_,
+    //                                          const_cast<T *>(memory_));
+    //
+    //     auto x_view = gko::array<T>::view(exec_.get_device_exec(), size_,
+    //                                       device_x->get_values());
+    //
+    //     host_view = x_view;
+    // }
 
     void set_size(const label size) const { size_ = size; }
-
-
-    const ExecutorHandler &get_exec_handler() const { return exec_; }
 };
 
 }  // namespace Foam

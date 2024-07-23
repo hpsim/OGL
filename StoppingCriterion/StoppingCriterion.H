@@ -64,11 +64,11 @@ class StoppingCriterion {
 
             bool GKO_FACTORY_PARAMETER(export_res, false);
 
-            std::shared_ptr<gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix, {});
+            std::shared_ptr<const gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix, {});
 
-            std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(x, {});
+            std::shared_ptr<const dist_vec> GKO_FACTORY_PARAMETER(x, {});
 
-            std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(b, {});
+            std::shared_ptr<const dist_vec> GKO_FACTORY_PARAMETER(b, {});
         };
 
         GKO_ENABLE_CRITERION_FACTORY(OpenFOAMDistStoppingCriterion, parameters,
@@ -91,7 +91,8 @@ class StoppingCriterion {
          * or rewritten as || r - ( b - x* ) || + || (b - x*) ||
          *  */
         scalar compute_normfactor_dist(
-            std::shared_ptr<const gko::Executor> device_exec, const dist_vec *r,
+            std::shared_ptr<const gko::Executor> device_exec,
+            const dist_vec* r,
             std::shared_ptr<const gko::LinOp> gkomatrix,
             std::shared_ptr<const dist_vec> x,
             std::shared_ptr<const dist_vec> b) const;
@@ -130,6 +131,7 @@ class StoppingCriterion {
         mutable bool eval_norm_factor_ = true;
 
         mutable std::vector<scalar> res_norms_{};
+    
     };
 
     mutable label maxIter_;
@@ -189,10 +191,10 @@ public:
     }
 
     std::shared_ptr<const gko::stop::CriterionFactory>
-    build_dist_stopping_criterion(std::shared_ptr<gko::Executor> device_exec,
-                                  std::shared_ptr<gko::LinOp> gkomatrix,
-                                  std::shared_ptr<dist_vec> x,
-                                  std::shared_ptr<dist_vec> b, label verbose,
+    build_dist_stopping_criterion(std::shared_ptr<const gko::Executor> device_exec,
+                                  std::shared_ptr<const gko::LinOp> gkomatrix,
+                                  std::shared_ptr<const dist_vec> x,
+                                  std::shared_ptr<const dist_vec> b, label verbose,
                                   bool export_res, label prev_solve_iters,
                                   scalar prev_rel_cost) const
     {

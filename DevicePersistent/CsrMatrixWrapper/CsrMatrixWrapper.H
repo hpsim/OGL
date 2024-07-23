@@ -80,6 +80,8 @@ struct MatrixInitFunctor {
         if (regenerate_) {
             TIME_WITH_FIELDNAME(verbose_, regenerate_distributed_matrix,
                                 field_name_, auto reinit = init();)
+            std::cout << __FILE__ << ":" << __LINE__ << " Reinit matrix \n";
+            // TODO NOTE use swap here
             persistent_device_matrix->copy_from(reinit.get());
             return;
         }
@@ -237,7 +239,6 @@ private:
     mutable PersistentBase<dist_mtx, MatrixInitFunctor> gkomatrix_;
 
     mutable label prev_solve_iters_ = 0;
-
 
 public:
     MatrixWrapper(const objectRegistry &db, const PersistentExecutor &exec,

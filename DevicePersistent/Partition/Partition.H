@@ -88,8 +88,6 @@ class PersistentPartition
 
     mutable label global_elements_;
 
-    const ExecutorHandler &exec_;
-
 public:
     using part_type = gko::experimental::distributed::Partition<label, label>;
     /* PersistentPartition constructor using existing memory
@@ -111,8 +109,7 @@ public:
                                    communication_pattern),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
-          local_elements_(elements),
-          exec_(exec)
+          local_elements_(elements)
     {
         auto comm = exec.get_gko_mpi_host_comm();
         label local_elements = local_elements_;

@@ -99,8 +99,6 @@ class PersistentVector
 
     const PersistentPartition partition_;
 
-    const ExecutorHandler &exec_;
-
     // indicating if the underlying array needs to
     // updated even if was found in the object registry
     const bool update_;
@@ -135,33 +133,32 @@ public:
           name_(name),
           memory_(memory),
           partition_(partition),
-          exec_(exec),
           update_(update)
     {}
 
     /** Copies the content of the distributed vector back to the original source
      **/
-    void copy_back()
+    void copy_back(std::shared_ptr<gko::Executor> exec, gko::experimental::mpi::communicator& comm)
     {
+        auto master = exec->get_master();
         const auto local_size = partition_.get_local_size();
         auto global_size = partition_.get_total_size();
 
-        auto comm = exec_.get_gko_mpi_host_comm();
         auto host_device_vector =
-            dist_vec::create(exec_.get_ref_exec(), *comm.get());
+            dist_vec::create(master, comm);
         host_device_vector->operator=(*get_vector().get());
 
         // TODO why does it need its size
         // repartitioner size should be sufficient
-        auto target_vector = dist_vec::create(exec_.get_ref_exec(), *comm.get(),
+        auto target_vector = dist_vec::create(master, comm,
                                               gko::dim<2>{global_size, 1},
                                               gko::dim<2>{local_size, 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
         auto host_buffer_view =
-            gko::array<T>::view(exec_.get_ref_exec(), local_size, host_buffer);
+            gko::array<T>::view(master, local_size, host_buffer);
 
-        auto to_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
+        auto to_view = gko::array<T>::view(master, local_size,
                                            const_cast<T *>(memory_));
         to_view = host_buffer_view;
     }
@@ -187,8 +184,6 @@ public:
     {
         return this->get_persistent_object()->get_const_data();
     }
-
-    const ExecutorHandler &get_exec_handler() const { return exec_; }
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> get_vector()
         const
