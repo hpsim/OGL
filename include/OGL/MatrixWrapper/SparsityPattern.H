@@ -29,7 +29,7 @@ struct SparsityPattern {
                     std::vector<label> &cols, std::vector<label> &map,
                     std::vector<label> &spans_begin,
                     std::vector<label> &spans_end, std::vector<label> &ranks)
-        : size_(size),
+        : num_nnz(size),
           dim(dim),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
@@ -58,7 +58,7 @@ struct SparsityPattern {
 
     // TODO rename the public members and remove trailing _
     // number of nnz entries
-    const label size_;
+    const label num_nnz;
 
     mutable gko::Array<label> row_idxs;
 
@@ -73,7 +73,7 @@ struct SparsityPattern {
 
     // A vector of spans indicating begin and end of each interface
     // this is used to keep all col and row idx consecutive in memory
-    mutable std::vector<gko::span> interface_spans;
+    mutable std::vector<gko::span> spans;
 
     // keep track of original (communication) rank of each interface or matrix
     // block

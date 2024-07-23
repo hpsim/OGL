@@ -145,7 +145,8 @@ private:
     ** and a unique counter
     **
     ** @return vector of size nnz_non_local, with a running index, row
-    ** index, and a unique compressed column index
+    ** index, and a unique compressed column index, and the corresponding
+    ** target rank
     ** sections for each interface
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
