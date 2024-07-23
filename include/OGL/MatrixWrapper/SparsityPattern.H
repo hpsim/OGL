@@ -18,7 +18,7 @@ namespace Foam {
  * */
 struct SparsityPattern {
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
-        : size_(size),
+        : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
           ldu_mapping{exec, static_cast<gko::size_type>(size)}
@@ -46,7 +46,7 @@ struct SparsityPattern {
 
         ASSERT_EQ(spans_begin.size(), spans_end.size());
         std::transform(spans_begin.begin(), spans_begin.end(),
-                       spans_end.begin(), std::back_inserter(interface_spans),
+                       spans_end.begin(), std::back_inserter(spans),
                        [](const auto begin, const auto end) {
                            return gko::span{static_cast<gko::size_type>(begin),
                                             static_cast<gko::size_type>(end)};

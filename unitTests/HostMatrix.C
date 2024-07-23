@@ -27,8 +27,8 @@ public:
         dict.add("executor", "reference");
 
         args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
-        if (args_->size() == 1) {
-            std::cout << "Wrong number of arguments detected, make sure to run "
+        if (args_->size() != 1) {
+            std::cout << "Wrong number of arguments detected: " << args_->size() << ", make sure to run "
                          "with -parallel"
                       << std::endl;
             std::abort();
