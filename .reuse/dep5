@@ -39,6 +39,10 @@ Files: .pre-commit-config.yaml
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
+Files: unitTests/case/*
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
 # Sample paragraph, commented out:
 #
 # Files: src/*

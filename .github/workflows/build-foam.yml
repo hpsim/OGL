@@ -11,7 +11,7 @@ defaults:
 
 on:
   push:
-    branches: 
+    branches:
       - dev
       - main
   pull_request:
@@ -41,7 +41,7 @@ jobs:
      - name: Set matrix data
        id: set-matrix
        run: |
-         pwd 
+         pwd
          echo "matrix=$(jq -c . < .github/workflows/test_matrix.json)" >> $GITHUB_OUTPUT
 
   build:

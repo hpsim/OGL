@@ -7,7 +7,7 @@ defaults:
  run:
   shell: bash -o pipefail -i {0}
 
-on: 
+on:
   workflow_call:
     inputs:
       path:

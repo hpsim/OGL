@@ -36,7 +36,7 @@ For cuda builds cuda version 12 is recommended. For older cuda versions automati
 
 ## Compilation
 
-*OGL* can be build using cmake following the standard cmake procedure. 
+*OGL* can be build using cmake following the standard cmake procedure.
 
     mkdir build && cd build && ccmake ..
 
@@ -50,10 +50,10 @@ Then, compile and install by
 
 ### CMakePresets and Ninja builds
 
-If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times. We also provide a list of Cmake presets which can be used a recent version of Cmake (>3.20). To display available presets use: 
+If you have Ninja installed on your system we recommend to use ninja over gnu make for better compilation times. We also provide a list of Cmake presets which can be used a recent version of Cmake (>3.20). To display available presets use:
 
     cmake --list-preset
-    
+
 The following example shows how to execute a build and install on a cuda system.
 
     cmake --preset ninja-cuda-release
@@ -104,7 +104,7 @@ Argument | Default | Preconditioner
 ------------ | ------------- | -------------
 SkipSorting | True | all
 Caching | 1 | all
-MaxBlockSize | 1 | block Jacobi 
+MaxBlockSize | 1 | block Jacobi
 SparsityPower | 1 | ISAI
 MaxLevels | 9 | Multigrid
 MinCoarseRows | 10 | Multigrid
@@ -113,7 +113,7 @@ ZeroGuess | True | Multigrid
 ### Supported Matrix Formats (Experimental)
 Currently, the following matrix formats can be set by **matrixFormat**
 
-* Coo 
+* Coo
 * Csr
 * Ell (experimental)
 * Hybrid (experimental)
@@ -123,7 +123,7 @@ Currently, the following matrix formats can be set by **matrixFormat**
 
 - Currently, only basic cyclic boundary conditions are supported, no AMI boundary conditions are supported. Block-coupled matrices are not supported.
 
-- If you are compiling against a double precision label version of OpenFOAM 
+- If you are compiling against a double precision label version of OpenFOAM
 make sure to set `-DOGL_DP_LABELS=ON` otherwise errors of the following type can occur  `undefined symbol: _ZN4Foam10dictionary3addERKNS_7keyTypeEib`
 
 ## Citing

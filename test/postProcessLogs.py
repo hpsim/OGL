@@ -33,9 +33,9 @@ def call(jobs):
         # find all solver logs corresponding to this specific jobs
         for log, campaign, tags in find_solver_logs(job):
 
-            cont_error = [                                                                                                     
-                LogKey("time step continuity errors",                                                                   ["ContinuityError " + i for i in ["local", "global", "cumulative"]],                                                    
-                )                     
+            cont_error = [
+                LogKey("time step continuity errors",                                                                   ["ContinuityError " + i for i in ["local", "global", "cumulative"]],
+                )
             ]
 
             log_file_parser = LogFile(log_keys)

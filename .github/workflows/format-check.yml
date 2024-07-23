@@ -21,5 +21,5 @@ jobs:
     - name: check for todo fixme note
       run: |
         NTODOS="$(grep -r 'TODO DONT MERGE' --exclude-dir=.github | wc -l)"
-        echo "Found $NTODOS TODO DONT MERGE notes" 
-        ! grep -q -r "TODO DONT MERGE" --exclude-dir=.github  
+        echo "Found $NTODOS TODO DONT MERGE notes"
+        ! grep -q -r "TODO DONT MERGE" --exclude-dir=.github

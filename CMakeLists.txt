@@ -204,47 +204,35 @@ add_custom_command(
 
 target_sources(
   OGL
-  PRIVATE common/common.C
+  PRIVATE src/common.C
+          src/CommunicationPattern.C
+          src/Preconditioner.C
+          src/lduLduBase.C
+          src/StoppingCriterion.C
+          src/BaseWrapper/lduBase/GKOlduBase.C
+          src/BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
-          lduLduBase/lduLduBase.C
-          StoppingCriterion/StoppingCriterion.C
-          DevicePersistent/Base/Base.C
-          DevicePersistent/Partition/Partition.C
-          DevicePersistent/Array/Array.C
-          DevicePersistent/Vector/Vector.C
-          DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
-          DevicePersistent/ExecutorHandler/ExecutorHandler.C
-          Preconditioner/Preconditioner.C
-          BaseWrapper/lduBase/GKOlduBase.C
-          BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          Solver/CG/GKOCG.C
-          Solver/BiCGStab/GKOBiCGStab.C
-          Solver/GMRES/GKOGMRES.C
-  PUBLIC common/common.H
-         StoppingCriterion/StoppingCriterion.H
-         lduLduBase/lduLduBase.H
-         DevicePersistent/Base/Base.H
-         DevicePersistent/Partition/Partition.H
-         DevicePersistent/Array/Array.H
-         DevicePersistent/Vector/Vector.H
-         DevicePersistent/ExecutorHandler/ExecutorHandler.H
-         DevicePersistent/DeviceIdGuard/DeviceIdGuard.H
-         Preconditioner/Preconditioner.H
-         BaseWrapper/lduBase/GKOlduBase.H
-         BaseWrapper/CoupledLduBase/GKOCoupledLduBase.H
-         Solver/CG/GKOCG.H
-         Solver/IR/GKOIR.H
-         Solver/BiCGStab/GKOBiCGStab.H
-         Solver/GMRES/GKOGMRES.H)
+          src/DevicePersistent/Base/Base.C
+          src/DevicePersistent/Partition/Partition.C
+          src/DevicePersistent/Vector/Vector.C
+          src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
+          src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
+          src/MatrixWrapper/HostMatrix.C
+          src/Solver/CG/GKOCG.C
+          src/Solver/BiCGStab/GKOBiCGStab.C
+          src/Solver/GMRES/GKOGMRES.C)
+
+add_subdirectory(include)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
   ${OGL_ENABLE_SANITIZE_UB} ${OGL_ENABLE_SANITIZE_THREAD}
   ${OGL_ENABLE_SANITIZE_MEMORY})
 
-target_include_directories(OGL SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(OGL PRIVATE OpenFOAM Ginkgo::ginkgo)
+target_link_libraries(
+  OGL
+  PUBLIC OGL_public_api
+  PRIVATE OpenFOAM Ginkgo::ginkgo)
 
 if(${GINKGO_WITH_OGL_EXTENSIONS})
   target_compile_definitions(OGL PRIVATE GINKGO_WITH_OGL_EXTENSIONS=1)

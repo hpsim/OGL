@@ -1,0 +1,7 @@
+// SPDX-FileCopyrightText: 2024 OGL authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "OGL/DevicePersistent/Partition.H"
+
+namespace Foam {}  // namespace Foam

@@ -15,8 +15,8 @@
           ]
         },
         "CourantNumber": {
-            "type": "number",
-            "exclusiveMinimum": 1.0
+          "type": "number",
+          "exclusiveMinimum": 1.0
         },
         "continuityErrors": {
           "type": "object",
@@ -45,8 +45,8 @@
           ]
         },
         "CourantNumber": {
-            "type": "number",
-            "exclusiveMinimum": 1.0
+          "type": "number",
+          "exclusiveMinimum": 1.0
         },
         "continuityErrors": {
           "type": "object",
