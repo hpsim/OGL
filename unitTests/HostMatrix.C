@@ -79,7 +79,7 @@ public:
     }
 
     Foam::lduInterfaceFieldPtrsList interfaces;
-    Foam::PtrDynList<Foam::lduInterfaceField> newInterfaces;
+    Foam::PtrList<Foam::lduInterfaceField> newInterfaces;
     std::shared_ptr<Foam::argList> args_;
     std::shared_ptr<Foam::Time> runTime_;
     std::shared_ptr<fvMesh> mesh;
