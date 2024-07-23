@@ -27,6 +27,12 @@ public:
         dict.add("executor", "reference");
 
         args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
+        if (args_->size() == 1) {
+            std::cout << "Wrong number of arguments detected, make sure to run with -parallel"
+                      << std::endl;
+            std::abort();
+        }
+
         runTime_ = std::make_shared<Foam::Time>("controlDict", *args_.get());
 
         mesh = std::make_shared<Foam::fvMesh>(
@@ -36,6 +42,13 @@ public:
 
         exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
                                                  "dummy", true);
+
+        auto comm = exec->get_gko_mpi_host_comm();
+        if (comm->size() != 4 || Pstream::nProcs() != 4) {
+            std::cout << "This unit test expects to be run on 4 ranks"
+                      << std::endl;
+            std::abort();
+        }
 
         // delete listener on ranks != 0
         // to clean up output
@@ -78,17 +91,6 @@ public:
 
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new HostMatrixEnvironment);
-
-TEST(HostMatrix, hasCorrectNumberArgsSize)
-{
-    EXPECT_EQ(((HostMatrixEnvironment *)global_env)->args_->size(), 1);
-}
-
-TEST(HostMatrix, runsInParallelWithCorrectNumberOfRanks)
-{
-    EXPECT_EQ(Pstream::parRun(), true);
-    EXPECT_EQ(Pstream::nProcs(), 4);
-}
 
 
 TEST(HostMatrix, returnsCorrectSize)
