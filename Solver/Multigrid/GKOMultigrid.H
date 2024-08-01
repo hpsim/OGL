@@ -31,15 +31,11 @@ private:
 
     const dictionary &solverControls_;
 
-    const dictionary &innerSolverControls_;
-
     const objectRegistry &db_;
 
     const word sysMatrixName_;
 
     const StoppingCriterion outerStoppingCriterion_;
-
-    const StoppingCriterion innerStoppingCriterion_;
 
     const word coarsest_solver_;
 
@@ -69,28 +65,26 @@ public:
     GKOMultigridFactory(const dictionary &solverControls,
                         const objectRegistry &db, word sysMatrixName)
         : solverControls_(solverControls),
-          innerSolverControls_(solverControls.subDict("inner")),
           db_(db),
           sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls),
-          innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)),
-          coarsest_solver_(innerSolverControls_.lookupOrDefault(
+          coarsest_solver_(solverControls_.lookupOrDefault(
               "coarsestSolver", word("CG"))),
           max_block_size_(
-              innerSolverControls_.lookupOrDefault("maxBlockSize", label(4))),
-          inner_relaxation_factor_(innerSolverControls_.lookupOrDefault(
+              solverControls_.lookupOrDefault("maxBlockSize", label(4))),
+          inner_relaxation_factor_(solverControls_.lookupOrDefault(
               "innerRelaxationFactor", scalar(0.9))),
-          smoother_relaxation_factor_(innerSolverControls_.lookupOrDefault(
+          smoother_relaxation_factor_(solverControls_.lookupOrDefault(
               "smootherRelaxationFactor", scalar(0.9))),
-          smoother_max_iters_(innerSolverControls_.lookupOrDefault(
+          smoother_max_iters_(solverControls_.lookupOrDefault(
               "smootherMaxIters", label(2))),
           coarse_max_iters_(
-              innerSolverControls_.lookupOrDefault("coarseMaxIters", label(4))),
+              solverControls_.lookupOrDefault("coarseMaxIters", label(4))),
           max_levels_(
-              innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
+              solverControls_.lookupOrDefault("maxLevels", label(9))),
           min_coarse_rows_(
-              innerSolverControls_.lookupOrDefault("minCoarseRows", label(10))),
-          cycle_(innerSolverControls_.lookupOrDefault("cycle", label(0)))
+              solverControls_.lookupOrDefault("minCoarseRows", label(10))),
+          cycle_(solverControls_.lookupOrDefault("cycle", label(0)))
     {
         auto mtx_format =
             solverControls.lookupOrDefault("matrixFormat", word("Coo"));
@@ -200,8 +194,9 @@ public:
 
     label get_prev_number_of_iterations() const
     {
-        return get_solve_prev_iters(sysMatrixName_, db_,
-                                    innerStoppingCriterion_.get_is_final());
+        return 0;
+        // get_solve_prev_iters(sysMatrixName_, db_,
+        //                             innerStoppingCriterion_.get_is_final());
     }
 
     label get_res_norm_time() const
