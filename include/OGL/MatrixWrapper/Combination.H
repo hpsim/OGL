@@ -6,6 +6,8 @@
 
 #include <ginkgo/ginkgo.hpp>
 
+#include "fvCFD.H"
+
 /* @brief The CombinationMatrix class is a wrapper around Ginkgos combination
  * linear operator. It provides an interface for creating linear combinations of
  * a given inner matrix type and a read implementation
