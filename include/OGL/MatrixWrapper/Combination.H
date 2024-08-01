@@ -1,11 +1,15 @@
+// SPDX-FileCopyrightText: 2024 OGL authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include <ginkgo/ginkgo.hpp>
 
-// The CombinationMatrix class is a wrapper around Ginkgos combination linear
-// operator. It provides an interface for creating linear combinations of a
-// given inner matrix type and a read implementation
-// template <typename ValueType, typename IndexType, typename gko::matrix::Coo>
+/* @brief The CombinationMatrix class is a wrapper around Ginkgos combination
+ * linear operator. It provides an interface for creating linear combinations of
+ * a given inner matrix type and a read implementation
+ * */
 template <typename ValueType, typename IndexType, typename InnerMatrixType>
 class CombinationMatrix
     : public gko::EnableLinOp<
