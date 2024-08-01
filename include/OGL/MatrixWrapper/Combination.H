@@ -35,7 +35,10 @@ public:
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using matrix_data = gko::matrix_data<scalar, label>;
 
-    void read(const matrix_data &data) override { GKO_NOT_IMPLEMENTED; }
+    void read(const matrix_data &data) override
+    {
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+    }
 
     /* @brief Implements a reading from device_matrix_data
      *
@@ -132,7 +135,8 @@ protected:
      * @param executor where combitination matrix data resides on
      * @param the global size of the matrices, eg. max (row, col idxs)
      * @param ranges required for read to separate interfaces
-     *        from consecutive matrix_data input. The ranges contain first and last index of the individual matrix
+     *        from consecutive matrix_data input. The ranges contain first and
+     * last index of the individual matrix
      */
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
                       gko::dim<2> size, std::vector<gko::span> ranges)
@@ -164,7 +168,8 @@ protected:
 
 
 private:
-    std::vector<gko::span> ranges_;  // vector containing start and end indices of the
-                            // individual matrices in the consecutive data
+    std::vector<gko::span>
+        ranges_;  // vector containing start and end indices of the
+                  // individual matrices in the consecutive data
     std::shared_ptr<gko::Combination<ValueType>> comb_;
 };
