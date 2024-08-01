@@ -105,15 +105,6 @@ struct MatrixInitFunctor {
                 (gko::matrix::Csr<scalar, label> *)non_local_matrix.get();
             non_local_value_ptr = non_local_coo_ptr->get_values();
         }
-        if (matrix_format_ == "Ell") {
-            gko::matrix::Ell<scalar, label> *coo_ptr =
-                (gko::matrix::Ell<scalar, label> *)local_matrix.get();
-            value_ptr = coo_ptr->get_values();
-
-            gko::matrix::Ell<scalar, label> *non_local_coo_ptr =
-                (gko::matrix::Ell<scalar, label> *)non_local_matrix.get();
-            non_local_value_ptr = non_local_coo_ptr->get_values();
-        }
         if (matrix_format_ == "Coo") {
             gko::matrix::Coo<scalar, label> *coo_ptr =
                 (gko::matrix::Coo<scalar, label> *)local_matrix.get();
@@ -122,6 +113,10 @@ struct MatrixInitFunctor {
             gko::matrix::Coo<scalar, label> *non_local_coo_ptr =
                 (gko::matrix::Coo<scalar, label> *)non_local_matrix.get();
             non_local_value_ptr = non_local_coo_ptr->get_values();
+        }
+        if (matrix_format_ == "Ell") {
+        FatalErrorInFunction << "Updating Ell matrices not supported"
+                             << "set: 'regenerate true;'" << abort(FatalError);
         }
 
         gko::array<scalar> device_values{device_exec, *coeffs.get()};
@@ -178,9 +173,22 @@ struct MatrixInitFunctor {
             return dist;
         }
 
+        if (matrix_format_ == "Ell") {
+            auto local_linop =
+                gko::share(gko::matrix::Ell<scalar, label>::create(exec));
+            local_linop->read(local_A_data);
+            auto non_local_linop =
+                gko::share(gko::matrix::Coo<scalar, label>::create(exec));
+            non_local_linop->read(non_local_A_data);
 
-        // FatalErrorInFunction << "Matrix format " << matrix_format_
-        //                      << " not supported " << abort(FatalError);
+            auto dist = dist_mtx::create(
+                exec, *comm.get(), global_dim, local_linop, non_local_linop,
+                recv_sizes, recv_offsets, recv_gather_idxs);
+            return dist;
+        }
+
+        FatalErrorInFunction << "Matrix format " << matrix_format_
+                             << " not supported " << abort(FatalError);
     }
 
     std::shared_ptr<dist_mtx> init() const
