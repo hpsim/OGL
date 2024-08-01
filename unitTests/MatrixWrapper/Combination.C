@@ -13,7 +13,7 @@
 TEST(Combination, CanCreateEmptyCombination)
 {
     auto exec = gko::share(gko::ReferenceExecutor::create());
-    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(exec);
+    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo<scalar>>::create(exec);
 
     ASSERT_EQ(cmb->get_size(), gko::dim<2>(0, 0));
     ASSERT_EQ(cmb->get_coefficients().size(), 0);
@@ -22,8 +22,9 @@ TEST(Combination, CanCreateEmptyCombination)
 
 TEST(Combination, CanCreateCombinationWithRanges)
 {
+    auto exec = gko::share(gko::ReferenceExecutor::create());
     std::vector<gko::span> ranges {{0, 5}, {5, 6}};
-    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(exec, gko::dim<2>{5,5}, ranges);
+    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo<scalar>>::create(exec, gko::dim<2>{5,5}, ranges);
 
     ASSERT_EQ(cmb->get_size(), gko::dim<2>(5, 5));
     ASSERT_EQ(cmb->get_coefficients().size(), 2);
