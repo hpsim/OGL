@@ -18,7 +18,7 @@ namespace Foam {
  * */
 struct SparsityPattern {
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
-        : size_(size),
+        : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
           ldu_mapping{exec, static_cast<gko::size_type>(size)}
@@ -29,7 +29,7 @@ struct SparsityPattern {
                     std::vector<label> &cols, std::vector<label> &map,
                     std::vector<label> &spans_begin,
                     std::vector<label> &spans_end, std::vector<label> &ranks)
-        : size_(size),
+        : num_nnz(size),
           dim(dim),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
@@ -46,7 +46,7 @@ struct SparsityPattern {
 
         ASSERT_EQ(spans_begin.size(), spans_end.size());
         std::transform(spans_begin.begin(), spans_begin.end(),
-                       spans_end.begin(), std::back_inserter(interface_spans),
+                       spans_end.begin(), std::back_inserter(spans),
                        [](const auto begin, const auto end) {
                            return gko::span{static_cast<gko::size_type>(begin),
                                             static_cast<gko::size_type>(end)};
@@ -56,9 +56,7 @@ struct SparsityPattern {
         rank = ranks;
     }
 
-    // TODO rename the public members and remove trailing _
-    // number of nnz entries
-    const label size_;
+    const label num_nnz;
 
     mutable gko::Array<label> row_idxs;
 
@@ -73,7 +71,7 @@ struct SparsityPattern {
 
     // A vector of spans indicating begin and end of each interface
     // this is used to keep all col and row idx consecutive in memory
-    mutable std::vector<gko::span> interface_spans;
+    mutable std::vector<gko::span> spans;
 
     // keep track of original (communication) rank of each interface or matrix
     // block

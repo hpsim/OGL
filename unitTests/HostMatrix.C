@@ -27,8 +27,9 @@ public:
         dict.add("executor", "reference");
 
         args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
-        if (args_->size() == 1) {
-            std::cout << "Wrong number of arguments detected, make sure to run "
+        if (args_->size() != 1) {
+            std::cout << "Wrong number of arguments detected: " << args_->size()
+                      << ", make sure to run "
                          "with -parallel"
                       << std::endl;
             std::abort();
@@ -60,7 +61,7 @@ public:
         }
 
         word fieldName{"p"};
-        dimensionSet ds{};
+        dimensionSet ds{0, 0, 0, 0, 0};
         field = std::make_shared<
             GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>>(
             Foam::IOobject(fieldName, runTime_->timeName(), runTime_->thisDb(),
@@ -79,7 +80,7 @@ public:
     }
 
     Foam::lduInterfaceFieldPtrsList interfaces;
-    Foam::PtrDynList<Foam::lduInterfaceField> newInterfaces;
+    Foam::PtrList<Foam::lduInterfaceField> newInterfaces;
     std::shared_ptr<Foam::argList> args_;
     std::shared_ptr<Foam::Time> runTime_;
     std::shared_ptr<fvMesh> mesh;
@@ -147,22 +148,21 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
                                       8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
 
     // we have 9x9 matrix with 33 nnz entries
-    EXPECT_EQ(localSparsity->size_, 33);
+    EXPECT_EQ(localSparsity->num_nnz, 33);
     EXPECT_EQ(localSparsity->dim[0], 9);
     EXPECT_EQ(localSparsity->dim[1], 9);
 
     // since we don't have any processor interfaces we only have
     // a single interface span ranging from 0 to 33
-    EXPECT_EQ(localSparsity->interface_spans.size(), 1);
-    EXPECT_EQ(localSparsity->interface_spans[0].begin, 0);
-    EXPECT_EQ(localSparsity->interface_spans[0].end, 33);
+    EXPECT_EQ(localSparsity->spans.size(), 1);
+    EXPECT_EQ(localSparsity->spans[0].begin, 0);
+    EXPECT_EQ(localSparsity->spans[0].end, 33);
 
     auto res_size{localSparsity->col_idxs.get_size()};
     std::vector<label> rows_res(localSparsity->row_idxs.get_data(),
                                 localSparsity->row_idxs.get_data() + res_size);
     std::vector<label> cols_res(localSparsity->col_idxs.get_data(),
                                 localSparsity->col_idxs.get_data() + res_size);
-
 
     EXPECT_EQ(rows_expected, rows_res);
     EXPECT_EQ(cols_expected, cols_res);
@@ -182,21 +182,31 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
                                                    {0, 3, 6, 6, 7, 8},
                                                    {0, 1, 2, 2, 5, 8},
                                                    {0, 1, 2, 0, 3, 6}});
+    // cols expected
+    std::vector<std::vector<label>> cols_expected({{0, 3, 6, 0, 1, 2},
+                                                   {2, 5, 8, 0, 1, 2},
+                                                   {6, 7, 8, 0, 3, 6},
+                                                   {6, 7, 8, 2, 5, 8}});
+
     // we dont test the cols expected for now,
     // as they are in compressed format
+    EXPECT_EQ(nonLocalSparsity->num_nnz, 6);
+    EXPECT_EQ(nonLocalSparsity->spans.size(), 2);
 
-    EXPECT_EQ(nonLocalSparsity->interface_spans.size(), 2);
-
-    EXPECT_EQ(nonLocalSparsity->interface_spans[0].begin, 0);
-    EXPECT_EQ(nonLocalSparsity->interface_spans[0].end, 3);
-    EXPECT_EQ(nonLocalSparsity->interface_spans[1].begin, 3);
-    EXPECT_EQ(nonLocalSparsity->interface_spans[1].end, 6);
+    EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
+    EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
+    EXPECT_EQ(nonLocalSparsity->spans[1].begin, 3);
+    EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
 
     auto res_size{nonLocalSparsity->row_idxs.get_size()};
     std::vector<label> rows_res(
         nonLocalSparsity->row_idxs.get_data(),
         nonLocalSparsity->row_idxs.get_data() + res_size);
+    std::vector<label> cols_res(
+        nonLocalSparsity->col_idxs.get_data(),
+        nonLocalSparsity->col_idxs.get_data() + res_size);
     EXPECT_EQ(rows_expected[comm->rank()], rows_res);
+    EXPECT_EQ(cols_expected[comm->rank()], cols_res);
 }
 
 

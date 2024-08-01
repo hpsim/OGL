@@ -481,7 +481,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
             // the end of the non_local_indices thus we need to increment
             // the element_ctr once more
             end = (last_element) ? element_ctr + 1 : element_ctr;
-            sparsity->interface_spans.emplace_back(start, end);
+            sparsity->spans.emplace_back(start, end);
             sparsity->rank.emplace_back(prev_rank);
             start = end;
             prev_interface_ctr = interface_idx;
@@ -530,7 +530,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
                         cols, permute);
 
     sparsity->dim = gko::dim<2>{nrows_, nrows_};
-    sparsity->interface_spans.emplace_back(0, local_matrix_nnz_);
+    sparsity->spans.emplace_back(0, local_matrix_nnz_);
 
     // if no local interfaces are present we are done here
     // otherwise we need to add local interfaces to local_sparsity in order
@@ -571,7 +571,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
                 local_interface_ctr + 1 == local_interfaces.size()) {
                 end = start + local_interface_ctr;
                 local_interface_ctr = 0;
-                sparsity->interface_spans.emplace_back(start, end);
+                sparsity->spans.emplace_back(start, end);
                 start = end;
                 prev_interface_idx = interface_idx;
             }
