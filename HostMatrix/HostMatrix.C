@@ -255,6 +255,8 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
 {
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
+    auto exec = exec_.get_device_exec();
+    auto comm = *exec_.get_gko_mpi_device_comm().get();
 
     // iterate all interfaces, count number of neighbour procs
     // and store rows to send to neighbour procs
@@ -265,26 +267,33 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
             const auto &face_cells{iface->interface().faceCells()};
             const label neighbProcNo = patch.neighbProcNo();
 
+            auto recv_size = face_cells.size();
+            auto recv_cells = std::vector<label>(recv_size); 
+
+            // we need the cell idx of the other side
+            comm.send(exec, face_cells.begin(), recv_size, neighbProcNo, 0);
+            comm.recv(exec, recv_cells.data(), recv_size, neighbProcNo, 0);
+
             auto search = interface_cell_map.find(neighbProcNo);
             if (search == interface_cell_map.end()) {
                 n_procs++;
                 interface_cell_map.insert(std::pair{
                     neighbProcNo,
-                    std::vector<label>(face_cells.begin(), face_cells.end())});
+                    std::vector<label>(recv_cells.begin(), recv_cells.end())});
             } else {
                 auto &vec = search->second;
-                vec.insert(vec.end(), face_cells.begin(), face_cells.end());
+                vec.insert(vec.end(), recv_cells.begin(), recv_cells.end());
             }
         });
 
     using comm_size_type = CommunicationPattern::comm_size_type;
 
     // create index_sets
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
+    std::vector<std::pair<gko::array<label>, comm_size_type>> recv_idxs;
     for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
         auto arr = gko::array<label>::const_view(exec, interface_cells.size(), interface_cells.data());
-        send_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
+        recv_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
             arr.copy_to_array(), proc));
     }
 
@@ -301,7 +310,7 @@ HostMatrixWrapper<MatrixType>::create_communication_pattern(
         iter++;
     }
 
-    return CommunicationPattern{target_ids, target_sizes, send_idxs};
+    return CommunicationPattern{target_ids, target_sizes, recv_idxs};
 }
 
 

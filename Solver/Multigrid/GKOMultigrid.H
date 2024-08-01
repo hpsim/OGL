@@ -14,11 +14,15 @@ namespace Foam {
 class GKOMultigridFactory {
 private:
     using cg = gko::solver::Cg<scalar>;
+    using direct = gko::experimental::solver::Direct<scalar, label>;
     using mtx = gko::matrix::Csr<scalar>;
     using ir = gko::solver::Ir<scalar>;
     using mg = gko::solver::Multigrid;
     using bj = gko::preconditioner::Jacobi<scalar, label>;
     using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+    using ras =
+        gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
+                                                                label>;
 
     using vec = gko::matrix::Dense<scalar>;
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
@@ -37,7 +41,7 @@ private:
 
     const StoppingCriterion innerStoppingCriterion_;
 
-    const word smoother_solver_;
+    const word coarsest_solver_;
 
     const label max_block_size_;
 
@@ -52,6 +56,8 @@ private:
     const label max_levels_;
 
     const label min_coarse_rows_;
+
+    const label cycle_;
 
     mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
         outerStoppingCriterionVec_;
@@ -68,8 +74,8 @@ public:
           sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls),
           innerStoppingCriterion_(StoppingCriterion(innerSolverControls_)),
-          smoother_solver_(innerSolverControls_.lookupOrDefault(
-              "smootherSolver", word("CG"))),
+          coarsest_solver_(innerSolverControls_.lookupOrDefault(
+              "coarsestSolver", word("CG"))),
           max_block_size_(
               innerSolverControls_.lookupOrDefault("maxBlockSize", label(4))),
           inner_relaxation_factor_(innerSolverControls_.lookupOrDefault(
@@ -83,45 +89,79 @@ public:
           max_levels_(
               innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
           min_coarse_rows_(
-              innerSolverControls_.lookupOrDefault("minCoarseRows", label(10)))
-    {}
+              innerSolverControls_.lookupOrDefault("minCoarseRows", label(10))),
+          cycle_(innerSolverControls_.lookupOrDefault("cycle", label(0)))
+    {
+        auto mtx_format =
+            solverControls.lookupOrDefault("matrixFormat", word("Coo"));
+        if (mtx_format != "Csr") {
+            FatalErrorInFunction
+                << "Ginkgos Multigrid solver currently only supports Csr "
+                   "matrices make sure to set: 'matrixFormat Csr;'"
+                << abort(FatalError);
+        }
+    }
 
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
     create_dist_solver(std::shared_ptr<const gko::Executor> exec,
                        std::shared_ptr<const gko::LinOp> gkomatrix,
-                       std::shared_ptr<const dist_vec> x, std::shared_ptr<const dist_vec> b,
-                       const label verbose, const bool export_res,
+                       std::shared_ptr<const dist_vec> x,
+                       std::shared_ptr<const dist_vec> b, const label verbose,
+                       const bool export_res,
                        std::shared_ptr<gko::LinOp> precond) const
     {
         outerStoppingCriterionVec_.push_back(
             outerStoppingCriterion_.build_dist_stopping_criterion(
                 exec, gkomatrix, x, b, verbose, export_res,
                 get_prev_number_of_iterations(),
-                get_solve_prev_rel_res_cost()
-                ));
+                get_solve_prev_rel_res_cost()));
 
-        auto coarsest_solver =
-            gko::share(cg::build()
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(
-                            coarse_max_iters_),
-                        gko::stop::ResidualNorm<scalar>::build()
-                            .with_baseline(gko::stop::mode::absolute)
-                            .with_reduction_factor(1e-18))
-                           .on(exec));
+        std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
 
-        // std::cout << __FILE__ << __LINE__ 
-        //     << " coarse_max_iters " << coarse_max_iters_ << "\n";
+        if (coarsest_solver_ == "CG") {
+            coarsest_solver = gko::share(
+                cg::build()
+                    // .with_preconditioner(ras::build().with_local_solver(
+                    //     bj::build().with_max_block_size(1u)))
+                    .with_criteria(gko::stop::Iteration::build().with_max_iters(
+                                       coarse_max_iters_),
+                                   gko::stop::ResidualNorm<scalar>::build()
+                                       .with_baseline(gko::stop::mode::absolute)
+                                       .with_reduction_factor(1e-18))
+                    .on(exec));
+        } else {
+            FatalErrorInFunction
+                << "Unsupported coarsestSolver: " << coarsest_solver_
+                << "! Only CG is supported" << abort(FatalError);
+        }
+        // if (coarsest_solver_ == "direct") {
+        //     coarsest_solver = gko::share(
+        //         ras::build()
+        //             .with_local_solver(direct::build().with_factorization(
+        //                 gko::experimental::factorization::Lu<scalar,
+        //                                                      label>::build()
+        //                     .with_symbolic_algorithm(
+        //                         gko::experimental::factorization::
+        //                             symbolic_type::symmetric)))
+        //             .on(exec));
+        // }
 
-        auto ret = gko::solver::Multigrid::build()
-                    .with_max_levels(max_levels_)
-                    .with_mg_level(    
-                        gko::multigrid::Pgm<scalar>::build()
-                            .with_deterministic(true))
-                    .with_min_coarse_rows(min_coarse_rows_)
-                    .with_coarsest_solver(coarsest_solver)
-                    .with_criteria(outerStoppingCriterionVec_)
-                    .on(exec);
+        auto ret =
+            gko::solver::Multigrid::build()
+                .with_max_levels(max_levels_)
+                .with_mg_level(
+                    gko::multigrid::Pgm<scalar>::build().with_deterministic(
+                        false))
+                .with_min_coarse_rows(min_coarse_rows_)
+                .with_coarsest_solver(coarsest_solver)
+                .with_criteria(outerStoppingCriterionVec_)
+                .with_smoother_iters(smoother_max_iters_)
+                .with_cycle(cycle_)
+                // .with_pre_smoother(
+                //         smoother_gen
+                //         )
+                // .with_post_uses_pre(true)
+                .on(exec);
         return ret;
     }
 
@@ -155,8 +195,7 @@ public:
     {
         set_solve_prev_iters(sysMatrixName_, db_,
                              outerStoppingCriterion_.get_num_iters(),
-                             outerStoppingCriterion_.get_is_final()
-                             );
+                             outerStoppingCriterion_.get_is_final());
     }
 
     label get_prev_number_of_iterations() const

@@ -73,7 +73,7 @@ if((NOT OGL_ALLOW_REFERENCE_ONLY) AND (NOT OGL_USE_EXTERNAL_GINKGO))
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "ogl_rebase_1.8.0"
+    "develop"
     CACHE STRING "Use specific version of ginkgo")
 
 include(CheckIncludeFileCXX)

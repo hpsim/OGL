@@ -80,8 +80,6 @@ struct MatrixInitFunctor {
         if (regenerate_) {
             TIME_WITH_FIELDNAME(verbose_, regenerate_distributed_matrix,
                                 field_name_, auto reinit = init();)
-            std::cout << __FILE__ << ":" << __LINE__ << " Reinit matrix \n";
-            // TODO NOTE use swap here
             persistent_device_matrix->copy_from(reinit.get());
             return;
         }
@@ -161,8 +159,10 @@ struct MatrixInitFunctor {
                 gko::share(gko::matrix::Csr<scalar, label>::create(exec));
             non_local_linop->read(non_local_A_data);
             return dist_mtx::create(exec, *comm.get(), global_dim, local_linop,
-                                    non_local_linop, recv_sizes, recv_offsets,
-                                    recv_gather_idxs);
+                                    non_local_linop,
+                                    recv_sizes, recv_offsets,
+                                    recv_gather_idxs
+                                    );
         }
         if (matrix_format_ == "Coo") {
             auto local_linop =
