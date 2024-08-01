@@ -48,7 +48,7 @@ public:
         auto exec = this->get_executor();
         auto data_exec = data.get_executor();
 
-        for (auto &interface : interface_ranges_) {
+        for (auto &interface : ranges_) {
             auto length = interface.length();
             auto offset = interface.begin;
             auto op = gko::share(InnerMatrixType::create(exec));
@@ -96,8 +96,8 @@ public:
     {
         if (&other != this) {
             gko::EnableLinOp<CombinationMatrix>::operator=(other);
-            for (auto range : other.interface_ranges_) {
-                interface_ranges_.emplace_back(range.begin, range.end);
+            for (auto range : other.ranges_) {
+                ranges_.emplace_back(range.begin, range.end);
             }
             comb_ = other.comb_;
         }
@@ -113,7 +113,7 @@ public:
     {
         if (&other != this) {
             gko::EnableLinOp<CombinationMatrix>::operator=(std::move(other));
-            interface_ranges_ = std::move(other.interface_ranges_);
+            ranges_ = std::move(other.ranges_);
             comb_ = std::move(other.comb_);
         }
         return *this;
@@ -146,7 +146,7 @@ protected:
      * */
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
-        if (interface_ranges_.size() > 0) {
+        if (ranges_.size() > 0) {
             this->comb_->apply(b, x);
         }
     }
@@ -157,7 +157,7 @@ protected:
     void apply_impl(const gko::LinOp *alpha, const gko::LinOp *b,
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
-        if (interface_ranges_.size() > 0) {
+        if (ranges_.size() > 0) {
             this->comb_->apply(alpha, b, beta, x);
         }
     }
