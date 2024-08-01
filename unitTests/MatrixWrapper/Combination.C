@@ -8,9 +8,12 @@
 
 #include "fvCFD.H"
 
+#include <ginkgo/ginkgo.hpp>
+
 TEST(Combination, CanCreateEmptyCombination)
 {
-    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(this->exec);
+    auto exec = gko::share(gko::ReferenceExecutor::create());
+    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(exec);
 
     ASSERT_EQ(cmb->get_size(), gko::dim<2>(0, 0));
     ASSERT_EQ(cmb->get_coefficients().size(), 0);
@@ -20,7 +23,7 @@ TEST(Combination, CanCreateEmptyCombination)
 TEST(Combination, CanCreateCombinationWithRanges)
 {
     std::vector<gko::span> ranges {{0, 5}, {5, 6}};
-    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(this->exec, gko::dim<2>{5,5}, ranges);
+    auto cmb = CombinationMatrix<scalar, label, gko::matrix::Coo>::create(exec, gko::dim<2>{5,5}, ranges);
 
     ASSERT_EQ(cmb->get_size(), gko::dim<2>(5, 5));
     ASSERT_EQ(cmb->get_coefficients().size(), 2);
