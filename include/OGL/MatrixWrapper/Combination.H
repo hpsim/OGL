@@ -70,7 +70,6 @@ public:
                 gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
         }
 
- 
         // NOTE find a better place
         this->set_size(comb_->get_size());
 
@@ -82,7 +81,6 @@ public:
     {
         return this->comb_;
     }
-
 
     /**
      * Copy-assigns a CombinationMatrix matrix. Preserves executor, copies

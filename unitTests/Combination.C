@@ -4,8 +4,11 @@
 
 
 #include "fvCFD.H"
-#include "MatrixWrapper/Combination/Combination.H"
+
 #include <gtest/gtest.h>
+
+#include "OGL/MatrixWrapper/Combination.H"
+
 
 
 TEST(Combination, CanCreateCombination)
