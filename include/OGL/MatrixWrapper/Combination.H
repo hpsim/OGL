@@ -129,13 +129,13 @@ protected:
      * the linear combination during the read call
      * @param executor where combitination matrix data resides on
      * @param the global size of the matrices, eg. max (row, col idxs)
-     * @param interfaces ranges required for read to separate interfaces
-     *        from consecutive matrix_data input
+     * @param ranges required for read to separate interfaces
+     *        from consecutive matrix_data input. The ranges contain first and last index of the individual matrix
      */
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
-                      gko::dim<2> size, std::vector<gko::span> interface_ranges)
+                      gko::dim<2> size, std::vector<gko::span> ranges)
         : gko::EnableLinOp<CombinationMatrix>(exec),
-          interface_ranges_(interface_ranges),
+          ranges_(ranges),
           comb_(gko::share(gko::Combination<ValueType>::create(exec, size)))
     {}
 
@@ -162,8 +162,7 @@ protected:
 
 
 private:
-    std::vector<gko::span>
-        interface_ranges_;  // vector containing start and end indices of the
+    std::vector<gko::span> ranges_;  // vector containing start and end indices of the
                             // individual matrices in the consecutive data
     std::shared_ptr<gko::Combination<ValueType>> comb_;
 };
