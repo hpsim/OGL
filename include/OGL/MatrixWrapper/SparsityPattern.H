@@ -56,8 +56,6 @@ struct SparsityPattern {
         rank = ranks;
     }
 
-    // TODO rename the public members and remove trailing _
-    // number of nnz entries
     const label num_nnz;
 
     mutable gko::Array<label> row_idxs;
