@@ -61,7 +61,7 @@ public:
         }
 
         word fieldName{"p"};
-        dimensionSet ds{0,0,0,0,0};
+        dimensionSet ds{0, 0, 0, 0, 0};
         field = std::make_shared<
             GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>>(
             Foam::IOobject(fieldName, runTime_->timeName(), runTime_->thisDb(),
