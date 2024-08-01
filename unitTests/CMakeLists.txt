@@ -24,7 +24,6 @@ macro(ogl_unit_test TEST FILE)
     COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/${TEST} -parallel)
 endmacro()
 
-ogl_unit_test(matrixConversion "HostMatrix.C")
-ogl_unit_test(combination "Combination.C")
 ogl_unit_test(CommunicationPattern "CommunicationPattern.C")
-ogl_unit_test(HostMatrix "HostMatrix.C")
+
+add_subdirectory(MatrixWrapper)
