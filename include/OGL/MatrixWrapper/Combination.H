@@ -122,6 +122,24 @@ public:
         return *this;
     }
 
+        const std::vector<std::shared_ptr<const LinOp>>& get_coefficients()
+        const noexcept
+    {
+        return comb_->get_coefficients();
+    }
+
+    /**
+     * Returns a list of operators of the combination.
+     *
+     * @return a list of operators
+     */
+    const std::vector<std::shared_ptr<const LinOp>>& get_operators()
+        const noexcept
+    {
+        return comb_->operators();
+    }
+
+
 
 protected:
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec)
@@ -168,8 +186,7 @@ protected:
 
 
 private:
-    std::vector<gko::span>
-        ranges_;  // vector containing start and end indices of the
+    std::vector<gko::span> ranges_;  // vector containing start and end indices of the
                   // individual matrices in the consecutive data
     std::shared_ptr<gko::Combination<ValueType>> comb_;
 };
