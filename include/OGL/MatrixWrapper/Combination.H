@@ -136,7 +136,7 @@ public:
     const std::vector<std::shared_ptr<const gko::LinOp>>& get_operators()
         const noexcept
     {
-        return comb_->operators();
+        return comb_->get_operators();
     }
 
 
