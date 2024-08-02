@@ -14,21 +14,16 @@
  * */
 template <typename InnerMatrixType>
 class CombinationMatrix
-    : public gko::EnableLinOp<
-          CombinationMatrix<scalar, label, InnerMatrixType>>,
-      public gko::EnableCreateMethod<
-          CombinationMatrix<scalar, label, InnerMatrixType>>,
+    : public gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>,
+      public gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>,
       public gko::ReadableFromMatrixData<scalar, label> {
-    friend class gko::EnableCreateMethod<
-        CombinationMatrix<scalar, label, InnerMatrixType>>;
+    friend class gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>;
     friend class gko::EnablePolymorphicObject<
-        CombinationMatrix<scalar, label, InnerMatrixType>, gko::LinOp>;
+        CombinationMatrix<InnerMatrixType>, gko::LinOp>;
 
 public:
-    using gko::EnableLinOp<
-        CombinationMatrix<scalar, label, InnerMatrixType>>::convert_to;
-    using gko::EnableLinOp<
-        CombinationMatrix<scalar, label, InnerMatrixType>>::move_to;
+    using gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>::convert_to;
+    using gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>::move_to;
 
     using vec = gko::matrix::Dense<scalar>;
     using coef_type = gko::array<scalar>;
@@ -122,7 +117,7 @@ public:
         return *this;
     }
 
-        const std::vector<std::shared_ptr<const gko::LinOp>>& get_coefficients()
+    const std::vector<std::shared_ptr<const gko::LinOp>> &get_coefficients()
         const noexcept
     {
         return comb_->get_coefficients();
@@ -133,12 +128,11 @@ public:
      *
      * @return a list of operators
      */
-    const std::vector<std::shared_ptr<const gko::LinOp>>& get_operators()
+    const std::vector<std::shared_ptr<const gko::LinOp>> &get_operators()
         const noexcept
     {
         return comb_->get_operators();
     }
-
 
 
 protected:
@@ -186,7 +180,8 @@ protected:
 
 
 private:
-    std::vector<gko::span> ranges_;  // vector containing start and end indices of the
+    std::vector<gko::span>
+        ranges_;  // vector containing start and end indices of the
                   // individual matrices in the consecutive data
     std::shared_ptr<gko::Combination<scalar>> comb_;
 };
