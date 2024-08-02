@@ -12,26 +12,26 @@
  * linear operator. It provides an interface for creating linear combinations of
  * a given inner matrix type and a read implementation
  * */
-template <typename ValueType, typename IndexType, typename InnerMatrixType>
+template <typename InnerMatrixType>
 class CombinationMatrix
     : public gko::EnableLinOp<
-          CombinationMatrix<ValueType, IndexType, InnerMatrixType>>,
+          CombinationMatrix<scalar, label, InnerMatrixType>>,
       public gko::EnableCreateMethod<
-          CombinationMatrix<ValueType, IndexType, InnerMatrixType>>,
-      public gko::ReadableFromMatrixData<ValueType, IndexType> {
+          CombinationMatrix<scalar, label, InnerMatrixType>>,
+      public gko::ReadableFromMatrixData<scalar, label> {
     friend class gko::EnableCreateMethod<
-        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>;
+        CombinationMatrix<scalar, label, InnerMatrixType>>;
     friend class gko::EnablePolymorphicObject<
-        CombinationMatrix<ValueType, IndexType, InnerMatrixType>, gko::LinOp>;
+        CombinationMatrix<scalar, label, InnerMatrixType>, gko::LinOp>;
 
 public:
     using gko::EnableLinOp<
-        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>::convert_to;
+        CombinationMatrix<scalar, label, InnerMatrixType>>::convert_to;
     using gko::EnableLinOp<
-        CombinationMatrix<ValueType, IndexType, InnerMatrixType>>::move_to;
+        CombinationMatrix<scalar, label, InnerMatrixType>>::move_to;
 
-    using vec = gko::matrix::Dense<ValueType>;
-    using coef_type = gko::array<ValueType>;
+    using vec = gko::matrix::Dense<scalar>;
+    using coef_type = gko::array<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using matrix_data = gko::matrix_data<scalar, label>;
 
@@ -58,13 +58,13 @@ public:
 
             // create views into corresponding sections
             // of the data
-            auto row_view = gko::array<IndexType>::const_view(
+            auto row_view = gko::array<label>::const_view(
                 data_exec, length, data.get_const_row_idxs() + offset);
 
-            auto col_view = gko::array<IndexType>::const_view(
+            auto col_view = gko::array<label>::const_view(
                 data_exec, length, data.get_const_col_idxs() + offset);
 
-            auto val_view = gko::array<IndexType>::const_view(
+            auto val_view = gko::array<scalar>::const_view(
                 data_exec, length, data.get_const_values() + offset);
 
             // create a new device_matrix data  object from the views
@@ -76,7 +76,7 @@ public:
             // this will move data to exec if exec != data_exec
             op->read(in);
             this->comb_->add_operators(
-                gko::initialize<gko::matrix::Dense<ValueType>>({1}, exec), op);
+                gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
         }
 
         // NOTE find a better place
@@ -86,7 +86,7 @@ public:
         // OGL_ASSERT(this->get_size()[0] == this.interface_ranges_.back().end);
     }
 
-    std::shared_ptr<gko::Combination<ValueType>> get_combination() const
+    std::shared_ptr<gko::Combination<scalar>> get_combination() const
     {
         return this->comb_;
     }
@@ -160,7 +160,7 @@ protected:
                       gko::dim<2> size, std::vector<gko::span> ranges)
         : gko::EnableLinOp<CombinationMatrix>(exec),
           ranges_(ranges),
-          comb_(gko::share(gko::Combination<ValueType>::create(exec, size)))
+          comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
     {}
 
     /* Forwarding call of apply which checks if the matrix contains any
@@ -188,5 +188,5 @@ protected:
 private:
     std::vector<gko::span> ranges_;  // vector containing start and end indices of the
                   // individual matrices in the consecutive data
-    std::shared_ptr<gko::Combination<ValueType>> comb_;
+    std::shared_ptr<gko::Combination<scalar>> comb_;
 };
