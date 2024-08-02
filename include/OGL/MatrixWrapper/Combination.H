@@ -122,7 +122,7 @@ public:
         return *this;
     }
 
-        const std::vector<std::shared_ptr<const LinOp>>& get_coefficients()
+        const std::vector<std::shared_ptr<const gko::LinOp>>& get_coefficients()
         const noexcept
     {
         return comb_->get_coefficients();
@@ -133,7 +133,7 @@ public:
      *
      * @return a list of operators
      */
-    const std::vector<std::shared_ptr<const LinOp>>& get_operators()
+    const std::vector<std::shared_ptr<const gko::LinOp>>& get_operators()
         const noexcept
     {
         return comb_->operators();
