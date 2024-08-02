@@ -11,7 +11,7 @@ if(NOT ${OGL_USE_EXTERNAL_GINKGO})
     GIT_SHALLOW ON
     GIT_REPOSITORY "https://github.com/ginkgo-project/ginkgo.git"
     GIT_TAG ${GINKGO_CHECKOUT_VERSION}
-    SYSTEM)
+    )
 
   FetchContent_MakeAvailable(Ginkgo)
 endif()
