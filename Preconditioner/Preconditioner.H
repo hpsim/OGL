@@ -15,6 +15,7 @@ class Preconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
+    using it = gko::stop::Iteration;
     using cg = gko::solver::Cg<scalar>;
     using mg = gko::solver::Multigrid;
     using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
@@ -258,26 +259,86 @@ public:
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "Multigrid") {
-            auto inner_solver_gen =
-                gko::share(bj::build().with_max_block_size(1u).on(device_exec));
+            word type = controls.lookupOrDefault("type", word("Schwarz"));
 
-            auto smoother_gen = gko::share(
-                ir::build()
-                    .with_solver(inner_solver_gen)
-                    .with_relaxation_factor(0.9)
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(2u).on(
-                            device_exec))
+            const label coarse_solver_iters(
+                controls.lookupOrDefault("coarseSolverIters", label(4)));
+
+            auto cycle_name = controls.lookupOrDefault("cycle", word("v"));
+            gko::solver::multigrid::cycle cycle;
+            if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
+            if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
+            if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
+
+            const label max_levels(
+                controls.lookupOrDefault("maxLevels", label(5)));
+            const label min_coarse_rows(
+                controls.lookupOrDefault("minCoarseRows", label(10)));
+            bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
+            const label smoother_max_iters(
+                controls.lookupOrDefault("smootherMaxIters", label(1)));
+
+            auto coarsest_gen = gko::share(
+                cg::build()
+                    .with_criteria(gko::stop::Iteration::build().with_max_iters(
+                        static_cast<gko::uint32>(coarse_solver_iters)))
                     .on(device_exec));
 
-            // Create MultigridLevel factory
-            auto mg_level_gen =
-                amgx_pgm::build().with_deterministic(true).on(device_exec);
+            word msg = "Generate preconditioner " + name + " MaxLevels " +
+                       std::to_string(max_levels) + " MinCoarseRows " +
+                       std::to_string(min_coarse_rows) + " ZeroGuess " +
+                       std::to_string(zeroGuess) + " Cycle " + cycle_name +
+                       " type: " + type;
+            MLOG_0(verbose_, msg)
 
-            // Create CoarsestSolver factory
+            if (type == "Schwarz") {
+                auto pre_factory =
+                    mg::build()
+                        .with_max_levels(static_cast<gko::uint32>(max_levels))
+                        .with_cycle(cycle)
+                        .with_min_coarse_rows(
+                            static_cast<gko::uint32>(min_coarse_rows))
+                        .with_pre_smoother(
+                            ir::build()
+                                .with_solver(
+                                    bj::build().with_max_block_size(1u))
+                                .with_relaxation_factor(0.9)
+                                .with_criteria(it::build().with_max_iters(
+                                    smoother_max_iters)))
+                        .with_post_uses_pre(true)
+                        .with_mg_level(
+                            amgx_pgm::build().with_deterministic(true).on(
+                                device_exec))
+                        .with_coarsest_solver(coarsest_gen)
+                        .with_criteria(it::build().with_max_iters(1u))
+                        .on(device_exec);
+
+                return wrap_schwarz(gkomatrix, device_exec,
+                                    std::move(pre_factory));
+            }
+
+            if (type == "Distributed") {
+                auto ret = gko::share(
+                    gko::solver::Multigrid::build()
+                        .with_max_levels(max_levels)
+                        .with_mg_level(gko::multigrid::Pgm<scalar>::build()
+                                           .with_deterministic(false))
+                        .with_min_coarse_rows(min_coarse_rows)
+                        .with_coarsest_solver(coarsest_gen)
+                        .with_criteria(it::build().with_max_iters(1u))
+                        .with_smoother_iters(smoother_max_iters)
+                        .with_cycle(cycle)
+                        .on(device_exec)
+                        ->generate(gkomatrix));
+                return ret;
+            }
+            FatalErrorInFunction << "Unknown Multigrid type: " << type
+                                 << "\nValid Choices: Schwarz, Distributed"
+                                 << abort(FatalError);
+
+
             // std::shared_ptr<gko::LinOp> coarsest_gen;
             // coarsest_gen =
-            //
             // (solverControls_.lookupOrDefault("PreconditionerMultigridUseIR",
             //                                      word("IR")) == "IR")
             //         ? gko::share(
@@ -294,53 +355,6 @@ public:
             //                                      .with_max_iters(4u)
             //                                      .on(device_exec))
             //                   .on(device_exec));
-
-            const label coarse_solver_iters(
-                controls.lookupOrDefault("coarseSolverIters", label(4)));
-            auto coarsest_gen = gko::share(
-                cg::build()
-                    .with_criteria(gko::stop::Iteration::build()
-                                       .with_max_iters(static_cast<gko::uint32>(
-                                           coarse_solver_iters))
-                                       .on(device_exec))
-                    .on(device_exec));
-
-            auto cycle_name = controls.lookupOrDefault("cycle", word("v"));
-            gko::solver::multigrid::cycle cycle;
-
-            if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
-            if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
-            if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
-
-            // Create multigrid factory
-            label max_levels(controls.lookupOrDefault("maxLevels", label(9)));
-            label min_coarse_rows(
-                controls.lookupOrDefault("minCoarseRows", label(10)));
-            bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
-
-            word msg = "Generate preconditioner " + name + " MaxLevels " +
-                       std::to_string(max_levels) + " MinCoarseRows " +
-                       std::to_string(min_coarse_rows) + " ZeroGuess " +
-                       std::to_string(zeroGuess) + " Cycle " + cycle_name;
-            MLOG_0(verbose_, msg)
-
-            auto pre_factory =
-                mg::build()
-                    .with_max_levels(static_cast<gko::uint32>(max_levels))
-                    .with_cycle(cycle)
-                    .with_min_coarse_rows(
-                        static_cast<gko::uint32>(min_coarse_rows))
-                    .with_pre_smoother(smoother_gen)
-                    .with_post_uses_pre(true)
-                    .with_mg_level(
-                        amgx_pgm::build().with_deterministic(true).on(
-                            device_exec))
-                    .with_coarsest_solver(coarsest_gen)
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(1u).on(
-                            device_exec))
-                    .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "none") {
             return {};
