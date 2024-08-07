@@ -17,6 +17,8 @@ class CombinationMatrix
     : public gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>,
       public gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>,
       public gko::ReadableFromMatrixData<scalar, label> {
+      public gko::ConvertibleTo<gko::matrix::Coo<scalar, label>>,
+      public gko::ConvertibleTo<gko::matrix::Csr<scalar, label>>,
     friend class gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>;
     friend class gko::EnablePolymorphicObject<
         CombinationMatrix<InnerMatrixType>, gko::LinOp>;
@@ -134,14 +136,18 @@ public:
         return comb_->get_operators();
     }
 
+    void convert_to(
+        gko::matrix::Coo<scalar>, label>* result) const override {};
+
+    void convert_to(
+        gko::matrix::Csr<scalar>, label>* result) const override {};
 
 protected:
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec)
         : gko::EnableLinOp<CombinationMatrix>(exec)
     {}
 
-    /*
-     * This constructor will be called by the create method.
+    /* This constructor will be called by the create method.
      * Here we initialize, the interface_ranges to create the
      * the linear combination during the read call
      * @param executor where combitination matrix data resides on
