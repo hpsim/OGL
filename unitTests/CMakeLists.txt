@@ -15,8 +15,14 @@ find_package(MPI REQUIRED)
 
 macro(ogl_unit_test TEST FILE)
   add_executable(${TEST} ${FILE})
-  target_link_libraries(${TEST} OpenFOAM GTest::gtest_main OGL Ginkgo::ginkgo
-                        ${CMAKE_DL_LIBS})
+  target_link_libraries(
+    ${TEST}
+    OpenFOAM
+    GTest::gtest_main
+    OGL
+    Ginkgo::ginkgo
+    ginkgo_hip
+    ${CMAKE_DL_LIBS})
 
   add_test(
     NAME ${TEST}
