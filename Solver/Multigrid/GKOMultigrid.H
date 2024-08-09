@@ -37,9 +37,9 @@ private:
 
     const StoppingCriterion outerStoppingCriterion_;
 
-    const word coarsest_solver_;
+    const label verbose_;
 
-    const label max_block_size_;
+    const word coarsest_solver_;
 
     const scalar inner_relaxation_factor_;
 
@@ -68,20 +68,18 @@ public:
           db_(db),
           sysMatrixName_(sysMatrixName),
           outerStoppingCriterion_(solverControls),
-          coarsest_solver_(solverControls_.lookupOrDefault(
-              "coarsestSolver", word("CG"))),
-          max_block_size_(
-              solverControls_.lookupOrDefault("maxBlockSize", label(4))),
+          verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
+          coarsest_solver_(
+              solverControls_.lookupOrDefault("coarsestSolver", word("CG"))),
           inner_relaxation_factor_(solverControls_.lookupOrDefault(
               "innerRelaxationFactor", scalar(0.9))),
           smoother_relaxation_factor_(solverControls_.lookupOrDefault(
               "smootherRelaxationFactor", scalar(0.9))),
-          smoother_max_iters_(solverControls_.lookupOrDefault(
-              "smootherMaxIters", label(2))),
+          smoother_max_iters_(
+              solverControls_.lookupOrDefault("smootherMaxIters", label(2))),
           coarse_max_iters_(
               solverControls_.lookupOrDefault("coarseMaxIters", label(4))),
-          max_levels_(
-              solverControls_.lookupOrDefault("maxLevels", label(9))),
+          max_levels_(solverControls_.lookupOrDefault("maxLevels", label(9))),
           min_coarse_rows_(
               solverControls_.lookupOrDefault("minCoarseRows", label(10))),
           cycle_(solverControls_.lookupOrDefault("cycle", label(0)))
@@ -94,6 +92,18 @@ public:
                    "matrices make sure to set: 'matrixFormat Csr;'"
                 << abort(FatalError);
         }
+
+        word msg = std::string("Multigrid parameters:") +
+                   std::string("\n\tcoarsestSolver: ") + coarsest_solver_ +
+                   std::string("\n\tcoarseMaxIters: ") +
+                   std::to_string(coarse_max_iters_) +
+                   std::string("\n\tsmootherMaxIters: ") +
+                   std::to_string(smoother_max_iters_) +
+                   std::string("\n\tmaxLevels: ") +
+                   std::to_string(max_levels_) +
+                   std::string("\n\tminCoasresRows: ") +
+                   std::to_string(min_coarse_rows_);
+        MLOG_0(verbose_, msg)
     }
 
     std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
