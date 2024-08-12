@@ -10,6 +10,9 @@
 
 #include <ginkgo/ginkgo.hpp>
 
+#include <fstream>
+
+#include <string>
 
 TEST(Combination, CanCreateEmptyCombination)
 {
@@ -54,7 +57,46 @@ TEST(Combination, CanCreateCombinationWithLinOpVector)
     ASSERT_EQ(x->at(4, 0), 0.0);
 }
 
-TEST(Combination, CanCreateConvertToCsr)
+TEST(Combination, CombinationMatrxWithRegularMatrix)
+{
+    auto dim = gko::dim<2>{5, 5};
+    // gko::matrix_data<double, int> m1
+    // (dim, {{0, 0, 2}, {1, 1, 0}, {2, 3, 5}});
+
+    auto exec = gko::share(gko::ReferenceExecutor::create());
+    // auto m1linop =
+    //     gko::share(gko::matrix::Csr<scalar, label>::create(exec, dim));
+    // m1linop->read(m1);
+    using ValueType = double;
+    using IndexType = int;
+    using mtx = gko::matrix::Csr<ValueType, IndexType>;
+
+    auto m1linop = gko::share(
+        gko::read<mtx>(std::ifstream("data/A.mtx"), exec));
+
+    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m1linop};
+
+    auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
+        exec, dim, linops);
+
+    ASSERT_EQ(cmb->get_size(), gko::dim<2>(5, 5));
+    ASSERT_EQ(cmb->get_coefficients().size(), 2);
+    ASSERT_EQ(cmb->get_operators().size(), 2);
+
+    auto b = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{5, 1});
+    b->fill(1.0);
+    auto x = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{5, 1});
+    x->fill(0.0);
+    cmb->apply(b, x);
+
+    ASSERT_EQ(x->at(0, 0), 4.0);
+    ASSERT_EQ(x->at(1, 0), 0.0);
+    ASSERT_EQ(x->at(2, 0), 10.0);
+    ASSERT_EQ(x->at(3, 0), 0.0);
+    ASSERT_EQ(x->at(4, 0), 0.0);
+}
+
+TEST(Combination, CanConvertToCsr)
 {
     auto dim = gko::dim<2>{5, 5};
     gko::matrix_data<double, int> m1(dim, {{0, 0, 2}, {1, 1, 0}, {2, 3, 5}});
