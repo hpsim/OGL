@@ -66,6 +66,11 @@ public:
         return *this;
     }
 
+     /**
+     * Returns a list of coefficients of the combination.
+     *
+     * @return a list of coefficients
+     */
     const std::vector<std::shared_ptr<const gko::LinOp>> &get_coefficients()
         const noexcept
     {
