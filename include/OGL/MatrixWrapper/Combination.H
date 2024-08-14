@@ -132,7 +132,15 @@ public:
         result->read(mat_data);
     }
 
-    void move_to(gko::matrix::Coo<scalar, label> *result) override {}
+    /*
+     * @warning assumes that all entries are unique
+     */
+    void move_to(gko::matrix::Coo<scalar, label> *result) override 
+    {
+        this->convert_to(result);
+        this->comb_ = nullptr;
+        this->set_size(gko::dim<2>(0, 0));
+    }
 
     void move_to(gko::matrix::Csr<scalar, label> *result) override {}
 
