@@ -110,7 +110,27 @@ public:
         result->read(mat_data);
     }
 
-    void convert_to(gko::matrix::Csr<scalar, label> *result) const override {}
+    /*
+     * @warning assumes that all entries are unique
+     */
+    void convert_to(gko::matrix::Csr<scalar, label> *result) const override 
+    {
+        auto exec = this->get_executor();
+        auto operators = this->get_operators();
+
+        std::vector<gko::matrix_data_entry<scalar, label>> data;
+        for (auto op : operators) {
+            auto tmp_mat_data = gko::matrix_data<scalar>();
+            gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
+            data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
+                        tmp_mat_data.nonzeros.end());
+        }
+        auto mat_data = gko::matrix_data<scalar>();
+        mat_data.nonzeros = data;
+        mat_data.size = this->get_size();
+
+        result->read(mat_data);
+    }
 
     void move_to(gko::matrix::Coo<scalar, label> *result) override {}
 
