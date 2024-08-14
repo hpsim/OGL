@@ -5,6 +5,9 @@
 # Copy the data files to the execution directory
 configure_file(data/A_sparse.mtx data/A_sparse.mtx COPYONLY)
 configure_file(data/b.mtx data/b.mtx COPYONLY)
+configure_file(data/L.mtx data/L.mtx COPYONLY)
+configure_file(data/D.mtx data/D.mtx COPYONLY)
+configure_file(data/U.mtx data/U.mtx COPYONLY)
 
 ogl_unit_test(matrixConversion "HostMatrix.C")
 ogl_unit_test(combination "Combination.C")

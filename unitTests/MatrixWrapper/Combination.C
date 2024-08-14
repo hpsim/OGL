@@ -99,6 +99,55 @@ TEST(Combination, CanCreateCombinationMatrixWithSparseRealMatrix)
     ASSERT_EQ(x->at(4, 0), 96.0);
 }
 
+
+TEST(Combination, CanCreateCombinationMatrixWithOpenFOAMLDUMatrix)
+{
+    // Arrange
+    using ValueType = scalar;
+    using IndexType = label;
+    using mtx = gko::matrix::Csr<ValueType, IndexType>;
+    using vec = gko::matrix::Dense<ValueType>;
+    
+    int dim_size = 5;
+    auto dim = gko::dim<2>{dim_size, dim_size};
+
+    auto exec = gko::share(gko::ReferenceExecutor::create());
+
+    auto Llinop = gko::share(
+        gko::read<mtx>(std::ifstream("data/L.mtx"), exec));
+
+    auto Dlinop = gko::share(
+        gko::read<mtx>(std::ifstream("data/D.mtx"), exec));
+    
+    auto Ulinop = gko::share(
+        gko::read<mtx>(std::ifstream("data/U.mtx"), exec));
+
+    auto b = gko::read<vec>(std::ifstream("data/b.mtx"), exec);
+
+    std::vector<std::shared_ptr<const gko::LinOp>> linops{Llinop, Dlinop, Ulinop};
+
+    // Act
+    auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
+        exec, dim, linops);
+
+    // Assert
+    ASSERT_EQ(cmb->get_size(), gko::dim<2>(dim_size, dim_size));
+    ASSERT_EQ(cmb->get_coefficients().size(), 3);
+    ASSERT_EQ(cmb->get_operators().size(), 3);
+
+    // Act
+    auto x = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{dim_size, 1});
+    x->fill(0.0);
+    cmb->apply(b, x);
+
+    // Assert
+    ASSERT_EQ(x->at(0, 0), 19.0);
+    ASSERT_EQ(x->at(1, 0), 0.0);
+    ASSERT_EQ(x->at(2, 0), 1.0);
+    ASSERT_EQ(x->at(3, 0), -707.2);
+    ASSERT_EQ(x->at(4, 0), 48.0);
+}
+
 TEST(Combination, CanConvertToCsr)
 {
     auto dim = gko::dim<2>{5, 5};
