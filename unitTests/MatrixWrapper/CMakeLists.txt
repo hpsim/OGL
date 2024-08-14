@@ -4,6 +4,7 @@
 
 # Copy the data files to the execution directory
 configure_file(data/A.mtx data/A.mtx COPYONLY)
+configure_file(data/b.mtx data/b.mtx COPYONLY)
 
 ogl_unit_test(matrixConversion "HostMatrix.C")
 ogl_unit_test(combination "Combination.C")
