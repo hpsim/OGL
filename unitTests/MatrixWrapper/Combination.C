@@ -57,7 +57,7 @@ TEST(Combination, CanCreateCombinationWithLinOpVector)
     ASSERT_EQ(x->at(4, 0), 0.0);
 }
 
-TEST(Combination, CombinationMatrxWithRegularMatrix)
+TEST(Combination, CombinationMatrixWithSparseMatrix)
 {
     auto dim = gko::dim<2>{5, 5};
     // gko::matrix_data<double, int> m1
@@ -70,9 +70,12 @@ TEST(Combination, CombinationMatrxWithRegularMatrix)
     using ValueType = double;
     using IndexType = int;
     using mtx = gko::matrix::Csr<ValueType, IndexType>;
+    using vec = gko::matrix::Dense<ValueType>;
 
     auto m1linop = gko::share(
         gko::read<mtx>(std::ifstream("data/A.mtx"), exec));
+    
+    auto b = gko::read<vec>(std::ifstream("data/b.mtx"), exec);
 
     std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m1linop};
 
@@ -83,8 +86,8 @@ TEST(Combination, CombinationMatrxWithRegularMatrix)
     ASSERT_EQ(cmb->get_coefficients().size(), 2);
     ASSERT_EQ(cmb->get_operators().size(), 2);
 
-    auto b = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{5, 1});
-    b->fill(1.0);
+    // auto b = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{5, 1});
+    // b->fill(1.0);
     auto x = gko::matrix::Dense<scalar>::create(exec, gko::dim<2>{5, 1});
     x->fill(0.0);
     cmb->apply(b, x);
