@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Copy the data files to the execution directory
-configure_file(data/A.mtx data/A.mtx COPYONLY)
+configure_file(data/A_sparse.mtx data/A_sparse.mtx COPYONLY)
 configure_file(data/b.mtx data/b.mtx COPYONLY)
 
 ogl_unit_test(matrixConversion "HostMatrix.C")
