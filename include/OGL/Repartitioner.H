@@ -30,7 +30,10 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
-// TODO this should be persistent
+/** @class Collects functions to repartion communication patterns 
+ * and matrices. Here repartitioning refers to changing a given partitioning on n 
+ * ranks to m ranks with n>=m
+ */
 class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
@@ -44,7 +47,6 @@ private:
     const label verbose_;
 
     std::shared_ptr<const partition> orig_partition_;
-
 
 public:
     Repartitioner(label size, label ranks_per_gpu, label verbose,
