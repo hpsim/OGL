@@ -7,7 +7,6 @@
 #include <ginkgo/ginkgo.hpp>
 
 #include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
-#include "MatrixWrapper/LDUMatrix/HostMatrix.H"
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
@@ -38,7 +37,7 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    const label size_;  //! Size (n matrix rows ) before repartitioning
+    const label size_;  //! Size (n matrix rows) before repartitioning
 
     const label repart_size_;  //! Size after repartitioning
 
