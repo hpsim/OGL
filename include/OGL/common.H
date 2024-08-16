@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
 #include "regIOobject.H"
@@ -12,7 +13,6 @@
 #endif
 
 #include <string.h>
-#include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
 

@@ -452,7 +452,9 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
 {
     auto sparsity{std::make_shared<SparsityPattern>(exec->get_master(),
                                                     non_local_matrix_nnz_)};
-    sparsity->dim = gko::dim<2>{nrows_, non_local_matrix_nnz_};
+    sparsity->dim = gko::dim<2>{
+    static_cast<gko::size_type>(nrows_),
+     static_cast<gko::size_type>(non_local_matrix_nnz_)};
 
     auto non_local_indices = collect_cells_on_non_local_interface(interfaces_);
     auto rows = sparsity->row_idxs.get_data();
@@ -529,7 +531,11 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
                         cols, permute);
 
-    sparsity->dim = gko::dim<2>{nrows_, nrows_};
+    sparsity->dim = gko::dim<2>{
+  static_cast<gko::size_type>(
+    nrows_),
+  static_cast<gko::size_type>(
+    nrows_)};
     sparsity->spans.emplace_back(0, local_matrix_nnz_);
 
     // if no local interfaces are present we are done here

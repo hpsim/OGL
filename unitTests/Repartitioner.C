@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "OGL/CommunicationPattern.H"
+#include "OGL/Repartitioner.H"
 
 #include "gtest/gtest.h"
 
@@ -56,14 +56,14 @@ public:
 };
 
 const testing::Environment *global_env =
-    AddGlobalTestEnvironment(new CommunicationPatternEnvironment);
+    AddGlobalTestEnvironment(new RepartitionerEnvironment);
 
 
 TEST(CommunicationPattern, can_create_repartitioner)
 {
     // Arrange
     label ranks_per_gpu = 1;
-    auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec;
     auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, *exec.get());
 
     // Assert
