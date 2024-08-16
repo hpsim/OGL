@@ -6,7 +6,10 @@
 
 #include <ginkgo/ginkgo.hpp>
 
-#include "MatrixWrapper/CommunicationPattern/CommunicationPattern.H"
+#include "fvCFD.H"
+
+#include "CommunicationPattern.H"
+#include "MatrixWrapper/SparsityPattern.H"
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
@@ -29,9 +32,9 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
-/** @class Collects functions to repartion communication patterns 
- * and matrices. Here repartitioning refers to changing a given partitioning on n 
- * ranks to m ranks with n>=m
+/** @class Collects functions to repartion communication patterns
+ * and matrices. Here repartitioning refers to changing a given partitioning on
+ * n ranks to m ranks with n>=m
  */
 class Repartitioner {
 private:
@@ -59,7 +62,7 @@ public:
               gko::experimental::distributed::build_partition_from_local_size<
                   label, label>(exec_handler.get_ref_exec(),
                                 *exec_handler.get_communicator().get(),
-                                size))){};
+                                size))) {};
 
     /* returns the owner rank for a given rank */
     label get_owner_rank(label rank) const
@@ -96,6 +99,11 @@ public:
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 
+    /* @brief computes the size after repartitioning
+     *
+     * Given a local size (can represent nrows or nnzs) the new size of
+     * this rank after repartitioning gets computed
+     */
     static label compute_repart_size(label local_size, label ranks_per_gpu,
                                      const ExecutorHandler &exec_handler)
     {
@@ -103,22 +111,18 @@ public:
             return local_size;
         }
 
-        CommCounts comm_pattern =
-            compute_send_recv_counts(exec_handler, ranks_per_gpu, 1);
+        auto all_to_all_pattern = compute_gather_to_owner_counts(
+            exec_handler, ranks_per_gpu, local_size);
 
-        std::vector<label> data{local_size};
-
-        auto local_sizes =
-            gather_to_owner(exec_handler, comm_pattern, 1, data.data());
-
-        return std::accumulate(local_sizes.begin(), local_sizes.end(), 0);
+        return all_to_all_pattern.recv_offsets.back();
     }
 
     label get_repart_size() const { return repart_size_; }
 
     gko::dim<2> get_repart_dim() const
     {
-        return gko::dim<2>{repart_size_, repart_size_};
+        return gko::dim<2>{static_cast<gko::size_type>(repart_size_),
+                           static_cast<gko::size_type>(repart_size_)};
     }
 
     std::shared_ptr<const partition> get_orig_partition() const
@@ -129,15 +133,14 @@ public:
 
     /* @brief given received interfaces this function sorts into local and non
      *local
-     * returns: SparsityPatternVector storing new non_local sparsity pattern,
+     * returns: SparsityPattern storing new non_local sparsity pattern,
      *  and a pair of locality information, where the first bool stores if the
      *  interface performs a local communication and the second bool if the
      *  the interface was originally from this rank
      */
-    std::pair<SparsityPatternVector, std::vector<bool>>
-    build_non_local_interfaces(const ExecutorHandler &exec_handler,
-                               SparsityPatternVector &loc,
-                               const SparsityPatternVector &non_loc) const;
+    std::pair<SparsityPattern, std::vector<bool>> build_non_local_interfaces(
+        const ExecutorHandler &exec_handler, SparsityPattern &loc,
+        const SparsityPattern &non_loc) const;
 
 
     /*
@@ -185,8 +188,8 @@ public:
         //         std::move(ret));
         // }
 
-        auto local_comm_pattern = compute_send_recv_counts(
-            exec_handler, ranks_per_gpu, src_local_pattern->size_);
+        auto local_comm_pattern = compute_gather_to_owner_counts(
+            exec_handler, ranks_per_gpu, src_local_pattern->num_nnz);
 
 
         auto offset = orig_partition_->get_range_bounds()[rank] -
@@ -194,40 +197,41 @@ public:
 
         auto gather_closure = [&](auto &comm_pattern, auto &data,
                                   label offset) {
-            return gather_to_owner(exec_handler, comm_pattern, data.get_size(),
-                                   data.get_data(), offset);
+            return gather_labels_to_owner(exec_handler, comm_pattern,
+                                          data.get_data(), data.get_size(),
+                                          offset);
         };
 
-        SparsityPatternVector merged_local{
+        SparsityPattern merged_local{
             gather_closure(local_comm_pattern, src_local_pattern->row_idxs,
                            offset),
             gather_closure(local_comm_pattern, src_local_pattern->col_idxs,
                            offset),
             gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping,
                            0),
-            std::vector<label>{0},
-            std::vector<label>{0},
             std::vector{rank}};
-        merged_local.end[0] = merged_local.rows.size();
 
         if (is_owner(exec_handler)) {
             make_ldu_mapping_consecutive(
-                local_comm_pattern, merged_local.mapping, rank, ranks_per_gpu);
+                local_comm_pattern, merged_local.ldu_mapping, rank, ranks_per_gpu);
         }
 
-        label rows =
-            (is_owner(exec_handler)) ? merged_local.rows.back() + 1 : 0;
-        gko::dim<2> merged_local_dim{rows, rows};
+	auto get_back = [](const gko::array<label> & in){return *(in.get_const_data() + in.get_size());};
 
-        auto non_local_comm_pattern = compute_send_recv_counts(
+        label rows =
+            (is_owner(exec_handler)) ? get_back(merged_local.row_idxs) + 1 : 0;
+        gko::dim<2> merged_local_dim{static_cast<gko::size_type>(rows),
+                           static_cast<gko::size_type>(rows)};
+
+        auto non_local_comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_gpu, src_non_local_pattern->size_);
 
         std::vector<label> spans_begin;
         std::vector<label> spans_end;
-        auto span_comm_pattern = compute_send_recv_counts(
+        auto span_comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_gpu,
             src_non_local_pattern->interface_spans.size());
-        for (auto elem : src_non_local_pattern->interface_spans) {
+        for (auto elem : src_non_local_pattern->spans) {
             spans_begin.push_back(elem.begin);
             spans_end.push_back(elem.end);
         }
@@ -248,7 +252,7 @@ public:
                            [&](label idx) { return idx + local_offset; });
         }
 
-        SparsityPatternVector merged_non_local{
+        SparsityPattern merged_non_local{
             gather_closure(non_local_comm_pattern,
                            src_non_local_pattern->row_idxs, offset),
             gather_closure(non_local_comm_pattern,
@@ -407,7 +411,7 @@ public:
 
         // send all remaining non local ids and sizes to the new
         // owner rank
-        auto comm_pattern = compute_send_recv_counts(
+        auto comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_gpu_, target_ids.size());
 
         auto gathered_target_ids = gather_to_owner(
