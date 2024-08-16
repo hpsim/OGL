@@ -62,13 +62,12 @@ const testing::Environment *global_env =
 TEST(CommunicationPattern, can_create_repartitioner)
 {
     // Arrange
+    label ranks_per_gpu = 1;
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto repartitioner = Repartitioner(0, 1, 0, exec);
-
-    // Act
+    auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, *exec.get());
 
     // Assert
-    EXPECT_EQ(owner_rank, 0);
+    EXPECT_EQ(repartitioner.get_ranks_per_gpu(), 0);
 }
 
 

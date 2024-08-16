@@ -6,7 +6,38 @@
 
 #include <vector>
 
+#include "../common.H"
+
 namespace Foam {
+
+/* @brief based on a comm_pattern consecutive ldu_mappings are computed
+ *
+ * After merging sparsity patterns during repartitioning the ldu mapping are
+ * not consecutive ie they could look like [0 1 2 3 | 0 1 2 3 | 0 1], where
+ * | is the former rank boundary based on the comm pattern we compute a new
+ * mapping as  [ 0 1 2 3 | 4 5 6 7| 8 9 ] where the following offsets [ 0 |
+ * 4 | 8 ] based on the recv_counts are used.
+ *
+ * */
+void make_ldu_mapping_consecutive(
+    const AllToAllPattern & comm_pattern,
+    gko::array<label> &ldu_mapping, label rank, label ranks_per_gpu)
+    {
+        // TODO move to SparsityPattern.C
+    label ldu_offset = 0;
+    auto *data = ldu_mapping.get_data();
+    // TODO check if ldu_mapping is on host exec
+
+    for (label i = 0; i < ranks_per_gpu; i++) {
+        auto size = comm_pattern.recv_counts[i];
+        std::transform(data + ldu_offset, data + ldu_offset + size,
+                       data + ldu_offset,
+                       [&](label idx) { return idx + ldu_offset; });
+        ldu_offset += size;
+    }
+
+
+    }
 
 
 /* The SparsityPattern holds row and column index data using gko::arrays.
@@ -17,6 +48,19 @@ namespace Foam {
  *
  * */
 struct SparsityPattern {
+    /* constructor from vectors, assumes a single interface */
+    SparsityPattern(
+        std::vector<label> rows,
+        std::vector<label> cols,
+        std::vector<label> mapping,
+        std::vector<label> rank
+)
+        : num_nnz(rows.size())
+    {
+        // NOT fully implementented
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+    }
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
         : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
@@ -56,6 +100,7 @@ struct SparsityPattern {
         rank = ranks;
     }
 
+    // TODO num_nnz makes no sense ->nnz;
     const label num_nnz;
 
     mutable gko::Array<label> row_idxs;
