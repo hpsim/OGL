@@ -31,6 +31,6 @@ macro(ogl_unit_test TEST FILE)
 endmacro()
 
 ogl_unit_test(CommunicationPattern "CommunicationPattern.C")
-ogl_unit_test(CommunicationPattern "Repartitioner.C")
+ogl_unit_test(Repartitioner "Repartitioner.C")
 
 add_subdirectory(MatrixWrapper)
