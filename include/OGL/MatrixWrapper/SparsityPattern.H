@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "../common.H"
+#include "OGL/CommunicationPattern.H"
 
 namespace Foam {
 
@@ -19,25 +20,9 @@ namespace Foam {
  * 4 | 8 ] based on the recv_counts are used.
  *
  * */
-void make_ldu_mapping_consecutive(
-    const AllToAllPattern & comm_pattern,
-    gko::array<label> &ldu_mapping, label rank, label ranks_per_gpu)
-    {
-        // TODO move to SparsityPattern.C
-    label ldu_offset = 0;
-    auto *data = ldu_mapping.get_data();
-    // TODO check if ldu_mapping is on host exec
-
-    for (label i = 0; i < ranks_per_gpu; i++) {
-        auto size = comm_pattern.recv_counts[i];
-        std::transform(data + ldu_offset, data + ldu_offset + size,
-                       data + ldu_offset,
-                       [&](label idx) { return idx + ldu_offset; });
-        ldu_offset += size;
-    }
-
-
-    }
+void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
+                                  gko::array<label> &ldu_mapping, label rank,
+                                  label ranks_per_gpu);
 
 
 /* The SparsityPattern holds row and column index data using gko::arrays.
@@ -49,12 +34,8 @@ void make_ldu_mapping_consecutive(
  * */
 struct SparsityPattern {
     /* constructor from vectors, assumes a single interface */
-    SparsityPattern(
-        std::vector<label> rows,
-        std::vector<label> cols,
-        std::vector<label> mapping,
-        std::vector<label> rank
-)
+    SparsityPattern(std::vector<label> rows, std::vector<label> cols,
+                    std::vector<label> mapping, std::vector<label> rank)
         : num_nnz(rows.size())
     {
         // NOT fully implementented

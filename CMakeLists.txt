@@ -222,6 +222,7 @@ target_sources(
           src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
+	  src/MatrixWrapper/SparsityPattern.C
           src/Repartitioner.C
           src/Solver/CG/GKOCG.C
           src/Solver/BiCGStab/GKOBiCGStab.C
