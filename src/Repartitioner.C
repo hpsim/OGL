@@ -18,7 +18,7 @@ Repartitioner::build_non_local_interfaces(const ExecutorHandler &exec_handler,
     // and use the vector variant
     //   for (label i = 0; i < merged_ranks_size; i++) {
     //       // these are the begin ends before merging they need to be
-    //       // offseted;
+    //       // offsetted;
     //       auto begin = non_loc.spans[i].begin;
     //       auto end = non_loc.spans[i].end;
     //       bool local = reparts_to_local(exec_handler, non_loc.rank[i]);

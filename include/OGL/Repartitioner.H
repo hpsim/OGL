@@ -486,7 +486,7 @@ public:
             }
         }
 
-        // clear communcation neighbors on non owning rank
+        // clear communication neighbors on non owning rank
         if (!owner) {
             // TODO NOTE should it be gathered_target_ids and is it needed?
             target_ids.clear();
@@ -533,7 +533,7 @@ public:
         for (int i = 1; i < target_ids.size(); i++) {
             // communicates with same target rank
             // thus we have only have to adapt the number
-            // of elemts and the send_ixs
+            // of elements and the send_ixs
             auto *send_idx_begin = send_idxs[i].first.get_data();
             auto *send_idx_end =
                 send_idxs[i].first.get_data() + send_idxs[i].first.get_size();
