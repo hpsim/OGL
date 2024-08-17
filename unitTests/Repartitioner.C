@@ -58,8 +58,7 @@ public:
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new RepartitionerEnvironment);
 
-
-TEST(CommunicationPattern, can_create_repartitioner)
+TEST(Repartitioner, can_create_repartitioner)
 {
     // Arrange
     label ranks_per_gpu = 1;
@@ -67,7 +66,19 @@ TEST(CommunicationPattern, can_create_repartitioner)
     auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, *exec.get());
 
     // Assert
-    EXPECT_EQ(repartitioner.get_ranks_per_gpu(), 0);
+    EXPECT_EQ(repartitioner.get_ranks_per_gpu(), ranks_per_gpu);
 }
 
+int main(int argc, char *argv[])
+{
+    int result = 0;
 
+    ::testing::InitGoogleTest(&argc, argv);
+
+    my_argc = argc;
+    my_argv = argv;
+
+    result = RUN_ALL_TESTS();
+
+    return result;
+}

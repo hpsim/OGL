@@ -153,13 +153,10 @@ public:
 
         // TODO why does it need its size
         // repartitioner size should be sufficient
-        auto target_vector = dist_vec::create(exec_.get_ref_exec(), *comm.get(),
-                                              gko::dim<2>{
-  static_cast<gko::size_type>(
-					      global_size), 1},
-                                              gko::dim<2>{
-  static_cast<gko::size_type>(
-					      local_size), 1}, 1);
+        auto target_vector = dist_vec::create(
+            exec_.get_ref_exec(), *comm.get(),
+            gko::dim<2>{static_cast<gko::size_type>(global_size), 1},
+            gko::dim<2>{static_cast<gko::size_type>(local_size), 1}, 1);
         scalar *host_buffer = host_device_vector->get_local_values();
 
         auto host_buffer_view =

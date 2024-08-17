@@ -314,40 +314,40 @@ public:
         LOG_1(verbose_, "done repartition sparsity pattern")
         if (is_owner(exec_handler)) {
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
-//auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
-//    exec, merged_local_dim, merged_local);
-//
-//auto new_non_local_spars_pattern =
-//    std::make_shared<SparsityPattern>(
-//        exec,
-//        gko::dim<2>{merged_local_dim[0],
-//                    gathered_non_local.row_idxs.get_size()},
-//        gathered_non_local);
-//
-            //        return std::make_tuple<std::shared_ptr<SparsityPattern>,
-            //                               std::shared_ptr<SparsityPattern>,
-            //                               std::vector<std::pair<bool,
-            //                               label>>>(
-            //            std::move(new_local_spars_pattern),
-            //            std::move(new_non_local_spars_pattern),
-            //            std::move(locality));
+            // auto new_local_spars_pattern = std::make_shared<SparsityPattern>(
+            //     exec, merged_local_dim, merged_local);
+            //
+            // auto new_non_local_spars_pattern =
+            //     std::make_shared<SparsityPattern>(
+            //         exec,
+            //         gko::dim<2>{merged_local_dim[0],
+            //                     gathered_non_local.row_idxs.get_size()},
+            //         gathered_non_local);
+            //
+            //         return std::make_tuple<std::shared_ptr<SparsityPattern>,
+            //                                std::shared_ptr<SparsityPattern>,
+            //                                std::vector<std::pair<bool,
+            //                                label>>>(
+            //             std::move(new_local_spars_pattern),
+            //             std::move(new_non_local_spars_pattern),
+            //             std::move(locality));
         } else {
-// auto new_local_spars_pattern =
-//     std::make_shared<SparsityPattern>(exec);
-// 
-// auto new_non_local_spars_pattern =
-//     std::make_shared<SparsityPattern>(exec);
-// 
-// // FIXME
-// // std::cout << __FILE__ << ":" << __LINE__ << " rank " <<
-// // comm.rank() <<
-// //     " merged_local dim " <<
-// new_local_spars_pattern->dim =
-//     gko::dim<2>{0, 0};  // merged_local_dim;
-// new_non_local_spars_pattern->dim =
-//     gko::dim<2>{0, 0};  // merged_local_dim;
-// 
-// 
+            // auto new_local_spars_pattern =
+            //     std::make_shared<SparsityPattern>(exec);
+            //
+            // auto new_non_local_spars_pattern =
+            //     std::make_shared<SparsityPattern>(exec);
+            //
+            // // FIXME
+            // // std::cout << __FILE__ << ":" << __LINE__ << " rank " <<
+            // // comm.rank() <<
+            // //     " merged_local dim " <<
+            // new_local_spars_pattern->dim =
+            //     gko::dim<2>{0, 0};  // merged_local_dim;
+            // new_non_local_spars_pattern->dim =
+            //     gko::dim<2>{0, 0};  // merged_local_dim;
+            //
+            //
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
             // return std::make_tuple<std::shared_ptr<SparsityPattern>,
             //                        std::shared_ptr<SparsityPattern>,
