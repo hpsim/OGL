@@ -23,4 +23,4 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
     }
 }
 
-    }
+}  // namespace Foam
