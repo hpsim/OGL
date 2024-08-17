@@ -69,6 +69,43 @@ TEST(Repartitioner, can_create_repartitioner)
     EXPECT_EQ(repartitioner.get_ranks_per_gpu(), ranks_per_gpu);
 }
 
+TEST(Repartitioner, has_correct_properties_for_1_rank)
+{
+    // Arrange
+    label ranks_per_gpu = 1;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+
+    // Assert
+    EXPECT_EQ(
+        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
+        local_size);
+
+    EXPECT_EQ(
+        repartitioner.is_owner(*exec),
+        true);
+}
+
+TEST(Repartitioner, has_correct_properties_for_4_rank)
+{
+    // Arrange
+    label ranks_per_gpu = 4;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = repartitioner.get_rank(*exec);
+
+    // Assert
+    EXPECT_EQ(
+        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
+        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0 ));
+
+    EXPECT_EQ(
+        repartitioner.is_owner(*exec),
+        (rank == 0)? true: false);
+}
+
 int main(int argc, char *argv[])
 {
     int result = 0;

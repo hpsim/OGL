@@ -222,12 +222,11 @@ target_sources(
           src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
-	  src/MatrixWrapper/SparsityPattern.C
+          src/MatrixWrapper/SparsityPattern.C
           src/Repartitioner.C
           src/Solver/CG/GKOCG.C
           src/Solver/BiCGStab/GKOBiCGStab.C
-          src/Solver/GMRES/GKOGMRES.C
-)
+          src/Solver/GMRES/GKOGMRES.C)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
