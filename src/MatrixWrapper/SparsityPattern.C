@@ -4,13 +4,15 @@
 
 #include "OGL/MatrixWrapper/SparsityPattern.H"
 
+namespace Foam {
+
 void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   gko::array<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu)
 {
+    // TODO check if ldu_mapping is on host exec
     label ldu_offset = 0;
     auto *data = ldu_mapping.get_data();
-    // TODO check if ldu_mapping is on host exec
 
     for (label i = 0; i < ranks_per_gpu; i++) {
         auto size = comm_pattern.recv_counts[i];
@@ -20,3 +22,5 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
         ldu_offset += size;
     }
 }
+
+    }

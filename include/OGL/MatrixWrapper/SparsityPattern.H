@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "../common.H"
+#include "OGL/common.H"
 #include "OGL/CommunicationPattern.H"
 
 namespace Foam {
@@ -23,7 +23,6 @@ namespace Foam {
 void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   gko::array<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
-
 
 /* The SparsityPattern holds row and column index data using gko::arrays.
  * This struct is used for easy generation of (distributed) ginkgo matrices.
