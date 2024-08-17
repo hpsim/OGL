@@ -74,8 +74,7 @@ TEST(Combination, CanCreateConvertToCsr)
     auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
         exec, dim, linops);
 
-    auto out = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
-        exec);
+    auto out = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(exec);
 
     cmb->convert_to(out);
 }
