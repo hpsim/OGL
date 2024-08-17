@@ -176,8 +176,7 @@ TEST(Combination, CanConvertToCoo)
     auto cmb = CombinationMatrix<InputFormat>::create(
         exec, dim, linops);
 
-    auto out = OutputFormat::create(
-        exec);
+    auto out = OutputFormat::create(exec);
 
     // Act
     cmb->convert_to(out.get());

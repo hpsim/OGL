@@ -67,6 +67,7 @@ TEST(Repartitioner, can_create_repartitioner)
 
     // Assert
     EXPECT_EQ(repartitioner.get_ranks_per_gpu(), ranks_per_gpu);
+<<<<<<< HEAD
 }
 
 TEST(Repartitioner, has_correct_properties_for_1_rank)
@@ -259,7 +260,6 @@ TEST(Repartitioner, has_correct_properties_for_2_ranks)
 
     EXPECT_EQ(repartitioner.is_owner(*exec), (rank % 2 == 0) ? true : false);
 }
-
 
 int main(int argc, char *argv[])
 {
