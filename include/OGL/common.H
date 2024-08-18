@@ -100,6 +100,11 @@ std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
+std::ostream &operator<<(
+    std::ostream &os,
+    const std::vector<label>& in);
+
+
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time);
