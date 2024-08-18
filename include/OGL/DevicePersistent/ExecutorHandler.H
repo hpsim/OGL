@@ -187,6 +187,8 @@ public:
     {
         return this->device_comm_;
     }
+
+    label get_rank() const { return get_communicator().get()->rank(); };
 };
 
 using PersistentExecutor = ExecutorHandler;
