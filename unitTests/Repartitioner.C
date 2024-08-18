@@ -131,6 +131,54 @@ TEST(Repartitioner, can_repartition_comm_pattern_for_1_rank)
     EXPECT_EQ(res_sizes, exp_sizes[rank]);
 }
 
+TEST(Repartitioner, can_repartition_comm_pattern_for_2_rank)
+{
+    // Arrange
+    label ranks_per_gpu = 2;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+    auto ref_exec = exec->get_ref_exec();
+
+    // rank:     0     1     2     3
+    // cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
+    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- local row ids
+    std::vector<std::vector<label>> ids{{1}, {0, 2}, {1, 3}, {2}};
+    std::vector<std::vector<std::vector<label>>> rows{
+        {{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}};
+
+    auto comm_pattern =
+        std::make_shared<CommunicationPattern>(*exec, ids[rank], rows[rank]);
+
+    auto comm = exec->get_communicator();
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            ref_exec, *comm.get(), 2));
+
+    // Act
+    auto repart_comm_pattern =
+        repartitioner.repartition_comm_pattern(*exec, comm_pattern, partition);
+
+    // Assert
+    std::vector<label> res_ids(
+        repart_comm_pattern->target_ids.get_const_data(),
+        repart_comm_pattern->target_ids.get_const_data() +
+            repart_comm_pattern->target_ids.get_size());
+    // on non owner no communication ranks should be left
+    std::vector<std::vector<label>> exp_ids {{2}, {}, {0}, {}};
+    EXPECT_EQ(res_ids, exp_ids[rank]);
+
+    std::vector<label> res_sizes(
+        repart_comm_pattern->target_sizes.get_const_data(),
+        repart_comm_pattern->target_sizes.get_const_data() +
+            repart_comm_pattern->target_sizes.get_size());
+    std::vector<std::vector<label>> exp_sizes {{1}, {}, {1}, {}};
+    // thus communication sizes is also empty
+    EXPECT_EQ(res_sizes, exp_sizes[rank]);
+}
+
 TEST(Repartitioner, has_correct_properties_for_4_ranks)
 {
     // Arrange
@@ -211,6 +259,7 @@ TEST(Repartitioner, has_correct_properties_for_2_ranks)
 
     EXPECT_EQ(repartitioner.is_owner(*exec), (rank % 2 == 0) ? true : false);
 }
+
 
 int main(int argc, char *argv[])
 {
