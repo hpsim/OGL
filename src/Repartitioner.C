@@ -38,7 +38,7 @@ Repartitioner::repartition_sparsity(
     // debugging reasons
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
-    label rank = get_rank(exec_handler);
+    label rank = exec_handler.get_rank();
     label owner_rank = get_owner_rank(exec_handler);
     label ranks_per_gpu = ranks_per_gpu_;
     // TODO dont copy
@@ -304,16 +304,13 @@ Repartitioner::repartition_comm_pattern(
         const gko::experimental::distributed::Partition<label, label>>
         partition) const
 {
-    using comm_size_type = label;
-    auto exec = src_comm_pattern->target_ids.get_executor();
-    auto comm = src_comm_pattern->get_comm();
-
     if (ranks_per_gpu_ == 1) {
-        std::cout << __FILE__ << ":" << __LINE__ << " rank " << comm.rank()
-                  << *src_comm_pattern.get() << "\n";
         return src_comm_pattern;
     }
 
+    using comm_size_type = label;
+    auto exec = src_comm_pattern->target_ids.get_executor();
+    auto comm = src_comm_pattern->get_comm();
 
     label rank = comm.rank();
     bool owner = is_owner(exec_handler);

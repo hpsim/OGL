@@ -73,13 +73,14 @@ public:
     /* returns the owner rank for a given rank */
     label get_owner_rank(const ExecutorHandler &exec_handler) const
     {
-        return get_owner_rank(get_rank(exec_handler));
+        return get_owner_rank(exec_handler.get_rank());
     };
 
     /* returns if current rank is an owner  */
     bool is_owner(const ExecutorHandler &exec_handler) const
     {
-        return get_rank(exec_handler) == get_owner_rank(get_rank(exec_handler));
+        return exec_handler.get_rank() ==
+               get_owner_rank(exec_handler.get_rank());
     };
 
     /* @brief check if the given rank gets local after repartitioning
@@ -89,12 +90,6 @@ public:
     {
         return get_owner_rank(exec_handler) ==
                compute_owner_rank(rank, ranks_per_gpu_);
-    };
-
-    /* shortcut to current rank */
-    label get_rank(const ExecutorHandler &exec_handler) const
-    {
-        return exec_handler.get_communicator().get()->rank();
     };
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
@@ -149,6 +144,10 @@ public:
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const;
 
+    /* @brief repartion a communication pattern
+    **
+    ** returns the repartitioned communcation pattern
+    */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,

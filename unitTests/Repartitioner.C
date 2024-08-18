@@ -82,28 +82,134 @@ TEST(Repartitioner, has_correct_properties_for_1_rank)
         repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
         local_size);
 
-    EXPECT_EQ(
-        repartitioner.is_owner(*exec),
-        true);
+    EXPECT_EQ(repartitioner.is_owner(*exec), true);
 }
 
-TEST(Repartitioner, has_correct_properties_for_4_rank)
+TEST(Repartitioner, can_repartition_comm_pattern_for_1_rank)
+{
+    // Arrange
+    label ranks_per_gpu = 1;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+    auto ref_exec = exec->get_ref_exec();
+
+    // rank:     0     1     2     3
+    // cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
+    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- global row ids
+    std::vector<std::vector<label>> ids{{1}, {0, 2}, {1, 3}, {2}};
+    std::vector<std::vector<std::vector<label>>> rows{
+        {{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}};
+
+    auto comm_pattern =
+        std::make_shared<CommunicationPattern>(*exec, ids[rank], rows[rank]);
+
+    auto comm = exec->get_communicator();
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            ref_exec, *comm.get(), 2));
+
+    // Act
+    auto repart_comm_pattern =
+        repartitioner.repartition_comm_pattern(*exec, comm_pattern, partition);
+
+    // Assert
+    // communication ranks are the same as before
+    std::vector<label> res_ids(
+        repart_comm_pattern->target_ids.get_const_data(),
+        repart_comm_pattern->target_ids.get_const_data() +
+            repart_comm_pattern->target_ids.get_size());
+    EXPECT_EQ(res_ids, ids[rank]);
+
+    std::vector<label> res_sizes(
+        repart_comm_pattern->target_sizes.get_const_data(),
+        repart_comm_pattern->target_sizes.get_const_data() +
+            repart_comm_pattern->target_sizes.get_size());
+    std::vector<std::vector<label>> exp_sizes{{1}, {1, 1}, {1, 1}, {1}};
+    EXPECT_EQ(res_sizes, exp_sizes[rank]);
+}
+
+TEST(Repartitioner, has_correct_properties_for_4_ranks)
 {
     // Arrange
     label ranks_per_gpu = 4;
     label local_size = 10;
     auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
-    auto rank = repartitioner.get_rank(*exec);
+    auto rank = exec->get_rank();
 
     // Assert
     EXPECT_EQ(
         repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
-        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0 ));
+        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
 
+    EXPECT_EQ(repartitioner.is_owner(*exec), (rank == 0) ? true : false);
+}
+
+TEST(Repartitioner, can_repartition_comm_pattern_for_4_rank)
+{
+    // Arrange
+    label ranks_per_gpu = 4;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+    auto ref_exec = exec->get_ref_exec();
+
+    // rank:     0     1     2     3
+    // cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
+    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- global row ids
+    std::vector<std::vector<label>> ids{{1}, {0, 2}, {1, 3}, {2}};
+    std::vector<std::vector<std::vector<label>>> rows{
+        {{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}};
+
+    auto comm_pattern =
+        std::make_shared<CommunicationPattern>(*exec, ids[rank], rows[rank]);
+
+    auto comm = exec->get_communicator();
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            ref_exec, *comm.get(), 2));
+
+    // Act
+    auto repart_comm_pattern =
+        repartitioner.repartition_comm_pattern(*exec, comm_pattern, partition);
+
+    // Assert
+    std::vector<label> res_ids(
+        repart_comm_pattern->target_ids.get_const_data(),
+        repart_comm_pattern->target_ids.get_const_data() +
+            repart_comm_pattern->target_ids.get_size());
+    // no communication ranks should be left
+    EXPECT_EQ(res_ids.size(), 0);
+
+    std::vector<label> res_sizes(
+        repart_comm_pattern->target_sizes.get_const_data(),
+        repart_comm_pattern->target_sizes.get_const_data() +
+            repart_comm_pattern->target_sizes.get_size());
+    // thus communication sizes is also empty
+    EXPECT_EQ(res_sizes.size(), 0);
+    EXPECT_EQ(repart_comm_pattern->send_idxs.size(), 0);
+}
+
+TEST(Repartitioner, has_correct_properties_for_2_ranks)
+{
+    // Arrange
+    label ranks_per_gpu = 2;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+
+    // Assert
     EXPECT_EQ(
-        repartitioner.is_owner(*exec),
-        (rank == 0)? true: false);
+        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
+        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
+
+    EXPECT_EQ(repartitioner.is_owner(*exec), (rank % 2 == 0) ? true : false);
 }
 
 int main(int argc, char *argv[])

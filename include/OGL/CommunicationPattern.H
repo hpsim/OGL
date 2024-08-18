@@ -129,6 +129,22 @@ struct CommunicationPattern {
         // ASSERT_EQ(target_ids.get_size(), send_idxs.size());
     }
 
+    CommunicationPattern(
+        const ExecutorHandler &exec, const std::vector<label>& ranks,
+        const std::vector<std::vector<label>>& rows)
+        : exec_handler(exec),
+          target_ids(exec.get_ref_exec(), ranks.begin(), ranks.end()),
+          target_sizes(exec.get_ref_exec(), ranks.size())
+    {
+        ASSERT_EQ(ranks.size(), rows.size());
+
+        for (int i=0; i<rows.size();i++){
+            target_sizes.get_data()[i] = rows[i].size();
+            gko::array<label> row_array (exec.get_ref_exec(),rows[i].begin(), rows[i].end());
+            send_idxs.push_back({row_array, ranks[i]});
+        }
+    }
+
     const gko::experimental::mpi::communicator &get_comm() const
     {
         return *exec_handler.get_communicator().get();
