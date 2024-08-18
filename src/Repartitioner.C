@@ -316,9 +316,10 @@ Repartitioner::repartition_comm_pattern(
     bool owner = is_owner(exec_handler);
 
     // Step 1. Check if communication partner is non-local after
-    // repartitioning. If it is non-local we keep it. Otherwise local
-    // communication can be discarded. Here non-local means:
-    // the communication target proc id is != repartition proc id
+    // repartitioning. If it is non-local we keep it. Otherwise communcation
+    // partners that are local after repartitioning can be discarded. Here
+    // non-local means: the communication target rank id is != repartitioned
+    // rank id
     std::vector<label> target_ids{};
     std::vector<label> target_sizes{};
     std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
@@ -348,6 +349,7 @@ Repartitioner::repartition_comm_pattern(
     auto gathered_target_sizes = gather_labels_to_owner(
         exec_handler, comm_pattern, target_sizes.data(), target_sizes.size());
 
+
     // next the send_ixs need to be updated we send them piecewise since
     // the send_idxs are a vector of gko::arrays
     if (owner) {
@@ -361,13 +363,6 @@ Repartitioner::repartition_comm_pattern(
                 auto target_size = gathered_target_sizes[j + owner_recv_counts];
                 std::vector<label> recv_buffer(target_size);
 
-                // std::cout << __FILE__ << ":" << __LINE__ << " rank " <<
-                // rank
-                //           << " recv no  " << j
-                //           << " recv from  " << rank + i
-                //           << " recv_count " << recv_count
-                //           << " target_size " << target_size
-                //           << " \n";
                 comm.recv(exec, recv_buffer.data(), target_size, rank + i,
                           rank);
 
@@ -392,11 +387,6 @@ Repartitioner::repartition_comm_pattern(
         label owner = get_owner_rank(exec_handler);
         for (int i = 0; i < comm_pattern.send_counts[owner]; i++) {
             auto send_buffer = send_idxs[i].first;
-            // std::cout << __FILE__ << ":" << __LINE__ << " rank " << rank
-            //           << " send to owner " << owner
-            //           << " count " << i << " of "  <<  send_count
-            //           << " send_buffer.size " << send_buffer.get_size()
-            //           << " \n";
             comm.send(exec, send_buffer.get_const_data(),
                       send_buffer.get_size(), owner, owner);
         }

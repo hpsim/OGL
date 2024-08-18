@@ -159,6 +159,10 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
                                           const label *send_buffer,
                                           label send_size, label offset)
 {
+    auto exec = exec_handler.get_ref_exec();
+    auto comm = *exec_handler.get_communicator().get();
+    auto rank = comm.rank();
+
     std::vector<label> send_buffer_copy;
     // create a copy if offset is needed
     if (offset > 0) {
@@ -168,18 +172,16 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
                        [&](label idx) { return idx + offset; });
     }
 
-    auto &[send_counts, recv_counts, send_offsets, recv_offsets] = comm_pattern;
+    auto &[send_counts, send_offsets, recv_counts, recv_offsets] = comm_pattern;
     auto total_recv_size =
         std::accumulate(recv_counts.begin(), recv_counts.end(), 0);
 
-    auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
     std::vector<label> recv_buffer(total_recv_size);
-    auto rank = comm.rank();
     comm.all_to_all_v(
         exec, (offset > 0) ? send_buffer_copy.data() : send_buffer,
         send_counts.data(), send_offsets.data(), recv_buffer.data(),
         recv_counts.data(), recv_offsets.data());
+
     return recv_buffer;
 }
 
