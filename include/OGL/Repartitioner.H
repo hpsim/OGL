@@ -32,7 +32,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
-/** @class Collects functions to repartion communication patterns
+/** @class Collects functions to repartition communication patterns
  * and matrices. Here repartitioning refers to changing a given partitioning on
  * n ranks to m ranks with n>=m
  */
@@ -94,7 +94,7 @@ public:
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 
-    /* @brief computes the size after repartitioning
+    /* @brief computes the size of the submatrix owned by a given rank after repartitioning
      *
      * Given a local size (can represent nrows or nnzs) the new size of
      * this rank after repartitioning gets computed
@@ -130,7 +130,7 @@ public:
 
 
     /*
-    ** returns the the new sparsity patterns (local and non-local) and a vector
+    ** returns the new sparsity patterns (local and non-local) and a vector
     ** tracking the interfaces. This contains a pair where the first entry
     *(bool)
     ** signals whether this is a new local interface (no communication), and the
@@ -144,7 +144,7 @@ public:
         std::shared_ptr<SparsityPattern> src_local_pattern,
         std::shared_ptr<SparsityPattern> src_non_local_pattern) const;
 
-    /* @brief repartion a communication pattern
+    /* @brief repartition a communication pattern
     **
     ** returns the repartitioned communcation pattern
     */
