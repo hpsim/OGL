@@ -64,17 +64,10 @@ jobs:
 
     - name: Cache build folder
       uses: actions/cache@v4
+      if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip-cache')}}
       with:
-        key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: |
-          ${{github.workspace}}/build
-
-    - name: Cache FOAM_USER_LIBBIN
-      uses: actions/cache@v4
-      with:
-        key: FOAM_USER_LIBBIN-${{ matrix.OF.version }}-${{ github.sha }}
-        path: |
-          ${{matrix.OF.foam_user_libbin}}
+         key: build_PR_${{ github.event.pull_request.number }}_${{matrix.OF.path}}
+         path: ${{github.workspace}}/build
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
