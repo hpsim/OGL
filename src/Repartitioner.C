@@ -22,8 +22,8 @@ std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
            std::vector<std::pair<bool, label>>>
 Repartitioner::repartition_sparsity(
     const ExecutorHandler &exec_handler,
-    std::shared_ptr<SparsityPattern> src_local_pattern,
-    std::shared_ptr<SparsityPattern> src_non_local_pattern) const
+    std::shared_ptr<const SparsityPattern> src_local_pattern,
+    std::shared_ptr<const SparsityPattern> src_non_local_pattern) const
 {
     FatalErrorInFunction << "Not implemented" << exit(FatalError);
 }

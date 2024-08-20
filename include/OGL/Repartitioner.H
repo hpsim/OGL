@@ -94,7 +94,8 @@ public:
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 
-    /* @brief computes the size of the submatrix owned by a given rank after repartitioning
+    /* @brief computes the size of the submatrix owned by a given rank after
+     * repartitioning
      *
      * Given a local size (can represent nrows or nnzs) the new size of
      * this rank after repartitioning gets computed
@@ -117,7 +118,7 @@ public:
     };
 
 
-    /* @brief given received interfaces this function sorts into local and non
+    /* @brief given received interfaces this function sorts interfaces into local and non
      *local
      * returns: SparsityPattern storing new non_local sparsity pattern,
      *  and a pair of locality information, where the first bool stores if the
@@ -129,25 +130,44 @@ public:
         const SparsityPattern &non_loc) const;
 
 
-    /*
-    ** returns the new sparsity patterns (local and non-local) and a vector
-    ** tracking the interfaces. This contains a pair where the first entry
-    *(bool)
-    ** signals whether this is a new local interface (no communication), and the
-    ** second entry (label) tracks the original rank of the interface
-    */
+    /* @brief function to repartition a sparsity pattern
+     *
+     * function to repartition a sparsity pattern based on ranks_per_gpu
+     * ie changing a sparsity pattern which has rows on each rank to a sparsity
+     * pattern which has rows only on every ranks_per_gpu-th rank (owner)
+     *
+     * @param exec_handler the executor handler
+     * @param src_local_pattern the original sparsity pattern of the local
+     *matrix
+     * @param src_non_local_pattern the original sparsity pattern of the non
+     *local matrix
+     * returns the new sparsity patterns (local and non-local) and a vector
+     * tracking the interfaces. This contains a pair where the first entry
+     *(bool)
+     * signals whether this is a new local interface (no communication), and
+     *the
+     * second entry (label) tracks the original rank of the interface
+     */
     std::tuple<std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,
                std::vector<std::pair<bool, label>>>
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
-        std::shared_ptr<SparsityPattern> src_local_pattern,
-        std::shared_ptr<SparsityPattern> src_non_local_pattern) const;
+        std::shared_ptr<const SparsityPattern> src_local_pattern,
+        std::shared_ptr<const SparsityPattern> src_non_local_pattern) const;
 
     /* @brief repartition a communication pattern
-    **
-    ** returns the repartitioned communcation pattern
-    */
+     * function to repartition a communication pattern based on ranks_per_gpu
+     * ie changing a communication pattern which has rows on each rank and where
+     * every rank communicates to a communication pattern which has rows only on
+     * every ranks_per_gpu-th rank and thus only communicates between owner
+     * ranks
+     *
+     * @param src_comm_pattern the original communication pattern of the current
+     * rank belonging to the distributed matrix
+     * @param partition the original partition belonging to the distributed
+     * matrix returns the repartitioned communcation pattern
+     */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
