@@ -22,8 +22,8 @@ std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
            std::vector<std::pair<bool, label>>>
 Repartitioner::repartition_sparsity(
     const ExecutorHandler &exec_handler,
-    std::shared_ptr<SparsityPattern> src_local_pattern,
-    std::shared_ptr<SparsityPattern> src_non_local_pattern) const
+    std::shared_ptr<const SparsityPattern> src_local_pattern,
+    std::shared_ptr<const SparsityPattern> src_non_local_pattern) const
 {
     LOG_1(verbose_, "start repartition sparsity pattern")
     // 1. obtain send recv sizes vector
