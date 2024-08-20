@@ -58,10 +58,15 @@ public:
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new RepartitionerEnvironment);
 
-TEST(Repartitioner, can_create_repartitioner)
+class RepartitionerFixture : public testing::TestWithParam<int> {};
+
+INSTANTIATE_TEST_SUITE_P(RepartitionerFixtureInstantiation,
+                         RepartitionerFixture, testing::Values(1, 2, 4));
+
+TEST_P(RepartitionerFixture, can_create_repartitioner)
 {
     // Arrange
-    label ranks_per_gpu = 1;
+    label ranks_per_gpu = GetParam();
     auto exec = ((RepartitionerEnvironment *)global_env)->exec;
     auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, *exec.get());
 
@@ -84,6 +89,40 @@ TEST(Repartitioner, has_correct_properties_for_1_rank)
         local_size);
 
     EXPECT_EQ(repartitioner.is_owner(*exec), true);
+}
+
+TEST(Repartitioner, has_correct_properties_for_4_ranks)
+{
+    // Arrange
+    label ranks_per_gpu = 4;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+
+    // Assert
+    EXPECT_EQ(
+        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
+        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
+
+    EXPECT_EQ(repartitioner.is_owner(*exec), (rank == 0) ? true : false);
+}
+
+TEST(Repartitioner, has_correct_properties_for_2_ranks)
+{
+    // Arrange
+    label ranks_per_gpu = 2;
+    label local_size = 10;
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+
+    // Assert
+    EXPECT_EQ(
+        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
+        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
+
+    EXPECT_EQ(repartitioner.is_owner(*exec), (rank % 2 == 0) ? true : false);
 }
 
 TEST(Repartitioner, can_repartition_comm_pattern_for_1_rank)
@@ -168,34 +207,18 @@ TEST(Repartitioner, can_repartition_comm_pattern_for_2_rank)
         repart_comm_pattern->target_ids.get_const_data() +
             repart_comm_pattern->target_ids.get_size());
     // on non owner no communication ranks should be left
-    std::vector<std::vector<label>> exp_ids {{2}, {}, {0}, {}};
+    std::vector<std::vector<label>> exp_ids{{2}, {}, {0}, {}};
     EXPECT_EQ(res_ids, exp_ids[rank]);
 
     std::vector<label> res_sizes(
         repart_comm_pattern->target_sizes.get_const_data(),
         repart_comm_pattern->target_sizes.get_const_data() +
             repart_comm_pattern->target_sizes.get_size());
-    std::vector<std::vector<label>> exp_sizes {{1}, {}, {1}, {}};
+    std::vector<std::vector<label>> exp_sizes{{1}, {}, {1}, {}};
     // thus communication sizes is also empty
     EXPECT_EQ(res_sizes, exp_sizes[rank]);
 }
 
-TEST(Repartitioner, has_correct_properties_for_4_ranks)
-{
-    // Arrange
-    label ranks_per_gpu = 4;
-    label local_size = 10;
-    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
-    auto rank = exec->get_rank();
-
-    // Assert
-    EXPECT_EQ(
-        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
-        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
-
-    EXPECT_EQ(repartitioner.is_owner(*exec), (rank == 0) ? true : false);
-}
 
 TEST(Repartitioner, can_repartition_comm_pattern_for_4_rank)
 {
