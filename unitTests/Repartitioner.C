@@ -88,12 +88,12 @@ TEST_P(RepartitionerFixture, has_correct_properties_for_n_rank)
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
 
     // Assert
-    EXPECT_EQ(repartitioner.is_owner(*exec), (rank % ranks_per_gpu == 0) ? true : false);
+    EXPECT_EQ(repartitioner.is_owner(*exec),
+              (rank % ranks_per_gpu == 0) ? true : false);
 
     EXPECT_EQ(
         repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
         (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
-
 }
 
 
