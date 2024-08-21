@@ -278,8 +278,17 @@ public:
             const label smoother_max_iters(
                 controls.lookupOrDefault("smootherMaxIters", label(1)));
 
+            auto pre_factory =
+                gko::share(bj::build()
+                               .with_skip_sorting(true)
+                               .with_max_block_size(static_cast<gko::uint32>(1))
+                               .on(device_exec));
+
             auto coarsest_gen = gko::share(
                 cg::build()
+                    .with_preconditioner(ras::build()
+                                             .with_local_solver(pre_factory)
+                                             .on(device_exec))
                     .with_criteria(gko::stop::Iteration::build().with_max_iters(
                         static_cast<gko::uint32>(coarse_solver_iters)))
                     .on(device_exec));
@@ -309,7 +318,20 @@ public:
                         .with_mg_level(
                             amgx_pgm::build().with_deterministic(true).on(
                                 device_exec))
-                        .with_coarsest_solver(coarsest_gen)
+                        .with_coarsest_solver(gko::share(
+                            cg::build()
+                                .with_preconditioner(gko::share(
+                                    bj::build()
+                                        .with_skip_sorting(true)
+                                        .with_max_block_size(
+                                            static_cast<gko::uint32>(1))
+                                        .on(device_exec)))
+                                .with_criteria(
+                                    gko::stop::Iteration::build()
+                                        .with_max_iters(
+                                            static_cast<gko::uint32>(
+                                                coarse_solver_iters)))
+                                .on(device_exec)))
                         .with_criteria(it::build().with_max_iters(1u))
                         .on(device_exec);
 
@@ -411,10 +433,29 @@ public:
                 cache = cache - 1;
 
                 set_next_caching(sys_matrix_name_, db_, cache--);
-                return db_
-                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                        precond_store_name)
-                    .get_ptr();
+                auto ret =
+                    db_.template lookupObjectRef<
+                           DevicePersistentBase<gko::LinOp>>(precond_store_name)
+                        .get_ptr();
+                if (name == "Multigrid") {
+                    std::cout << __FILE__ << __LINE__ << "update multigrid\n";
+                    word type =
+                        controls.lookupOrDefault("type", word("Schwarz"));
+                    if (type == "Schwarz") {
+                        auto local_solver = std::const_pointer_cast<gko::LinOp>(
+                            gko::as<ras>(ret)->get_local_solver());
+
+                        gko::as<gko::UpdateMatrixValue>(local_solver)
+                            ->update_matrix_value(
+                                gko::as<gko::experimental::distributed::Matrix<
+                                    scalar, label, label>>(gkomatrix)
+                                    ->get_local_matrix());
+                    } else {
+                        gko::as<gko::UpdateMatrixValue>(ret)
+                            ->update_matrix_value(gkomatrix);
+                    }
+                }
+                return ret;
             } else {
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
