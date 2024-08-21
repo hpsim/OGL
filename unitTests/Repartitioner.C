@@ -112,7 +112,7 @@ TEST_P(RepartitionerFixture, can_repartition_1D_comm_pattern_for_n_ranks)
 
     // rank:     0     1     2     3
     // cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
-    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- global row ids
+    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- local row ids
     std::vector<std::vector<label>> ids{{1}, {0, 2}, {1, 3}, {2}};
 
     // expected communcation ranks
@@ -126,14 +126,22 @@ TEST_P(RepartitionerFixture, can_repartition_1D_comm_pattern_for_n_ranks)
     exp_res_ids.emplace(4, vec_vec{{}, {}, {}, {}});
 
     // expected communication sizes
-    std::map<label, std::vector<std::vector<label>>> exp_res_sizes;
+    std::map<label, vec_vec> exp_res_sizes;
     exp_res_sizes.emplace(1, vec_vec({{1}, {1, 1}, {1, 1}, {1}}));
     exp_res_sizes.emplace(2, vec_vec({{1}, {}, {1}, {}}));
     exp_res_sizes.emplace(4, vec_vec({{}, {}, {}, {}}));
 
     // expected rows
-    std::vector<std::vector<std::vector<label>>> rows{
-        {{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}};
+    using vec_vec_vec = std::vector<vec_vec>;
+    vec_vec_vec rows{{{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}};
+    std::map<label, vec_vec> exp_res_rows;
+    exp_res_rows.emplace(1, vec_vec{{1}, {0, 1}, {0, 1}, {0}});
+    // after repartitioning with 2 ranks_per_gpu [ 0 1 2 3 | 0 1 2 3 ] <- local row ids
+    exp_res_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
+    // after repartitioning with 4 ranks_per_gpu [ 0 1 2 3 4 5 6 7 ] <- local row ids
+    exp_res_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // the original comm_pattern
     auto comm_pattern =
         std::make_shared<CommunicationPattern>(*exec, ids[rank], rows[rank]);
 
@@ -160,6 +168,14 @@ TEST_P(RepartitionerFixture, can_repartition_1D_comm_pattern_for_n_ranks)
        repart_comm_pattern->target_sizes.get_const_data() +
            repart_comm_pattern->target_sizes.get_size());
    EXPECT_EQ(res_sizes, exp_res_sizes[ranks_per_gpu][rank]);
+
+   auto total_rank_send_idx = repart_comm_pattern->total_rank_send_idx();
+    std::vector<label> res_rows(
+        total_rank_send_idx.get_const_data(),
+        total_rank_send_idx.get_const_data() +
+            total_rank_send_idx.get_size());
+
+    EXPECT_EQ(res_rows, exp_res_rows[ranks_per_gpu][rank]);
 }
 
 
