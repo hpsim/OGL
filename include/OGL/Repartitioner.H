@@ -62,7 +62,7 @@ public:
               gko::experimental::distributed::build_partition_from_local_size<
                   label, label>(exec_handler.get_ref_exec(),
                                 *exec_handler.get_communicator().get(),
-                                size))) {};
+                                size))){};
 
     /* returns the owner rank for a given rank */
     label get_owner_rank(label rank) const
