@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "OGL/common.H"
 #include "OGL/CommunicationPattern.H"
+#include "OGL/common.H"
 
 namespace Foam {
 

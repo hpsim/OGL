@@ -118,12 +118,11 @@ public:
     };
 
 
-    /* @brief given received interfaces this function sorts interfaces into local and non
-     *local
-     * returns: SparsityPattern storing new non_local sparsity pattern,
-     *  and a pair of locality information, where the first bool stores if the
-     *  interface performs a local communication and the second bool if the
-     *  the interface was originally from this rank
+    /* @brief given received interfaces this function sorts interfaces into
+     *local and non local returns: SparsityPattern storing new non_local
+     *sparsity pattern, and a pair of locality information, where the first bool
+     *stores if the interface performs a local communication and the second bool
+     *if the the interface was originally from this rank
      */
     std::pair<SparsityPattern, std::vector<bool>> build_non_local_interfaces(
         const ExecutorHandler &exec_handler, SparsityPattern &loc,
