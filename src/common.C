@@ -170,11 +170,12 @@ std::ostream &operator<<(std::ostream &os,
     return os;
 }
 
-std::ostream &operator<<(
-    std::ostream &os,
-    const std::vector<label>& in){
+std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
+{
     label size = in.size();
-    if (size == 0 ){ return os;}
+    if (size == 0) {
+        return os;
+    }
     os << size << " elements [";
     if (size > 100) {
         for (label i = 0; i < 9; i++) {
@@ -192,6 +193,5 @@ std::ostream &operator<<(
         os << "(" << size - 1 << ", " << in[size - 1] << ")]\n";
     }
     return os;
-
 };
 }  // namespace Foam
