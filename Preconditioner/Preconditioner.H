@@ -51,7 +51,6 @@ public:
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
-        if (Pstream::parRun()) {
             return gko::share(
                 ras::build()
                     .with_generated_local_solver(gko::share(precond->generate(
@@ -60,9 +59,48 @@ public:
                             ->get_local_matrix())))
                     .on(device_exec)
                     ->generate(gkomatrix));
-        }
-        return gko::share(precond->generate(gkomatrix));
     }
+
+    template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
+        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::unique_ptr<PrecondFactory> precond) const
+    {
+        using pgm = gko::multigrid::Pgm<scalar, label>;
+        using solver = gko::solver::Cg<scalar>;
+
+        auto pre_factory = gko::share(bj::build()
+                               .with_skip_sorting(true)
+                               .with_max_block_size(
+                                   static_cast<gko::uint32>(1))
+                               .on(device_exec));
+
+        auto coarse_solver = gko::share(
+            solver::build()
+                .with_preconditioner(
+                    ras::build().with_local_solver(pre_factory).on(device_exec))
+                .with_criteria(
+                    gko::stop::Iteration::build().with_max_iters(10).on(device_exec),
+                    gko::stop::ResidualNorm<scalar>::build()
+                        .with_reduction_factor(1e-3)
+                        .on(device_exec))
+                .on(device_exec));
+
+        auto pgm_fac = gko::share(pgm::build().on(device_exec));
+
+        return gko::share(
+            ras::build()
+                .with_generated_local_solver(gko::share(precond->generate(
+                    gko::as<gko::experimental::distributed::Matrix<
+                        scalar, label, label>>(gkomatrix)
+                        ->get_local_matrix())))
+                 .with_galerkin_ops(pgm_fac)
+                 .with_coarse_solver(coarse_solver)
+                .on(device_exec)
+                ->generate(gkomatrix));
+    }
+
 
     template <typename PrecondFactory, typename Factorization>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
@@ -89,6 +127,9 @@ public:
         bool skip_sorting =
             controls.lookupOrDefault<Switch>("skipSorting", true);
 
+        bool multi_level_schwarz =
+            controls.lookupOrDefault<Switch>("multiLevelSchwarz", true);
+
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(
@@ -103,7 +144,11 @@ public:
                                    .with_max_block_size(
                                        static_cast<gko::uint32>(max_block_size))
                                    .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            if (multi_level_schwarz) {
+                return wrap_multi_level_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            } else {
+                return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            }
         }
         if (name == "ILU") {
             word msg = "Generate preconditioner " + name;
