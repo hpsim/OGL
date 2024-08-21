@@ -179,21 +179,89 @@ TEST_P(RepartitionerFixture, can_repartition_1D_comm_pattern_for_n_ranks)
     EXPECT_EQ(res_rows, exp_res_rows[ranks_per_gpu][rank]);
 }
 
-TEST(Repartitioner, has_correct_properties_for_2_ranks)
+TEST_P(RepartitionerFixture, can_repartition_2D_comm_pattern_for_n_ranks)
 {
     // Arrange
-    label ranks_per_gpu = 2;
-    label local_size = 10;
+    label ranks_per_gpu = GetParam();
     auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
     auto rank = exec->get_rank();
+    auto ref_exec = exec->get_ref_exec();
+
+    // cells: [ 2 3 | 2 3 ]
+    //   2    [ 0 1 | 0 1 ]  3
+    //        -------------
+    //        [ 2 3 | 2 3 ]
+    //   0    [ 0 1 | 0 1 ]  1
+    //
+    std::vector<std::vector<label>> ids{{1, 2}, {0, 3}, {0, 3}, {1, 2}};
+
+    // expected communcation ranks
+    using vec_vec =std::vector<std::vector<label>>;
+    std::map<label, vec_vec> exp_res_ids {};
+
+    exp_res_ids[1] = ids; // in the ranks_per_gpu==1 case nothing changes
+    // only communication partners are 0-2 and 2-0
+    exp_res_ids.emplace(2, vec_vec{{2}, {}, {0}, {}});
+    // no communication if all ranks are repartitioned to single owner
+    exp_res_ids.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // expected communication sizes
+    std::map<label, vec_vec> exp_res_sizes;
+    exp_res_sizes.emplace(1, vec_vec({{2, 2}, {2, 2}, {2, 2}, {2, 2}}));
+    exp_res_sizes.emplace(2, vec_vec({{4}, {}, {4}, {}}));
+    exp_res_sizes.emplace(4, vec_vec({{}, {}, {}, {}}));
+
+    // expected rows
+    using vec_vec_vec = std::vector<vec_vec>;
+    vec_vec_vec rows{{{1, 3}, {2, 3}}, {{0, 2}, {2, 3}}, {{0, 1}, {1, 3}}, {{0, 1}, {0, 2}}};
+    std::map<label, vec_vec> exp_res_rows;
+    exp_res_rows.emplace(1, vec_vec{{1, 3, 2, 3}, {0, 2, 2, 3}, {0, 1, 1, 3}, {0, 1, 0 ,2 }});
+    // after repartitioning with 2 ranks_per_gpu
+    // cells: [ 2 3  6 7 ]
+    //   2    [ 0 1  4 5 ]  3
+    //        -------------
+    //        [ 2 3  6 7 ]
+    //   0    [ 0 1  4 5 ]  1
+    exp_res_rows.emplace(2, vec_vec{{2, 3, 6, 7}, {}, {0, 1, 4, 5}, {}});
+    // after repartitioning with 4 ranks_per_gpu [ 0 1 2 3 4 5 6 7 ] <- local row ids
+    exp_res_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // the original comm_pattern
+    auto comm_pattern =
+        std::make_shared<CommunicationPattern>(*exec, ids[rank], rows[rank]);
+
+    auto comm = exec->get_communicator();
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            ref_exec, *comm.get(), 4));
+
+    // Act
+    auto repart_comm_pattern =
+        repartitioner.repartition_comm_pattern(*exec, comm_pattern, partition);
 
     // Assert
-    EXPECT_EQ(
-        repartitioner.compute_repart_size(local_size, ranks_per_gpu, *exec),
-        (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
+    std::vector<label> res_ids(
+        repart_comm_pattern->target_ids.get_const_data(),
+        repart_comm_pattern->target_ids.get_const_data() +
+            repart_comm_pattern->target_ids.get_size());
 
-    EXPECT_EQ(repartitioner.is_owner(*exec), (rank % 2 == 0) ? true : false);
+    EXPECT_EQ(res_ids, exp_res_ids[ranks_per_gpu][rank]);
+
+   std::vector<label> res_sizes(
+       repart_comm_pattern->target_sizes.get_const_data(),
+       repart_comm_pattern->target_sizes.get_const_data() +
+           repart_comm_pattern->target_sizes.get_size());
+   EXPECT_EQ(res_sizes, exp_res_sizes[ranks_per_gpu][rank]);
+
+   auto total_rank_send_idx = repart_comm_pattern->total_rank_send_idx();
+    std::vector<label> res_rows(
+        total_rank_send_idx.get_const_data(),
+        total_rank_send_idx.get_const_data() +
+            total_rank_send_idx.get_size());
+
+    EXPECT_EQ(res_rows, exp_res_rows[ranks_per_gpu][rank]);
 }
 
 int main(int argc, char *argv[])
