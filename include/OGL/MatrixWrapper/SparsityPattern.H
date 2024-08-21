@@ -15,7 +15,7 @@ namespace Foam {
  *
  * After merging sparsity patterns during repartitioning the ldu mapping are
  * not consecutive ie they could look like [0 1 2 3 | 0 1 2 3 | 0 1], where
- * | is the former rank boundary based on the comm pattern we compute a new
+ * | is the former rank boundary. Based on the comm pattern we compute a new
  * mapping as  [ 0 1 2 3 | 4 5 6 7| 8 9 ] where the following offsets [ 0 |
  * 4 | 8 ] based on the recv_counts are used.
  *
@@ -29,7 +29,6 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
  *
  * Additionally it keeps track which parts of the sparsity pattern belongs to
  * which interface.
- *
  * */
 struct SparsityPattern {
     /* constructor from vectors, assumes a single interface */
