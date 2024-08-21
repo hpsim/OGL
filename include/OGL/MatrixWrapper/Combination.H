@@ -66,7 +66,7 @@ public:
         return *this;
     }
 
-     /**
+    /**
      * Returns a list of coefficients of the combination.
      *
      * @return a list of coefficients
@@ -113,7 +113,7 @@ public:
     /*
      * @warning assumes that all entries are unique
      */
-    void convert_to(gko::matrix::Csr<scalar, label> *result) const override 
+    void convert_to(gko::matrix::Csr<scalar, label> *result) const override
     {
         auto exec = this->get_executor();
         auto operators = this->get_operators();
@@ -135,7 +135,7 @@ public:
     /*
      * @warning assumes that all entries are unique
      */
-    void move_to(gko::matrix::Coo<scalar, label> *result) override 
+    void move_to(gko::matrix::Coo<scalar, label> *result) override
     {
         this->convert_to(result);
         this->comb_ = nullptr;
@@ -145,7 +145,7 @@ public:
     /*
      * @warning assumes that all entries are unique
      */
-    void move_to(gko::matrix::Csr<scalar, label> *result) override 
+    void move_to(gko::matrix::Csr<scalar, label> *result) override
     {
         this->convert_to(result);
         this->comb_ = nullptr;
