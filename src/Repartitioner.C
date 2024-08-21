@@ -90,7 +90,6 @@ Repartitioner::repartition_comm_pattern(
     auto gathered_target_sizes = gather_labels_to_owner(
         exec_handler, comm_pattern, target_sizes.data(), target_sizes.size());
 
-
     // next the send_ixs need to be updated we send them piecewise since
     // the send_idxs are a vector of gko::arrays
     if (owner) {
