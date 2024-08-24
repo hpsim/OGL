@@ -24,6 +24,14 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   gko::array<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
 
+/* @brief computes the dimensions of square matrix based row index array
+ *
+ * @note assumes that rows are ordered
+ * @params ordered array of row indices
+ * returns dimensions
+ * */
+gko::dim<2> compute_dimensions(const gko::array<label> &rows);
+
 /* The SparsityPattern holds row and column index data using gko::arrays.
  * This struct is used for easy generation of (distributed) ginkgo matrices.
  *
@@ -32,13 +40,17 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
  * */
 struct SparsityPattern {
     /* constructor from vectors, assumes a single interface */
-    SparsityPattern(std::vector<label> rows, std::vector<label> cols,
-                    std::vector<label> mapping, std::vector<label> rank)
-        : num_nnz(rows.size())
-    {
-        // NOT fully implementented
-        FatalErrorInFunction << "Not implemented" << abort(FatalError);
-    }
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec, gko::dim<2> dim_,
+                    std::vector<label> rows, std::vector<label> cols,
+                    std::vector<label> mapping, std::vector<label> rank_)
+        : num_nnz(rows.size()),
+          row_idxs(exec, rows.begin(), rows.end()),
+          col_idxs(exec, cols.begin(), cols.end()),
+          ldu_mapping(exec, mapping.begin(), mapping.end()),
+          dim(dim_),
+          spans(std::vector{gko::span(0, num_nnz)}),
+          rank(rank_)
+    {}
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
         : num_nnz(size),
@@ -95,10 +107,14 @@ struct SparsityPattern {
 
     // A vector of spans indicating begin and end of each interface
     // this is used to keep all col and row idx consecutive in memory
+    // TODO this can be refactored, since its original motivation
+    // was to support the distributed_read function, which is not
+    // needed anymore. However, removing would require row and col_idxs to
+    // be stored in a std::vector<gko::Array>
     mutable std::vector<gko::span> spans;
 
-    // keep track of original (communication) rank of each interface or matrix
-    // block
+    // keep track of original (local sparsity) or communication (non-local) rank
+    // of each interface or matrix block
     mutable std::vector<label> rank;
 };
 
