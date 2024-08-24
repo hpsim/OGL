@@ -4,6 +4,58 @@
 
 #include "OGL/Repartitioner.H"
 
+namespace detail {
+std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
+    const ExecutorHandler &exec_handler, label ranks_per_gpu,
+    const std::vector<gko::span> &spans, const std::vector<label> &ranks) const
+{
+    auto comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, spans.size());
+
+    std::vector<label> size{};
+
+    for (auto &elem : spans) {
+        size.push_back(elem.length());
+    }
+
+    auto gathered_size = gather_labels_to_owner(exec_handler, comm_pattern,
+                                                size.data(), size.size());
+
+    std::vector<gko::span> out_spans{};
+    int count = 0;
+    for (auto length : gathered_size) {
+        out_spans.emplace_back(count, count + length);
+        count += length;
+    }
+
+    auto new_ranks = gather_labels_to_owner(exec_handler, comm_pattern,
+                                            ranks.data(), ranks.size());
+
+    return {out_spans, new_ranks};
+}
+
+template <typename T>
+std::vector<T> apply_permutation(const std::vector<T> vec,
+                                 const std::vector<label> &p)
+{
+    std::vector<T> sorted_vec(vec.size());
+    std::transform(p.begin(), p.end(), sorted_vec.begin(),
+                   [&](label i) { return vec[i]; });
+    return sorted_vec;
+}
+
+template <typename T, typename Compare>
+std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
+{
+    std::vector<label> p(vec.size());
+    std::iota(p.begin(), p.end(), 0);
+    std::stable_sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
+        return compare(vec[i], vec[j]);
+    });
+    return p;
+}
+
+}  // namespace detail
 
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
                                          const ExecutorHandler &exec_handler)
@@ -26,6 +78,7 @@ Repartitioner::repartition_sparsity(
     std::shared_ptr<const SparsityPattern> src_non_local_pattern) const
 {
     LOG_1(verbose_, "start repartition sparsity pattern")
+
     // 1. obtain send recv sizes vector
     // here we can reuse code from repartition_comm_pattern
     //
@@ -41,33 +94,37 @@ Repartitioner::repartition_sparsity(
     label rank = exec_handler.get_rank();
     label owner_rank = get_owner_rank(exec_handler);
     label ranks_per_gpu = ranks_per_gpu_;
+
     // TODO dont copy
-    // if (ranks_per_gpu == 1) {
-    //     std::vector<std::pair<bool, label>> ret;
-    //     for (auto comm_rank : src_non_local_pattern->rank) {
-    //         ret.emplace_back(false, rank);
-    //     }
-    //     return std::make_tuple<std::shared_ptr<SparsityPattern>,
-    //                            std::shared_ptr<SparsityPattern>,
-    //                            std::vector<std::pair<bool, label>>>(
-    //         std::make_shared<SparsityPattern>(src_local_pattern),
-    //         std::make_shared<SparsityPattern>(src_non_local_pattern),
-    //         std::move(ret));
-    // }
+    if (ranks_per_gpu == 1) {
+        std::vector<std::pair<bool, label>> ret;
+        for (auto comm_rank : src_non_local_pattern->rank) {
+            ret.emplace_back(false, rank);
+        }
+        return std::make_tuple<std::shared_ptr<SparsityPattern>,
+                               std::shared_ptr<SparsityPattern>,
+                               std::vector<std::pair<bool, label>>>(
+            std::make_shared<SparsityPattern>(*src_local_pattern.get()),
+            std::make_shared<SparsityPattern>(*src_non_local_pattern.get()),
+            std::move(ret));
+    }
 
     auto local_comm_pattern = compute_gather_to_owner_counts(
         exec_handler, ranks_per_gpu, src_local_pattern->num_nnz);
 
-
+    // row index offset relative to its owner rank
     auto offset = orig_partition_->get_range_bounds()[rank] -
                   orig_partition_->get_range_bounds()[owner_rank];
 
-    auto gather_closure = [&](auto &comm_pattern, auto &data, label offset) {
+    auto gather_closure = [exec_handler](auto &comm_pattern, auto &data,
+                                         label offset) {
         return gather_labels_to_owner(exec_handler, comm_pattern,
                                       data.get_data(), data.get_size(), offset);
     };
 
     SparsityPattern merged_local{
+        exec,
+        src_local_pattern->dim,
         gather_closure(local_comm_pattern, src_local_pattern->row_idxs, offset),
         gather_closure(local_comm_pattern, src_local_pattern->col_idxs, offset),
         gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping, 0),
@@ -78,60 +135,42 @@ Repartitioner::repartition_sparsity(
             local_comm_pattern, merged_local.ldu_mapping, rank, ranks_per_gpu);
     }
 
-    auto get_back = [](const gko::array<label> &in) {
-        return *(in.get_const_data() + in.get_size());
-    };
-
-    label rows =
-        (is_owner(exec_handler)) ? get_back(merged_local.row_idxs) + 1 : 0;
-    gko::dim<2> merged_local_dim{static_cast<gko::size_type>(rows),
-                                 static_cast<gko::size_type>(rows)};
+    gko::dim<2> merged_local_dim =
+        (is_owner(exec_handler)) ? compute_dimensions(merged_local.row_idxs)
+                                 : gko::dim<2>{0, 0};
 
     auto non_local_comm_pattern = compute_gather_to_owner_counts(
         exec_handler, ranks_per_gpu, src_non_local_pattern->num_nnz);
 
-    std::vector<label> spans_begin;
-    std::vector<label> spans_end;
+
+    // auto offseted_column_indices = offset_column_indices();
+
+
+    SparsityPattern merged_non_local{*src_non_local_pattern.get()};
+    //   SparsityPattern merged_non_local{exec, src_non_local_pattern->dim,
+    //       gather_closure(non_local_comm_pattern,
+    //       src_non_local_pattern->row_idxs,
+    //                      offset),
+    //       gather_closure(non_local_comm_pattern,
+    //       src_non_local_pattern->col_idxs,
+    //                      0),
+    //       gather_closure(non_local_comm_pattern,
+    //       src_non_local_pattern->row_idxs,
+    //                      0),
+    //       // {},
+    //       // this doesn't exist
+    //       // gather_labels_to_owner(exec_handler, span_comm_pattern,
+    //       // spans_begin.size(),
+    //       //                spans_begin.data()),
+    //       //  gather_labels_to_owner(exec_handler, span_comm_pattern,
+    //       //  spans_end.size(),
+    //       //                spans_end.data()),
+    //       gather_labels_to_owner(exec_handler, span_comm_pattern,
+    //                              src_non_local_pattern->rank.data(),
+    //                              src_non_local_pattern->rank.size())};
+
     auto span_comm_pattern = compute_gather_to_owner_counts(
         exec_handler, ranks_per_gpu, src_non_local_pattern->spans.size());
-    for (auto elem : src_non_local_pattern->spans) {
-        spans_begin.push_back(elem.begin);
-        spans_end.push_back(elem.end);
-    }
-
-    // the non local cols are in local idx of other side
-    // thus we need the new offset of the other side
-    // NOTE TODO this modifies src_non_local_pattern better do the offsets
-    // on the owner side after gathering
-    for (label i = 0; i < src_non_local_pattern->rank.size(); i++) {
-        auto comm_rank = src_non_local_pattern->rank[i];
-        auto [begin, end] = src_non_local_pattern->spans[i];
-        label local_offset = orig_partition_->get_range_bounds()[comm_rank] -
-                             orig_partition_->get_range_bounds()[owner_rank];
-        auto *data = src_non_local_pattern->col_idxs.get_data() + begin;
-        auto size = end - begin;
-        std::transform(data, data + size, data,
-                       [&](label idx) { return idx + local_offset; });
-    }
-
-    SparsityPattern merged_non_local{
-        gather_closure(non_local_comm_pattern, src_non_local_pattern->row_idxs,
-                       offset),
-        gather_closure(non_local_comm_pattern, src_non_local_pattern->col_idxs,
-                       0),
-        gather_closure(non_local_comm_pattern, src_non_local_pattern->row_idxs,
-                       0),
-        // {},
-        // this doesn't exist
-        // gather_labels_to_owner(exec_handler, span_comm_pattern,
-        // spans_begin.size(),
-        //                spans_begin.data()),
-        //  gather_labels_to_owner(exec_handler, span_comm_pattern,
-        //  spans_end.size(),
-        //                spans_end.data()),
-        gather_labels_to_owner(exec_handler, span_comm_pattern,
-                               src_non_local_pattern->rank.data(),
-                               src_non_local_pattern->rank.size())};
 
     if (is_owner(exec_handler)) {
         FatalErrorInFunction << "Not implemented" << abort(FatalError);

@@ -11,26 +11,23 @@
 #include "CommunicationPattern.H"
 #include "MatrixWrapper/SparsityPattern.H"
 
+namespace detail {
+/* @brief exchange spans and rank between owner and non-owner ranks
+**
+** returns a pair vector spans
+*/
+std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
+    const ExecutorHandler &exec_handler, label ranks_per_gpu,
+    const std::vector<gko::span> &spans, const std::vector<label> &ranks) const;
+
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
-                                 const std::vector<label> &p)
-{
-    std::vector<T> sorted_vec(vec.size());
-    std::transform(p.begin(), p.end(), sorted_vec.begin(),
-                   [&](label i) { return vec[i]; });
-    return sorted_vec;
-}
+                                 const std::vector<label> &p);
 
 template <typename T, typename Compare>
-std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
-{
-    std::vector<label> p(vec.size());
-    std::iota(p.begin(), p.end(), 0);
-    std::stable_sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
-        return compare(vec[i], vec[j]);
-    });
-    return p;
-}
+std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare);
+
+}  // namespace detail
 
 /** @class Collects functions to repartition communication patterns
  * and matrices. Here repartitioning refers to changing a given partitioning on
@@ -115,7 +112,27 @@ public:
     std::shared_ptr<const partition> get_orig_partition() const
     {
         return orig_partition_;
-    };
+    }
+
+
+    // std::vector<label> offset_column_indices() {
+    // // the non local cols are in local idx of other side
+    // // thus we need the new offset of the other side
+    // // NOTE TODO this modifies src_non_local_pattern better do the offsets
+    // // on the owner side after gathering
+    // for (label i = 0; i < src_non_local_pattern->rank.size(); i++) {
+    //     auto comm_rank = src_non_local_pattern->rank[i];
+    //     auto [begin, end] = src_non_local_pattern->spans[i];
+    //     label local_offset = orig_partition_->get_range_bounds()[comm_rank] -
+    //                          orig_partition_->get_range_bounds()[owner_rank];
+    //     auto *data = src_non_local_pattern->col_idxs.get_data() + begin;
+    //     auto size = end - begin;
+    //     std::transform(data, data + size, data,
+    //                    [&](label idx) { return idx + local_offset; });
+    // }
+
+
+    // }
 
 
     /* @brief given received interfaces this function sorts interfaces into
@@ -145,7 +162,7 @@ public:
      *(bool)
      * signals whether this is a new local interface (no communication), and
      *the
-     * second entry (label) tracks the original rank of the interface
+     * second entry (label) stores the original rank of the interface
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,

@@ -100,6 +100,80 @@ TEST_P(RepartitionerFixture, has_correct_properties_for_n_rank)
         (repartitioner.is_owner(*exec) ? ranks_per_gpu * local_size : 0));
 }
 
+TEST_P(RepartitionerFixture, can_exchange_spans_and_ranks_for_n_ranks)
+{
+    using vec_vec = std::vector<std::vector<label>>;
+    // Arrange
+    label ranks_per_gpu = GetParam();
+    auto exec = *((RepartitionerEnvironment *)global_env)->exec.get();
+    auto rank = exec.get_rank();
+    auto ref_exec = exec.get_ref_exec();
+
+    std::vector<gko::span> spans{{0, 5}, {5, 10}};
+    std::vector<label> ranks{rank + 1, rank + 2};
+
+    std::map<label, vec_vec> exp_ranks;
+    exp_ranks.emplace(1, vec_vec{{1, 2}, {2, 3}, {3, 4}, {4, 5}});
+    exp_ranks.emplace(2, vec_vec{{1, 2, 2, 3}, {}, {3, 4, 4, 5}, {}});
+    exp_ranks.emplace(4, vec_vec{{1, 2, 2, 3, 3, 4, 4, 5}, {}, {}, {}});
+
+    // Act
+    auto [new_spans, new_ranks] =
+        detail::exchange_span_ranks(exec, ranks_per_gpu, spans, ranks);
+
+    // Assert
+    ASSERT_EQ(new_ranks, exp_ranks[ranks_per_gpu][rank]);
+}
+
+TEST_P(RepartitionerFixture, can_repartition_sparsity_pattern_for_n_ranks)
+{
+    // Arrange
+    label ranks_per_gpu = GetParam();
+    auto exec = ((RepartitionerEnvironment *)global_env)->exec.get();
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, *exec);
+    auto rank = exec->get_rank();
+    auto ref_exec = exec->get_ref_exec();
+
+    // mesh:
+    // rank:     0     1     2     3
+    // cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
+    // cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- local row ids
+
+    std::vector<label> rows{0, 0, 1, 1};
+    std::vector<label> cols{0, 1, 0, 1};
+    std::vector<label> mapping{0, 1, 2, 3};
+    std::vector<label> ranks{rank};
+    auto local_sparsity = std::make_shared<SparsityPattern>(
+        ref_exec, gko::dim<2>{2, 2}, rows, cols, mapping, ranks);
+
+    std::vector<label> non_local_rows{1};
+    std::vector<label> non_local_cols{0};
+    std::vector<label> non_local_mapping{0};
+    std::vector<label> non_local_ranks{rank};
+    auto non_local_sparsity = std::make_shared<SparsityPattern>(
+        ref_exec, gko::dim<2>{2, 1}, non_local_rows, non_local_cols,
+        non_local_mapping, non_local_ranks);
+
+    std::map<label, std::vector<label>> exp_local_nnz;
+    exp_local_nnz.emplace(1, std::vector<label>{4, 4, 4, 4});
+    exp_local_nnz.emplace(2, std::vector<label>{8, 0, 8, 0});
+    exp_local_nnz.emplace(4, std::vector<label>{16, 0, 0, 0});
+
+    std::map<label, std::vector<label>> exp_non_local_nnz;
+    exp_local_nnz.emplace(1, std::vector<label>{1, 2, 2, 1});
+    exp_local_nnz.emplace(2, std::vector<label>{1, 0, 1, 0});
+    exp_local_nnz.emplace(4, std::vector<label>{0, 0, 0, 0});
+
+    // Act
+    auto [repart_local, repart_non_local, tracking] =
+        repartitioner.repartition_sparsity(*exec, local_sparsity,
+                                           non_local_sparsity);
+
+    // Assert
+    ASSERT_EQ(repart_local->num_nnz, exp_local_nnz[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->num_nnz,
+              exp_non_local_nnz[ranks_per_gpu][rank]);
+}
 
 TEST_P(RepartitionerFixture, can_repartition_1D_comm_pattern_for_n_ranks)
 {
