@@ -12,18 +12,69 @@
 #include "MatrixWrapper/SparsityPattern.H"
 
 namespace detail {
+
+/* Convert to global
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+std::vector<label> convert_to_global(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const std::vector<label> &ranks)
+{
+    std::vector<label> ret;
+    ret.reserve(idx.size());
+
+    for (label i = 0; i < ranks.size(); i++) {
+        auto rank = ranks[i];
+        auto [begin, end] = spans[i];
+        label offset = partition->get_range_bounds()[rank];
+        for (label j = begin; j < end; j++) {
+            ret.push_back(idx.data()[j] + offset);
+        }
+    }
+    return ret;
+}
+
+/* Convert to local
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+void convert_to_local(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    std::vector<label> &in, label rank)
+{
+    label offset = partition->get_range_bounds()[rank];
+    std::transform(in.begin(), in.end(), in.begin(),
+                   [&](label idx) { return idx - offset; });
+}
+
 /* @brief exchange spans and rank between owner and non-owner ranks
 **
 ** returns a pair vector spans
 */
 std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
     const ExecutorHandler &exec_handler, label ranks_per_gpu,
-    const std::vector<gko::span> &spans, const std::vector<label> &ranks) const;
+    const std::vector<gko::span> &spans, const std::vector<label> &ranks);
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
                                  const std::vector<label> &p);
 
+/* Sorts a vector and returns the permutation for reuse
+ */
 template <typename T, typename Compare>
 std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare);
 
@@ -115,36 +166,27 @@ public:
     }
 
 
-    // std::vector<label> offset_column_indices() {
-    // // the non local cols are in local idx of other side
-    // // thus we need the new offset of the other side
-    // // NOTE TODO this modifies src_non_local_pattern better do the offsets
-    // // on the owner side after gathering
-    // for (label i = 0; i < src_non_local_pattern->rank.size(); i++) {
-    //     auto comm_rank = src_non_local_pattern->rank[i];
-    //     auto [begin, end] = src_non_local_pattern->spans[i];
-    //     label local_offset = orig_partition_->get_range_bounds()[comm_rank] -
-    //                          orig_partition_->get_range_bounds()[owner_rank];
-    //     auto *data = src_non_local_pattern->col_idxs.get_data() + begin;
-    //     auto size = end - begin;
-    //     std::transform(data, data + size, data,
-    //                    [&](label idx) { return idx + local_offset; });
-    // }
-
-
-    // }
-
-
     /* @brief given received interfaces this function sorts interfaces into
+     *
      *local and non local returns: SparsityPattern storing new non_local
      *sparsity pattern, and a pair of locality information, where the first bool
      *stores if the interface performs a local communication and the second bool
      *if the the interface was originally from this rank
+     *
      */
-    std::pair<SparsityPattern, std::vector<bool>> build_non_local_interfaces(
-        const ExecutorHandler &exec_handler, SparsityPattern &loc,
-        const SparsityPattern &non_loc) const;
-
+    std::vector<bool> build_non_local_interfaces(
+        const ExecutorHandler &exec_handler,
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition,
+        std::vector<label> &local_rows, std::vector<label> &local_cols,
+        std::vector<label> &local_mapping, std::vector<label> &local_ranks,
+        std::vector<gko::span> &local_spans, std::vector<label> &non_local_rows,
+        std::vector<label> &non_local_cols,
+        std::vector<label> &non_local_mapping,
+        std::vector<label> &non_local_ranks,
+        std::vector<label> &non_local_rank_origin,
+        std::vector<gko::span> &non_local_spans) const;
 
     /* @brief function to repartition a sparsity pattern
      *

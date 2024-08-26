@@ -145,6 +145,11 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
     return get_gko_solver_property(sys_matrix_name, iters_name, db, label(1));
 }
 
+std::shared_ptr<gko::array<label>> convert_to_array(const std::vector<label> & in) {
+    return std::make_shared<gko::array<label>>(gko::ReferenceExecutor::create(), in.begin(), in.end());
+}
+
+
 std::ostream &operator<<(std::ostream &os,
                          const std::shared_ptr<gko::matrix::Dense<scalar>> in)
 {

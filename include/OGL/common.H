@@ -131,4 +131,7 @@ void set_next_caching(word sys_matrix_name, const objectRegistry &db,
                       label caching);
 
 label get_next_caching(word sys_matrix_name, const objectRegistry &db);
+
+std::shared_ptr<gko::array<label>> convert_to_array(
+    const std::vector<label> &in);
 }  // namespace Foam

@@ -21,7 +21,7 @@ namespace Foam {
  *
  * */
 void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
-                                  gko::array<label> &ldu_mapping, label rank,
+                                  std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
 
 /* @brief computes the dimensions of square matrix based row index array
@@ -30,7 +30,7 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
  * @params ordered array of row indices
  * returns dimensions
  * */
-gko::dim<2> compute_dimensions(const gko::array<label> &rows);
+gko::dim<2> compute_dimensions(const std::vector<label> &rows);
 
 /* The SparsityPattern holds row and column index data using gko::arrays.
  * This struct is used for easy generation of (distributed) ginkgo matrices.
@@ -41,15 +41,26 @@ gko::dim<2> compute_dimensions(const gko::array<label> &rows);
 struct SparsityPattern {
     /* constructor from vectors, assumes a single interface */
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, gko::dim<2> dim_,
-                    std::vector<label> rows, std::vector<label> cols,
-                    std::vector<label> mapping, std::vector<label> rank_)
+                    const std::vector<label> &rows,
+                    const std::vector<label> &cols,
+                    const std::vector<label> &mapping,
+                    const std::vector<gko::span> &spans_,
+                    const std::vector<label> &rank_)
         : num_nnz(rows.size()),
           row_idxs(exec, rows.begin(), rows.end()),
           col_idxs(exec, cols.begin(), cols.end()),
           ldu_mapping(exec, mapping.begin(), mapping.end()),
           dim(dim_),
-          spans(std::vector{gko::span(0, num_nnz)}),
+          spans(spans_),
           rank(rank_)
+    {}
+
+    SparsityPattern(std::shared_ptr<const gko::Executor> exec)
+        : num_nnz(0),
+          dim(gko::dim<2>{}),
+          row_idxs{exec},
+          col_idxs{exec},
+          ldu_mapping{exec}
     {}
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
