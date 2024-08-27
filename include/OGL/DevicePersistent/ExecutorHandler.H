@@ -176,22 +176,21 @@ public:
             MPI_COMM_WORLD, gko_force_host_buffer_);
     }
 
-    std::shared_ptr<gko::experimental::mpi::communicator>
+    std::shared_ptr<const gko::experimental::mpi::communicator>
     get_gko_mpi_device_comm() const
     {
         return this->device_comm_;
     }
 
-    std::shared_ptr<gko::experimental::mpi::communicator> get_communicator()
-        const
+    std::shared_ptr<const gko::experimental::mpi::communicator>
+    get_communicator() const
     {
         return this->device_comm_;
     }
 
-    label get_rank() const { return get_communicator().get()->rank(); };
+    label get_rank() const { return get_communicator()->rank(); };
 };
 
 using PersistentExecutor = ExecutorHandler;
 
 }  // namespace Foam
-// namespace Foam

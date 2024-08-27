@@ -53,7 +53,13 @@ struct SparsityPattern {
           dim(dim_),
           spans(spans_),
           rank(rank_)
-    {}
+    {
+        // For every rank there should be a span
+        ASSERT_EQ(spans.size(), rank.size());
+
+        ASSERT_EQ(rows.size(), cols.size());
+        ASSERT_EQ(rows.size(), mapping.size());
+    }
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec)
         : num_nnz(0),

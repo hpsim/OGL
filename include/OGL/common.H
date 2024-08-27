@@ -90,10 +90,10 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
-#define ASSERT_EQ(_val1, _val2)                                                \
-    if (_val1 != _val2) {                                                      \
-        throw ::gko::ValueMismatch(__FILE__, __LINE__, __func__, _val1, _val2, \
-                                   "expected equal values");                   \
+#define ASSERT_EQ(_val1, _val2)                                               \
+    if (_val1 != _val2) {                                                     \
+        FatalErrorInFunction << "Expected equal values: " << _val1 << " and " \
+                             << _val2 << abort(FatalError);                   \
     }
 
 std::ostream &operator<<(

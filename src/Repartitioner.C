@@ -6,7 +6,7 @@
 
 namespace detail {
 
-std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
+std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>> exchange_span_ranks(
     const ExecutorHandler &exec_handler, label ranks_per_gpu,
     const std::vector<gko::span> &spans, const std::vector<label> &ranks)
 {
@@ -32,7 +32,18 @@ std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
     auto new_ranks = gather_labels_to_owner(exec_handler, comm_pattern,
                                             ranks.data(), ranks.size());
 
-    return {out_spans, new_ranks};
+    std::vector<label> origins{};
+    if (gathered_size.size() > 0) {
+    auto rank = exec_handler.get_rank();
+    for (int i = 0; i<ranks_per_gpu; i++) {
+        auto j = comm_pattern.recv_counts[i+rank];
+        for (int k=0;k<j;k++) {
+            origins.push_back(i+rank);
+        }
+    }
+    }
+
+    return {out_spans, new_ranks, origins};
 }
 
 template <typename T>
@@ -145,7 +156,7 @@ Repartitioner::repartition_sparsity(
     auto tmp_non_local_rows = gather_closure(
         non_local_comm_pattern, src_non_local_pattern->row_idxs, offset);
 
-    auto [new_spans, new_ranks] = detail::exchange_span_ranks(
+    auto [new_spans, new_ranks, tmp_non_local_origin] = detail::exchange_span_ranks(
         exec_handler, ranks_per_gpu_, src_non_local_pattern->spans,
         src_non_local_pattern->rank);
 
@@ -158,16 +169,15 @@ Repartitioner::repartition_sparsity(
     std::vector<label> tmp_non_local_mapping =
         std::vector<label>(tmp_non_local_rows.size());
 
-    std::vector<label> tmp_non_local_origin{};
-
     auto is_local = build_non_local_interfaces(
         exec_handler, orig_partition_, tmp_local_rows, tmp_local_cols,
         tmp_local_mapping, tmp_local_rank, tmp_local_span, tmp_non_local_rows,
         tmp_non_local_cols, tmp_non_local_mapping, new_ranks,
         tmp_non_local_origin, new_spans);
 
+
     // TODO FIXME
-    gko::dim<2> tmp_non_local_dim {0, 0};
+    gko::dim<2> tmp_non_local_dim{0, 0};
 
     if (is_owner(exec_handler)) {
         auto local_pattern = std::make_shared<SparsityPattern>(
@@ -296,52 +306,80 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     std::vector<label> &non_local_rank_origin,
     std::vector<gko::span> &non_local_spans) const
 {
-    // LOG_1(verbose_, "start build non local interfaces")
     auto rank = exec_handler.get_rank();
     std::vector<bool> is_local;
-    std::vector<gko::span> mark_delete;
+    std::vector<label> mark_keep;
 
     for (int i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, non_local_ranks[i]);
         is_local.push_back(local);
+
         if (local) {
-            label rows_start = local_rows.size();
             local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
                               non_local_rows.data() + end);
 
             std::vector<label> tmp_rank_local_cols(
-                non_local_cols.data() + begin, non_local_cols.data() + end);
+                non_local_cols.data() + begin,
+                non_local_cols.data() + end);
 
             detail::convert_to_local(partition, tmp_rank_local_cols, rank);
 
             local_cols.insert(local_cols.end(), tmp_rank_local_cols.begin(),
                               tmp_rank_local_cols.end());
-
             local_mapping.insert(local_mapping.end(),
                                  non_local_mapping.data() + begin,
                                  non_local_mapping.data() + end);
 
-            local_spans.push_back(
-                gko::span{static_cast<gko::size_type>(rows_start),
-                          static_cast<gko::size_type>(end - begin)});
-            // TODO
-            // local_ranks.push_back(non_local_rank_origin[i]);
+            gko::size_type rows_start = local_rows.size();
+            local_spans.emplace_back(
+                rows_start,
+                          static_cast<gko::size_type>(end - begin));
+
+            local_ranks.push_back(non_local_rank_origin[i]);
+        } else {
+            mark_keep.push_back(i);
         }
     }
 
     // remove data from non_local vectors
-    for (int i = mark_delete.size(); i > 0; i--) {
+    if (mark_keep.size() == 0) {
+        std::cout << "rank " << rank << " \n";
+    non_local_rows.clear();
+    non_local_cols.clear();
+    non_local_mapping.clear();
+    non_local_ranks.clear();
+    non_local_spans.clear();
+        } else {
+    std::vector<label> copy_rows, copy_cols, copy_mapping, copy_ranks;
+    std::vector<gko::span> copy_spans;
+    for (label i : mark_keep) {
         auto [begin, end] = non_local_spans[i];
-        non_local_rows.erase(non_local_rows.begin() + begin,
-                             non_local_rows.begin() + end);
-        non_local_cols.erase(non_local_cols.begin() + begin,
-                             non_local_cols.begin() + end);
-        non_local_mapping.erase(non_local_cols.begin() + begin,
-                                non_local_cols.begin() + end);
-        non_local_ranks.erase(non_local_ranks.begin() + begin);
-        // non_local_spans.erase(non_local_spans.begin() + begin, );
+        std::cout << "rank " << rank << " begin " << begin << " end " << end << "\n";
+        copy_rows.insert(copy_rows.end(),
+                         non_local_rows.data() + begin,
+                         non_local_rows.data() + end);
+        copy_cols.insert(copy_cols.end(),
+                         non_local_cols.data() + begin,
+                         non_local_cols.data() + end);
+        copy_mapping.insert(copy_mapping.end(),
+                            non_local_mapping.data() + begin,
+                            non_local_mapping.data() + end);
+        copy_ranks.push_back(non_local_ranks[i]);
+        copy_spans.emplace_back(non_local_spans[i].begin,
+                                non_local_spans[i].end);
     }
+
+    non_local_rows = copy_rows;
+    non_local_cols = copy_cols;
+    non_local_mapping = copy_mapping;
+    non_local_ranks = copy_ranks;
+    non_local_spans.clear();
+    for (auto &span : copy_spans) {
+        non_local_spans.emplace_back(span.begin, span.end);
+    }
+    }
+
     return is_local;
 }
 

@@ -65,9 +65,10 @@ void convert_to_local(
 **
 ** returns a pair vector spans
 */
-std::pair<std::vector<gko::span>, std::vector<label>> exchange_span_ranks(
-    const ExecutorHandler &exec_handler, label ranks_per_gpu,
-    const std::vector<gko::span> &spans, const std::vector<label> &ranks);
+std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
+exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
+                    const std::vector<gko::span> &spans,
+                    const std::vector<label> &ranks);
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
