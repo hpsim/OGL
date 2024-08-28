@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
+#include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
 #include "regIOobject.H"
@@ -12,7 +13,6 @@
 #endif
 
 #include <string.h>
-#include <ginkgo/ginkgo.hpp>
 
 namespace Foam {
 
@@ -99,6 +99,9 @@ namespace Foam {
 std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
+
+std::ostream &operator<<(std::ostream &os, const std::vector<label> &in);
+
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,

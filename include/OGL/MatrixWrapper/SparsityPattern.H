@@ -6,8 +6,23 @@
 
 #include <vector>
 
+#include "OGL/CommunicationPattern.H"
+#include "OGL/common.H"
+
 namespace Foam {
 
+/* @brief based on a comm_pattern consecutive ldu_mappings are computed
+ *
+ * After merging sparsity patterns during repartitioning the ldu mapping are
+ * not consecutive ie they could look like [0 1 2 3 | 0 1 2 3 | 0 1], where
+ * | is the former rank boundary based on the comm pattern we compute a new
+ * mapping as  [ 0 1 2 3 | 4 5 6 7| 8 9 ] where the following offsets [ 0 |
+ * 4 | 8 ] based on the recv_counts are used.
+ *
+ * */
+void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
+                                  gko::array<label> &ldu_mapping, label rank,
+                                  label ranks_per_gpu);
 
 /* The SparsityPattern holds row and column index data using gko::arrays.
  * This struct is used for easy generation of (distributed) ginkgo matrices.
@@ -17,6 +32,15 @@ namespace Foam {
  *
  * */
 struct SparsityPattern {
+    /* constructor from vectors, assumes a single interface */
+    SparsityPattern(std::vector<label> rows, std::vector<label> cols,
+                    std::vector<label> mapping, std::vector<label> rank)
+        : num_nnz(rows.size())
+    {
+        // NOT fully implementented
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+    }
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
         : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
@@ -56,6 +80,7 @@ struct SparsityPattern {
         rank = ranks;
     }
 
+    // TODO num_nnz makes no sense ->nnz;
     const label num_nnz;
 
     mutable gko::Array<label> row_idxs;
