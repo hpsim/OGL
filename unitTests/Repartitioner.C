@@ -345,7 +345,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_1D_comm_pattern_for_n_ranks)
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
-    // expected communcation ranks
+    // expected communication ranks
     std::map<label, vec_vec> exp_res_ids{};
 
     exp_res_ids[1] = ids;  // in the ranks_per_gpu==1 case nothing changes
@@ -400,7 +400,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
-    // expected communcation ranks
+    // expected communication ranks
     std::map<label, vec_vec> exp_res_ids{};
     exp_res_ids[1] = ids;  // in the ranks_per_gpu==1 case nothing changes
     // only communication partners are 0-2 and 2-0

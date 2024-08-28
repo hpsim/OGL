@@ -223,7 +223,7 @@ public:
      * @param src_comm_pattern the original communication pattern of the current
      * rank belonging to the distributed matrix
      * @param partition the original partition belonging to the distributed
-     * matrix returns the repartitioned communcation pattern
+     * matrix returns the repartitioned communication pattern
      */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
