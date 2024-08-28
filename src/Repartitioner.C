@@ -135,7 +135,6 @@ Repartitioner::repartition_sparsity(
     auto tmp_local_mapping =
         gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping, 0);
 
-
     if (is_owner(exec_handler)) {
         make_ldu_mapping_consecutive(local_comm_pattern, tmp_local_mapping,
                                      rank, ranks_per_gpu);
@@ -174,7 +173,6 @@ Repartitioner::repartition_sparsity(
         tmp_local_mapping, tmp_local_rank, tmp_local_span, tmp_non_local_rows,
         tmp_non_local_cols, tmp_non_local_mapping, new_ranks,
         tmp_non_local_origin, new_spans);
-
 
     // TODO FIXME
     gko::dim<2> tmp_non_local_dim{0, 0};
@@ -344,7 +342,6 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
 
     // remove data from non_local vectors
     if (mark_keep.size() == 0) {
-        std::cout << "rank " << rank << " \n";
     non_local_rows.clear();
     non_local_cols.clear();
     non_local_mapping.clear();
@@ -355,7 +352,6 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     std::vector<gko::span> copy_spans;
     for (label i : mark_keep) {
         auto [begin, end] = non_local_spans[i];
-        std::cout << "rank " << rank << " begin " << begin << " end " << end << "\n";
         copy_rows.insert(copy_rows.end(),
                          non_local_rows.data() + begin,
                          non_local_rows.data() + end);

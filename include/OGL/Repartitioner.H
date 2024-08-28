@@ -89,9 +89,9 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    const label size_;  //! Size (n matrix rows) before repartitioning
+    const label size_;  //! Size (matrix rows) before repartitioning
 
-    const label repart_size_;  //! Size after repartitioning
+    const label repart_size_;  //! Size (matrix rows) after repartitioning
 
     const label ranks_per_gpu_;
 

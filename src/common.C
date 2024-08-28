@@ -150,6 +150,15 @@ std::shared_ptr<gko::array<label>> convert_to_array(const std::vector<label> & i
 }
 
 
+std::vector<label> convert_to_vector(
+ const gko::array<label>& in
+) {
+    return std::vector<label> (
+        in.get_const_data(),
+        in.get_const_data() + in.get_size());
+}
+
+
 std::ostream &operator<<(std::ostream &os,
                          const std::shared_ptr<gko::matrix::Dense<scalar>> in)
 {
