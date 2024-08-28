@@ -406,7 +406,6 @@ Repartitioner::repartition_comm_pattern(
         send_idxs.clear();
     }
 
-
     // early return if no communication partners are left
     if (gathered_target_ids.size() == 0) {
         return std::make_shared<CommunicationPattern>(
@@ -415,7 +414,6 @@ Repartitioner::repartition_comm_pattern(
                                        target_ids.end()},
             gko::array<comm_size_type>{exec, target_sizes.begin(),
                                        target_sizes.end()},
-
             send_idxs);
     }
 
