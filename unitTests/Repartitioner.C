@@ -49,9 +49,9 @@ public:
         // to clean up output
         ::testing::TestEventListeners &listeners =
             ::testing::UnitTest::GetInstance()->listeners();
-        if (exec->get_communicator()->rank() != 0) {
-            delete listeners.Release(listeners.default_result_printer());
-        }
+        // if (exec->get_communicator()->rank() != 0) {
+        //     delete listeners.Release(listeners.default_result_printer());
+        // }
     }
 
     std::shared_ptr<Foam::argList> args_;
@@ -301,9 +301,10 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
                                       {}});
 
     std::map<label, vec> exp_local_dim_rows;
-    exp_local_dim_rows.emplace(1, vec{local_size, local_size, local_size, local_size});
-    exp_local_dim_rows.emplace(2, vec{2*local_size, 0, 2*local_size, 0});
-    exp_local_dim_rows.emplace(4, vec{4*local_size, 0, 0, 0});
+    exp_local_dim_rows.emplace(
+        1, vec{local_size, local_size, local_size, local_size});
+    exp_local_dim_rows.emplace(2, vec{2 * local_size, 0, 2 * local_size, 0});
+    exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
 
     std::map<label, vec_vec> exp_non_local_rows;
     exp_non_local_rows.emplace(1, non_local_rows);
@@ -330,7 +331,8 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     // non local properties
     ASSERT_EQ(repart_non_local->num_nnz,
               exp_non_local_nnz[ranks_per_gpu][rank]);
-    ASSERT_EQ(repart_non_local->dim[0], exp_local_dim_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[0],
+              exp_local_dim_rows[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_non_local->dim[1], exp_non_local_nnz[ranks_per_gpu][rank]);
     auto res_non_local_rows = convert_to_vector(repart_non_local->row_idxs);
     auto res_non_local_cols = convert_to_vector(repart_non_local->col_idxs);

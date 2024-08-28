@@ -70,7 +70,6 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
 
 }  // namespace detail
 
-
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
                                          const ExecutorHandler &exec_handler)
 {
@@ -161,11 +160,10 @@ Repartitioner::repartition_sparsity(
                                     src_non_local_pattern->spans,
                                     src_non_local_pattern->rank);
 
-    auto tmp_non_local_cols = detail::convert_to_global(
-        orig_partition_,
-        gather_closure(non_local_comm_pattern, src_non_local_pattern->col_idxs,
-                       0),
-        new_spans, new_ranks);
+    // comm ranks are based on non repartitioned ranks
+
+    auto tmp_non_local_cols = gather_closure(
+        non_local_comm_pattern, src_non_local_pattern->col_idxs, 0);
 
     std::vector<label> tmp_non_local_mapping =
         std::vector<label>(tmp_non_local_rows.size());
@@ -216,6 +214,9 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     std::vector<bool> is_local;
     std::vector<label> mark_keep;
 
+    auto tmp_non_local_cols = detail::convert_to_global(
+        orig_partition_, non_local_cols, non_local_spans, non_local_ranks);
+
     for (int i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, non_local_ranks[i]);
@@ -226,7 +227,8 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
                               non_local_rows.data() + end);
 
             std::vector<label> tmp_rank_local_cols(
-                non_local_cols.data() + begin, non_local_cols.data() + end);
+                tmp_non_local_cols.data() + begin,
+                tmp_non_local_cols.data() + end);
 
             detail::convert_to_local(partition, tmp_rank_local_cols, rank);
 
@@ -260,12 +262,30 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
             auto [begin, end] = non_local_spans[i];
             copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
                              non_local_rows.data() + end);
-            copy_cols.insert(copy_cols.end(), non_local_cols.data() + begin,
-                             non_local_cols.data() + end);
+
+            auto orig_comm_rank = non_local_ranks[i];
+            auto repart_comm_rank = get_owner_rank(orig_comm_rank);
+            std::vector<label> tmp_rank_local_cols(
+                tmp_non_local_cols.data() + begin,
+                tmp_non_local_cols.data() + end);
+
+            // this is per interface
+            // need to add offset of original comm rank
+            label rank_offset = partition->get_range_bounds()[orig_comm_rank] -
+                                partition->get_range_bounds()[repart_comm_rank];
+            detail::convert_to_local(partition, tmp_rank_local_cols,
+                                     non_local_ranks[i]);
+            std::transform(
+                tmp_rank_local_cols.begin(), tmp_rank_local_cols.end(),
+                tmp_rank_local_cols.begin(),
+                [rank_offset](label idx) { return idx + rank_offset; });
+
+            copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
+                             tmp_rank_local_cols.end());
             copy_mapping.insert(copy_mapping.end(),
                                 non_local_mapping.data() + begin,
                                 non_local_mapping.data() + end);
-            copy_ranks.push_back(non_local_ranks[i]);
+            copy_ranks.push_back(repart_comm_rank);
             copy_spans.emplace_back(non_local_spans[i].begin,
                                     non_local_spans[i].end);
         }
@@ -412,7 +432,6 @@ Repartitioner::repartition_comm_pattern(
     target_sizes = detail::apply_permutation(gathered_target_sizes, p);
     target_ids = detail::apply_permutation(gathered_target_ids, p);
     send_idxs = detail::apply_permutation(send_idxs, p);
-
 
     // Step 4.
     // Merge communication pattern with corresponding neighbours

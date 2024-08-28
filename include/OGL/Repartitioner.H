@@ -166,12 +166,14 @@ public:
         return orig_partition_;
     }
 
-    /* @brief given received interfaces this function sorts interfaces into
+    /* @brief given gathered sparsity information copy local interfaces
      *
-     *local and non local returns: SparsityPattern storing new non_local
-     *sparsity pattern, and a pair of locality information, where the first bool
-     *stores if the interface performs a local communication and the second bool
-     *if the the interface was originally from this rank
+     * After gathering local and non-local rows, cols, and mapping
+     * we have interfaces that are now local in the non-local rows, cols and
+     * mapping. Thus this function copies the rows, cols and mapping, spans etc
+     * to the corresponding local vectors.
+     * returns a vector of locality information.
+     * @param non_local_cols vector in comm rank local indices
      */
     std::vector<bool> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
