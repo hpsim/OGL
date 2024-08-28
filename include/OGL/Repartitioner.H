@@ -166,14 +166,12 @@ public:
         return orig_partition_;
     }
 
-
     /* @brief given received interfaces this function sorts interfaces into
      *
      *local and non local returns: SparsityPattern storing new non_local
      *sparsity pattern, and a pair of locality information, where the first bool
      *stores if the interface performs a local communication and the second bool
      *if the the interface was originally from this rank
-     *
      */
     std::vector<bool> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
@@ -205,7 +203,7 @@ public:
      *(bool)
      * signals whether this is a new local interface (no communication), and
      *the
-     * second entry (label) stores the original rank of the interface
+     * second entry (label) tracks the original rank of the interface
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,
