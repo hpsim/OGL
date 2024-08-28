@@ -323,7 +323,7 @@ Repartitioner::repartition_comm_pattern(
     bool owner = is_owner(exec_handler);
 
     // Step 1. Check if communication partner is non-local after
-    // repartitioning. If it is non-local we keep it. Otherwise communcation
+    // repartitioning. If it is non-local we keep it. Otherwise communication
     // partners that are local after repartitioning can be discarded. Here
     // non-local means: the communication target rank id is != repartitioned
     // rank id
