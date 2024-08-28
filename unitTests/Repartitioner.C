@@ -23,6 +23,7 @@ extern char **my_argv;
 int my_argc;
 char **my_argv;
 
+using vec = std::vector<label>;
 using vec_vec = std::vector<std::vector<label>>;
 using vec_vec_vec = std::vector<vec_vec>;
 
@@ -287,18 +288,54 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
                                       {},
                                       {}});
 
+    std::map<label, vec_vec> exp_local_cols;
+    exp_local_cols.emplace(1, vec_vec{cols, cols, cols, cols});
+    exp_local_cols.emplace(2, vec_vec{{0, 0, 1, 1, 2, 2, 3, 3, 1, 2},
+                                      {},
+                                      {0, 0, 1, 1, 2, 2, 3, 3, 1, 2},
+                                      {}});
+    exp_local_cols.emplace(4, vec_vec{{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5,
+                                       5, 6, 6, 7, 7, 1, 2, 3, 4, 5, 6},
+                                      {},
+                                      {},
+                                      {}});
+
+    std::map<label, vec> exp_local_dim_rows;
+    exp_local_dim_rows.emplace(1, vec{local_size, local_size, local_size, local_size});
+    exp_local_dim_rows.emplace(2, vec{2*local_size, 0, 2*local_size, 0});
+    exp_local_dim_rows.emplace(4, vec{4*local_size, 0, 0, 0});
+
+    std::map<label, vec_vec> exp_non_local_rows;
+    exp_non_local_rows.emplace(1, non_local_rows);
+    exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
+    exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+    std::map<label, vec_vec> exp_non_local_cols;
+    exp_non_local_cols.emplace(1, non_local_cols);
+    exp_non_local_cols.emplace(2, vec_vec{{0}, {}, {3}, {}});
+    exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
+
     // Act
     auto [repart_local, repart_non_local, tracking] =
         repartitioner.repartition_sparsity(exec, local_sparsity,
                                            non_local_sparsity);
+    // Assert
+    // local properties
+    ASSERT_EQ(repart_local->num_nnz, exp_local_nnz[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_local->dim[0], exp_local_dim_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_local->dim[1], exp_local_dim_rows[ranks_per_gpu][rank]);
     auto res_local_rows = convert_to_vector(repart_local->row_idxs);
     auto res_local_cols = convert_to_vector(repart_local->col_idxs);
+    ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
 
-    // Assert
-    ASSERT_EQ(repart_local->num_nnz, exp_local_nnz[ranks_per_gpu][rank]);
+    // non local properties
     ASSERT_EQ(repart_non_local->num_nnz,
               exp_non_local_nnz[ranks_per_gpu][rank]);
-    ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[0], exp_local_dim_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[1], exp_non_local_nnz[ranks_per_gpu][rank]);
+    auto res_non_local_rows = convert_to_vector(repart_non_local->row_idxs);
+    auto res_non_local_cols = convert_to_vector(repart_non_local->col_idxs);
+    ASSERT_EQ(res_non_local_rows, exp_non_local_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_cols, exp_non_local_cols[ranks_per_gpu][rank]);
 }
 
 TEST_P(RepartitionerFixture1D, can_repartition_1D_comm_pattern_for_n_ranks)
