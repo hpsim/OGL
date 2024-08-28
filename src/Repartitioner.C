@@ -69,6 +69,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
 
 }  // namespace detail
 
+
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
                                          const ExecutorHandler &exec_handler)
 {
@@ -509,6 +510,7 @@ Repartitioner::repartition_comm_pattern(
     target_sizes = detail::apply_permutation(gathered_target_sizes, p);
     target_ids = detail::apply_permutation(gathered_target_ids, p);
     send_idxs = detail::apply_permutation(send_idxs, p);
+
 
     // Step 4.
     // Merge communication pattern with corresponding neighbours

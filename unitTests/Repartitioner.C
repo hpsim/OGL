@@ -5,6 +5,7 @@
 #include "OGL/Repartitioner.H"
 #include "OGL/common.H"
 
+
 #include "gtest/gtest.h"
 
 #include "mpi.h"
@@ -164,7 +165,6 @@ TEST_P(RepartitionerFixture1D, can_create_repartitioner)
     EXPECT_EQ(repartitioner.get_ranks_per_gpu(), ranks_per_gpu);
 }
 
-
 TEST_P(RepartitionerFixture1D, has_correct_properties_for_n_rank)
 {
     // Arrange
@@ -310,6 +310,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_1D_comm_pattern_for_n_ranks)
 
     // expected communcation ranks
     std::map<label, vec_vec> exp_res_ids{};
+
     exp_res_ids[1] = ids;  // in the ranks_per_gpu==1 case nothing changes
     // only communication partners are 0-2 and 2-0
     exp_res_ids.emplace(2, vec_vec{{2}, {}, {0}, {}});
@@ -364,7 +365,6 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
 
     // expected communcation ranks
     std::map<label, vec_vec> exp_res_ids{};
-
     exp_res_ids[1] = ids;  // in the ranks_per_gpu==1 case nothing changes
     // only communication partners are 0-2 and 2-0
     exp_res_ids.emplace(2, vec_vec{{2}, {}, {0}, {}});
@@ -416,6 +416,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     auto res_rows = convert_to_vector(total_rank_send_idx);
     EXPECT_EQ(res_rows, exp_res_rows[ranks_per_gpu][rank]);
 }
+
 
 int main(int argc, char *argv[])
 {

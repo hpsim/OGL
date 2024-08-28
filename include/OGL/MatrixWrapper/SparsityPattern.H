@@ -32,6 +32,7 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
  * */
 gko::dim<2> compute_dimensions(const std::vector<label> &rows);
 
+
 /* The SparsityPattern holds row and column index data using gko::arrays.
  * This struct is used for easy generation of (distributed) ginkgo matrices.
  *
