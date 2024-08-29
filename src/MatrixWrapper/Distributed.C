@@ -4,11 +4,11 @@
 
 #include "OGL/MatrixWrapper/Distributed.H"
 
-std::vector<std::unique_ptr<gko::LinOp>> detail::generate_inner_linops(
+std::vector<std::shared_ptr<const gko::LinOp>> detail::generate_inner_linops(
     word matrix_format, bool fuse, std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const SparsityPattern> sparsity)
 {
-    std::vector<std::unique_ptr<gko::LinOp>> lin_ops;
+    std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
     for (int i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
@@ -22,8 +22,8 @@ std::vector<std::unique_ptr<gko::LinOp>> detail::generate_inner_linops(
                                     sparsity->col_idxs.get_data() + begin);
 
         auto create_function = [&](word format) {
-            return gko::matrix::Coo<scalar, label>::create(
-                exec, sparsity->dim, coeffs, col_idxs_view, row_idxs_view);
+            return gko::share(gko::matrix::Coo<scalar, label>::create(
+                exec, sparsity->dim, coeffs, col_idxs_view, row_idxs_view));
         };
         lin_ops.push_back(create_function(matrix_format));
     }

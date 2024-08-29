@@ -4,6 +4,7 @@
 
 
 #include "OGL/MatrixWrapper/HostMatrix.H"
+#include "OGL/MatrixWrapper/Distributed.H"
 #include "OGL/Repartitioner.H"
 
 #include "gtest/gtest.h"
@@ -104,13 +105,17 @@ public:
         *(exec.get_communicator().get());
 };
 
-TEST_F(DistributedMatrixFixture, returnsCorrectSize)
+TEST_F(DistributedMatrixFixture, canCreateDistributeMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = Repartitioner(
         hostMatrix->get_local_nrows(), 1, 0, exec);
+
+    auto distributed = RepartDistMatrix<scalar, label, label>::create(exec, "Coo", repartitioner, hostMatrix);
+
+    ASSERT_EQ(distributed->get_local_matrix()->get_size()[0], 9);
 }
 
 int main(int argc, char *argv[])

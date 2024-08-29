@@ -18,7 +18,7 @@ namespace detail {
 /* @brief generates a vector of ginkgo linops
 **
 */
-std::vector<std::unique_ptr<gko::LinOp>> generate_inner_linops(
+std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
     word matrix_format, bool fuse, std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const SparsityPattern> sparsity);
 }  // namespace detail
@@ -60,12 +60,12 @@ public:
 
     std::shared_ptr<const gko::LinOp> get_local_matrix()
     {
-        this->dist_mtx_->get_local_matrix();
+        return this->dist_mtx_->get_local_matrix();
     }
 
     std::shared_ptr<const gko::LinOp> get_non_local_matrix()
     {
-        this->dist_mtx_->get_non_local_matrix();
+        return this->dist_mtx_->get_non_local_matrix();
     }
 
     /**
@@ -151,11 +151,11 @@ public:
         auto global_rows = repartitioner.get_orig_partition()->get_size();
         gko::dim<2> global_dim{global_rows, global_rows};
 
-        std::unique_ptr<dist_mtx> dist_A;
+        std::shared_ptr<dist_mtx> dist_A;
         bool fuse = false;
         if (fuse) {
         } else {
-            dist_A = dist_mtx::create(
+            dist_A = gko::share(dist_mtx::create(
                 exec, comm, global_dim,
                 gko::share(
                     CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
@@ -163,7 +163,7 @@ public:
                 gko::share(
                     CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
                         exec, repart_non_loc_sparsity->dim, non_local_linops)),
-                recv_sizes, recv_offsets, recv_gather_idxs);
+                recv_sizes, recv_offsets, recv_gather_idxs));
         }
 
         update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
