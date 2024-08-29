@@ -10,6 +10,7 @@
 #include <ginkgo/ginkgo.hpp>
 
 #include "OGL/CommunicationPattern.H"
+#include "OGL/MatrixWrapper/Combination.H"
 #include "OGL/MatrixWrapper/HostMatrix.H"
 #include "OGL/Repartitioner.H"
 
@@ -125,7 +126,7 @@ public:
         auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
 
         auto src_comm_pattern = host_A->create_communication_pattern();
-        auto dst_comm_pattern = repartitioner.repartition_comm_pattern(
+        auto repart_comm_pattern = repartitioner.repartition_comm_pattern(
             exec_handler, src_comm_pattern);
 
         // bool owner = repartitioner.is_owner(exec_handler);
@@ -137,17 +138,42 @@ public:
         // create vector of inner type linops
         // if fuse the vector contains only a single element
         // thus we can unwrap it.
-
         auto device_exec = exec_handler.get_device_exec();
         auto local_linops = detail::generate_inner_linops(
             matrix_format, false, device_exec, repart_loc_sparsity);
+        auto non_local_linops = detail::generate_inner_linops(
+            matrix_format, false, device_exec, repart_non_loc_sparsity);
 
-        // auto local_coeffs =
-        //     gko::array<scalar>(exec, repart_local_sparsity->num_nnz);
-        // auto non_local_coeffs =
-        //     gko::array<scalar>(exec, repart_non_local_sparsity->num_nnz);
+        auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
+            repart_comm_pattern->send_recv_pattern();
+        auto recv_gather_idxs = repart_comm_pattern->total_rank_send_idx();
 
+        auto global_rows = repartitioner.get_orig_partition()->get_size();
+        gko::dim<2> global_dim{global_rows, global_rows};
 
+        std::unique_ptr<dist_mtx> dist_A;
+        bool fuse = false;
+        if (fuse) {
+        } else {
+            dist_A = dist_mtx::create(
+                exec, comm, global_dim,
+                gko::share(
+                    CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
+                        exec, repart_loc_sparsity->dim, local_linops)),
+                gko::share(
+                    CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
+                        exec, repart_non_loc_sparsity->dim, non_local_linops)),
+                recv_sizes, recv_offsets, recv_gather_idxs);
+        }
+
+        update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
+                    repart_loc_sparsity, repart_non_loc_sparsity,
+                    src_comm_pattern, local_interfaces);
+
+        return std::make_shared<RepartDistMatrix>(
+            exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
+            std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
+            src_comm_pattern, local_interfaces);
         // std::cout << __FILE__ << " rank " << rank << " local sparsity size "
         //           << local_sparsity_->size_ << " local sparsity dim ["
         //           << local_sparsity_->dim[0] << "x" <<
@@ -164,44 +190,6 @@ public:
         //           << " non_local_sparsity.size " <<
         //           non_local_sparsity_->size_
         //           << " \n";
-
-        // // FIXME make sure that we work on the device executor
-        // auto comm_pattern = compute_send_recv_counts(
-        //     exec_handler, 1, non_local_sparsity_->size_);
-
-        // auto send_idxs = dst_comm_pattern->total_rank_send_idx();
-        // auto comm_counts = dst_comm_pattern->send_recv_pattern();
-
-        // dist_A->read_distributed(
-        //     device_matrix_data(exec, local_sparsity_->dim,
-        //                        local_sparsity_->row_idxs,
-        //                        local_sparsity_->col_idxs, local_coeffs),
-        //     device_matrix_data(exec, non_local_sparsity_->dim,
-        //                        non_local_sparsity_->row_idxs,
-        //                        non_local_sparsity_->col_idxs,
-        //                        non_local_coeffs),
-        //     std::get<0>(comm_counts), std::get<1>(comm_counts),
-        //     std::get<2>(comm_counts), std::get<3>(comm_counts), send_idxs);
-
-
-        // auto dist_A = DistMtxType::create(
-        //        exec, comm,
-        //        CombinationMatrix<scalar, label, mtx_type>::create(
-        //            exec, local_dim, local_interfaces),
-        //        CombinationMatrix<scalar, label, mtx_type>::create(
-        //            exec, non_local_dim, non_local_interfaces));
-
-        // update_impl(exec_handler, matrix_format, repartitioner, host_A,
-        // dist_A,
-        //             repart_local_sparsity, repart_non_local_sparsity,
-        //             src_comm_pattern, local_interfaces);
-
-        // auto ret = std::make_shared<RepartDistMatrix>(
-        //     exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
-        //     std::move(dist_A), local_sparsity_, non_local_sparsity_,
-        //     src_comm_pattern, local_interfaces);
-
-        return {};
     };
 
     void update(const ExecutorHandler &exec_handler, word matrix_format,

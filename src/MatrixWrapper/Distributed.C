@@ -9,15 +9,17 @@ std::vector<std::unique_ptr<gko::LinOp>> detail::generate_inner_linops(
     std::shared_ptr<const SparsityPattern> sparsity)
 {
     std::vector<std::unique_ptr<gko::LinOp>> lin_ops;
-
-    for (int i = 0; i < sparsity->spans.size(); i++)
-    {
+    for (int i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
 
-        gko::array<label> row_idxs_view(exec->get_master(), end - begin);
-        gko::array<label> col_idxs_view(exec->get_master(), end - begin);
+        auto row_idxs_view =
+            gko::array<label>::view(exec->get_master(), end - begin,
+                                    sparsity->row_idxs.get_data() + begin);
+        auto col_idxs_view =
+            gko::array<label>::view(exec->get_master(), end - begin,
+                                    sparsity->col_idxs.get_data() + begin);
 
         auto create_function = [&](word format) {
             return gko::matrix::Coo<scalar, label>::create(
