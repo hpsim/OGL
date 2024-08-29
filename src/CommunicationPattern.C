@@ -161,7 +161,6 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
 {
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
-    auto rank = comm.rank();
 
     std::vector<label> send_buffer_copy;
     // create a copy if offset is needed
@@ -215,7 +214,6 @@ gko::array<label> CommunicationPattern::total_rank_send_idx() const
 AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
     auto comm = *exec_handler.get_communicator().get();
-    label total_ranks{comm.size()};
 
     std::vector<label> send_counts(comm.size());
     std::vector<label> send_offsets(comm.size() + 1);

@@ -377,11 +377,9 @@ TEST_P(RepartitionerFixture1D, can_repartition_1D_comm_pattern_for_n_ranks)
     auto comm_pattern =
         std::make_shared<CommunicationPattern>(exec, ids[rank], rows[rank]);
 
-    auto partition = repartitioner.get_orig_partition();
-
     // Act
     auto repart_comm_pattern =
-        repartitioner.repartition_comm_pattern(exec, comm_pattern, partition);
+        repartitioner.repartition_comm_pattern(exec, comm_pattern);
 
     // Assert
     auto res_ids = convert_to_vector(repart_comm_pattern->target_ids);
@@ -437,11 +435,9 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     auto comm_pattern =
         std::make_shared<CommunicationPattern>(exec, ids[rank], rows[rank]);
 
-    auto partition = repartitioner.get_orig_partition();
-
     // Act
     auto repart_comm_pattern =
-        repartitioner.repartition_comm_pattern(exec, comm_pattern, partition);
+        repartitioner.repartition_comm_pattern(exec, comm_pattern);
 
     // Assert
     auto res_ids = convert_to_vector(repart_comm_pattern->target_ids);

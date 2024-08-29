@@ -6,6 +6,38 @@
 
 namespace detail {
 
+std::vector<label> convert_to_global(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const std::vector<label> &ranks)
+{
+    std::vector<label> ret;
+    ret.reserve(idx.size());
+
+    for (label i = 0; i < ranks.size(); i++) {
+        auto rank = ranks[i];
+        auto [begin, end] = spans[i];
+        label offset = partition->get_range_bounds()[rank];
+        for (label j = begin; j < end; j++) {
+            ret.push_back(idx.data()[j] + offset);
+        }
+    }
+    return ret;
+}
+
+void convert_to_local(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    std::vector<label> &in, label rank)
+{
+    label offset = partition->get_range_bounds()[rank];
+    std::transform(in.begin(), in.end(), in.begin(),
+                   [&](label idx) { return idx - offset; });
+}
+
 std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
 exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
                     const std::vector<gko::span> &spans,
@@ -108,7 +140,7 @@ Repartitioner::repartition_sparsity(
     // early return if no repartitioning requested
     if (ranks_per_gpu == 1) {
         std::vector<std::pair<bool, label>> ret;
-        for (auto comm_rank : src_non_local_pattern->rank) {
+        for ([[maybe_unused]] auto comm_rank : src_non_local_pattern->rank) {
             ret.emplace_back(false, rank);
         }
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
@@ -306,10 +338,8 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
 std::shared_ptr<const CommunicationPattern>
 Repartitioner::repartition_comm_pattern(
     const ExecutorHandler &exec_handler,
-    std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition) const
+    std::shared_ptr<const CommunicationPattern> src_comm_pattern
+) const
 {
     if (ranks_per_gpu_ == 1) {
         return src_comm_pattern;
@@ -373,8 +403,8 @@ Repartitioner::repartition_comm_pattern(
                           rank);
 
                 // the new offset is
-                auto offset = partition->get_range_bounds()[rank + i] -
-                              partition->get_range_bounds()[rank];
+                auto offset = get_orig_partition()->get_range_bounds()[rank + i] -
+                              get_orig_partition()->get_range_bounds()[rank];
 
                 std::transform(recv_buffer.begin(), recv_buffer.end(),
                                recv_buffer.begin(),

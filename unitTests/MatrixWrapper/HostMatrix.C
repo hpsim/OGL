@@ -116,20 +116,20 @@ TEST(HostMatrix, canCreateCommunicationPattern)
     std::shared_ptr<const HostMatrixWrapper> hostMatrix =
         ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto commPattern = hostMatrix->create_communication_pattern();
-    auto comm = commPattern.get_comm();
+    auto comm = commPattern->get_comm();
 
-    EXPECT_EQ(commPattern.send_idxs.size(), 2);
+    EXPECT_EQ(commPattern->send_idxs.size(), 2);
 
     std::vector<std::vector<label>> target_ids_exp{
         {1, 2}, {0, 3}, {0, 3}, {1, 2}};
-    std::vector<label> target_ids_res(commPattern.target_ids.get_data(),
-                                      commPattern.target_ids.get_data() + 2);
+    std::vector<label> target_ids_res(commPattern->target_ids.get_data(),
+                                      commPattern->target_ids.get_data() + 2);
     EXPECT_EQ(target_ids_exp[comm.rank()], target_ids_res);
 
     std::vector<std::vector<label>> target_sizes_exp{
         {3, 3}, {3, 3}, {3, 3}, {3, 3}};
-    std::vector<label> target_size_res(commPattern.target_sizes.get_data(),
-                                       commPattern.target_sizes.get_data() + 2);
+    std::vector<label> target_size_res(commPattern->target_sizes.get_data(),
+                                       commPattern->target_sizes.get_data() + 2);
     EXPECT_EQ(target_sizes_exp[comm.rank()], target_size_res);
 }
 

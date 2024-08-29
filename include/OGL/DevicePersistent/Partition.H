@@ -55,14 +55,18 @@ struct PartitionInitFunctor {
 
     std::shared_ptr<part_type> init() const
     {
-        auto exec = exec_.get_ref_exec();
-        auto comm = exec_.get_gko_mpi_host_comm();
+        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+        // auto exec = exec_.get_ref_exec();
+        // auto comm = exec_.get_gko_mpi_host_comm();
 
-        word msg{"initialising partition of size " +
-                 std::to_string(local_size_)};
-        LOG_1(verbose_, msg)
+        // word msg{"initialising partition of size " +
+        //          std::to_string(local_size_)};
+        // LOG_1(verbose_, msg)
 
-        if (ranks_per_gpu_ == 1) return {};
+        // if (ranks_per_gpu_ == 1) return {};
+
+
+        return {};
     }
 };
 
@@ -83,8 +87,6 @@ class PersistentPartition
     const label local_elements_;
 
     mutable label global_elements_;
-
-    const ExecutorHandler &exec_;
 
 public:
     using part_type = gko::experimental::distributed::Partition<label, label>;
@@ -107,8 +109,7 @@ public:
                                    communication_pattern),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
-          local_elements_(elements),
-          exec_(exec)
+          local_elements_(elements)
     {
         auto comm = exec.get_gko_mpi_host_comm();
         label local_elements = local_elements_;

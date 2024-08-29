@@ -216,7 +216,8 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    [[nodiscard]] CommunicationPattern create_communication_pattern() const;
+    [[nodiscard]] std::shared_ptr<CommunicationPattern>
+    create_communication_pattern() const;
 
     bool get_verbose() const { return verbose_; }
 

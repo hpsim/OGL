@@ -26,21 +26,7 @@ std::vector<label> convert_to_global(
         const gko::experimental::distributed::Partition<label, label>>
         partition,
     const std::vector<label> &idx, const std::vector<gko::span> &spans,
-    const std::vector<label> &ranks)
-{
-    std::vector<label> ret;
-    ret.reserve(idx.size());
-
-    for (label i = 0; i < ranks.size(); i++) {
-        auto rank = ranks[i];
-        auto [begin, end] = spans[i];
-        label offset = partition->get_range_bounds()[rank];
-        for (label j = begin; j < end; j++) {
-            ret.push_back(idx.data()[j] + offset);
-        }
-    }
-    return ret;
-}
+    const std::vector<label> &ranks);
 
 /* Convert to local
 ** Given an array of column indices local to the communication rank
@@ -54,12 +40,7 @@ void convert_to_local(
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
         partition,
-    std::vector<label> &in, label rank)
-{
-    label offset = partition->get_range_bounds()[rank];
-    std::transform(in.begin(), in.end(), in.begin(),
-                   [&](label idx) { return idx - offset; });
-}
+    std::vector<label> &in, label rank);
 
 /* @brief exchange spans and rank between owner and non-owner ranks
 **
@@ -89,7 +70,7 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    const label size_;  //! Size (matrix rows) before repartitioning
+    // const label size_;  //! Size (matrix rows) before repartitioning
 
     const label repart_size_;  //! Size (matrix rows) after repartitioning
 
@@ -102,7 +83,7 @@ private:
 public:
     Repartitioner(label size, label ranks_per_gpu, label verbose,
                   const ExecutorHandler &exec_handler)
-        : size_(size),
+        :  // size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
@@ -229,8 +210,5 @@ public:
      */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
-        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-        std::shared_ptr<
-            const gko::experimental::distributed::Partition<label, label>>
-            partition) const;
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern) const;
 };
