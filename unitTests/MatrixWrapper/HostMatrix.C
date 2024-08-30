@@ -101,6 +101,8 @@ TEST(HostMatrix, returnsCorrectSize)
     auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
 
+    std::vector<label> exp_interface_length {3, 3};
+
     // the local size is 9
     EXPECT_EQ(mesh->C().size(), 9);
     // which results in a 9x9 matrix
@@ -108,6 +110,12 @@ TEST(HostMatrix, returnsCorrectSize)
     EXPECT_EQ(hostMatrix->get_size()[1], 9);
 
     EXPECT_EQ(hostMatrix->get_local_nrows(), 9);
+
+    // each rank has 2 interfaces to neighbouring rank
+    EXPECT_EQ(hostMatrix->get_num_interfaces(), 2);
+    EXPECT_EQ(hostMatrix->get_local_matrix_nnz(), 33);
+
+    EXPECT_EQ(hostMatrix->get_interface_length(), exp_interface_length);
 }
 
 

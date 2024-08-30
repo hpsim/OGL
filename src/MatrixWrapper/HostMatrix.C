@@ -140,16 +140,25 @@ HostMatrixWrapper::HostMatrixWrapper(
       lower_(lower),
       scaling_(solverControls.lookupOrDefault<scalar>("scaling", 1)),
       nrows_(nrows),
-      local_interface_nnz_{count_interface_nnz(interfaces, false)},
       upper_nnz_(upper_nnz),
       symmetric_(symmetric),
+      local_interface_nnz_{count_interface_nnz(interfaces, false)},
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
       local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
+      non_local_matrix_nnz_{count_interface_nnz(interfaces, true)},
       interfaces_(interfaces),
-      interfaceBouCoeffs_(interfaceBouCoeffs),
-      non_local_matrix_nnz_{count_interface_nnz(interfaces, true)}
-{}
+      interfaceBouCoeffs_(interfaceBouCoeffs)
+{
+    for (label i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+        const auto iface{interface_getter(interfaces, i)};
+        interface_length_.push_back(iface->interface().faceCells().size());
+        interface_ptr_.push_back(interfaceBouCoeffs[i].begin());
+    }
+}
 
 HostMatrixWrapper::HostMatrixWrapper(
     const ExecutorHandler &exec, const objectRegistry &db,

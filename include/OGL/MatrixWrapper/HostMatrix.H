@@ -110,6 +110,12 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
+    /* number of elements on each interfach */
+    mutable std::vector<label> interface_length_;
+
+    /* Pointer to interface data*/
+    mutable std::vector<const scalar *> interface_ptr_;
+
     /* Iterates all interfaces and collects the coefficients into a vector
     **
     ** @param local whether local or non local coefficients should be collected
@@ -236,9 +242,16 @@ public:
 
     const scalar *get_diag() const { return diag_; }
 
+    std::vector<label> get_interface_length() const
+    {
+        return interface_length_;
+    };
+
+    label get_num_interfaces() const { return interface_ptr_.size(); };
+
     const scalar *get_interface_data(label i) const
     {
-        FatalErrorInFunction << " not implemented " << abort(FatalError);
+        return interface_ptr_[i];
     }
 
     bool get_symmetric() const { return symmetric_; }
