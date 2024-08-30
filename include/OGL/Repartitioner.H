@@ -70,9 +70,9 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    // const label size_;  //! Size (matrix rows) before repartitioning
+    const label size_;  //! Local size (matrix rows) before repartitioning
 
-    const label repart_size_;  //! Size (matrix rows) after repartitioning
+    const label repart_size_;  //! Local size (matrix rows) after repartitioning
 
     const label ranks_per_gpu_;
 
@@ -83,7 +83,7 @@ private:
 public:
     Repartitioner(label size, label ranks_per_gpu, label verbose,
                   const ExecutorHandler &exec_handler)
-        :  // size_(size),
+        : size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
@@ -132,6 +132,8 @@ public:
      */
     static label compute_repart_size(label local_size, label ranks_per_gpu,
                                      const ExecutorHandler &exec_handler);
+
+    label get_orig_size() const { return size_; }
 
     label get_repart_size() const { return repart_size_; }
 

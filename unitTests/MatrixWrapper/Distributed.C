@@ -121,6 +121,9 @@ TEST_P(DistributedMatrixFixture, canCreateDistributeMatrix)
     auto repartitioner = Repartitioner(
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
+    gko::dim<2> global_vec_dim {repartitioner.get_orig_partition()->get_size(), 1};
+    gko::dim<2> local_vec_dim {repartitioner.get_repart_dim()[0], 1};
+
     std::map<label, vec> exp_local_size;
     exp_local_size.emplace(1, vec{9, 9, 9, 9});
     exp_local_size.emplace(2, vec{18, 0, 18, 0});
@@ -131,13 +134,30 @@ TEST_P(DistributedMatrixFixture, canCreateDistributeMatrix)
     exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
     exp_non_local_size.emplace(4, vec{0, 0 ,0 ,0});
 
+    auto b = gko::experimental::distributed::Vector<scalar>::create(
+        exec.get_ref_exec(),
+        comm, global_vec_dim, local_vec_dim, 1
+        );
+    b->fill(1);
+
+    auto x = gko::experimental::distributed::Vector<scalar>::create(
+        exec.get_ref_exec(),
+        comm, global_vec_dim, local_vec_dim, 1
+        );
+    x->fill(0);
+
     auto distributed = RepartDistMatrix<scalar, label, label>::create(exec, "Coo", repartitioner, hostMatrix);
+    distributed->apply(b, x);
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0], exp_local_size[ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[1], exp_local_size[ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[0], exp_local_size[ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1], exp_non_local_size[ranks_per_gpu][rank]);
 
+    auto x_local = std::vector<scalar>(x->get_local_vector()->get_const_values(), x->get_local_vector()->get_const_values() + local_vec_dim[0]);
+    std::vector<scalar> exp_x_local {1};
+
+    ASSERT_EQ(x_local, exp_x_local);
 }
 
 int main(int argc, char *argv[])

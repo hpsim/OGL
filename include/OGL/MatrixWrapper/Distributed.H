@@ -21,14 +21,27 @@ namespace detail {
 std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
     word matrix_format, bool fuse, std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const SparsityPattern> sparsity);
+
+void update_impl(
+    const ExecutorHandler &exec_handler, word matrix_format,
+    const Repartitioner &repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> host_A,
+    std::shared_ptr<
+        gko::experimental::distributed::Matrix<scalar, label, label>>
+        dist_A,
+    std::shared_ptr<const SparsityPattern> local_sparsity,
+    std::shared_ptr<const SparsityPattern> non_local_sparsity,
+    std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+    std::vector<std::pair<bool, label>> local_interfaces);
 }  // namespace detail
 
-// The RepartDistMatrix class is a wrapper around Ginkgos distributed Matrix
-// class
-//
-// It adds functionality for repeated read and repartitioning operatitions. As a
-// constraint it is required that the inner matrix types of the distributed
-// matrix are of RepartDistMatrix type.
+/* The RepartDistMatrix class is a wrapper around Ginkgos distributed Matrix
+ * class
+ *
+ * It adds functionality for repeated read and repartitioning operatitions. As a
+ * constraint it is required that the inner matrix types of the distributed
+ * matrix are of RepartDistMatrix type.
+ * */
 template <typename ValueType, typename LocalIndexType, typename GlobalIndexType>
 class RepartDistMatrix
     : public gko::experimental::EnableDistributedLinOp<
@@ -113,96 +126,19 @@ public:
     static std::shared_ptr<RepartDistMatrix> create(
         const ExecutorHandler &exec_handler, word matrix_format,
         const Repartitioner &repartitioner,
-        std::shared_ptr<const HostMatrixWrapper> host_A)
-    {
-        auto exec = exec_handler.get_ref_exec();
-        auto comm = *exec_handler.get_communicator().get();
-
-        // repartition things here first by creating device_matrix_data on
-        // device with correct size on each rank
-        //
-        // NOTE Start by copying first and repartition later
-        auto local_sparsity = host_A->compute_local_sparsity(exec);
-        auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
-
-        auto src_comm_pattern = host_A->create_communication_pattern();
-        auto repart_comm_pattern = repartitioner.repartition_comm_pattern(
-            exec_handler, src_comm_pattern);
-
-        // bool owner = repartitioner.is_owner(exec_handler);
-
-        auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
-            repartitioner.repartition_sparsity(exec_handler, local_sparsity,
-                                               non_local_sparsity);
-
-        // create vector of inner type linops
-        // if fuse the vector contains only a single element
-        // thus we can unwrap it.
-        auto device_exec = exec_handler.get_device_exec();
-        auto local_linops = detail::generate_inner_linops(
-            matrix_format, false, device_exec, repart_loc_sparsity);
-        auto non_local_linops = detail::generate_inner_linops(
-            matrix_format, false, device_exec, repart_non_loc_sparsity);
-
-        auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
-            repart_comm_pattern->send_recv_pattern();
-        auto recv_gather_idxs = repart_comm_pattern->total_rank_send_idx();
-
-        auto global_rows = repartitioner.get_orig_partition()->get_size();
-        gko::dim<2> global_dim{global_rows, global_rows};
-
-        std::shared_ptr<dist_mtx> dist_A;
-        bool fuse = false;
-        if (fuse) {
-        } else {
-            dist_A = gko::share(dist_mtx::create(
-                exec, comm, global_dim,
-                gko::share(
-                    CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
-                        exec, repart_loc_sparsity->dim, local_linops)),
-                gko::share(
-                    CombinationMatrix<gko::matrix::Coo<scalar, label>>::create(
-                        exec, repart_non_loc_sparsity->dim, non_local_linops)),
-                recv_sizes, recv_offsets, recv_gather_idxs));
-        }
-
-        update_impl(exec_handler, matrix_format, repartitioner, host_A, dist_A,
-                    repart_loc_sparsity, repart_non_loc_sparsity,
-                    src_comm_pattern, local_interfaces);
-
-        return std::make_shared<RepartDistMatrix>(
-            exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
-            std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
-            src_comm_pattern, local_interfaces);
-        // std::cout << __FILE__ << " rank " << rank << " local sparsity size "
-        //           << local_sparsity_->size_ << " local sparsity dim ["
-        //           << local_sparsity_->dim[0] << "x" <<
-        //           local_sparsity_->dim[1]
-        //           << "] non_local sparsity size " <<
-        //           non_local_sparsity_->size_
-        //           << " non local sparsity dim [" <<
-        //           non_local_sparsity_->dim[0]
-        //           << "x" << non_local_sparsity_->dim[1] << "] target_ids "
-        //           << dst_comm_pattern->target_ids << " target_sizes "
-        //           << dst_comm_pattern->target_sizes << "
-        //           target_send_idxs.size "
-        //           << dst_comm_pattern->send_idxs.size()
-        //           << " non_local_sparsity.size " <<
-        //           non_local_sparsity_->size_
-        //           << " \n";
-    };
+        std::shared_ptr<const HostMatrixWrapper> host_A);
 
     void update(const ExecutorHandler &exec_handler, word matrix_format,
                 const Repartitioner &repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A)
     {
-        update_impl(exec_handler, matrix_format, repartitioner, host_A,
-                    dist_mtx_, local_sparsity_, non_local_sparsity_,
-                    src_comm_pattern_, local_interfaces_);
+        detail::update_impl(exec_handler, matrix_format, repartitioner, host_A,
+                            dist_mtx_, local_sparsity_, non_local_sparsity_,
+                            src_comm_pattern_, local_interfaces_);
     };
 
     // TODO matrix_format can be data member
-    static void update_impl(
+    void update_impl(
         const ExecutorHandler &exec_handler, word matrix_format,
         const Repartitioner &repartitioner,
         std::shared_ptr<const HostMatrixWrapper> host_A,

@@ -223,6 +223,26 @@ public:
 
     label get_local_nrows() const { return nrows_; }
 
+    label get_local_matrix_nnz() const
+    {
+        return local_matrix_w_interfaces_nnz_;
+    }
+
+    label get_upper_nnz() const { return upper_nnz_; }
+
+    const scalar *get_lower() const { return lower_; }
+
+    const scalar *get_upper() const { return upper_; }
+
+    const scalar *get_diag() const { return diag_; }
+
+    const scalar *get_interface_data(label i) const
+    {
+        FatalErrorInFunction << " not implemented " << abort(FatalError);
+    }
+
+    bool get_symmetric() const { return symmetric_; }
+
     gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
