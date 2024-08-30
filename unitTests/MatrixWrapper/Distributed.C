@@ -21,6 +21,9 @@ extern char **my_argv;
 int my_argc;
 char **my_argv;
 
+using vec = std::vector<label>;
+using vec_vec = std::vector<std::vector<label>>;
+using vec_vec_vec = std::vector<vec_vec>;
 
 class Environment : public testing::Environment {
 public:
@@ -96,7 +99,8 @@ public:
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new Environment);
 
-class DistributedMatrixFixture : public testing::Test {
+class DistributedMatrixFixture :
+     public testing::TestWithParam<int> {
 public:
     ExecutorHandler exec =
         *((Environment *)global_env)->exec.get();
@@ -105,17 +109,35 @@ public:
         *(exec.get_communicator().get());
 };
 
-TEST_F(DistributedMatrixFixture, canCreateDistributeMatrix)
+INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
+                         DistributedMatrixFixture, testing::Values(1, 2, 4));
+
+TEST_P(DistributedMatrixFixture, canCreateDistributeMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
+    label ranks_per_gpu = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = Repartitioner(
-        hostMatrix->get_local_nrows(), 1, 0, exec);
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+
+    std::map<label, vec> exp_local_size;
+    exp_local_size.emplace(1, vec{9, 9, 9, 9});
+    exp_local_size.emplace(2, vec{18, 0, 18, 0});
+    exp_local_size.emplace(4, vec{36, 0 ,0 ,0});
+
+    std::map<label, vec> exp_non_local_size;
+    exp_non_local_size.emplace(1, vec{6, 6, 6, 6});
+    exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
+    exp_non_local_size.emplace(4, vec{0, 0 ,0 ,0});
 
     auto distributed = RepartDistMatrix<scalar, label, label>::create(exec, "Coo", repartitioner, hostMatrix);
 
-    ASSERT_EQ(distributed->get_local_matrix()->get_size()[0], 9);
+    ASSERT_EQ(distributed->get_local_matrix()->get_size()[0], exp_local_size[ranks_per_gpu][rank]);
+    ASSERT_EQ(distributed->get_local_matrix()->get_size()[1], exp_local_size[ranks_per_gpu][rank]);
+    ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[0], exp_local_size[ranks_per_gpu][rank]);
+    ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1], exp_non_local_size[ranks_per_gpu][rank]);
+
 }
 
 int main(int argc, char *argv[])
