@@ -223,25 +223,22 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
         is_local.push_back(local);
 
         if (local) {
+            gko::size_type rows_start = local_rows.size();
             local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
                               non_local_rows.data() + end);
 
             std::vector<label> tmp_rank_local_cols(
                 tmp_non_local_cols.data() + begin,
                 tmp_non_local_cols.data() + end);
-
             detail::convert_to_local(partition, tmp_rank_local_cols, rank);
-
             local_cols.insert(local_cols.end(), tmp_rank_local_cols.begin(),
                               tmp_rank_local_cols.end());
+
             local_mapping.insert(local_mapping.end(),
                                  non_local_mapping.data() + begin,
                                  non_local_mapping.data() + end);
-
-            gko::size_type rows_start = local_rows.size();
             local_spans.emplace_back(rows_start,
-                                     static_cast<gko::size_type>(end - begin));
-
+                                     rows_start + static_cast<gko::size_type>(end - begin));
             local_ranks.push_back(non_local_rank_origin[i]);
         } else {
             mark_keep.push_back(i);
