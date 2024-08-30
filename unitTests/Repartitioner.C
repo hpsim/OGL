@@ -88,7 +88,7 @@ public:
     std::vector<label> rows{0, 0, 1, 1};
     std::vector<label> cols{0, 1, 0, 1};
     std::vector<label> mapping{0, 1, 2, 3};
-    std::vector<gko::span> spans{gko::span{0, 2}};
+    std::vector<gko::span> spans{gko::span{0, 5}};
 
     // non local data
     vec_vec non_local_rows{{1}, {0, 1}, {0, 1}, {0}};
@@ -219,8 +219,6 @@ TEST_P(RepartitionerFixture1D, can_exchange_spans_and_ranks_for_n_ranks)
     exp_ranks.emplace(2, vec_vec{{1, 2, 2, 3}, {}, {3, 4, 4, 5}, {}});
     exp_ranks.emplace(4, vec_vec{{1, 2, 2, 3, 3, 4, 4, 5}, {}, {}, {}});
 
-    // TODO test origins
-
     std::map<label, vec_vec> exp_spans_begin;
     exp_spans_begin.emplace(1, vec_vec{{0, 5}, {0, 5}, {0, 5}, {0, 5}});
     exp_spans_begin.emplace(2, vec_vec{{0, 5, 10, 15}, {}, {0, 5, 10, 15}, {}});
@@ -306,6 +304,22 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     exp_local_dim_rows.emplace(2, vec{2 * local_size, 0, 2 * local_size, 0});
     exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
 
+    std::map<label, vec_vec> exp_local_spans_begin;
+    exp_local_spans_begin.emplace(
+        1, vec_vec{{0}, {0}, {0}, {0}});
+    exp_local_spans_begin.emplace(
+        2, vec_vec{{0, 8, 9}, {}, {0, 8, 9}, {}});
+    exp_local_spans_begin.emplace(
+        4, vec_vec{{0, 16, 17, 18, 19, 20, 21}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_spans_end;
+    exp_local_spans_end.emplace(
+        1, vec_vec{{5}, {5}, {5}, {5}});
+    exp_local_spans_end.emplace(
+        2, vec_vec{{8, 9, 10}, {}, {8, 9 ,10}, {}});
+    exp_local_spans_end.emplace(
+        4, vec_vec{{16, 17, 18, 19, 20, 21, 22}, {}, {}, {}});
+
     std::map<label, vec_vec> exp_non_local_rows;
     exp_non_local_rows.emplace(1, non_local_rows);
     exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
@@ -327,6 +341,15 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     auto res_local_rows = convert_to_vector(repart_local->row_idxs);
     auto res_local_cols = convert_to_vector(repart_local->col_idxs);
     ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
+
+    std::vector<label> res_local_spans_begin {};
+    std::vector<label> res_local_spans_end {};
+    for (auto [begin, end]: repart_local->spans) {
+        res_local_spans_begin.push_back(begin);
+        res_local_spans_end.push_back(end);
+    }
+    ASSERT_EQ(res_local_spans_begin, exp_local_spans_begin[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_spans_end, exp_local_spans_end[ranks_per_gpu][rank]);
 
     // non local properties
     ASSERT_EQ(repart_non_local->num_nnz,
