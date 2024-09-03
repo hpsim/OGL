@@ -100,7 +100,8 @@ std::ostream &operator<<(
     std::ostream &os,
     const std::shared_ptr<gko::matrix::Dense<scalar>> array_in);
 
-std::ostream &operator<<(std::ostream &os, const std::vector<label> &in);
+template <typename ValueType>
+std::ostream &operator<<(std::ostream &os, const std::vector<ValueType> &in);
 
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
@@ -135,5 +136,17 @@ label get_next_caching(word sys_matrix_name, const objectRegistry &db);
 std::shared_ptr<gko::array<label>> convert_to_array(
     const std::vector<label> &in);
 
+std::pair<label, const scalar *> get_val(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in);
+
+std::pair<label, const label *> get_col(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in);
+
+std::pair<label, const label *> get_row(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in);
+
 std::vector<label> convert_to_vector(const gko::array<label> &in);
+
+std::vector<scalar> convert_to_vector(
+    std::shared_ptr<const gko::matrix::Diagonal<scalar>> in);
 }  // namespace Foam

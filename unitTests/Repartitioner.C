@@ -118,7 +118,7 @@ public:
  *         local ids          |   global ids
  * cells: [ 2 3 | 2 3 ]       |  [ 10 11 | 14 15 ]
  *   2    [ 0 1 | 0 1 ]  3    |  [  8  9 | 12 13 ]
- *        -------------       |  -----------------
+ *        ------+------       |  --------+--------
  *        [ 2 3 | 2 3 ]       |  [  2  3 |  6  7 ]
  *   0    [ 0 1 | 0 1 ]  1    |  [  0  1 |  4  5 ]
  *
@@ -305,18 +305,14 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
 
     std::map<label, vec_vec> exp_local_spans_begin;
-    exp_local_spans_begin.emplace(
-        1, vec_vec{{0}, {0}, {0}, {0}});
-    exp_local_spans_begin.emplace(
-        2, vec_vec{{0, 8, 9}, {}, {0, 8, 9}, {}});
+    exp_local_spans_begin.emplace(1, vec_vec{{0}, {0}, {0}, {0}});
+    exp_local_spans_begin.emplace(2, vec_vec{{0, 8, 9}, {}, {0, 8, 9}, {}});
     exp_local_spans_begin.emplace(
         4, vec_vec{{0, 16, 17, 18, 19, 20, 21}, {}, {}, {}});
 
     std::map<label, vec_vec> exp_local_spans_end;
-    exp_local_spans_end.emplace(
-        1, vec_vec{{5}, {5}, {5}, {5}});
-    exp_local_spans_end.emplace(
-        2, vec_vec{{8, 9, 10}, {}, {8, 9 ,10}, {}});
+    exp_local_spans_end.emplace(1, vec_vec{{5}, {5}, {5}, {5}});
+    exp_local_spans_end.emplace(2, vec_vec{{8, 9, 10}, {}, {8, 9, 10}, {}});
     exp_local_spans_end.emplace(
         4, vec_vec{{16, 17, 18, 19, 20, 21, 22}, {}, {}, {}});
 
@@ -324,6 +320,8 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     exp_non_local_rows.emplace(1, non_local_rows);
     exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
     exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // expected cols are in compressed format
     std::map<label, vec_vec> exp_non_local_cols;
     exp_non_local_cols.emplace(1, non_local_cols);
     exp_non_local_cols.emplace(2, vec_vec{{0}, {}, {3}, {}});
@@ -342,13 +340,14 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     auto res_local_cols = convert_to_vector(repart_local->col_idxs);
     ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
 
-    std::vector<label> res_local_spans_begin {};
-    std::vector<label> res_local_spans_end {};
-    for (auto [begin, end]: repart_local->spans) {
+    std::vector<label> res_local_spans_begin{};
+    std::vector<label> res_local_spans_end{};
+    for (auto [begin, end] : repart_local->spans) {
         res_local_spans_begin.push_back(begin);
         res_local_spans_end.push_back(end);
     }
-    ASSERT_EQ(res_local_spans_begin, exp_local_spans_begin[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_spans_begin,
+              exp_local_spans_begin[ranks_per_gpu][rank]);
     ASSERT_EQ(res_local_spans_end, exp_local_spans_end[ranks_per_gpu][rank]);
 
     // non local properties
@@ -440,6 +439,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     // expected rows
     vec_vec_vec rows{
         {{1, 3}, {2, 3}}, {{0, 2}, {2, 3}}, {{0, 1}, {1, 3}}, {{0, 1}, {0, 2}}};
+
     std::map<label, vec_vec> exp_res_rows;
     exp_res_rows.emplace(
         1, vec_vec{{1, 3, 2, 3}, {0, 2, 2, 3}, {0, 1, 1, 3}, {0, 1, 0, 2}});
@@ -453,6 +453,12 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     // after repartitioning with 4 ranks_per_gpu [ 0 1 2 3 4 5 6 7 ] <- local
     // row ids
     exp_res_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_gather_idx;
+    exp_gather_idx.emplace(
+        1, vec_vec{{0, 2, 0, 1}, {1, 3, 0, 1}, {2, 3, 0, 2}, {2, 3, 1, 3}});
+    exp_gather_idx.emplace(2, vec_vec{{0, 1, 4, 5}, {}, {2, 3, 6, 7}, {}});
+    exp_gather_idx.emplace(4, vec_vec{{}, {}, {}, {}});
 
     // the original comm_pattern
     auto comm_pattern =
@@ -473,6 +479,11 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
     auto total_rank_send_idx = repart_comm_pattern->total_rank_send_idx();
     auto res_rows = convert_to_vector(total_rank_send_idx);
     EXPECT_EQ(res_rows, exp_res_rows[ranks_per_gpu][rank]);
+
+    auto total_recv_gather_idx =
+        repart_comm_pattern->compute_recv_gather_idxs(exec);
+    auto res_gather_idx = convert_to_vector(total_recv_gather_idx);
+    EXPECT_EQ(res_gather_idx, exp_gather_idx[ranks_per_gpu][rank]);
 }
 
 

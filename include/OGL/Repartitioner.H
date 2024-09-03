@@ -158,7 +158,7 @@ public:
      * returns a vector of locality information.
      * @param non_local_cols vector in comm rank local indices
      */
-    std::vector<bool> build_non_local_interfaces(
+    std::vector<std::pair<bool, label>> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>

@@ -24,6 +24,8 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
 
+void compress_cols(gko::array<label> &in);
+
 /* @brief computes the dimensions of square matrix based row index array
  *
  * @note assumes that rows are ordered
