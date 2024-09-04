@@ -120,7 +120,7 @@ TEST(HostMatrix, returnsCorrectSize)
     EXPECT_EQ(hostMatrix->get_interface_length(), exp_interface_length);
 }
 
-TEST(HostMatrix, givesAccesToData)
+TEST(HostMatrix, givesAccessToData)
 {
     auto const max_abs_error = 1e-12;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
