@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "OGL/DevicePersistent/DistributedMatrixAdapter.H"
 #include "OGL/DevicePersistent/Vector.H"
 #include "OGL/MatrixWrapper/HostMatrix.H"
 #include "OGL/Preconditioner.H"
@@ -139,7 +140,7 @@ private:
 
     const ExecutorHandler exec_handler_;
 
-    const HostMatrixWrapper host_matrix_wrapper_;
+    const std::shared_ptr<HostMatrixWrapper> host_matrix_wrapper_;
 
 public:
     /** Constructor for segregated solvers
@@ -160,21 +161,12 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           field_name_(fieldName),
           exec_handler_{db_, solver_controls_, fieldName},
-          host_matrix_wrapper_{exec_handler_,
-                               db_,
-                               matrix.diag().size(),
-                               matrix.upper().size(),
-                               matrix.symmetric(),
-                               matrix.diag().begin(),
-                               matrix.upper().begin(),
-                               matrix.lower().begin(),
-                               matrix.lduAddr(),
-                               interfaceBouCoeffs,
-                               interfaceIntCoeffs,
-                               interfaces,
-                               solverControls,
-                               fieldName,
-                               verbose_}
+          host_matrix_wrapper_{make_shared<HostMatrixWrapper>(
+              exec_handler_, db_, matrix.diag().size(), matrix.upper().size(),
+              matrix.symmetric(), matrix.diag().begin(), matrix.upper().begin(),
+              matrix.lower().begin(), matrix.lduAddr(), interfaceBouCoeffs,
+              interfaceIntCoeffs, interfaces, solverControls, fieldName,
+              verbose_)}
     {}
 
 
@@ -205,124 +197,123 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        // TODO removed to make it compile since we need distributed matrix
-        // PersistentPartition partition{
-        //     db_,
-        //     exec_handler_,
-        //     verbose_,
-        //     solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1),
-        //     psi.size(),  // number of elements
-        //     this->get_communication_pattern()};
+        label ranks_per_gpu =
+            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
 
-        // wrapper
-        // // TODO this is now the local matrix part for dist_A
-        // MatrixWrapper dist_A{db_,
-        //                      this->get_exec_handler(),  // get exec
-        //                      this->get_local_col_idxs(),
-        //                      this->get_local_row_idxs(),
-        //                      this->get_local_coeffs(),
-        //                      this->get_non_local_col_idxs(),
-        //                      this->get_non_local_row_idxs(),
-        //                      this->get_non_local_coeffs(),
-        //                      partition,
-        //                      solver_controls_,
-        //                      this->fieldName(),
-        //                      this->get_verbose()};
-        //
-        // PersistentVector<scalar> dist_b{
-        //     &source[0],
-        //     this->fieldName() + "_rhs",
-        //     db_,
-        //     this->get_exec_handler(),
-        //     partition,
-        //     verbose_,
-        //     solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
-        //     false  // whether data for init is on device
-        // };
-        //
-        // PersistentVector<scalar> dist_x{
-        //     &psi[0],
-        //     this->fieldName() + "_solution",
-        //     db_,
-        //     this->get_exec_handler(),
-        //     partition,
-        //     verbose_,
-        //     solver_controls_.lookupOrDefault<Switch>("updateInitGuess",
-        //     false), false  // whether data for init is on device
-        // };
-        // auto dist_x_v = dist_x.get_vector();
-        // auto dist_b_v = dist_b.get_vector();
-        // auto dist_A_v = dist_A.get();
-        //
-        // scalar scaling =
-        //     solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
-        // auto ref_exec = exec_handler_.get_ref_exec();
-        // if (scaling != 1) {
-        //     auto dense_scaling =
-        //         gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
-        //             {scaling}, ref_exec));
-        //
-        //     TIME_WITH_FIELDNAME(
-        //         verbose_, scale_RHS, this->fieldName(),
-        //         dist_b.get_vector()->scale(dense_scaling.get());)
-        // }
-        //
-        // TIME_WITH_FIELDNAME(
-        //     verbose_, init_precond, this->fieldName(),
-        //     auto precond = this->init_preconditioner(
-        //         dist_A_v, this->get_exec_handler().get_device_exec());)
-        //
-        // bool debug(solver_controls_.lookupOrDefault<Switch>("debug", false));
-        // if (debug && db_.time().writeTime()) {
+        PersistentPartition partition{db_,
+                                      exec_handler_,
+                                      verbose_,
+                                      ranks_per_gpu,
+                                      psi.size(),  // number of elements
+                                      this->get_communication_pattern()};
+
+        auto repartitioner =
+            Repartitioner(host_matrix_wrapper_->get_local_nrows(),
+                          ranks_per_gpu, verbose_, exec_handler_);
+
+        PersistentDistributedMatrix dist_A{db_,
+                                           exec_handler_,
+                                           repartitioner,
+                                           this->fieldName(),
+                                           host_matrix_wrapper_,
+                                           solver_controls_,
+                                           verbose_};
+
+        PersistentVector<scalar> dist_b{
+            &source[0],
+            this->fieldName() + "_rhs",
+            db_,
+            this->get_exec_handler(),
+            partition,
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
+            false  // whether data for init is on device
+        };
+
+        PersistentVector<scalar> dist_x{
+            &psi[0],
+            this->fieldName() + "_solution",
+            db_,
+            this->get_exec_handler(),
+            partition,
+            verbose_,
+            solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
+            false  // whether data for init is on device
+        };
+
+        auto dist_x_v = dist_x.get_vector();
+        auto dist_b_v = dist_b.get_vector();
+        auto dist_A_v = dist_A.get();
+
+        scalar scaling =
+            solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);
+        auto ref_exec = exec_handler_.get_ref_exec();
+        if (scaling != 1) {
+            auto dense_scaling =
+                gko::share(gko::initialize<gko::matrix::Dense<scalar>>(
+                    {scaling}, ref_exec));
+
+            TIME_WITH_FIELDNAME(
+                verbose_, scale_RHS, this->fieldName(),
+                dist_b.get_vector()->scale(dense_scaling.get());)
+        }
+
+        TIME_WITH_FIELDNAME(
+            verbose_, init_precond, this->fieldName(),
+            auto precond = this->init_preconditioner(
+                dist_A_v, this->get_exec_handler().get_device_exec());)
+
+        bool export_system(
+            solver_controls_.lookupOrDefault<Switch>("export", false));
+        // if (export_system && db_.time().writeTime()) {
         //     LOG_0(verbose_, "Export system")
         //     dist_A.write();
         //     dist_b.write();
         // }
-        //
-        //
-        // LOG_1(verbose_, "create solver")
-        // auto solver_gen = this->create_dist_solver(
-        //     this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
-        //     dist_b_v, verbose_, dist_A.get_export(), precond);
-        //
-        // TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
-        //                     auto solver = solver_gen->generate(dist_A_v);)
-        // LOG_1(verbose_, "solve solver done")
-        // TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
-        //                     solver->apply(dist_b_v, dist_x_v);)
-        //
-        // TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
-        //                     dist_x.copy_back();)
-        // auto bandwidth_copy_back = sizeof(scalar) *
-        // partition.get_local_size() /
-        //                            delta_t_copy_x_back / 1000.0;
-        //
-        // solverPerf.initialResidual() = this->get_init_res_norm();
-        // solverPerf.finalResidual() = this->get_res_norm();
-        // solverPerf.nIterations() = this->get_number_of_iterations();
-        // this->store_number_of_iterations();
-        // auto time_for_res_norm_eval = this->get_res_norm_time();
-        // auto time_per_iter =
-        //     delta_t_solve / max(this->get_number_of_iterations(), 1);
-        // scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        // this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-        //     this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1,
-        //     0);
-        // this->set_prev_rel_res_cost(prev_rel_res_cost);
-        // auto time_per_iter_and_dof =
-        //     time_per_iter * 1000.0 / partition.get_total_size();
-        // word msg =
-        //     "\nStatistics:\n\tTime per iteration: " +
-        //     std::to_string(time_per_iter) +
-        //     std::string(" [mu s]\n\tTime per residual norm calculation: ") +
-        //     std::to_string(time_for_res_norm_eval) +
-        //     std::string(" [mu s]\n\tTime per iteration and DOF: ") +
-        //     std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-        //     std::string("\n\tRetrieve results bandwidth ") +
-        //     std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
-        // MLOG_0(verbose_, msg)
-        //
-        // return solverPerf;
+
+        LOG_1(verbose_, "start create solver")
+        auto solver_gen = this->create_dist_solver(
+            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
+            dist_b_v, verbose_, export_system, precond);
+
+        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
+                            auto solver = solver_gen->generate(dist_A_v);)
+        LOG_1(verbose_, "done create solver")
+
+        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+                            solver->apply(dist_b_v, dist_x_v);)
+
+        TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
+                            dist_x.copy_back();)
+
+        auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
+                                   delta_t_copy_x_back / 1000.0;
+
+        solverPerf.initialResidual() = this->get_init_res_norm();
+        solverPerf.finalResidual() = this->get_res_norm();
+        solverPerf.nIterations() = this->get_number_of_iterations();
+        this->store_number_of_iterations();
+        auto time_for_res_norm_eval = this->get_res_norm_time();
+        auto time_per_iter =
+            delta_t_solve / max(this->get_number_of_iterations(), 1);
+        scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
+        this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
+            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        this->set_prev_rel_res_cost(prev_rel_res_cost);
+        auto time_per_iter_and_dof =
+            time_per_iter * 1000.0 / partition.get_total_size();
+        word msg =
+            "\nStatistics:\n\tTime per iteration: " +
+            std::to_string(time_per_iter) +
+            std::string(" [mu s]\n\tTime per residual norm calculation: ") +
+            std::to_string(time_for_res_norm_eval) +
+            std::string(" [mu s]\n\tTime per iteration and DOF: ") +
+            std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
+            std::string("\n\tRetrieve results bandwidth ") +
+            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
+        MLOG_0(verbose_, msg)
+
+        return solverPerf;
     }
 
     solverPerformance solve_impl_(word typeName, scalarField &psi,

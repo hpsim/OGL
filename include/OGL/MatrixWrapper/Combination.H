@@ -217,18 +217,10 @@ private:
     std::shared_ptr<gko::Combination<scalar>> comb_;
 };
 
-
 namespace detail {
 std::shared_ptr<gko::matrix::Coo<scalar, label>> convert_combination_to_coo(
     std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const gko::LinOp> in)
-{
-    auto out = gko::share(gko::matrix::Coo<scalar, label>::create(exec));
-    gko::as<CombinationMatrix<gko::matrix::Coo<scalar, label>>>(in)->convert_to(
-        out.get());
-
-    return out;
-}
+    std::shared_ptr<const gko::LinOp> in);
 
 template <typename InnerMatrixType>
 void export_mtx(const word fieldName,

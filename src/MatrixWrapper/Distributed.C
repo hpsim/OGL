@@ -135,7 +135,8 @@ void update_impl(
         label nloc_ctr{0};
         label host_interface_ctr{0};
         label tag = 0;
-        label comm_rank, comm_size;
+        // label comm_rank
+        label comm_size;
         scalar *recv_buffer_ptr;
         scalar *recv_buffer_ptr_2;
         std::vector<scalar> host_recv_buffer;
@@ -274,7 +275,7 @@ static std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
     const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
-    label rank = exec_handler.get_rank();
+    // label rank = exec_handler.get_rank();
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
 
@@ -340,6 +341,22 @@ static std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
         exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
         std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
         src_comm_pattern, local_interfaces);
+}
+
+std::shared_ptr<gko::LinOp> create_distributed(
+    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
+{
+    if (matrix_format == "Coo") {
+        return RepartDistMatrix<gko::matrix::Coo<scalar, label>>::create(
+            exec_handler, repartitioner, hostMatrix);
+    }
+    if (matrix_format == "Csr") {
+        return RepartDistMatrix<gko::matrix::Csr<scalar, label>>::create(
+            exec_handler, repartitioner, hostMatrix);
+    }
+
+    return {};
 }
 
 template class RepartDistMatrix<gko::matrix::Coo<scalar, label>>;

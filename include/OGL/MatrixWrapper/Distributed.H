@@ -34,9 +34,7 @@ class RepartDistMatrix
 
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
-
     using part_type = gko::experimental::distributed::Partition<label, label>;
-
     using vec = gko::matrix::Dense<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
@@ -177,16 +175,4 @@ private:
 
 std::shared_ptr<gko::LinOp> create_distributed(
     const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
-{
-    if (matrix_format == "Coo") {
-        return RepartDistMatrix<gko::matrix::Coo<scalar, label>>::create(
-            exec_handler, repartitioner, hostMatrix);
-    }
-    if (matrix_format == "Csr") {
-        return RepartDistMatrix<gko::matrix::Csr<scalar, label>>::create(
-            exec_handler, repartitioner, hostMatrix);
-    }
-
-    return {};
-}
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format);
