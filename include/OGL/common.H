@@ -103,17 +103,12 @@ std::ostream &operator<<(
 template <typename ValueType>
 std::ostream &operator<<(std::ostream &os, const std::vector<ValueType> &in);
 
-
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time);
 
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
                 const objectRegistry &db);
-
-void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
-                const word local, const objectRegistry &db,
-                const word matrixFormat);
 
 void set_solve_prev_iters(const word sys_matrix_name, const objectRegistry &db,
                           label prev_solve_iters, const bool is_final);

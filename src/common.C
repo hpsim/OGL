@@ -36,27 +36,6 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
     export_x(fn, x);
 }
 
-void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
-                const word local, const objectRegistry &db,
-                const word matrixFormat)
-{
-    std::string folder{db.time().timePath()};
-    std::filesystem::create_directories(folder);
-    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "exporting " << fn << std::endl;
-    std::ofstream stream{fn};
-    stream << std::setprecision(15);
-    if (matrixFormat == "Coo") {
-        gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
-    }
-    if (matrixFormat == "Csr") {
-        gko::write(stream, (const gko::matrix::Csr<scalar> *)A.get());
-    }
-    if (matrixFormat == "Ell") {
-        gko::write(stream, (const gko::matrix::Ell<scalar> *)A.get());
-    }
-}
-
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time)

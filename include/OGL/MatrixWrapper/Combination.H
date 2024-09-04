@@ -19,7 +19,8 @@ class CombinationMatrix
       public gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>,
       public gko::ReadableFromMatrixData<scalar, label>,
       public gko::ConvertibleTo<gko::matrix::Coo<scalar, label>>,
-      public gko::ConvertibleTo<gko::matrix::Csr<scalar, label>> {
+      public gko::ConvertibleTo<gko::matrix::Csr<scalar, label>>,
+      public gko::WritableToMatrixData<scalar, label> {
     friend class gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>;
     friend class gko::EnablePolymorphicObject<
         CombinationMatrix<InnerMatrixType>, gko::LinOp>;
@@ -66,6 +67,25 @@ public:
         }
         return *this;
     }
+
+
+    void write(gko::matrix_data<scalar> &res) const override
+    {
+        auto exec = this->get_executor();
+        auto operators = this->get_operators();
+
+        std::vector<gko::matrix_data_entry<scalar, label>> data;
+        for (auto op : operators) {
+            auto tmp_mat_data = gko::matrix_data<scalar>();
+            gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
+            data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
+                        tmp_mat_data.nonzeros.end());
+        }
+        auto mat_data = gko::matrix_data<scalar>();
+        res.nonzeros = data;
+        res.size = this->get_size();
+    }
+
 
     /**
      * Returns a list of coefficients of the combination.
@@ -209,4 +229,23 @@ std::shared_ptr<gko::matrix::Coo<scalar, label>> convert_combination_to_coo(
 
     return out;
 }
+
+template <typename InnerMatrixType>
+void export_mtx(const word fieldName,
+                std::shared_ptr<CombinationMatrix<InnerMatrixType>> out,
+                const word local, const objectRegistry &db,
+                const word matrixFormat)
+{
+    std::string folder{db.time().timePath()};
+    std::filesystem::create_directories(folder);
+    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
+    std::cout << "exporting " << fn << std::endl;
+    std::ofstream stream{fn};
+    stream << std::setprecision(15);
+
+    auto coo = gko::share(
+        gko::matrix::Coo<scalar, label>::create(out->get_executor()));
+    out->convert_to(coo);
+}
+
 }  // namespace detail

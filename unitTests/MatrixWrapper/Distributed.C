@@ -137,6 +137,14 @@ public:
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new Environment);
 
+class DistributedMatrixFixtureMatrixFormat : public testing::TestWithParam<std::tuple<int, string>> {
+public:
+    ExecutorHandler exec = *((Environment *)global_env)->exec.get();
+    label rank = exec.get_rank();
+    const gko::experimental::mpi::communicator comm =
+        *(exec.get_communicator().get());
+};
+
 class DistributedMatrixFixture : public testing::TestWithParam<int> {
 public:
     ExecutorHandler exec = *((Environment *)global_env)->exec.get();
@@ -145,13 +153,22 @@ public:
         *(exec.get_communicator().get());
 };
 
+
+// INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiationMatrixFormat,
+//                          DistributedMatrixFixtureMatrixFormat,
+//                          testing::Combine(
+//                          testing::Values(1, 2, 4),
+//                          testing::Values("Coo", "Csr")));
+
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
-                         DistributedMatrixFixture, testing::Values(1, 2, 4));
+                         DistributedMatrixFixture,
+                         testing::Values(1, 2, 4)
+);
 
 TEST_P(DistributedMatrixFixture, canCreateDistributedMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-    label ranks_per_gpu = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner =
@@ -166,8 +183,8 @@ TEST_P(DistributedMatrixFixture, canCreateDistributedMatrix)
     exp_local_size.emplace(2, vec{18, 0, 18, 0});
     exp_local_size.emplace(4, vec{36, 0, 0, 0});
 
-    auto distributed = RepartDistMatrix<scalar, label, label>::create(
-        exec, "Coo", repartitioner, hostMatrix);
+    using repart_dist = RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
+    auto distributed = gko::as<repart_dist>(repart_dist::create(exec, repartitioner, hostMatrix));
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
               exp_local_size[ranks_per_gpu][rank]);
@@ -177,13 +194,12 @@ TEST_P(DistributedMatrixFixture, canCreateDistributedMatrix)
               exp_local_size[ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
               exp_local_size[ranks_per_gpu][rank]);
-
 }
 
 TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-    label ranks_per_gpu = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner =
@@ -198,8 +214,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
     exp_local_size.emplace(2, vec{18, 0, 18, 0});
     exp_local_size.emplace(4, vec{36, 0, 0, 0});
 
-    auto distributed = RepartDistMatrix<scalar, label, label>::create(
-        exec, "Coo", repartitioner, hostMatrix);
+    using repart_dist = RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
+    auto distributed = gko::as<repart_dist>(repart_dist::create(exec, repartitioner, hostMatrix));
 
     auto local = detail::convert_combination_to_coo(
         exec.get_ref_exec(), distributed->get_local_matrix());
@@ -285,7 +301,7 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
 TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-    label ranks_per_gpu = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner =
@@ -296,8 +312,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
     exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
-    auto distributed = RepartDistMatrix<scalar, label, label>::create(
-        exec, "Coo", repartitioner, hostMatrix);
+    using repart_dist = RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
+    auto distributed = gko::as<repart_dist>(repart_dist::create(exec, repartitioner, hostMatrix));
 
     auto non_local = detail::convert_combination_to_coo(
         exec.get_ref_exec(), distributed->get_non_local_matrix());
@@ -341,19 +357,20 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 
 TEST_P(DistributedMatrixFixture, distributedMatrixCanApplyCorrectly)
 {
-    label ranks_per_gpu = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner =
         Repartitioner(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
-    auto distributed = RepartDistMatrix<scalar, label, label>::create(
-        exec, "Coo", repartitioner, hostMatrix);
+
+    using repart_dist = RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
+    auto distributed = gko::as<repart_dist>(repart_dist::create(exec, repartitioner, hostMatrix));
 
     gko::dim<2> global_vec_dim{repartitioner.get_orig_partition()->get_size(),
                                1};
     gko::dim<2> local_vec_dim{repartitioner.get_repart_dim()[0], 1};
 
-    auto b =gko::share(gko::experimental::distributed::Vector<scalar>::create(
+    auto b = gko::share(gko::experimental::distributed::Vector<scalar>::create(
         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
     b->fill(1);
 
@@ -367,17 +384,17 @@ TEST_P(DistributedMatrixFixture, distributedMatrixCanApplyCorrectly)
                                      {5, 5, 4, 6, 6, 5, 6, 6, 5},
                                      {5, 6, 6, 5, 6, 6, 4, 5, 5},
                                      {6, 6, 5, 6, 6, 5, 5, 5, 4}});
-    exp_x_local.emplace(
-        2, vec_vec_s{{4, 5, 5, 5, 6, 6, 5, 6, 6, 5, 5, 4, 6, 6, 5, 6, 6, 5},
-                     {},
-                     {5, 6, 6, 5, 6, 6, 4, 5, 5, 6, 6, 5, 6, 6, 5, 5, 5, 4},
-                     {}});
-    exp_x_local.emplace(
-        4, vec_vec_s{{4, 5, 5, 5, 6, 6, 5, 6, 6, 5, 5, 4, 6, 6, 5, 6, 6, 5,
-                      5, 6, 6, 5, 6, 6, 4, 5, 5, 6, 6, 5, 6, 6, 5, 5, 5, 4},
-                     {},
-                     {},
-                     {}});
+
+    std::vector<scalar> exp_x_local_2_1 = {4, 5, 5, 5, 6, 6, 5, 6, 6,
+                                           5, 5, 4, 6, 6, 5, 6, 6, 5};
+    std::vector<scalar> exp_x_local_2_2 = {5, 6, 6, 5, 6, 6, 4, 5, 5,
+                                           6, 6, 5, 6, 6, 5, 5, 5, 4};
+    exp_x_local.emplace(2, vec_vec_s{exp_x_local_2_1, {}, exp_x_local_2_2, {}});
+
+    std::vector<scalar> exp_x_local_4 = {4, 5, 5, 5, 6, 6, 5, 6, 6, 5, 5, 4,
+                                         6, 6, 5, 6, 6, 5, 5, 6, 6, 5, 6, 6,
+                                         4, 5, 5, 6, 6, 5, 6, 6, 5, 5, 5, 4};
+    exp_x_local.emplace(4, vec_vec_s{exp_x_local_4, {}, {}, {}});
 
     // Act
     distributed->apply(b, x);
