@@ -271,7 +271,7 @@ void RepartDistMatrix<LocalMatrixType>::update(
 
 
 template <typename LocalMatrixType>
-static std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
+std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
     const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {

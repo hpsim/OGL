@@ -228,16 +228,16 @@ void export_mtx(const word fieldName,
                 const word local, const objectRegistry &db,
                 const word matrixFormat)
 {
-    std::string folder{db.time().timePath()};
-    std::filesystem::create_directories(folder);
-    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "exporting " << fn << std::endl;
-    std::ofstream stream{fn};
-    stream << std::setprecision(15);
-
-    auto coo = gko::share(
-        gko::matrix::Coo<scalar, label>::create(out->get_executor()));
-    out->convert_to(coo);
+    // std::string folder{db.time().timePath()};
+    // std::filesystem::create_directories(folder);
+    // std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
+    // std::cout << "exporting " << fn << std::endl;
+    // std::ofstream stream{fn};
+    // stream << std::setprecision(15);
+    //
+    // auto coo = gko::share(
+    //     gko::matrix::Coo<scalar, label>::create(out->get_executor()));
+    // out->convert_to(coo);
 }
 
 }  // namespace detail

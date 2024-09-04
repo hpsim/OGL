@@ -161,7 +161,7 @@ public:
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           field_name_(fieldName),
           exec_handler_{db_, solver_controls_, fieldName},
-          host_matrix_wrapper_{make_shared<HostMatrixWrapper>(
+          host_matrix_wrapper_{std::make_shared<HostMatrixWrapper>(
               exec_handler_, db_, matrix.diag().size(), matrix.upper().size(),
               matrix.symmetric(), matrix.diag().begin(), matrix.upper().begin(),
               matrix.lower().begin(), matrix.lduAddr(), interfaceBouCoeffs,

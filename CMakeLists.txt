@@ -79,7 +79,7 @@ to turn off this check")
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "ogl_rebase_1.8.0"
+    "ogl_0.6.0"
     CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
