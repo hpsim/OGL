@@ -389,6 +389,7 @@ public:
         return {};
     }
 
+    // TODO add field name
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
