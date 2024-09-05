@@ -51,6 +51,21 @@ void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
     export_x(fn_x, x);
 }
 
+void export_mtx(const word fieldName,
+                std::shared_ptr<const gko::matrix::Coo<scalar, label>> A,
+                const objectRegistry &db)
+{
+    std::string folder{db.time().timePath()};
+    std::filesystem::create_directories(folder);
+
+    std::string fn{folder + "/" + fieldName + "_A.mtx"};
+    std::cout << "exporting " << fn << std::endl;
+    std::ofstream stream{fn};
+    stream << std::setprecision(15);
+
+    gko::write(stream, A.get());
+}
+
 void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
                              const word key, label value)
 {

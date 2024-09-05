@@ -143,6 +143,7 @@ Repartitioner::repartition_sparsity(
         for ([[maybe_unused]] auto comm_rank : src_non_local_pattern->rank) {
             ret.emplace_back(false, rank);
         }
+    LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::pair<bool, label>>>(
@@ -216,12 +217,14 @@ Repartitioner::repartition_sparsity(
             exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
             tmp_non_local_mapping, new_spans, new_ranks);
 
+    LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::pair<bool, label>>>(
             std::move(local_pattern), std::move(non_local_pattern),
             std::move(is_local));
     } else {
+    LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::pair<bool, label>>>(

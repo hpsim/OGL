@@ -103,6 +103,10 @@ std::ostream &operator<<(
 template <typename ValueType>
 std::ostream &operator<<(std::ostream &os, const std::vector<ValueType> &in);
 
+void export_mtx(const word fieldName,
+                std::shared_ptr<const gko::matrix::Coo<scalar, label>> A,
+                const objectRegistry &db);
+
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time);

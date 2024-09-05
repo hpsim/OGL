@@ -93,6 +93,7 @@ public:
         return *this;
     }
 
+    template <typename InnerType>
     void update(const ExecutorHandler &exec_handler,
                 std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
@@ -116,7 +117,11 @@ public:
         this->set_size(global_size);
     }
 
-    void write(const word field_name_, const objectRegistry &db_) const;
+    template <typename LocalMatrixType>
+    void write(const ExecutorHandler &exec_handler, const word field_name_,
+               const objectRegistry &db_
+
+    ) const;
 
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
@@ -164,6 +169,16 @@ private:
     std::vector<std::pair<bool, label>> local_interfaces_;
 };
 
+void write_distributed(const ExecutorHandler &exec_handler, word field_name,
+                       const objectRegistry &db,
+                       std::shared_ptr<RepartDistMatrix> dist_A,
+                       word matrix_format);
+
+void update_distributed(const ExecutorHandler &exec_handler,
+                        std::shared_ptr<const Repartitioner> repartitioner,
+                        std::shared_ptr<const HostMatrixWrapper> host_A,
+                        std::shared_ptr<RepartDistMatrix> dist_A,
+                        word matrix_format);
 
 std::shared_ptr<RepartDistMatrix> create_distributed(
     const ExecutorHandler &exec_handler,

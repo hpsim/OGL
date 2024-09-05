@@ -27,16 +27,17 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
 }
 
 
-void RepartDistMatrix::write(const word field_name_,
-                                              const objectRegistry &db_) const
+template <typename LocalMatrixType>
+void RepartDistMatrix::write(
+        const ExecutorHandler &exec_handler,
+        const word field_name,
+        const objectRegistry &db) const
 {
-    // std::vector<std::shared_ptr<const gko::LinOp>> local_interfaces =
-    // auto local = dist_mtx_->get_local_matrix()->get_operators();
-    // if (fuse){
+    auto ret = gko::share(gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
+    gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_local_matrix())->convert_to(ret.get());
 
-    // }
-    // gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_local_matrix())
-    //     ->get_operators();
+    export_mtx(field_name, ret, db);
+
     // export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces, db_);
     // auto non_local_interfaces = gko::as<CombinationMatrix<scalar, label,
     // Coo>>(
@@ -258,13 +259,12 @@ void update_impl(
 }
 
 
+template<typename InnerType>
 void RepartDistMatrix::update(
     const ExecutorHandler &exec_handler, std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
-    // TODO FIXME
-    using LocalMatrixType =gko::matrix::Coo<scalar, label>;
-    update_impl<LocalMatrixType>(exec_handler, repartitioner, host_A, dist_mtx_,
+    update_impl<InnerType>(exec_handler, repartitioner, host_A, dist_mtx_,
                                  local_sparsity_, non_local_sparsity_,
                                  src_comm_pattern_, local_interfaces_);
 }
@@ -281,18 +281,12 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
 
-    // repartition things here first by creating device_matrix_data on
-    // device with correct size on each rank
-    //
-    // NOTE Start by copying first and repartition later
     auto local_sparsity = host_A->compute_local_sparsity(exec);
     auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
 
     auto src_comm_pattern = host_A->create_communication_pattern();
     auto repart_comm_pattern =
         repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
-
-    // bool owner = repartitioner->is_owner(exec_handler);
 
     auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
         repartitioner->repartition_sparsity(exec_handler, local_sparsity,
@@ -343,6 +337,40 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         exec, comm, repartitioner->get_repart_dim(), dist_A->get_size(),
         std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
         src_comm_pattern, local_interfaces);
+}
+
+void write_distributed(
+        const ExecutorHandler &exec_handler,
+        word field_name,
+        const objectRegistry &db,
+            std::shared_ptr<RepartDistMatrix> dist_A,
+            word matrix_format
+            ) {
+    if (matrix_format == "Coo") {
+        return dist_A->write<gko::matrix::Coo<scalar, label>>(
+            exec_handler, field_name, db);
+    }
+    if (matrix_format == "Csr") {
+        return dist_A->write<gko::matrix::Csr<scalar, label>>(
+            exec_handler, field_name, db);
+    }
+}
+
+void update_distributed(
+        const ExecutorHandler &exec_handler,
+            std::shared_ptr<const Repartitioner> repartitioner,
+            std::shared_ptr<const HostMatrixWrapper> host_A,
+            std::shared_ptr<RepartDistMatrix> dist_A,
+            word matrix_format
+            ) {
+    if (matrix_format == "Coo") {
+        return dist_A->update<gko::matrix::Coo<scalar, label>>(
+            exec_handler, repartitioner, host_A);
+    }
+    if (matrix_format == "Csr") {
+        return dist_A->update<gko::matrix::Csr<scalar, label>>(
+            exec_handler, repartitioner, host_A);
+    }
 }
 
 std::shared_ptr<RepartDistMatrix> create_distributed(

@@ -38,8 +38,6 @@ private:
 
     const bool force_host_buffer_;
 
-    // const label ranks_per_gpu_;
-
     const word matrix_format_;
 
 public:
@@ -261,7 +259,10 @@ public:
         //     LOG_0(verbose_, "Export system")
         //     dist_A.write();
         //     dist_b.write();
+        write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
+                          "Coo");
         // }
+        //
 
         LOG_1(verbose_, "start create solver")
         auto solver_gen = this->create_dist_solver(
