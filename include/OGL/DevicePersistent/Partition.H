@@ -26,47 +26,27 @@ struct PartitionInitFunctor {
 
     const label verbose_;
 
-    const int ranks_per_gpu_;
-
-    // Array storing the ranks of the neighbouring processors
-    const gko::array<comm_size_type> target_ids_;
-
-    // Array storing the ranks of the neighbouring processors
-    const gko::array<comm_size_type> target_sizes_;
-
-    const std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs_;
-
-    PartitionInitFunctor(const ExecutorHandler &exec, const label local_size,
-                         const label verbose, const int ranks_per_gpu,
-                         const CommunicationPattern &communication_pattern)
+    PartitionInitFunctor(const ExecutorHandler &exec, const label verbose,
+                         const int ranks_per_gpu,
+                         std::shared_ptr<const HostMatrixWrapper> host_matrix)
         : exec_(exec),
-          local_size_(local_size),
-          verbose_(verbose),
-          ranks_per_gpu_(ranks_per_gpu),
-          target_ids_(communication_pattern.target_ids),
-          target_sizes_(communication_pattern.target_sizes),
-          send_idxs_(communication_pattern.send_idxs)
-    {}
+          local_size_(host_matrix->get_local_nrows()),
+          verbose_(verbose)
 
-    void update(std::shared_ptr<part_type> persistent_partition) const
+              void update(std::shared_ptr<part_type> persistent_partition) const
     {
         UNUSED(persistent_partition);
     }
 
     std::shared_ptr<part_type> init() const
     {
-        FatalErrorInFunction << "Not implemented" << abort(FatalError);
-        // auto exec = exec_.get_ref_exec();
-        // auto comm = exec_.get_gko_mpi_host_comm();
-
-        // word msg{"initialising partition of size " +
-        //          std::to_string(local_size_)};
-        // LOG_1(verbose_, msg)
-
-        // if (ranks_per_gpu_ == 1) return {};
-
-
-        return {};
+        word msg{"initialising partition of size " +
+                 std::to_string(local_size_)};
+        LOG_1(verbose_, msg)
+        auto exec = exec_.get_ref_exec();
+        auto comm = exec_.get_gko_mpi_host_comm();
+        return build_partition_from_local_size<label, label>(ref_exec, comm,
+                                                             local_size_);
     }
 };
 
@@ -101,12 +81,10 @@ public:
      */
     PersistentPartition(const objectRegistry &db, const ExecutorHandler &exec,
                         const label verbose, const int ranks_per_gpu,
-                        const label elements,
-                        const CommunicationPattern &communication_pattern)
+                        std::shared_ptr<const HostMatrixWrapper> host_matrix)
         : PersistentBase<part_type, PartitionInitFunctor>(
               "device_partition", db,
-              PartitionInitFunctor(exec, elements, verbose, ranks_per_gpu,
-                                   communication_pattern),
+              PartitionInitFunctor(exec, verbose, ranks_per_gpu, host_matrix),
               false, verbose),
           ranks_per_gpu_(ranks_per_gpu),
           local_elements_(elements)

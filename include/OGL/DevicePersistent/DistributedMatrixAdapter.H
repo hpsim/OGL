@@ -7,8 +7,6 @@
 #include "OGL/DevicePersistent/ExecutorHandler.H"
 #include "OGL/MatrixWrapper/Distributed.H"
 #include "OGL/MatrixWrapper/HostMatrix.H"
-// #include "DevicePersistent/HostMatrixAdapter/HostMatrixAdapter.H"
-// #include "OGL/DevicePersistent/Partition.H"
 
 #include "fvCFD.H"
 
@@ -19,7 +17,7 @@ struct DistributedMatrixInitFunctor {
 
     const ExecutorHandler &exec_;
 
-    const Repartitioner &repartitioner_;
+    std::shared_ptr<const Repartitioner> repartitioner_;
 
     const word field_name_;
 
@@ -31,7 +29,7 @@ struct DistributedMatrixInitFunctor {
 
     DistributedMatrixInitFunctor(
         const objectRegistry &db, const ExecutorHandler &exec,
-        const Repartitioner &repartitioner, const label verbose,
+        std::shared_ptr<const Repartitioner> repartitioner, const label verbose,
         const word field_name, const std::shared_ptr<HostMatrixWrapper> host_A,
         const dictionary &solver_controls)
         : db_(db),
@@ -43,8 +41,8 @@ struct DistributedMatrixInitFunctor {
           host_A_(host_A)
     {}
 
-    void update(std::shared_ptr<RepartDistMatrix<gko::LinOp>>
-                    persistent_device_matrix) const
+    void update(
+        std::shared_ptr<RepartDistMatrix> persistent_device_matrix) const
     {
         persistent_device_matrix->update(exec_, repartitioner_, host_A_);
         // persistent_device_matrix->operator=(
@@ -53,9 +51,9 @@ struct DistributedMatrixInitFunctor {
         //     repartitioner_, host_A_.get()).get());
     }
 
-    std::shared_ptr<RepartDistMatrix<gko::LinOp>> init() const
+    std::shared_ptr<RepartDistMatrix> init() const
     {
-        create_distributed(
+        return create_distributed(
             exec_, repartitioner_, host_A_,
             solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
     }
@@ -73,19 +71,16 @@ private:
 
     const word field_name_;
 
-    mutable PersistentBase<RepartDistMatrix<gko::LinOp>,
-                           DistributedMatrixInitFunctor>
+    mutable PersistentBase<RepartDistMatrix, DistributedMatrixInitFunctor>
         host_matrix_;
 
 
 public:
-    PersistentDistributedMatrix(const objectRegistry &db,
-                                const ExecutorHandler &exec,
-                                const Repartitioner &repartitioner,
-                                const word field_name,
-                                std::shared_ptr<HostMatrixWrapper> host_A,
-                                const dictionary &controlDict,
-                                const label verbose)
+    PersistentDistributedMatrix(
+        const objectRegistry &db, const ExecutorHandler &exec,
+        std::shared_ptr<const Repartitioner> repartitioner,
+        const word field_name, std::shared_ptr<HostMatrixWrapper> host_A,
+        const dictionary &controlDict, const label verbose)
         : db_(db),
           verbose_(verbose),
           field_name_(field_name),
@@ -98,7 +93,7 @@ public:
               verbose_}
     {}
 
-    std::shared_ptr<const RepartDistMatrix<gko::LinOp>> get() const
+    std::shared_ptr<RepartDistMatrix> get()
     {
         return host_matrix_.get_persistent_object();
     }

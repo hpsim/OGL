@@ -23,7 +23,9 @@ macro(ogl_unit_test TEST FILE)
     GTest::gmock
     OGL
     Ginkgo::ginkgo
+    ginkgo_device
     ginkgo_hip
+    ginkgo_reference
     ${CMAKE_DL_LIBS})
 
   add_test(

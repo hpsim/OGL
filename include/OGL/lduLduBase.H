@@ -200,16 +200,9 @@ public:
         label ranks_per_gpu =
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
 
-        PersistentPartition partition{db_,
-                                      exec_handler_,
-                                      verbose_,
-                                      ranks_per_gpu,
-                                      psi.size(),  // number of elements
-                                      this->get_communication_pattern()};
-
-        auto repartitioner =
-            Repartitioner(host_matrix_wrapper_->get_local_nrows(),
-                          ranks_per_gpu, verbose_, exec_handler_);
+        auto repartitioner = std::make_shared<Repartitioner>(
+            host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
+            exec_handler_);
 
         PersistentDistributedMatrix dist_A{db_,
                                            exec_handler_,
@@ -223,8 +216,8 @@ public:
             &source[0],
             this->fieldName() + "_rhs",
             db_,
-            this->get_exec_handler(),
-            partition,
+            exec_handler_,
+            repartitioner,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -234,8 +227,8 @@ public:
             &psi[0],
             this->fieldName() + "_solution",
             db_,
-            this->get_exec_handler(),
-            partition,
+            exec_handler_,
+            repartitioner,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device
@@ -258,10 +251,9 @@ public:
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        TIME_WITH_FIELDNAME(
-            verbose_, init_precond, this->fieldName(),
-            auto precond = this->init_preconditioner(
-                dist_A_v, this->get_exec_handler().get_device_exec());)
+        TIME_WITH_FIELDNAME(verbose_, init_precond, this->fieldName(),
+                            auto precond = this->init_preconditioner(
+                                dist_A_v, exec_handler_.get_device_exec());)
 
         bool export_system(
             solver_controls_.lookupOrDefault<Switch>("export", false));
@@ -273,8 +265,8 @@ public:
 
         LOG_1(verbose_, "start create solver")
         auto solver_gen = this->create_dist_solver(
-            this->get_exec_handler().get_device_exec(), dist_A_v, dist_x_v,
-            dist_b_v, verbose_, export_system, precond);
+            exec_handler_.get_device_exec(), dist_A_v, dist_x_v, dist_b_v,
+            verbose_, export_system, precond);
 
         TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
                             auto solver = solver_gen->generate(dist_A_v);)
@@ -286,8 +278,8 @@ public:
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
 
-        auto bandwidth_copy_back = sizeof(scalar) * partition.get_local_size() /
-                                   delta_t_copy_x_back / 1000.0;
+        auto bandwidth_copy_back =
+            sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
 
         solverPerf.initialResidual() = this->get_init_res_norm();
         solverPerf.finalResidual() = this->get_res_norm();
@@ -297,11 +289,12 @@ public:
         auto time_per_iter =
             delta_t_solve / max(this->get_number_of_iterations(), 1);
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        this->get_exec_handler().get_gko_mpi_host_comm()->broadcast(
-            this->get_exec_handler().get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        exec_handler_.get_gko_mpi_host_comm()->broadcast(
+            exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 / partition.get_total_size();
+            time_per_iter * 1000.0 /
+            repartitioner->get_orig_partition()->get_size();
         word msg =
             "\nStatistics:\n\tTime per iteration: " +
             std::to_string(time_per_iter) +

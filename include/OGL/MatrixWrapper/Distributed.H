@@ -22,15 +22,12 @@
  * constraint it is required that the inner matrix types of the distributed
  * matrix are of RepartDistMatrix type.
  * */
-template <typename LocalMatrixType>
 class RepartDistMatrix
-    : public gko::experimental::EnableDistributedLinOp<
-          RepartDistMatrix<LocalMatrixType>>,
-      public gko::EnableCreateMethod<RepartDistMatrix<LocalMatrixType>>,
+    : public gko::experimental::EnableDistributedLinOp<RepartDistMatrix>,
+      public gko::EnableCreateMethod<RepartDistMatrix>,
       public gko::experimental::distributed::DistributedBase {
-    friend class gko::EnableCreateMethod<RepartDistMatrix<LocalMatrixType>>;
-    friend class gko::EnablePolymorphicObject<RepartDistMatrix<LocalMatrixType>,
-                                              gko::LinOp>;
+    friend class gko::EnableCreateMethod<RepartDistMatrix>;
+    friend class gko::EnablePolymorphicObject<RepartDistMatrix, gko::LinOp>;
 
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
@@ -41,9 +38,8 @@ class RepartDistMatrix
 
 public:
     using gko::experimental::EnableDistributedLinOp<
-        RepartDistMatrix<LocalMatrixType>>::convert_to;
-    using gko::experimental::EnableDistributedLinOp<
-        RepartDistMatrix<LocalMatrixType>>::move_to;
+        RepartDistMatrix>::convert_to;
+    using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
 
     std::shared_ptr<const gko::LinOp> get_local_matrix()
     {
@@ -97,12 +93,8 @@ public:
         return *this;
     }
 
-    static std::shared_ptr<gko::LinOp> create(
-        const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-        std::shared_ptr<const HostMatrixWrapper> host_A);
-
     void update(const ExecutorHandler &exec_handler,
-                const Repartitioner &repartitioner,
+                std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
 
     RepartDistMatrix(
@@ -173,6 +165,7 @@ private:
 };
 
 
-std::shared_ptr<gko::LinOp> create_distributed(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+std::shared_ptr<RepartDistMatrix> create_distributed(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format);

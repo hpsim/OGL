@@ -27,8 +27,7 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
 }
 
 
-template <typename LocalMatrixType>
-void RepartDistMatrix<LocalMatrixType>::write(const word field_name_,
+void RepartDistMatrix::write(const word field_name_,
                                               const objectRegistry &db_) const
 {
     // std::vector<std::shared_ptr<const gko::LinOp>> local_interfaces =
@@ -49,7 +48,7 @@ void RepartDistMatrix<LocalMatrixType>::write(const word field_name_,
 
 template <typename LocalMatrixType>
 void update_impl(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+    const ExecutorHandler &exec_handler, std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A,
     std::shared_ptr<
         gko::experimental::distributed::Matrix<scalar, label, label>>
@@ -61,12 +60,12 @@ void update_impl(
 {
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
-    auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+    auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
     bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
-    label owner_rank = repartitioner.get_owner_rank(exec_handler);
-    bool owner = repartitioner.is_owner(exec_handler);
+    label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
     label local_matrix_nnz = host_A->get_local_matrix_nnz();
 
@@ -259,11 +258,12 @@ void update_impl(
 }
 
 
-template <typename LocalMatrixType>
-void RepartDistMatrix<LocalMatrixType>::update(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+void RepartDistMatrix::update(
+    const ExecutorHandler &exec_handler, std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
+    // TODO FIXME
+    using LocalMatrixType =gko::matrix::Coo<scalar, label>;
     update_impl<LocalMatrixType>(exec_handler, repartitioner, host_A, dist_mtx_,
                                  local_sparsity_, non_local_sparsity_,
                                  src_comm_pattern_, local_interfaces_);
@@ -271,10 +271,12 @@ void RepartDistMatrix<LocalMatrixType>::update(
 
 
 template <typename LocalMatrixType>
-std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+std::shared_ptr<RepartDistMatrix> create_impl(
+    const ExecutorHandler &exec_handler, std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
     // label rank = exec_handler.get_rank();
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
@@ -288,12 +290,12 @@ std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
 
     auto src_comm_pattern = host_A->create_communication_pattern();
     auto repart_comm_pattern =
-        repartitioner.repartition_comm_pattern(exec_handler, src_comm_pattern);
+        repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
 
-    // bool owner = repartitioner.is_owner(exec_handler);
+    // bool owner = repartitioner->is_owner(exec_handler);
 
     auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
-        repartitioner.repartition_sparsity(exec_handler, local_sparsity,
+        repartitioner->repartition_sparsity(exec_handler, local_sparsity,
                                            non_local_sparsity);
 
     compress_cols(repart_non_loc_sparsity->col_idxs);
@@ -317,7 +319,7 @@ std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
     auto recv_gather_idxs =
         repart_comm_pattern->compute_recv_gather_idxs(exec_handler);
 
-    auto global_rows = repartitioner.get_orig_partition()->get_size();
+    auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
 
     std::shared_ptr<dist_mtx> dist_A;
@@ -337,27 +339,24 @@ std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
                                  repart_loc_sparsity, repart_non_loc_sparsity,
                                  src_comm_pattern, local_interfaces);
 
-    return std::make_shared<RepartDistMatrix<LocalMatrixType>>(
-        exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
+    return std::make_shared<RepartDistMatrix>(
+        exec, comm, repartitioner->get_repart_dim(), dist_A->get_size(),
         std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
         src_comm_pattern, local_interfaces);
 }
 
-std::shared_ptr<gko::LinOp> create_distributed(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+std::shared_ptr<RepartDistMatrix> create_distributed(
+    const ExecutorHandler &exec_handler, std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
 {
     if (matrix_format == "Coo") {
-        return RepartDistMatrix<gko::matrix::Coo<scalar, label>>::create(
+        return create_impl<gko::matrix::Coo<scalar, label>>(
             exec_handler, repartitioner, hostMatrix);
     }
     if (matrix_format == "Csr") {
-        return RepartDistMatrix<gko::matrix::Csr<scalar, label>>::create(
+        return create_impl<gko::matrix::Csr<scalar, label>>(
             exec_handler, repartitioner, hostMatrix);
     }
 
     return {};
 }
-
-template class RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
-template class RepartDistMatrix<gko::matrix::Csr<scalar, label>>;

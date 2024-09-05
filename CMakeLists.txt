@@ -217,17 +217,17 @@ target_sources(
           src/BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           src/DevicePersistent/Base/Base.C
-          src/DevicePersistent/Partition/Partition.C
           src/DevicePersistent/Vector/Vector.C
           src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
+          src/DevicePersistent/DistributedMatrixAdapter.C
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
           src/MatrixWrapper/SparsityPattern.C
           src/MatrixWrapper/Distributed.C
           src/MatrixWrapper/Combination.C
           src/Repartitioner.C
-  # src/Solver/CG/GKOCG.C src/Solver/BiCGStab/GKOBiCGStab.C
-  # src/Solver/GMRES/GKOGMRES.C
+          src/Solver/CG/GKOCG.C
+  # src/Solver/BiCGStab/GKOBiCGStab.C src/Solver/GMRES/GKOGMRES.C
 )
 
 enable_sanitizers(

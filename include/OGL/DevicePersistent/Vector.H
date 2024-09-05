@@ -10,7 +10,7 @@
 
 #include "OGL/DevicePersistent/Base.H"
 #include "OGL/DevicePersistent/ExecutorHandler.H"
-#include "OGL/DevicePersistent/Partition.H"
+#include "OGL/Repartitioner.H"
 #include "OGL/common.H"
 
 namespace Foam {
@@ -26,7 +26,7 @@ struct VectorInitFunctor {
     const ExecutorHandler &exec_;
 
     // representing the partitioning that OF uses
-    const PersistentPartition &partition_;
+    std::shared_ptr<const Repartitioner> repartitioner_;
 
     const label verbose_;
 
@@ -37,11 +37,12 @@ struct VectorInitFunctor {
 
 
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
-                      const PersistentPartition &partition, const T *other,
-                      const label verbose, const bool on_device = false)
+                      std::shared_ptr<const Repartitioner> repartitioner,
+                      const T *other, const label verbose,
+                      const bool on_device = false)
         : exec_(exec),
           name_(name),
-          partition_(partition),
+          repartitioner_(repartitioner),
           on_device_(on_device),
           verbose_(verbose),
           other_(other)
@@ -52,7 +53,7 @@ struct VectorInitFunctor {
     void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
                     persistent_vector) const
     {
-        const auto local_size = partition_.get_local_size();
+        const auto local_size = repartitioner_->get_orig_size();
         word msg{"updating array " + name_ + " of size " +
                  std::to_string(local_size)};
         LOG_1(verbose_, msg)
@@ -66,7 +67,7 @@ struct VectorInitFunctor {
             (on_device_) ? exec_.get_device_exec() : exec_.get_ref_exec();
         auto comm = exec_.get_gko_mpi_host_comm();
 
-        const auto local_size = partition_.get_local_size();
+        const auto local_size = repartitioner_->get_orig_size();
         word msg{"initialising vector " + name_ + " of size " +
                  std::to_string(local_size)};
         msg += (on_device_) ? " on device" : " on host";
@@ -75,7 +76,7 @@ struct VectorInitFunctor {
         auto host_view = gko::array<T>::view(exec_.get_ref_exec(), local_size,
                                              const_cast<T *>(other_));
 
-        if (partition_.get_ranks_per_gpu() == 1) {
+        if (repartitioner_->get_ranks_per_gpu() == 1) {
             return gko::share(dist_vec::create(
                 exec, *exec_.get_gko_mpi_host_comm().get(),
                 vec::create(exec, gko::dim<2>{local_size, 1}, host_view, 1)));
@@ -97,7 +98,7 @@ class PersistentVector
 
     const T *memory_;
 
-    const PersistentPartition partition_;
+    std::shared_ptr<const Repartitioner> repartitioner_;
 
     const ExecutorHandler &exec_;
 
@@ -123,18 +124,19 @@ public:
      */
     PersistentVector(const T *memory, const word name, const objectRegistry &db,
                      const ExecutorHandler &exec,
-                     const PersistentPartition partition, const label verbose,
-                     const bool update, const bool init_on_device)
+                     std::shared_ptr<const Repartitioner> repartitioner,
+                     const label verbose, const bool update,
+                     const bool init_on_device)
         : PersistentBase<gko::experimental::distributed::Vector<T>,
                          VectorInitFunctor<T>>(
               name, db,
-              VectorInitFunctor<T>(exec, name, partition, memory, verbose,
+              VectorInitFunctor<T>(exec, name, repartitioner, memory, verbose,
                                    init_on_device),
               update, verbose),
           db_(db),
           name_(name),
           memory_(memory),
-          partition_(partition),
+          repartitioner_(repartitioner),
           exec_(exec),
           update_(update)
     {}
@@ -143,8 +145,8 @@ public:
      **/
     void copy_back()
     {
-        const auto local_size = partition_.get_local_size();
-        auto global_size = partition_.get_total_size();
+        const auto local_size = repartitioner_->get_orig_size();
+        auto global_size = repartitioner_->get_orig_partition()->get_size();
 
         auto comm = exec_.get_gko_mpi_host_comm();
         auto host_device_vector =
