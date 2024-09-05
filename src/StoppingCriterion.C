@@ -43,6 +43,7 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
 
     auto Axref = gko::share(
         dist_vec::create(device_exec, comm, global_size, local_size));
+    Axref->fill(0.0);
 
     compute_Axref_dist(global_size[0], local_size[0], device_exec, gkomatrix, x,
                        Axref);
@@ -56,9 +57,10 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
     auto norm_part2 = b_sub_xstar->compute_absolute();
 
     b_sub_xstar->sub_scaled(unity.get(), r);
-    b_sub_xstar->compute_absolute_inplace();
 
+    b_sub_xstar->compute_absolute_inplace();
     b_sub_xstar->add_scaled(unity.get(), norm_part2.get());
+
     auto res = vec::create(device_exec, gko::dim<2>{1});
     b_sub_xstar->compute_norm1(res.get());
 
@@ -95,6 +97,10 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});
     norm1_host->copy_from(norm1.get());
     scalar residual_norm = norm1_host->at(0);
+    if (residual_norm != residual_norm){
+            FatalErrorInFunction << " Problem with residual norm detected: " << residual_norm
+                                 << exit(FatalError);
+    }
 
     bool result = false;
 
