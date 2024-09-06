@@ -68,6 +68,8 @@ public:
             this->local_sparsity_ = other.local_sparsity_;
             this->non_local_sparsity_ = other.non_local_sparsity_;
             this->src_comm_pattern_ = other.src_comm_pattern_;
+            this->repart_comm_pattern_ = other.repart_comm_pattern_;
+            this->repartitioner_ = other.repartitioner_;
             this->local_interfaces_ = other.local_interfaces_;
         }
         return *this;
@@ -88,6 +90,8 @@ public:
             this->local_sparsity_ = std::move(other.local_sparsity_);
             this->non_local_sparsity_ = std::move(other.non_local_sparsity_);
             this->src_comm_pattern_ = std::move(other.src_comm_pattern_);
+            this->repart_comm_pattern_ = std::move(other.repart_comm_pattern_);
+            this->repartitioner_ = std::move(other.repartitioner_);
             this->local_interfaces_ = std::move(other.local_interfaces_);
         }
         return *this;
@@ -100,11 +104,12 @@ public:
 
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
-        gko::dim<2> local_size, gko::dim<2> global_size,
         std::shared_ptr<dist_mtx> dist_mtx,
         std::shared_ptr<const SparsityPattern> local_sparsity,
         std::shared_ptr<const SparsityPattern> non_local_sparsity,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+        std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
+        std::shared_ptr<const Repartitioner> repartitioner,
         std::vector<std::pair<bool, label>> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
@@ -112,9 +117,11 @@ public:
           local_sparsity_(local_sparsity),
           non_local_sparsity_(non_local_sparsity),
           src_comm_pattern_(src_comm_pattern),
+          repart_comm_pattern_(repart_comm_pattern),
+          repartitioner_(repartitioner),
           local_interfaces_(local_interfaces)
     {
-        this->set_size(global_size);
+        this->set_size(dist_mtx_->get_size());
     }
 
     template <typename LocalMatrixType>
@@ -129,6 +136,22 @@ public:
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase{comm}
     {}
+
+    std::shared_ptr<const CommunicationPattern> get_comm_pattern() const
+    {
+        return repart_comm_pattern_;
+    }
+
+    std::shared_ptr<const SparsityPattern> get_local_sparsity() const
+    {
+        return local_sparsity_;
+    }
+
+    std::shared_ptr<const Repartitioner> get_repartitioner() const
+    {
+        return repartitioner_;
+    }
+
 
 protected:
     // Here we implement the application of the linear operator, x = A * b.
@@ -165,6 +188,10 @@ private:
     std::shared_ptr<const SparsityPattern> non_local_sparsity_;
 
     std::shared_ptr<const CommunicationPattern> src_comm_pattern_;
+
+    std::shared_ptr<const CommunicationPattern> repart_comm_pattern_;
+
+    std::shared_ptr<const Repartitioner> repartitioner_;
 
     std::vector<std::pair<bool, label>> local_interfaces_;
 };

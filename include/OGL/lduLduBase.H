@@ -38,6 +38,8 @@ private:
 
     const bool force_host_buffer_;
 
+    const label ranks_per_gpu_;
+
     const word matrix_format_;
 
 public:
@@ -48,8 +50,8 @@ public:
           debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
           force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
-          // ranks_per_gpu_(
-          //     solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
+          ranks_per_gpu_(
+              solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
               solverControls.lookupOrDefault<word>("matrixFormat", "Coo"))
     {
@@ -86,8 +88,8 @@ public:
             std::to_string(gko::experimental::mpi::is_gpu_aware()) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
-            // std::string("\n\tCPU ranks per GPU: ") +
-            // std::to_string(ranks_per_gpu_) +
+            std::string("\n\tCPU ranks per GPU: ") +
+            std::to_string(ranks_per_gpu_) +
             std::string("\n\tMatrix format: ") + matrix_format_ +
             std::string("\n\tEnd OGL_INFO");
         MLOG_0(verbose_, msg)
@@ -209,13 +211,14 @@ public:
                                            host_matrix_wrapper_,
                                            solver_controls_,
                                            verbose_};
+        auto dist_A_v = dist_A.get();
 
         PersistentVector<scalar> dist_b{
             &source[0],
             this->fieldName() + "_rhs",
             db_,
             exec_handler_,
-            repartitioner,
+            dist_A_v,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
@@ -226,7 +229,7 @@ public:
             this->fieldName() + "_solution",
             db_,
             exec_handler_,
-            repartitioner,
+            dist_A_v,
             verbose_,
             solver_controls_.lookupOrDefault<Switch>("updateInitGuess", false),
             false  // whether data for init is on device
@@ -234,7 +237,6 @@ public:
 
         auto dist_x_v = dist_x.get_vector();
         auto dist_b_v = dist_b.get_vector();
-        auto dist_A_v = dist_A.get();
 
         scalar scaling =
             solver_controls_.lookupOrDefault<scalar>("scaling", 1.0);

@@ -33,7 +33,10 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
     // stored such that upper rows are monotonic ascending
     // upper - rows of lower triangular matrix
     // lower - columns of lower triangular matrix
-    label after_neighbours = (is_symmetric) ? upper_nnz : 2 * upper_nnz;
+    // TODO FIXME
+    // if symmetric we can reuse already copied data
+    // see also note in Distributed.C
+    label after_neighbours = 2 * upper_nnz; // (is_symmetric) ? upper_nnz : 2 * upper_nnz;
 
     // first pass order elements row wise
     // scan through all faces
@@ -545,7 +548,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    // label after_neighbours = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
     init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
                         cols, permute);
 

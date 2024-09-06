@@ -36,15 +36,11 @@ void RepartDistMatrix::write(
     auto ret = gko::share(gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
     gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_local_matrix())->convert_to(ret.get());
 
-    export_mtx(field_name, ret, db);
+    export_mtx(field_name + "_local", ret, db);
 
-    // export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces, db_);
-    // auto non_local_interfaces = gko::as<CombinationMatrix<scalar, label,
-    // Coo>>(
-    //                                 dist_matrix->get_non_local_matrix())
-    //                                 ->get_combination()
-    //                                 ->get_operators();
-    // export_mtx<Coo>(field_name_ + "_non_local", non_local_interfaces, db_);
+    auto non_loc_ret = gko::share(gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
+    gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_non_local_matrix())->convert_to(non_loc_ret.get());
+    export_mtx(field_name + "_non_local", non_loc_ret, db);
 }
 
 template <typename LocalMatrixType>
@@ -127,7 +123,7 @@ void update_impl(
         target_buffer_view = host_buffer_view;
     }
 
-    // copy interface values
+    // // copy interface values
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
@@ -247,7 +243,6 @@ void update_impl(
         auto mapping_view = gko::array<label>::view(
             exec, local_elements, local_sparsity->ldu_mapping.get_data());
 
-
         // TODO this needs to copy ldu_mapping to the device
         auto dense_vec = row_collection->clone();
         // auto dense_vec =
@@ -334,9 +329,8 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                                  src_comm_pattern, local_interfaces);
 
     return std::make_shared<RepartDistMatrix>(
-        exec, comm, repartitioner->get_repart_dim(), dist_A->get_size(),
-        std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
-        src_comm_pattern, local_interfaces);
+        exec, comm, dist_A, repart_loc_sparsity, repart_non_loc_sparsity,
+        src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
 }
 
 void write_distributed(
