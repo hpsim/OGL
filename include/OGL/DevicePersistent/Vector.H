@@ -73,21 +73,15 @@ struct VectorInitFunctor {
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
     {
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
         auto ref_exec = exec_.get_ref_exec();
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
         auto comm = exec_.get_communicator();
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
         auto repartitioner = dist_matrix_->get_repartitioner();
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
         auto host_size = repartitioner->get_orig_size();
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
         auto repart_size = repartitioner->get_repart_size();
-        std::cout << __FILE__ << " : " << __LINE__ << "\n";
 
         word msg{"initialising vector " + name_ + " of size " +
-                 std::to_string(repart_size)};
-        msg += (on_device_) ? " on device" : " on host";
+                 std::to_string(repart_size) + " orig size " +
+                 std::to_string(host_size)};
         LOG_1(verbose_, msg)
 
         auto host_view =
@@ -178,16 +172,8 @@ public:
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        // std::cout << __FILE__ << ":" << __LINE__
-        //     << " comm_pattern send " << std::get<0>(comm_pattern)
-        //     << " comm_pattern recv " << std::get<1>(comm_pattern)
-        //     << " comm_pattern send_offs " << std::get<2>(comm_pattern)
-        //     << " comm_pattern recv_offs " << std::get<3>(comm_pattern)
-        //     << "\n";
-
         // std::vector<scalar> host_send_buffer;
         // scalar *send_ptr;
-
         // if (true) {
         //     label repart_size = repartitioner_.get_repart_size();
         //     host_send_buffer.resize(repart_size);

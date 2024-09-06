@@ -59,7 +59,7 @@ void export_mtx(const word fieldName,
     std::filesystem::create_directories(folder);
 
     std::string fn{folder + "/" + fieldName + "_A.mtx"};
-    std::cout << "exporting " << fn << std::endl;
+    std::cout << "[OGL LOG] exporting " << fn << std::endl;
     std::ofstream stream{fn};
     stream << std::setprecision(15);
 
