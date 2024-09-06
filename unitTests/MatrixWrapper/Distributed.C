@@ -155,11 +155,11 @@ public:
 };
 
 
-// INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiationMatrixFormat,
-//                          DistributedMatrixFixtureMatrixFormat,
-//                          testing::Combine(
-//                          testing::Values(1, 2, 4),
-//                          testing::Values("Coo", "Csr")));
+INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiationMatrixFormat,
+                         DistributedMatrixFixtureMatrixFormat,
+                         testing::Combine(
+                         testing::Values(1, 2, 4),
+                         testing::Values("Coo")));
 
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
                          DistributedMatrixFixture, testing::Values(1, 2, 4));
@@ -351,15 +351,15 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
     ASSERT_EQ(res_non_local_cols, exp_non_local_cols[ranks_per_gpu][rank]);
 }
 
-TEST_P(DistributedMatrixFixture, distributedMatrixCanApplyCorrectly)
+TEST_P(DistributedMatrixFixtureMatrixFormat, distributedMatrixCanApplyCorrectly)
 {
-    auto ranks_per_gpu = GetParam();
+    auto [ranks_per_gpu, format] = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<
         Repartitioner>(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
-    auto distributed = create_distributed(exec, repartitioner, hostMatrix, "Coo");
+    auto distributed = create_distributed(exec, repartitioner, hostMatrix, format);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
