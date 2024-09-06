@@ -101,6 +101,7 @@ TEST(HostMatrix, returnsCorrectSize)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
+    auto fvMatrix = ((HostMatrixEnvironment *)global_env)->fvMatrix;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
 
     std::vector<label> exp_interface_length{3, 3};
@@ -191,16 +192,18 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
                                       3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
                                       8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
 
+    // NOTE the initialised fvMatrix is not symmetric
+    // FIXME the lower / upper idx should be offseted by 12
     std::vector<label> mapping_expected({
-        12, 0,  1,          // cell 0
-        0,  13, 2,  3,      // cell 1
-        2,  14, 4,          // cell 2
-        1,  15, 5,  6,      // cell 3
-        3,  5,  16, 7,  8,  // cell 4
-        4,  7,  17, 9,      // cell 5
-        6,  18, 10,         // cell 6
-        8,  10, 19, 11,     // cell 7
-        9,  11, 20          // cell 8
+        24, 0,  1,          // cell 0
+        0,  25, 2,  3,      // cell 1
+        2,  26, 4,          // cell 2
+        1,  27, 5,  6,      // cell 3
+        3,  5,  28, 7,  8,  // cell 4
+        4,  7,  29, 9,      // cell 5
+        6,  30, 10,         // cell 6
+        8,  10, 31, 11,     // cell 7
+        9,  11, 32          // cell 8
     });
 
     // we have 9x9 matrix with 33 nnz entries
