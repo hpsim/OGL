@@ -74,7 +74,7 @@ public:
         interfaces = field->boundaryField().scalarInterfaces();
 
         hostMatrix = std::make_shared<HostMatrixWrapper>(
-            *exec.get(), runTime_->thisDb(), mesh->lduAddr(), true,
+            *exec.get(), runTime_->thisDb(), mesh->lduAddr(), fvMatrix->symmetric(),
             fvMatrix->diag().data(), fvMatrix->upper().data(),
             fvMatrix->lower().data(), fvMatrix->boundaryCoeffs(),
             fvMatrix->internalCoeffs(), interfaces, dict, "fieldName", 0);
@@ -192,18 +192,29 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
                                       3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
                                       8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
 
-    // NOTE the initialised fvMatrix is not symmetric
-    // FIXME the lower / upper idx should be offseted by 12
+    // symmetric case
+    // std::vector<label> mapping_expected({
+    //     12, 0,  1,          // cell 0
+    //     0,  13, 2,  3,      // cell 1
+    //     2,  14, 4,          // cell 2
+    //     1,  15, 5,  6,      // cell 3
+    //     3,  5,  16, 7,  8,  // cell 4
+    //     4,  7,  17, 9,      // cell 5
+    //     6,  18, 10,         // cell 6
+    //     8,  10, 19, 11,     // cell 7
+    //     9,  11, 20          // cell 8
+    // });
+    // asymetric case
     std::vector<label> mapping_expected({
         24, 0,  1,          // cell 0
-        0,  25, 2,  3,      // cell 1
-        2,  26, 4,          // cell 2
-        1,  27, 5,  6,      // cell 3
-        3,  5,  28, 7,  8,  // cell 4
-        4,  7,  29, 9,      // cell 5
-        6,  30, 10,         // cell 6
-        8,  10, 31, 11,     // cell 7
-        9,  11, 32          // cell 8
+        12,  25, 2,  3,      // cell 1
+        14,  26, 4,          // cell 2
+        13,  27, 5,  6,      // cell 3
+        15,  17,  28, 7,  8,  // cell 4
+        16,  19,  29, 9,      // cell 5
+        18,  30, 10,         // cell 6
+        20,  22, 31, 11,     // cell 7
+        21,  23, 32          // cell 8
     });
 
     // we have 9x9 matrix with 33 nnz entries
