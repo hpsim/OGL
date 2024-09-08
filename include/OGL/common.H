@@ -145,6 +145,7 @@ std::pair<label, const label *> get_row(
     std::shared_ptr<const gko::matrix::Coo<scalar, label>> in);
 
 std::vector<label> convert_to_vector(const gko::array<label> &in);
+std::vector<scalar> convert_to_vector(const gko::array<scalar> &in);
 
 std::vector<scalar> convert_to_vector(
     std::shared_ptr<const gko::matrix::Diagonal<scalar>> in);

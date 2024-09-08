@@ -27,7 +27,7 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
     auto *data = ldu_mapping.data();
 
     for (label i = 0; i < ranks_per_gpu; i++) {
-        auto size = comm_pattern.recv_counts[i];
+        auto size = comm_pattern.recv_counts[rank + i];
         std::transform(data + ldu_offset, data + ldu_offset + size,
                        data + ldu_offset,
                        [&](label idx) { return idx + ldu_offset; });

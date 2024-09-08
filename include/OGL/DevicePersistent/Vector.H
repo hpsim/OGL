@@ -34,7 +34,6 @@ struct VectorInitFunctor {
     // Memory from which array will be initialised
     const T *other_;
 
-
     VectorInitFunctor(const ExecutorHandler &exec, const word name,
                       std::shared_ptr<const RepartDistMatrix> dist_matrix,
                       const T *other, const label verbose,
@@ -96,10 +95,10 @@ struct VectorInitFunctor {
         communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                            local_coeffs.get_data());
 
-        auto ret = gko::share(
-            dist_vec::create(exec_.get_device_exec(), *comm.get(),
-                             vec::create(ref_exec, gko::dim<2>{repart_size, 1},
-                                         local_coeffs, 1)));
+        auto ret = gko::share(dist_vec::create(
+            exec_.get_device_exec(), *comm.get(),
+            vec::create(exec_.get_device_exec(), gko::dim<2>{repart_size, 1},
+                        local_coeffs, 1)));
 
         return ret;
     }

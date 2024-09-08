@@ -36,7 +36,7 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
     // TODO FIXME
     // if symmetric we can reuse already copied data
     // see also note in Distributed.C
-    label after_neighbours = 2 * upper_nnz; // (is_symmetric) ? upper_nnz : 2 * upper_nnz;
+    label after_neighbours = 2 * upper_nnz;
 
     // first pass order elements row wise
     // scan through all faces
@@ -71,7 +71,6 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
               });
 
     // now we have tmp_upper and tmp_lower in row order
-
     label element_ctr = 0;
     label upper_ctr = 0;
     label lower_ctr = 0;
@@ -84,8 +83,11 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
         while (row_lower == row) {
             rows[element_ctr] = row_lower;
             cols[element_ctr] = col_lower;
-            permute[element_ctr] =
-                (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
+            permute[element_ctr] = upper_nnz + faceI_lower;
+            // TODO we copy the full vector to GPU thus this is not
+            // required at the moment
+            // permute[element_ctr] =
+            //     (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
             element_ctr++;
             lower_ctr++;
             if (lower_ctr >= lower_size) {

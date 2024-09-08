@@ -173,6 +173,11 @@ std::vector<label> convert_to_vector(const gko::array<label> &in)
                               in.get_const_data() + in.get_size());
 }
 
+std::vector<scalar> convert_to_vector(const gko::array<scalar> &in)
+{
+    return std::vector<scalar>(in.get_const_data(),
+                              in.get_const_data() + in.get_size());
+}
 
 std::vector<scalar> convert_to_vector(
     std::shared_ptr<const gko::matrix::Diagonal<scalar>> in)
@@ -228,7 +233,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
         for (label i = 0; i < size - 1; i++) {
             os << in[i] << ", ";
         }
-        os << ", " << in[size - 1] << "]\n";
+        os << in[size - 1] << "]\n";
     }
     return os;
 }

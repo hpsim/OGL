@@ -214,7 +214,7 @@ public:
         auto dist_A_v = dist_A.get();
 
         PersistentVector<scalar> dist_b{
-            &source[0],
+            source.begin(),
             this->fieldName() + "_rhs",
             db_,
             exec_handler_,
@@ -225,7 +225,7 @@ public:
         };
 
         PersistentVector<scalar> dist_x{
-            &psi[0],
+            psi.begin(),
             this->fieldName() + "_solution",
             db_,
             exec_handler_,
@@ -257,14 +257,12 @@ public:
 
         bool export_system(
             solver_controls_.lookupOrDefault<Switch>("export", false));
-        // if (export_system && db_.time().writeTime()) {
-        //     LOG_0(verbose_, "Export system")
-        //     dist_A.write();
-        //     dist_b.write();
-        write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
-                          "Coo");
-        // }
-        //
+        if (export_system && db_.time().writeTime()) {
+            LOG_0(verbose_, "Export system")
+            dist_b.write();
+            write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
+                              "Coo");
+        }
 
         LOG_1(verbose_, "start create solver")
         auto solver_gen = this->create_dist_solver(

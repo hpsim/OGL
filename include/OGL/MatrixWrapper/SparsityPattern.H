@@ -128,7 +128,13 @@ struct SparsityPattern {
 
     // keep track of original (local sparsity) or communication (non-local) rank
     // of each interface or matrix block
+    mutable std::vector<label> comm_rank;
+
+    // keep track of original (local sparsity) or communication (non-local) rank
+    // of each interface or matrix block
     mutable std::vector<label> rank;
 };
+
+// convert_to_global(std::shared_ptr<const SparsityPattern> pattern, Partition)
 
 }  // namespace Foam

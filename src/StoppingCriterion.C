@@ -118,6 +118,7 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
 
     residual_norm /= norm_factor_;
 
+
     if (parameters_.export_res) {
         parameters_.residual_norms->at(*(parameters_.iter)) = residual_norm;
     }

@@ -131,16 +131,14 @@ void update_impl(
         label nloc_ctr{0};
         label host_interface_ctr{0};
         label tag = 0;
-        // label comm_rank
         label comm_size;
         scalar *recv_buffer_ptr;
-        scalar *recv_buffer_ptr_2;
-        std::vector<scalar> host_recv_buffer;
+        // scalar *recv_buffer_ptr_2;
+        // std::vector<scalar> host_recv_buffer;
         label remain_host_interfaces = host_A->get_num_interfaces();
-        for (auto [is_local, comm_rank] : local_interfaces) {
+        for (auto [is_local, orig_rank] : local_interfaces) {
             label &ctr = (is_local) ? loc_ctr : nloc_ctr;
             if (is_local) {
-                // TODO make it work for other types
                 mtx = gko::as<LocalMatrixType>(
                     gko::as<CombinationMatrix<LocalMatrixType>>(
                         dist_A->get_local_matrix())
@@ -155,35 +153,35 @@ void update_impl(
                         ->get_operators()[ctr]);
                 comm_size = non_local_sparsity->spans[ctr].length();
             }
+            ctr++;
 
-            if (requires_host_buffer) {
-                host_recv_buffer.resize(comm_size);
-                recv_buffer_ptr = host_recv_buffer.data();
-                recv_buffer_ptr_2 =
-                    const_cast<scalar *>(mtx->get_const_values());
-            } else {
+            // if (requires_host_buffer) {
+            //     host_recv_buffer.resize(comm_size);
+            //     recv_buffer_ptr = host_recv_buffer.data();
+            //     recv_buffer_ptr_2 =
+            //         const_cast<scalar *>(mtx->get_const_values());
+            // } else {
                 recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
-            }
+            // }
 
-            if (comm_rank != rank) {
-                comm.recv(device_exec, recv_buffer_ptr, comm_size, comm_rank,
+            if (orig_rank != rank) {
+                // data is not already on rank
+                comm.recv(device_exec, recv_buffer_ptr, comm_size, orig_rank,
                           tag);
-                if (requires_host_buffer) {
-                    auto host_buffer_view = gko::array<scalar>::view(
-                        exec, comm_size, recv_buffer_ptr);
-                    auto target_buffer_view = gko::array<scalar>::view(
-                        device_exec, comm_size, recv_buffer_ptr_2);
-                    target_buffer_view = host_buffer_view;
-                }
-
+                // if (requires_host_buffer) {
+                //     auto host_buffer_view = gko::array<scalar>::view(
+                //         exec, comm_size, recv_buffer_ptr);
+                //     auto target_buffer_view = gko::array<scalar>::view(
+                //         device_exec, comm_size, recv_buffer_ptr_2);
+                //     target_buffer_view = host_buffer_view;
+                // }
             } else {
                 // if data is already on this rank
+                // TODO probably better if we handle this case separately
                 auto data_view = gko::array<scalar>::const_view(
                     exec, comm_size,
                     host_A->get_interface_data(host_interface_ctr));
 
-                // TODO FIXME this needs target executor
-                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
                 auto target_view = gko::array<scalar>::view(
                     device_exec, comm_size, recv_buffer_ptr);
 
@@ -193,7 +191,6 @@ void update_impl(
                 remain_host_interfaces--;
             }
 
-            ctr++;
             // interface values need to be multiplied by -1
             using vec = gko::matrix::Dense<scalar>;
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
