@@ -72,6 +72,7 @@ struct VectorInitFunctor {
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
     {
+        auto exec = exec_.get_device_exec();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_communicator();
         auto repartitioner = dist_matrix_->get_repartitioner();
@@ -90,16 +91,17 @@ struct VectorInitFunctor {
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        auto local_coeffs = gko::array<scalar>(ref_exec, repart_size);
+        auto values = gko::array<scalar>(exec, repart_size);
 
         communicate_values(exec_, comm_pattern, host_view.get_const_data(),
-                           local_coeffs.get_data());
+                           values.get_data());
 
         auto ret = gko::share(dist_vec::create(
-            exec_.get_device_exec(), *comm.get(),
-            vec::create(exec_.get_device_exec(), gko::dim<2>{repart_size, 1},
-                        local_coeffs, 1)));
+            exec, *comm.get(),
+            vec::create(exec, gko::dim<2>{repart_size, 1}, values, 1)));
 
+        word done_msg{"done initialising vector " + name_};
+        LOG_1(verbose_, done_msg)
         return ret;
     }
 };
