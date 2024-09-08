@@ -17,7 +17,6 @@
     },
     {
       "name": "release",
-      "hidden": true,
       "inherits": [
         "default"
       ],
@@ -30,7 +29,6 @@
     },
     {
       "name": "debug",
-      "hidden": true,
       "inherits": [
         "default"
       ],
