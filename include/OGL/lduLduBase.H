@@ -197,12 +197,14 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"\n";
         label ranks_per_gpu =
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
             exec_handler_);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"\n";
 
         PersistentDistributedMatrix dist_A{db_,
                                            exec_handler_,
@@ -211,6 +213,7 @@ public:
                                            host_matrix_wrapper_,
                                            solver_controls_,
                                            verbose_};
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"after matrix\n";
         auto dist_A_v = dist_A.get();
 
         PersistentVector<scalar> dist_b{
@@ -223,6 +226,7 @@ public:
             solver_controls_.lookupOrDefault<Switch>("updateRHS", true),
             false  // whether data for init is on device
         };
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
 
         PersistentVector<scalar> dist_x{
             psi.begin(),
@@ -250,6 +254,7 @@ public:
                 verbose_, scale_RHS, this->fieldName(),
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"scaling\n";
 
         TIME_WITH_FIELDNAME(verbose_, init_precond, this->fieldName(),
                             auto precond = this->init_preconditioner(

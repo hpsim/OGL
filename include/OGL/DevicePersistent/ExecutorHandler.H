@@ -54,6 +54,7 @@ struct ExecutorInitFunctor {
                        "with CUDA backend enabled."
                     << abort(FatalError);
             }
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"\n";
 
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));

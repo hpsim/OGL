@@ -78,28 +78,38 @@ struct VectorInitFunctor {
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
         auto repart_size = repartitioner->get_repart_size();
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
 
         word msg{"initialising vector " + name_ + " of size " +
                  std::to_string(repart_size) + " orig size " +
                  std::to_string(host_size)};
         LOG_1(verbose_, msg)
 
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
         auto host_view =
             gko::array<T>::const_view(exec_.get_ref_exec(), host_size, other_);
 
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
         // TODO store
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        auto values = gko::array<scalar>(exec, repart_size);
+        auto values = gko::array<scalar>(ref_exec, repart_size);
 
-        communicate_values(exec_, comm_pattern, host_view.get_const_data(),
-                           values.get_data());
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
+//       communicate_values(exec_, comm_pattern, host_view.get_const_data(),
+//                          values.get_data());
+    comm->all_to_all_v(ref_exec, host_view.get_const_data(), comm_pattern.send_counts.data(),
+                      comm_pattern.send_offsets.data(), values.get_data(),
+                      comm_pattern.recv_counts.data(),
+                      comm_pattern.recv_offsets.data());
 
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
         auto ret = gko::share(dist_vec::create(
             exec, *comm.get(),
             vec::create(exec, gko::dim<2>{repart_size, 1}, values, 1)));
 
+    std::cout<<__FILE__<< ":" << __LINE__ <<"vector\n";
         word done_msg{"done initialising vector " + name_};
         LOG_1(verbose_, done_msg)
         return ret;
@@ -167,31 +177,26 @@ public:
      **/
     void copy_back()
     {
+        auto exec = exec_.get_device_exec();
+        auto ref_exec = exec_.get_ref_exec();
+        auto comm = exec_.get_communicator();
+
+        std::cout<<__FILE__<< ":" << __LINE__ <<"copy vector\n";
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
 
+        std::cout<<__FILE__<< ":" << __LINE__ <<"copy vector\n";
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        // std::vector<scalar> host_send_buffer;
-        // scalar *send_ptr;
-        // if (true) {
-        //     label repart_size = repartitioner_.get_repart_size();
-        //     host_send_buffer.resize(repart_size);
-        //     send_ptr = host_send_buffer.data();
-        //     auto host_exec = exec_.get_ref_exec();
-        //     auto device_exec = exec_.get_device_exec();
-        //     auto host_buffer_view =
-        //         gko::array<scalar>::view(host_exec, repart_size, send_ptr);
-        //     auto target_buffer_view = gko::array<scalar>::view(
-        //         device_exec, repart_size, get_vector()->get_local_values());
-        //     host_buffer_view = target_buffer_view;
-        // } else {
-        // }
-        auto send_ptr = get_vector()->get_local_values();
+         std::vector<scalar> host_send_buffer;
+         scalar *send_ptr;
 
-        communicate_values(exec_, comm_pattern, send_ptr,
-                           const_cast<T *>(memory_));
+      std::cout<<__FILE__<< ":" << __LINE__ <<"copy back vector\n";
+      communicate_values(exec, ref_exec, comm,  comm_pattern,
+		      get_vector()->get_local_values(),
+                         const_cast<T *>(memory_), true);
+      std::cout<<__FILE__<< ":" << __LINE__ <<"done copy vector\n";
     }
 
     /** Writes the content of the distributed vector to disk

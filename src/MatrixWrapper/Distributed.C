@@ -55,6 +55,7 @@ void update_impl(
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
     std::vector<std::pair<bool, label>> local_interfaces)
 {
+    std::cout<<__FILE__<< ":" << __LINE__ <<"begin update\n";
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
@@ -84,27 +85,28 @@ void update_impl(
 
     // update main values
     std::vector<scalar> loc_buffer;
-    if (owner) {
-        std::shared_ptr<const LocalMatrixType> local = gko::as<LocalMatrixType>(
-            gko::as<CombinationMatrix<LocalMatrixType>>(
-                dist_A->get_local_matrix())
-                ->get_combination()
-                ->get_operators()[0]);
+    auto local_mtx = gko::as<CombinationMatrix<LocalMatrixType>>(dist_A->get_local_matrix());
 
+    std::shared_ptr<const LocalMatrixType> local = (owner) ? gko::as<LocalMatrixType>(local_mtx->get_operators()[0]) : std::shared_ptr<const LocalMatrixType>{};
+
+    if (owner) {
         nnz = local->get_num_stored_elements();
-        if (requires_host_buffer) {
-            loc_buffer.resize(nnz);
-            local_ptr = loc_buffer.data();
-            local_ptr_2 = const_cast<scalar *>(local->get_const_values());
-        } else {
+//       if (requires_host_buffer) {
+//           loc_buffer.resize(nnz);
+//           local_ptr = loc_buffer.data();
+//           local_ptr_2 = const_cast<scalar *>(local->get_const_values());
+//       } else {
             local_ptr = const_cast<scalar *>(local->get_const_values());
-        }
+//        }
     }
 
+    std::cout<<__FILE__<< ":" << __LINE__ <<"begin comm1\n";
     communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                        local_ptr);
+    std::cout<<__FILE__<< ":" << __LINE__ <<"begin comm2\n";
     communicate_values(exec_handler, upper_comm_pattern, host_A->get_upper(),
                        local_ptr);
+    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm2\n";
 
     if (host_A->get_symmetric()) {
         // TODO FIXME
@@ -115,13 +117,15 @@ void update_impl(
         communicate_values(exec_handler, lower_comm_pattern,
                            host_A->get_lower(), local_ptr);
     }
+    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm3\n";
 
-    if (requires_host_buffer) {
-        auto host_buffer_view = gko::array<scalar>::view(exec, nnz, local_ptr);
-        auto target_buffer_view =
-            gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
-        target_buffer_view = host_buffer_view;
-    }
+//   if (requires_host_buffer) {
+//       auto host_buffer_view = gko::array<scalar>::view(exec, nnz, local_ptr);
+//       auto target_buffer_view =
+//           gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
+//       target_buffer_view = host_buffer_view;
+//   }
+    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm4\n";
 
     // // copy interface values
     auto comm = *exec_handler.get_communicator().get();
@@ -166,8 +170,10 @@ void update_impl(
 
             if (orig_rank != rank) {
                 // data is not already on rank
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"before recv\n";
                 comm.recv(device_exec, recv_buffer_ptr, comm_size, orig_rank,
                           tag);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"after recv\n";
                 // if (requires_host_buffer) {
                 //     auto host_buffer_view = gko::array<scalar>::view(
                 //         exec, comm_size, recv_buffer_ptr);
@@ -178,14 +184,17 @@ void update_impl(
             } else {
                 // if data is already on this rank
                 // TODO probably better if we handle this case separately
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm5\n";
                 auto data_view = gko::array<scalar>::const_view(
                     exec, comm_size,
                     host_A->get_interface_data(host_interface_ctr));
 
                 auto target_view = gko::array<scalar>::view(
-                    device_exec, comm_size, recv_buffer_ptr);
+                    mtx->get_executor(), comm_size, recv_buffer_ptr);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm6\n";
 
                 target_view = data_view;
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm7\n";
 
                 host_interface_ctr++;
                 remain_host_interfaces--;
@@ -195,14 +204,17 @@ void update_impl(
             using vec = gko::matrix::Dense<scalar>;
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
             auto neg_one = gko::initialize<vec>({-1.0}, device_exec);
-            auto interface_dense = vec::create(
-                device_exec,
-                gko::dim<2>{static_cast<gko::size_type>(comm_size), 1},
-                gko::array<scalar>::view(device_exec, comm_size,
-                                         recv_buffer_ptr),
-                1);
-
-            interface_dense->scale(neg_one);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm8\n";
+//           auto interface_dense = vec::create(
+//               device_exec,
+//               gko::dim<2>{static_cast<gko::size_type>(comm_size), 1},
+//               gko::array<scalar>::view(device_exec, comm_size,
+//                                        recv_buffer_ptr),
+//               1);
+//           std::cout<<__FILE__<< ":" << __LINE__ <<"done comm9\n";
+//
+//           interface_dense->scale(neg_one);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"done comm10\n";
         }
     } else {
         // the non owner has send all its interfaces to owner
@@ -213,12 +225,16 @@ void update_impl(
             label comm_size =
                 src_comm_pattern->target_sizes.get_const_data()[i];
             const scalar *send_buffer_ptr = host_A->get_interface_data(i);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"before send\n";
             comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
+	    std::cout<<__FILE__<< ":" << __LINE__ <<"after send\n";
         }
     }
+    std::cout<<__FILE__<< ":" << __LINE__ <<"done interfaces\n";
 
     // reorder updated values
     if (owner) {
+	std::cout<<__FILE__<< ":" << __LINE__ << "\n";
         // NOTE local sparsity size includes the interfaces
         using dim_type = gko::dim<2>::dimension_type;
 
@@ -233,20 +249,20 @@ void update_impl(
 
         // TODO make sure this doesn't copy
         // create a non owning dense matrix of local_values
-        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            device_exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
-            gko::array<scalar>::view(device_exec, local_elements, local_ptr),
-            1));
-        auto mapping_view = gko::array<label>::view(
-            exec, local_elements, local_sparsity->ldu_mapping.get_data());
+//       auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+//           device_exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
+//           gko::array<scalar>::view(device_exec, local_elements, local_ptr),
+//           1));
+//       auto mapping_view = gko::array<label>::view(
+//           exec, local_elements, local_sparsity->ldu_mapping.get_data());
 
         // TODO this needs to copy ldu_mapping to the device
-        auto dense_vec = row_collection->clone();
+//        auto dense_vec = row_collection->clone();
         // auto dense_vec =
         // gko::share(gko::matrix::Dense<scalar>::create(exec,
         // row_collection->get_size()));
 
-        dense_vec->row_gather(&mapping_view, row_collection.get());
+//        dense_vec->row_gather(&mapping_view, row_collection.get());
     }
 }
 
