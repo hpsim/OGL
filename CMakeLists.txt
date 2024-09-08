@@ -44,10 +44,10 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
-option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
-option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
+
+include(cmake/AutoEnableDevice.cmake)
 
 set(GINKGO_BUILD_MPI
     ON
