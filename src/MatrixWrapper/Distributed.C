@@ -60,7 +60,6 @@ void update_impl(
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
     std::vector<std::pair<bool, label>> local_interfaces)
 {
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
@@ -87,7 +86,6 @@ void update_impl(
     scalar *local_ptr;
     scalar *local_ptr_2;
     label nnz = 0;
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
 
     // update main values
     std::vector<scalar> loc_buffer;
@@ -110,13 +108,11 @@ void update_impl(
         //        }
     }
 
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
     communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
                        local_ptr);
     communicate_values(exec_handler, upper_comm_pattern, host_A->get_upper(),
                        local_ptr);
 
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
     if (host_A->get_symmetric()) {
         // TODO FIXME
         // if symmetric we can reuse already copied data
@@ -135,7 +131,6 @@ void update_impl(
     //   }
 
     // // copy interface values
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
@@ -227,7 +222,6 @@ void update_impl(
             comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
         }
     }
-    std::cout << __FILE__ << ":" << __LINE__ << "start update impl\n";
 
     // reorder updated values
     if (owner) {
@@ -252,22 +246,13 @@ void update_impl(
                                      local_ptr),
             1));
 
+        local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
         auto mapping_view = gko::array<label>::view(
                 local_sparsity->ldu_mapping.get_executor(), local_elements, local_sparsity->ldu_mapping.get_data());
 
-        //
-        //   // TODO this needs to copy ldu_mapping to the device
-        //   // auto dense_vec =
-        //   // gko::share(gko::matrix::Dense<scalar>::create(exec,
-        //   // row_collection->get_size()));
-        //
-
-        local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
         auto dense_vec = row_collection->clone();
-    std::cout << __FILE__ << ":" << __LINE__ << "call row_gather \n";
         dense_vec->row_gather(&mapping_view,
                               row_collection.get());
-    std::cout << __FILE__ << ":" << __LINE__ << "done reorder \n";
     }
 }
 
@@ -336,11 +321,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     if (fuse) {
     } else {
         dist_A = gko::share(dist_mtx::create(
-            exec, comm, global_dim,
+            device_exec, comm, global_dim,
             gko::share(CombinationMatrix<LocalMatrixType>::create(
-                exec, repart_loc_sparsity->dim, local_linops)),
+                device_exec, repart_loc_sparsity->dim, local_linops)),
             gko::share(CombinationMatrix<LocalMatrixType>::create(
-                exec, repart_non_loc_sparsity->dim, non_local_linops)),
+                device_exec, repart_non_loc_sparsity->dim, non_local_linops)),
             recv_sizes, recv_offsets, recv_gather_idxs));
     }
 
@@ -349,7 +334,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                                  src_comm_pattern, local_interfaces);
 
     return std::make_shared<RepartDistMatrix>(
-        exec, comm, dist_A, repart_loc_sparsity, repart_non_loc_sparsity,
+        device_exec, comm, dist_A, repart_loc_sparsity, repart_non_loc_sparsity,
         src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
 }
 

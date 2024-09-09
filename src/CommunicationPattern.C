@@ -155,13 +155,13 @@ void communicate_values(const ExecutorHandler &exec_handler,
 }
 
 void communicate_values(
-		std::shared_ptr<const gko::Executor> src_exec,
-		std::shared_ptr<const gko::Executor> target_exec,
-		std::shared_ptr<const gko::experimental::mpi::communicator> comm,
-		const AllToAllPattern &comm_pattern,
-		const scalar *send_buffer, scalar *recv_buffer,
-		bool force_host_buffer
-		)
+          std::shared_ptr<const gko::Executor> src_exec,
+          std::shared_ptr<const gko::Executor> target_exec,
+          std::shared_ptr<const gko::experimental::mpi::communicator> comm,
+          const AllToAllPattern &comm_pattern,
+          const scalar *send_buffer, scalar *recv_buffer,
+          bool force_host_buffer
+          )
 {
 
     if (src_exec == target_exec){
@@ -170,10 +170,8 @@ void communicate_values(
                       comm_pattern.recv_counts.data(),
                       comm_pattern.recv_offsets.data());
     } else {
-      std::cout<<__FILE__<< ":" << __LINE__ <<"copy via tmp\n";
       auto tmp = gko::array<scalar>(src_exec, send_buffer, send_buffer + comm_pattern.send_offsets.back());
       tmp.set_executor(target_exec);
-      std::cout<<__FILE__<< ":" << __LINE__ <<"call comm\n";
 
     comm->all_to_all_v(target_exec, tmp.get_const_data(), comm_pattern.send_counts.data(),
                       comm_pattern.send_offsets.data(), recv_buffer,
