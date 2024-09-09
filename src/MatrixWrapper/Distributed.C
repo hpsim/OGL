@@ -14,14 +14,19 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
-        lin_ops.push_back(gko::share(MatrixType::create(
-            exec, sparsity->dim, coeffs,
+
+        auto mtx_data = gko::device_matrix_data<scalar, label>(
+            exec->get_master(), sparsity->dim,
+            gko::array<label>(exec->get_master(),
+                              sparsity->row_idxs.get_const_data() + begin,
+                              sparsity->row_idxs.get_const_data() + end),
             gko::array<label>(exec->get_master(),
                               sparsity->col_idxs.get_const_data() + begin,
                               sparsity->col_idxs.get_const_data() + end),
-            gko::array<label>(exec->get_master(),
-                              sparsity->row_idxs.get_const_data() + begin,
-                              sparsity->row_idxs.get_const_data() + end))));
+            coeffs);
+        auto mtx = gko::share(MatrixType::create(exec));
+        gko::as<MatrixType>(mtx)->read(mtx_data);
+        lin_ops.push_back(mtx);
     }
     return lin_ops;
 }
@@ -63,7 +68,8 @@ void update_impl(
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
-    [[maybe_unused]] bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
+    [[maybe_unused]] bool requires_host_buffer =
+        exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
     label owner_rank = repartitioner->get_owner_rank(exec_handler);
@@ -247,11 +253,11 @@ void update_impl(
 
         local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
         auto mapping_view = gko::array<label>::view(
-                local_sparsity->ldu_mapping.get_executor(), local_elements, local_sparsity->ldu_mapping.get_data());
+            local_sparsity->ldu_mapping.get_executor(), local_elements,
+            local_sparsity->ldu_mapping.get_data());
 
         auto dense_vec = row_collection->clone();
-        dense_vec->row_gather(&mapping_view,
-                              row_collection.get());
+        dense_vec->row_gather(&mapping_view, row_collection.get());
     }
 }
 
