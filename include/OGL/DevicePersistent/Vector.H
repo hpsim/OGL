@@ -186,9 +186,9 @@ public:
 
         std::vector<scalar> host_send_buffer;
 
-        communicate_values(exec, ref_exec, comm, comm_pattern,
+        communicate_values(exec_, comm_pattern,
                            get_vector()->get_local_values(),
-                           const_cast<T *>(memory_), true);
+                           const_cast<T *>(memory_));
     }
 
     /** Writes the content of the distributed vector to disk
