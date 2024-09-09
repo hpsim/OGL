@@ -159,7 +159,7 @@ INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiationMatrixFormat,
                          DistributedMatrixFixtureMatrixFormat,
                          testing::Combine(
                          testing::Values(1, 2, 4),
-                         testing::Values("Coo")));
+                         testing::Values("Coo", "Csr")));
 
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
                          DistributedMatrixFixture, testing::Values(1, 2, 4));
