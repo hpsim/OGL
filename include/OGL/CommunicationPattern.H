@@ -77,12 +77,12 @@ label compute_owner_rank(label rank, label ranks_per_owner);
  * @param recv_buffer Pointer to the data buffer to recv
  */
 void communicate_values(const ExecutorHandler &exec_handler,
-			const AllToAllPattern &comm_pattern,
-			const scalar *send_buffer, scalar *recv_buffer);
+                        const AllToAllPattern &comm_pattern,
+                        const scalar *send_buffer, scalar *recv_buffer);
 
 /* @brief Given a comm_pattern this function executes the communication
  *
- * this function makes sure to have the data on the host_exec before 
+ * this function makes sure to have the data on the host_exec before
  * execution of the mpi all_to_all_v function if force_host_buffer
  * is selected
  *
@@ -93,13 +93,11 @@ void communicate_values(const ExecutorHandler &exec_handler,
  * @param recv_buffer Pointer to the data buffer to recv
  */
 void communicate_values(
-		std::shared_ptr<const gko::Executor> src_exec,
-		std::shared_ptr<const gko::Executor> target_exec,
-		std::shared_ptr<const gko::experimental::mpi::communicator> comm,
-		const AllToAllPattern &comm_pattern,
-		const scalar *send_buffer, scalar *recv_buffer,
-		bool force_host_buffer
-		);
+    std::shared_ptr<const gko::Executor> src_exec,
+    std::shared_ptr<const gko::Executor> target_exec,
+    std::shared_ptr<const gko::experimental::mpi::communicator> comm,
+    const AllToAllPattern &comm_pattern, const scalar *send_buffer,
+    scalar *recv_buffer, bool force_host_buffer);
 
 /* @brief A function that can perform an offsetted gather to owner rank
  *
@@ -159,7 +157,7 @@ struct CommunicationPattern {
     {
         ASSERT_EQ(ranks.size(), rows.size());
 
-        for (int i = 0; i < rows.size(); i++) {
+        for (size_t i = 0; i < rows.size(); i++) {
             target_sizes.get_data()[i] = rows[i].size();
             gko::array<label> row_array(exec.get_ref_exec(), rows[i].begin(),
                                         rows[i].end());

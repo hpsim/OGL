@@ -6,11 +6,11 @@
 
 template <typename MatrixType>
 std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
-    bool fuse, std::shared_ptr<const gko::Executor> exec,
+    [[maybe_unused]] bool fuse, std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const SparsityPattern> sparsity)
 {
     std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
-    for (int i = 0; i < sparsity->spans.size(); i++) {
+    for (size_t i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
@@ -63,7 +63,7 @@ void update_impl(
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
-    bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
+    [[maybe_unused]] bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
     label owner_rank = repartitioner->get_owner_rank(exec_handler);
@@ -83,9 +83,8 @@ void update_impl(
         compute_gather_to_owner_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                        local_matrix_nnz, upper_nnz, nrows);
 
-    scalar *local_ptr;
-    scalar *local_ptr_2;
-    label nnz = 0;
+    scalar *local_ptr = nullptr;
+    // label nnz = 0;
 
     // update main values
     std::vector<scalar> loc_buffer;
@@ -97,7 +96,7 @@ void update_impl(
                 : std::shared_ptr<const LocalMatrixType>{};
 
     if (owner) {
-        nnz = local->get_num_stored_elements();
+        // nnz = local->get_num_stored_elements();
         //       if (requires_host_buffer) {
         //           loc_buffer.resize(nnz);
         //           local_ptr = loc_buffer.data();
@@ -317,7 +316,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     gko::dim<2> global_dim{global_rows, global_rows};
 
     std::shared_ptr<dist_mtx> dist_A;
-    bool fuse = false;
+    [[maybe_unused]] bool fuse = false;
     if (fuse) {
     } else {
         dist_A = gko::share(dist_mtx::create(

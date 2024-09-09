@@ -262,6 +262,6 @@ std::ostream &operator<<(std::ostream &os, const std::vector<scalar> &in)
         os << ", " << in[size - 1] << "]\n";
     }
     return os;
-};
+}
 
 }  // namespace Foam

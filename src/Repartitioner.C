@@ -16,11 +16,11 @@ std::vector<label> convert_to_global(
     std::vector<label> ret;
     ret.reserve(idx.size());
 
-    for (label i = 0; i < ranks.size(); i++) {
+    for (size_t i = 0; i < ranks.size(); i++) {
         auto rank = ranks[i];
         auto [begin, end] = spans[i];
         label offset = partition->get_range_bounds()[rank];
-        for (label j = begin; j < end; j++) {
+        for (size_t j = begin; j < end; j++) {
             ret.push_back(idx.data()[j] + offset);
         }
     }
@@ -253,7 +253,7 @@ std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
     auto tmp_non_local_cols = detail::convert_to_global(
         orig_partition_, non_local_cols, non_local_spans, non_local_ranks);
 
-    for (int i = 0; i < non_local_spans.size(); i++) {
+    for (size_t i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, non_local_ranks[i]);
 
@@ -477,7 +477,7 @@ Repartitioner::repartition_comm_pattern(
         send_idxs[0].first.get_data() + send_idxs[0].first.get_size()));
 
 
-    for (int i = 1; i < target_ids.size(); i++) {
+    for (size_t i = 1; i < target_ids.size(); i++) {
         // communicates with same target rank
         // thus we have only have to adapt the number
         // of elements and the send_ixs
@@ -499,7 +499,7 @@ Repartitioner::repartition_comm_pattern(
     // recompute send_idxs
     send_idxs.clear();
 
-    for (int i = 0; i < merged_target_ids.size(); i++) {
+    for (size_t i = 0; i < merged_target_ids.size(); i++) {
         label target_id = merged_target_ids[i];
         send_idxs.emplace_back(std::pair<gko::array<label>, comm_size_type>{
             gko::array<label>{exec, merged_send_idxs[i].begin(),

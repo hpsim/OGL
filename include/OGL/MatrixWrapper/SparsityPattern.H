@@ -83,13 +83,13 @@ struct SparsityPattern {
           ldu_mapping{exec, static_cast<gko::size_type>(size)},
           dim(dim)
     {
-        ASSERT_EQ(size, rows.size());
+        ASSERT_EQ(static_cast<size_t>(size), rows.size());
         std::copy(rows.begin(), rows.end(), row_idxs.get_data());
 
-        ASSERT_EQ(size, cols.size());
+        ASSERT_EQ(static_cast<size_t>(size), cols.size());
         std::copy(cols.begin(), cols.end(), col_idxs.get_data());
 
-        ASSERT_EQ(size, map.size());
+        ASSERT_EQ(static_cast<size_t>(size), map.size());
         std::copy(map.begin(), map.end(), ldu_mapping.get_data());
 
         ASSERT_EQ(spans_begin.size(), spans_end.size());
@@ -107,13 +107,13 @@ struct SparsityPattern {
     // TODO num_nnz makes no sense ->nnz;
     const label num_nnz;
 
-    mutable gko::Array<label> row_idxs;
+    mutable gko::array<label> row_idxs;
 
-    mutable gko::Array<label> col_idxs;
+    mutable gko::array<label> col_idxs;
 
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
-    mutable gko::Array<label> ldu_mapping;
+    mutable gko::array<label> ldu_mapping;
 
     // dimensions of the resulting matrix
     mutable gko::dim<2> dim;

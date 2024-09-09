@@ -23,7 +23,8 @@ const lduInterfaceField *interface_getter(
 }
 
 void init_local_sparsity(const label nrows, const label upper_nnz,
-                         const bool is_symmetric, const label *upper,
+                         //const bool is_symmetric,
+                         const label *upper,
                          const label *lower, label *rows, label *cols,
                          label *permute)
 {
@@ -130,7 +131,7 @@ HostMatrixWrapper::HostMatrixWrapper(
     label upper_nnz, bool symmetric, const scalar *diag, const scalar *upper,
     const scalar *lower, const lduAddressing &addr,
     const FieldField<Field, scalar> &interfaceBouCoeffs,
-    const FieldField<Field, scalar> &interfaceIntCoeffs,
+    [[maybe_unused]] const FieldField<Field, scalar> &interfaceIntCoeffs,
     const lduInterfaceFieldPtrsList &interfaces,
     const dictionary &solverControls, const word &fieldName, label verbose)
     : exec_{exec},
@@ -411,7 +412,7 @@ HostMatrixWrapper::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
     neg_interface_iterator<processorFvPatch>(
-        interfaces, [&](label &element_ctr, const label interface_size,
+        interfaces, [&](label &element_ctr, [[maybe_unused]] const label interface_size,
                         const lduInterfaceField *iface) {
             // check whether interface is either an cyclicFvPatch,
             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
@@ -479,7 +480,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     label end{0};
     label start{0};
 
-    label element_ctr = 0;
+    size_t element_ctr = 0;
     // label interface_ctr{0};
     label prev_rank{0};
 
@@ -550,7 +551,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
+    init_local_sparsity(nrows_, upper_nnz_, upper, lower, rows,
                         cols, permute);
 
     // if no local interfaces are present we are done here
@@ -589,7 +590,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
             // check if a new interface has started or final interface has been
             // reache
             if (interface_idx > prev_interface_idx ||
-                local_interface_ctr + 1 == local_interfaces.size()) {
+                static_cast<size_t>(local_interface_ctr + 1) == local_interfaces.size()) {
                 end = start + local_interface_ctr;
                 local_interface_ctr = 0;
                 spans.emplace_back(start, end);

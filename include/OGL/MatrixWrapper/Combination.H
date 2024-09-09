@@ -31,7 +31,7 @@ public:
 
     using matrix_data = gko::matrix_data<scalar, label>;
 
-    void read(const matrix_data &data) override
+    void read([[maybe_unused]] const matrix_data &data) override
     {
         FatalErrorInFunction << "Not implemented" << abort(FatalError);
     }

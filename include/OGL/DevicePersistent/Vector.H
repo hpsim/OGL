@@ -21,13 +21,13 @@ struct VectorInitFunctor {
     using vec = gko::matrix::Dense<scalar>;
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
 
-    const word name_;
-
     const ExecutorHandler &exec_;
 
-    std::shared_ptr<const RepartDistMatrix> dist_matrix_;
+    const word name_;
 
     const label verbose_;
+
+    std::shared_ptr<const RepartDistMatrix> dist_matrix_;
 
     const bool on_device_;
 
@@ -40,9 +40,9 @@ struct VectorInitFunctor {
                       const bool on_device = false)
         : exec_(exec),
           name_(name),
+          verbose_(verbose),
           dist_matrix_(dist_matrix),
           on_device_(on_device),
-          verbose_(verbose),
           other_(other)
     {}
 
@@ -103,7 +103,9 @@ struct VectorInitFunctor {
 
         auto ret = gko::share(dist_vec::create(
             exec, *comm.get(),
-            vec::create(exec, gko::dim<2>{repart_size, 1}, values, 1)));
+            vec::create(
+                exec, gko::dim<2>{static_cast<gko::size_type>(repart_size), 1},
+                values, 1)));
 
         word done_msg{"done initialising vector " + name_};
         LOG_1(verbose_, done_msg)
@@ -183,7 +185,6 @@ public:
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
         std::vector<scalar> host_send_buffer;
-        scalar *send_ptr;
 
         communicate_values(exec, ref_exec, comm, comm_pattern,
                            get_vector()->get_local_values(),

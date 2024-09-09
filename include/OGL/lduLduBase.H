@@ -310,9 +310,9 @@ public:
         return solverPerf;
     }
 
-    solverPerformance solve_impl_(word typeName, scalarField &psi,
-                                  const scalarField &source,
-                                  const direction cmpt = 0) const
+    solverPerformance solve_impl_(
+        word typeName, scalarField &psi, const scalarField &source,
+        [[maybe_unused]] const direction cmpt = 0) const
     {
         // --- Setup class containing solver performance data
         solverPerformance solverPerf(

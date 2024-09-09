@@ -170,6 +170,7 @@ void communicate_values(
                       comm_pattern.recv_counts.data(),
                       comm_pattern.recv_offsets.data());
     } else {
+        if (force_host_buffer) {
       auto tmp = gko::array<scalar>(src_exec, send_buffer, send_buffer + comm_pattern.send_offsets.back());
       tmp.set_executor(target_exec);
 
@@ -177,6 +178,7 @@ void communicate_values(
                       comm_pattern.send_offsets.data(), recv_buffer,
                       comm_pattern.recv_counts.data(),
                       comm_pattern.recv_offsets.data());
+        }
 
     }
 
@@ -215,7 +217,7 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     // TODO add implementation
-    // out << "CommunicationPattern: for rank: " << e.get_comm().rank();
+    out << "CommunicationPattern: for rank: " << e.exec_handler.get_rank();
     // out << " {";
     // out << "\ntarget_ids: " << e.target_ids;
     // out << "\ntarget_sizes: " << e.target_sizes;
