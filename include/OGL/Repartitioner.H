@@ -189,6 +189,7 @@ public:
      * signals whether this is a new local interface (no communication), and
      *the
      * second entry (label) tracks the original rank of the interface
+     * @param fuse whether to combine all submatrices
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,
@@ -196,7 +197,8 @@ public:
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const SparsityPattern> src_local_pattern,
-        std::shared_ptr<const SparsityPattern> src_non_local_pattern) const;
+        std::shared_ptr<const SparsityPattern> src_non_local_pattern,
+        bool fuse) const;
 
     /* @brief repartition a communication pattern
      * function to repartition a communication pattern based on ranks_per_gpu

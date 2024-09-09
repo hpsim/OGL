@@ -248,10 +248,11 @@ TEST_P(RepartitionerFixture1D, can_exchange_spans_and_ranks_for_n_ranks)
     ASSERT_EQ(res_spans_end, exp_spans_end[ranks_per_gpu][rank]);
 }
 
-TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
+TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks_unfused)
 {
     // Arrange
     label ranks_per_gpu = GetParam();
+    bool fused = false;
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
@@ -331,7 +332,128 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     // Act
     auto [repart_local, repart_non_local, tracking] =
         repartitioner.repartition_sparsity(exec, local_sparsity,
-                                           non_local_sparsity);
+                                           non_local_sparsity, fused);
+    // Assert
+    // local properties
+    ASSERT_EQ(repart_local->num_nnz, exp_local_nnz[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_local->dim[0], exp_local_dim_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_local->dim[1], exp_local_dim_rows[ranks_per_gpu][rank]);
+
+    auto res_local_rows = convert_to_vector(repart_local->row_idxs);
+    auto res_local_cols = convert_to_vector(repart_local->col_idxs);
+    auto res_local_mapping = convert_to_vector(repart_local->ldu_mapping);
+    ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_cols, exp_local_cols[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_mapping, exp_local_mapping[ranks_per_gpu][rank]);
+
+    std::vector<label> res_local_spans_begin{};
+    std::vector<label> res_local_spans_end{};
+    for (auto [begin, end] : repart_local->spans) {
+        res_local_spans_begin.push_back(begin);
+        res_local_spans_end.push_back(end);
+    }
+    ASSERT_EQ(res_local_spans_begin,
+              exp_local_spans_begin[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_spans_end, exp_local_spans_end[ranks_per_gpu][rank]);
+
+    // non local properties
+    ASSERT_EQ(repart_non_local->num_nnz,
+              exp_non_local_nnz[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[0],
+              exp_local_dim_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[1], exp_non_local_nnz[ranks_per_gpu][rank]);
+
+    auto res_non_local_rows = convert_to_vector(repart_non_local->row_idxs);
+    auto res_non_local_cols = convert_to_vector(repart_non_local->col_idxs);
+    ASSERT_EQ(res_non_local_rows, exp_non_local_rows[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_cols, exp_non_local_cols[ranks_per_gpu][rank]);
+}
+
+TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks_fused)
+{
+    // Arrange
+    label ranks_per_gpu = GetParam();
+    bool fused = true;
+    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    auto ref_exec = exec.get_ref_exec();
+
+    std::vector<label> ranks{rank};
+    auto local_sparsity = std::make_shared<SparsityPattern>(
+        ref_exec, gko::dim<2>{2, 2}, rows, cols, mapping, spans, ranks);
+
+    auto non_local_sparsity = std::make_shared<SparsityPattern>(
+        ref_exec, gko::dim<2>{2, non_local_ranks[rank].size()},
+        non_local_rows[rank], non_local_cols[rank], non_local_mapping[rank],
+        non_local_spans[rank], non_local_ranks[rank]);
+
+    std::map<label, std::vector<label>> exp_local_nnz;
+    exp_local_nnz.emplace(1, std::vector<label>{4, 4, 4, 4});
+    exp_local_nnz.emplace(2, std::vector<label>{10, 0, 10, 0});
+    exp_local_nnz.emplace(4, std::vector<label>{22, 0, 0, 0});
+
+    std::map<label, std::vector<label>> exp_non_local_nnz;
+    exp_non_local_nnz.emplace(1, std::vector<label>{1, 2, 2, 1});
+    exp_non_local_nnz.emplace(2, std::vector<label>{1, 0, 1, 0});
+    exp_non_local_nnz.emplace(4, std::vector<label>{0, 0, 0, 0});
+
+    std::map<label, vec_vec> exp_local_rows;
+    exp_local_rows.emplace(1, vec_vec{rows, rows, rows, rows});
+    // [ 0 1 , 2 3 | 0 1 , 2 3 ] | new  boundary , old boundary
+    vec rows_2 = {0, 0, 1, 1, 2, 2, 3, 3, 1, 2};
+    exp_local_rows.emplace(2, vec_vec{rows_2, {}, rows_2, {}});
+    vec rows_4 = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5,
+                  5, 6, 6, 7, 7, 1, 2, 3, 4, 5, 6};
+    exp_local_rows.emplace(4, vec_vec{rows_4, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_cols;
+    exp_local_cols.emplace(1, vec_vec{cols, cols, cols, cols});
+    vec cols_2 = {0, 1, 0, 1, 2, 3, 2, 3, 2, 1};
+    exp_local_cols.emplace(2, vec_vec{cols_2, {}, cols_2, {}});
+    vec cols_4 = {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4,
+                  5, 6, 7, 6, 7, 2, 1, 4, 3, 6, 5};
+    exp_local_cols.emplace(4, vec_vec{cols_4, {}, {}, {}});
+
+    std::map<label, vec> exp_local_dim_rows;
+    exp_local_dim_rows.emplace(
+        1, vec{local_size, local_size, local_size, local_size});
+    exp_local_dim_rows.emplace(2, vec{2 * local_size, 0, 2 * local_size, 0});
+    exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
+
+    std::map<label, vec_vec> exp_local_mapping;
+    exp_local_mapping.emplace(1, vec_vec{mapping, mapping, mapping, mapping});
+    vec mapping_2{0, 1, 2, 3, 4, 5, 6, 7, 0, 0};
+    exp_local_mapping.emplace(2, vec_vec{{mapping_2}, {}, {mapping_2}, {}});
+    vec mapping_4{0,  1,  2,  3,  4,  5, 6, 7, 8, 9, 10,
+                  11, 12, 13, 14, 15, 0, 0, 0, 0, 0, 0};
+    exp_local_mapping.emplace(4, vec_vec{{mapping_4}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_spans_begin;
+    exp_local_spans_begin.emplace(1, vec_vec{{0}, {0}, {0}, {0}});
+    exp_local_spans_begin.emplace(2, vec_vec{{0}, {}, {0}, {}});
+    exp_local_spans_begin.emplace(
+        4, vec_vec{{0}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_spans_end;
+    exp_local_spans_end.emplace(1, vec_vec{{5}, {5}, {5}, {5}});
+    exp_local_spans_end.emplace(2, vec_vec{{10}, {}, {10}, {}});
+    exp_local_spans_end.emplace(
+        4, vec_vec{{22}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_non_local_rows;
+    exp_non_local_rows.emplace(1, non_local_rows);
+    exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
+    exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // expected cols are in compressed format
+    std::map<label, vec_vec> exp_non_local_cols;
+    exp_non_local_cols.emplace(1, non_local_cols);
+    exp_non_local_cols.emplace(2, vec_vec{{0}, {}, {3}, {}});
+    exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // Act
+    auto [repart_local, repart_non_local, tracking] =
+        repartitioner.repartition_sparsity(exec, local_sparsity,
+                                           non_local_sparsity, fused);
     // Assert
     // local properties
     ASSERT_EQ(repart_local->num_nnz, exp_local_nnz[ranks_per_gpu][rank]);

@@ -41,7 +41,6 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
         gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
     gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_local_matrix())
         ->convert_to(ret.get());
-
     export_mtx(field_name + "_local", ret, db);
 
     auto non_loc_ret = gko::share(
@@ -295,7 +294,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
         repartitioner->repartition_sparsity(exec_handler, local_sparsity,
-                                            non_local_sparsity);
+                                            non_local_sparsity, false);
 
     compress_cols(repart_non_loc_sparsity->col_idxs);
 
@@ -364,6 +363,9 @@ void update_distributed(const ExecutorHandler &exec_handler,
                         std::shared_ptr<RepartDistMatrix> dist_A,
                         word matrix_format)
 {
+    if (matrix_format == "Ell") {
+            FatalErrorInFunction << " Updating Ell matrix not supported\nSet regenerate 1;" << exit(FatalError);
+    }
     if (matrix_format == "Coo") {
         return dist_A->update<gko::matrix::Coo<scalar, label>>(
             exec_handler, repartitioner, host_A);
@@ -379,6 +381,10 @@ std::shared_ptr<RepartDistMatrix> create_distributed(
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
 {
+    if (matrix_format == "Ell") {
+        return create_impl<gko::matrix::Ell<scalar, label>>(
+            exec_handler, repartitioner, hostMatrix);
+    }
     if (matrix_format == "Coo") {
         return create_impl<gko::matrix::Coo<scalar, label>>(
             exec_handler, repartitioner, hostMatrix);
@@ -387,6 +393,10 @@ std::shared_ptr<RepartDistMatrix> create_distributed(
         return create_impl<gko::matrix::Csr<scalar, label>>(
             exec_handler, repartitioner, hostMatrix);
     }
+
+    FatalErrorInFunction << "Matrix format " << matrix_format
+                             << " not supported. Supported formats are: Ell, Csr, and Coo."
+                             << abort(FatalError);
 
     return {};
 }
