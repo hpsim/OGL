@@ -199,10 +199,11 @@ public:
     {
         label ranks_per_gpu =
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
+        bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", false);
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
-            exec_handler_);
+            exec_handler_, fused);
 
         PersistentDistributedMatrix dist_A{db_,
                                            exec_handler_,

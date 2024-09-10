@@ -157,9 +157,8 @@ public:
 
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiationMatrixFormat,
                          DistributedMatrixFixtureMatrixFormat,
-                         testing::Combine(
-                         testing::Values(1, 2, 4),
-                         testing::Values("Coo", "Csr")));
+                         testing::Combine(testing::Values(1, 2, 4),
+                                          testing::Values("Coo", "Csr")));
 
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
                          DistributedMatrixFixture, testing::Values(1, 2, 4));
@@ -168,10 +167,12 @@ TEST_P(DistributedMatrixFixture, canCreateDistributedMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto ranks_per_gpu = GetParam();
+    bool fused = false;
+
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-    auto repartitioner = std::make_shared<
-        Repartitioner>(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
@@ -182,7 +183,8 @@ TEST_P(DistributedMatrixFixture, canCreateDistributedMatrix)
     exp_local_size.emplace(2, vec{18, 0, 18, 0});
     exp_local_size.emplace(4, vec{36, 0, 0, 0});
 
-    auto distributed = create_distributed(exec, repartitioner, hostMatrix, "Coo");
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, "Coo");
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
               exp_local_size[ranks_per_gpu][rank]);
@@ -198,10 +200,11 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto ranks_per_gpu = GetParam();
+    bool fused = false;
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-    auto repartitioner = std::make_shared<
-        Repartitioner>(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
@@ -212,7 +215,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
     exp_local_size.emplace(2, vec{18, 0, 18, 0});
     exp_local_size.emplace(4, vec{36, 0, 0, 0});
 
-    auto distributed = create_distributed(exec, repartitioner, hostMatrix, "Coo");
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, "Coo");
 
     auto local = detail::convert_combination_to_coo(
         exec.get_ref_exec(), distributed->get_local_matrix());
@@ -299,17 +303,19 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto ranks_per_gpu = GetParam();
+    bool fused = false;
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-    auto repartitioner = std::make_shared<
-        Repartitioner>(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
     std::map<label, vec> exp_non_local_size;
     exp_non_local_size.emplace(1, vec{6, 6, 6, 6});
     exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
-    auto distributed = create_distributed(exec, repartitioner, hostMatrix, "Coo");
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, "Coo");
 
     auto non_local = detail::convert_combination_to_coo(
         exec.get_ref_exec(), distributed->get_non_local_matrix());
@@ -354,12 +360,14 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 TEST_P(DistributedMatrixFixtureMatrixFormat, distributedMatrixCanApplyCorrectly)
 {
     auto [ranks_per_gpu, format] = GetParam();
+    bool fused = false;
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-    auto repartitioner = std::make_shared<
-        Repartitioner>(hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
-    auto distributed = create_distributed(exec, repartitioner, hostMatrix, format);
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, format);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};

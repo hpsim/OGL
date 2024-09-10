@@ -116,8 +116,7 @@ label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
 }
 
 void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
-                   std::vector<label> &mapping, std::vector<label> &rank,
-                   std::vector<gko::span> &span)
+                   std::vector<label> &mapping, std::vector<gko::span> &span)
 {
     auto end = span.back().end;
 
@@ -139,7 +138,6 @@ void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
 
     span.clear();
     span.emplace_back(0, end);
-    rank.resize(1);
 }
 
 std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
@@ -204,7 +202,6 @@ Repartitioner::repartition_sparsity(
                                      rank, ranks_per_gpu);
     }
     std::vector<gko::span> tmp_local_span{gko::span{0, tmp_local_rows.size()}};
-    std::vector<label> tmp_local_rank{rank};
 
     gko::dim<2> tmp_local_dim = (is_owner(exec_handler))
                                     ? compute_dimensions(tmp_local_rows)
@@ -243,9 +240,11 @@ Repartitioner::repartition_sparsity(
         tmp_non_local_cols, tmp_non_local_mapping, tmp_non_local_origin,
         new_spans, tmp_comm_ranks);
 
-    if (fuse) {
+    if (fuse_) {
         fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
-                      tmp_local_rank, tmp_local_span);
+                      tmp_local_span);
+        fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
+                      tmp_non_local_mapping, new_spans);
     }
 
     gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};

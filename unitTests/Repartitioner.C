@@ -160,8 +160,9 @@ TEST_P(RepartitionerFixture1D, can_create_repartitioner)
 {
     // Arrange
     label ranks_per_gpu = GetParam();
+    bool fuse = false;
     // Act
-    auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, exec);
+    auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, exec, fuse);
     // Assert
     EXPECT_EQ(repartitioner.get_ranks_per_gpu(), ranks_per_gpu);
 }
@@ -170,8 +171,10 @@ TEST_P(RepartitionerFixture1D, has_correct_properties_for_n_rank)
 {
     // Arrange
     label ranks_per_gpu = GetParam();
+    bool fuse = false;
     // Act
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    auto repartitioner =
+        Repartitioner(local_size, ranks_per_gpu, 0, exec, fuse);
 
     // Assert
     EXPECT_EQ(repartitioner.is_owner(exec),
@@ -253,7 +256,8 @@ TEST_P(RepartitionerFixture1D,
     // Arrange
     label ranks_per_gpu = GetParam();
     bool fused = false;
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    auto repartitioner =
+        Repartitioner(local_size, ranks_per_gpu, 0, exec, fused);
     auto ref_exec = exec.get_ref_exec();
 
     std::vector<label> ranks{rank};
@@ -377,7 +381,8 @@ TEST_P(RepartitionerFixture1D,
     // Arrange
     label ranks_per_gpu = GetParam();
     bool fused = true;
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    auto repartitioner =
+        Repartitioner(local_size, ranks_per_gpu, 0, exec, fused);
     auto ref_exec = exec.get_ref_exec();
 
     std::vector<label> ranks{rank};
@@ -498,7 +503,9 @@ TEST_P(RepartitionerFixture1D, can_repartition_1D_comm_pattern_for_n_ranks)
 {
     // Arrange
     label ranks_per_gpu = GetParam();
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    bool fused = false;
+    auto repartitioner =
+        Repartitioner(local_size, ranks_per_gpu, 0, exec, fused);
     auto ref_exec = exec.get_ref_exec();
 
     // expected communication ranks
@@ -551,7 +558,9 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
 {
     // Arrange
     label ranks_per_gpu = GetParam();
-    auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    bool fuse = false;
+    auto repartitioner =
+        Repartitioner(local_size, ranks_per_gpu, 0, exec, fuse);
     auto ref_exec = exec.get_ref_exec();
 
     // expected communication ranks

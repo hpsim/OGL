@@ -26,9 +26,6 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
     label ldu_offset = 0;
     auto *data = ldu_mapping.data();
 
-    sleep(rank);
-    std::cout << __FILE__ << " rank " << rank << "mapping before" << ldu_mapping << "\n";
-
     for (label i = 0; i < ranks_per_gpu; i++) {
         auto size = comm_pattern.recv_counts[rank + i];
         std::transform(data + ldu_offset, data + ldu_offset + size,
@@ -36,7 +33,6 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                        [&](label idx) { return idx + ldu_offset; });
         ldu_offset += size;
     }
-    std::cout << __FILE__ << " rank " << rank << "mapping after" << ldu_mapping << "\n";
 }
 
 }  // namespace Foam

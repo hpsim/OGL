@@ -6,14 +6,15 @@
 
 template <typename MatrixType>
 std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
-    [[maybe_unused]] bool fuse, std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const SparsityPattern> sparsity)
+    std::shared_ptr<const gko::Executor> exec,
+    std::shared_ptr<const SparsityPattern> sparsity, bool compress_cols)
 {
     std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
     for (size_t i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
+
 
         auto mtx_data = gko::device_matrix_data<scalar, label>(
             exec->get_master(), sparsity->dim,
@@ -24,6 +25,10 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
                               sparsity->col_idxs.get_const_data() + begin,
                               sparsity->col_idxs.get_const_data() + end),
             coeffs);
+        if (compress_cols) {
+            std::iota(mtx_data.get_row_idxs() + begin,
+                      mtx_data.get_row_idxs() + end, 0);
+        }
         auto mtx = gko::share(MatrixType::create(exec));
         gko::as<MatrixType>(mtx)->read(mtx_data);
         lin_ops.push_back(mtx);
@@ -48,6 +53,11 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
     gko::as<CombinationMatrix<LocalMatrixType>>(
         dist_mtx_->get_non_local_matrix())
         ->convert_to(non_loc_ret.get());
+
+    std::copy(non_local_sparsity_->col_idxs.get_const_data(),
+              non_local_sparsity_->col_idxs.get_const_data() +
+                  non_local_sparsity_->num_nnz,
+              non_loc_ret->get_col_idxs());
     export_mtx(field_name + "_non_local", non_loc_ret, db);
 }
 
@@ -395,16 +405,14 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             exec_handler, local_sparsity, non_local_sparsity,
             src_comm_pattern->target_ids, false);
 
-    compress_cols(repart_non_loc_sparsity->col_idxs);
-
     // create vector of inner type linops
     // if fuse the vector contains only a single element
     // thus we can unwrap it.
     auto device_exec = exec_handler.get_device_exec();
     auto local_linops = generate_inner_linops<LocalMatrixType>(
-        false, device_exec, repart_loc_sparsity);
+        device_exec, repart_loc_sparsity, false);
     auto non_local_linops = generate_inner_linops<LocalMatrixType>(
-        false, device_exec, repart_non_loc_sparsity);
+        device_exec, repart_non_loc_sparsity, true);
 
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
@@ -420,8 +428,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     gko::dim<2> global_dim{global_rows, global_rows};
 
     std::shared_ptr<dist_mtx> dist_A;
-    [[maybe_unused]] bool fuse = false;
-    if (fuse) {
+    if (repartitioner->get_fused()) {
         // dist_A = gko::share(dist_mtx::create(
         //     device_exec, comm, global_dim, local_linops[0],
         //     non_local_linops[0], recv_sizes, recv_offsets,
