@@ -155,33 +155,31 @@ void communicate_values(const ExecutorHandler &exec_handler,
 }
 
 void communicate_values(
-          std::shared_ptr<const gko::Executor> src_exec,
-          std::shared_ptr<const gko::Executor> target_exec,
-          std::shared_ptr<const gko::experimental::mpi::communicator> comm,
-          const AllToAllPattern &comm_pattern,
-          const scalar *send_buffer, scalar *recv_buffer,
-          bool force_host_buffer
-          )
+    std::shared_ptr<const gko::Executor> src_exec,
+    std::shared_ptr<const gko::Executor> target_exec,
+    std::shared_ptr<const gko::experimental::mpi::communicator> comm,
+    const AllToAllPattern &comm_pattern, const scalar *send_buffer,
+    scalar *recv_buffer, bool force_host_buffer)
 {
-
-    if (src_exec == target_exec){
-    comm->all_to_all_v(target_exec, send_buffer, comm_pattern.send_counts.data(),
-                      comm_pattern.send_offsets.data(), recv_buffer,
-                      comm_pattern.recv_counts.data(),
-                      comm_pattern.recv_offsets.data());
+    if (src_exec == target_exec) {
+        comm->all_to_all_v(
+            target_exec, send_buffer, comm_pattern.send_counts.data(),
+            comm_pattern.send_offsets.data(), recv_buffer,
+            comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
     } else {
         if (force_host_buffer) {
-      auto tmp = gko::array<scalar>(src_exec, send_buffer, send_buffer + comm_pattern.send_offsets.back());
-      tmp.set_executor(target_exec);
+            auto tmp = gko::array<scalar>(
+                src_exec, send_buffer,
+                send_buffer + comm_pattern.send_offsets.back());
+            tmp.set_executor(target_exec);
 
-    comm->all_to_all_v(target_exec, tmp.get_const_data(), comm_pattern.send_counts.data(),
-                      comm_pattern.send_offsets.data(), recv_buffer,
-                      comm_pattern.recv_counts.data(),
-                      comm_pattern.recv_offsets.data());
+            comm->all_to_all_v(target_exec, tmp.get_const_data(),
+                               comm_pattern.send_counts.data(),
+                               comm_pattern.send_offsets.data(), recv_buffer,
+                               comm_pattern.recv_counts.data(),
+                               comm_pattern.recv_offsets.data());
         }
-
     }
-
 }
 
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
@@ -226,18 +224,15 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 }
 
 
-gko::array<label> CommunicationPattern::total_rank_send_idx() const
+std::vector<label> CommunicationPattern::total_rank_send_idx() const
 {
     std::vector<label> tmp;
 
-    for (auto &[arr, id] : send_idxs) {
-        label arr_size = arr.get_size();
-        tmp.insert(tmp.end(), arr.get_const_data(),
-                   arr.get_const_data() + arr_size);
+    for (auto &rows : send_idxs) {
+        tmp.insert(tmp.end(), rows.begin(), rows.end());
     }
 
-    return gko::array<label>(exec_handler.get_ref_exec(), tmp.begin(),
-                             tmp.end());
+    return tmp;
 }
 
 
@@ -249,9 +244,9 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
     auto rs_idx = total_rank_send_idx();
     auto pattern = send_recv_pattern();
     auto recv_buffer =
-        gko::array<label>(exec_handler.get_ref_exec(), rs_idx.get_size());
+        gko::array<label>(exec_handler.get_ref_exec(), rs_idx.size());
 
-    comm.all_to_all_v(exec, rs_idx.get_const_data(), pattern.send_counts.data(),
+    comm.all_to_all_v(exec, rs_idx.data(), pattern.send_counts.data(),
                       pattern.send_offsets.data(), recv_buffer.get_data(),
                       pattern.recv_counts.data(), pattern.recv_offsets.data());
 
@@ -268,11 +263,11 @@ AllToAllPattern CommunicationPattern::send_recv_pattern() const
     std::vector<label> recv_counts(comm.size());
     std::vector<label> recv_offsets(comm.size() + 1);
 
-    label comm_ranks = target_ids.get_size();
+    label comm_ranks = target_ids.size();
     label tot_comm_size = 0;
     for (label i = 0; i < comm_ranks; i++) {
-        auto comm_rank = target_ids.get_const_data()[i];
-        auto comm_size = target_sizes.get_const_data()[i];
+        auto comm_rank = target_ids.data()[i];
+        auto comm_size = target_sizes.data()[i];
         tot_comm_size += comm_size;
         send_counts[comm_rank] = comm_size;
         recv_counts[comm_rank] = comm_size;

@@ -25,7 +25,7 @@ std::vector<label> convert_to_global(
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
         partition,
-    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const label *idx, const std::vector<gko::span> &spans,
     const std::vector<label> &ranks);
 
 /* Convert to local
@@ -47,9 +47,9 @@ void convert_to_local(
 ** returns a pair vector spans
 */
 std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
-exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
-                    const std::vector<gko::span> &spans,
-                    const std::vector<label> &ranks);
+exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
+                     const std::vector<gko::span> &spans,
+                     const std::vector<label> &src_ranks);
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
@@ -156,7 +156,7 @@ public:
      * mapping. Thus this function copies the rows, cols and mapping, spans etc
      * to the corresponding local vectors.
      * returns a vector of locality information.
-     * @param non_local_cols vector in comm rank local indices
+     * @param non_local_cols vector in global local indices
      */
     std::vector<std::pair<bool, label>> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
@@ -164,13 +164,12 @@ public:
             const gko::experimental::distributed::Partition<label, label>>
             partition,
         std::vector<label> &local_rows, std::vector<label> &local_cols,
-        std::vector<label> &local_mapping, std::vector<label> &local_ranks,
-        std::vector<gko::span> &local_spans, std::vector<label> &non_local_rows,
-        std::vector<label> &non_local_cols,
+        std::vector<label> &local_mapping, std::vector<gko::span> &local_spans,
+        std::vector<label> &non_local_rows, std::vector<label> &non_local_cols,
         std::vector<label> &non_local_mapping,
-        std::vector<label> &non_local_ranks,
         std::vector<label> &non_local_rank_origin,
-        std::vector<gko::span> &non_local_spans) const;
+        std::vector<gko::span> &non_local_spans,
+        std::vector<label> &src_non_local_target_ids) const;
 
     /* @brief function to repartition a sparsity pattern
      *
@@ -198,7 +197,7 @@ public:
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const SparsityPattern> src_local_pattern,
         std::shared_ptr<const SparsityPattern> src_non_local_pattern,
-        bool fuse) const;
+        std::vector<label> src_non_local_target_ids, bool fuse) const;
 
     /* @brief repartition a communication pattern
      * function to repartition a communication pattern based on ranks_per_gpu

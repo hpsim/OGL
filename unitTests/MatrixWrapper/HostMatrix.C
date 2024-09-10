@@ -74,10 +74,11 @@ public:
         interfaces = field->boundaryField().scalarInterfaces();
 
         hostMatrix = std::make_shared<HostMatrixWrapper>(
-            *exec.get(), runTime_->thisDb(), mesh->lduAddr(), fvMatrix->symmetric(),
-            fvMatrix->diag().data(), fvMatrix->upper().data(),
-            fvMatrix->lower().data(), fvMatrix->boundaryCoeffs(),
-            fvMatrix->internalCoeffs(), interfaces, dict, "fieldName", 0);
+            *exec.get(), runTime_->thisDb(), mesh->lduAddr(),
+            fvMatrix->symmetric(), fvMatrix->diag().data(),
+            fvMatrix->upper().data(), fvMatrix->lower().data(),
+            fvMatrix->boundaryCoeffs(), fvMatrix->internalCoeffs(), interfaces,
+            dict, "fieldName", 0);
     }
 
     Foam::lduInterfaceFieldPtrsList interfaces;
@@ -166,15 +167,14 @@ TEST(HostMatrix, canCreateCommunicationPattern)
 
     std::vector<std::vector<label>> target_ids_exp{
         {1, 2}, {0, 3}, {0, 3}, {1, 2}};
-    std::vector<label> target_ids_res(commPattern->target_ids.get_data(),
-                                      commPattern->target_ids.get_data() + 2);
+    std::vector<label> target_ids_res(commPattern->target_ids.data(),
+                                      commPattern->target_ids.data() + 2);
     EXPECT_EQ(target_ids_exp[comm.rank()], target_ids_res);
 
     std::vector<std::vector<label>> target_sizes_exp{
         {3, 3}, {3, 3}, {3, 3}, {3, 3}};
-    std::vector<label> target_size_res(
-        commPattern->target_sizes.get_data(),
-        commPattern->target_sizes.get_data() + 2);
+    std::vector<label> target_size_res(commPattern->target_sizes.data(),
+                                       commPattern->target_sizes.data() + 2);
     EXPECT_EQ(target_sizes_exp[comm.rank()], target_size_res);
 }
 
@@ -207,14 +207,14 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     // asymetric case
     std::vector<label> mapping_expected({
         24, 0,  1,          // cell 0
-        12,  25, 2,  3,      // cell 1
-        14,  26, 4,          // cell 2
-        13,  27, 5,  6,      // cell 3
-        15,  17,  28, 7,  8,  // cell 4
-        16,  19,  29, 9,      // cell 5
-        18,  30, 10,         // cell 6
-        20,  22, 31, 11,     // cell 7
-        21,  23, 32          // cell 8
+        12, 25, 2,  3,      // cell 1
+        14, 26, 4,          // cell 2
+        13, 27, 5,  6,      // cell 3
+        15, 17, 28, 7,  8,  // cell 4
+        16, 19, 29, 9,      // cell 5
+        18, 30, 10,         // cell 6
+        20, 22, 31, 11,     // cell 7
+        21, 23, 32          // cell 8
     });
 
     // we have 9x9 matrix with 33 nnz entries

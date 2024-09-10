@@ -47,19 +47,14 @@ struct SparsityPattern {
                     const std::vector<label> &rows,
                     const std::vector<label> &cols,
                     const std::vector<label> &mapping,
-                    const std::vector<gko::span> &spans_,
-                    const std::vector<label> &rank_)
+                    const std::vector<gko::span> &spans_)
         : num_nnz(rows.size()),
           row_idxs(exec, rows.begin(), rows.end()),
           col_idxs(exec, cols.begin(), cols.end()),
           ldu_mapping(exec, mapping.begin(), mapping.end()),
           dim(dim_),
-          spans(spans_),
-          rank(rank_)
+          spans(spans_)
     {
-        // For every rank there should be a span
-        ASSERT_EQ(spans.size(), rank.size());
-
         ASSERT_EQ(rows.size(), cols.size());
         ASSERT_EQ(rows.size(), mapping.size());
     }
@@ -76,7 +71,7 @@ struct SparsityPattern {
                     gko::dim<2> dim, std::vector<label> &rows,
                     std::vector<label> &cols, std::vector<label> &map,
                     std::vector<label> &spans_begin,
-                    std::vector<label> &spans_end, std::vector<label> &ranks)
+                    std::vector<label> &spans_end)
         : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
@@ -99,9 +94,6 @@ struct SparsityPattern {
                            return gko::span{static_cast<gko::size_type>(begin),
                                             static_cast<gko::size_type>(end)};
                        });
-
-        ASSERT_EQ(spans_begin.size(), ranks.size());
-        rank = ranks;
     }
 
     // TODO num_nnz makes no sense ->nnz;
@@ -125,14 +117,6 @@ struct SparsityPattern {
     // needed anymore. However, removing would require row and col_idxs to
     // be stored in a std::vector<gko::Array>
     mutable std::vector<gko::span> spans;
-
-    // keep track of original (local sparsity) or communication (non-local) rank
-    // of each interface or matrix block
-    mutable std::vector<label> comm_rank;
-
-    // keep track of original (local sparsity) or communication (non-local) rank
-    // of each interface or matrix block
-    mutable std::vector<label> rank;
 };
 
 // convert_to_global(std::shared_ptr<const SparsityPattern> pattern, Partition)

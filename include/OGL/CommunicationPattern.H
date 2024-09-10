@@ -123,45 +123,29 @@ struct CommunicationPattern {
     const ExecutorHandler &exec_handler;
 
     // an array storing to which rank to communicate
-    gko::array<comm_size_type> target_ids;
+    std::vector<label> target_ids;
 
     // an array storing how many elements to communicate
     // to the corresponding target_id
-    gko::array<comm_size_type> target_sizes;
+    std::vector<label> target_sizes;
 
     // send_idxs stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-
-    CommunicationPattern(
-        const ExecutorHandler &exec, gko::array<comm_size_type> ids,
-        gko::array<comm_size_type> sizes,
-        std::vector<std::pair<gko::array<label>, comm_size_type>> idxs)
-        : exec_handler(exec),
-          target_ids(ids),
-          target_sizes(sizes),
-          send_idxs(idxs)
-    {
-        ASSERT_EQ(target_ids.get_size(), target_sizes.get_size());
-        // TODO check size of send_idxs
-        //
-        // ASSERT_EQ(target_ids.get_size(), send_idxs.size());
-    }
+    std::vector<std::vector<label>> send_idxs;
 
     CommunicationPattern(const ExecutorHandler &exec,
                          const std::vector<label> &ranks,
-                         const std::vector<std::vector<label>> &rows)
+                         const std::vector<std::vector<label>> &send_idxs_)
         : exec_handler(exec),
-          target_ids(exec.get_ref_exec(), ranks.begin(), ranks.end()),
-          target_sizes(exec.get_ref_exec(), ranks.size())
+          target_ids(ranks),
+          target_sizes(),
+          send_idxs(send_idxs_)
     {
-        ASSERT_EQ(ranks.size(), rows.size());
+        // every communication ranks needs a set of send_idxs associated
+        ASSERT_EQ(ranks.size(), send_idxs_.size());
 
-        for (size_t i = 0; i < rows.size(); i++) {
-            target_sizes.get_data()[i] = rows[i].size();
-            gko::array<label> row_array(exec.get_ref_exec(), rows[i].begin(),
-                                        rows[i].end());
-            send_idxs.push_back({row_array, ranks[i]});
+        for (auto &rows : send_idxs) {
+            target_sizes.push_back(rows.size());
         }
     }
 
@@ -174,7 +158,7 @@ struct CommunicationPattern {
     /* @brief concatenate all separate send idxs arrays into one contiguous
      * array
      */
-    gko::array<label> total_rank_send_idx() const;
+    std::vector<label> total_rank_send_idx() const;
 
     /* @brief concatenate all separate send idxs arrays into one contiguous
      * array
