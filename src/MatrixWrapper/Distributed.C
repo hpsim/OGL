@@ -10,6 +10,30 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
     std::shared_ptr<const SparsityPattern> sparsity, bool compress_cols)
 {
     std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
+    auto compress_columns = [](std::vector<label> &in) {
+        std::vector<label> tmp = in;
+        std::stable_sort(tmp.begin(), tmp.end());
+
+        std::map<label, label> key_map;
+        label ctr{0};
+        for (auto el : tmp) {
+            if (key_map.count(el)) {
+                key_map[el] = ctr;
+                ctr++;
+            }
+        }
+
+        for (size_t i = 0; i < in.size(); i++) {
+            in[i] = key_map[i];
+        }
+    };
+
+    std::vector<label> tmp_cols(
+        sparsity->col_idxs.get_const_data(),
+        sparsity->col_idxs.get_const_data() + sparsity->num_nnz);
+    if (compress_cols) {
+        compress_columns(tmp_cols);
+    }
     for (size_t i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
@@ -19,14 +43,9 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
             gko::array<label>(exec->get_master(),
                               sparsity->row_idxs.get_const_data() + begin,
                               sparsity->row_idxs.get_const_data() + end),
-            gko::array<label>(exec->get_master(),
-                              sparsity->col_idxs.get_const_data() + begin,
-                              sparsity->col_idxs.get_const_data() + end),
+            gko::array<label>(exec->get_master(), tmp_cols.data() + begin,
+                              tmp_cols.data() + end),
             coeffs);
-        if (compress_cols) {
-            std::iota(mtx_data.get_col_idxs() ,
-                      mtx_data.get_col_idxs() + end - begin, begin);
-        }
         auto mtx = gko::share(MatrixType::create(exec));
         gko::as<MatrixType>(mtx)->read(mtx_data);
         lin_ops.push_back(mtx);
