@@ -17,14 +17,14 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
         std::map<label, label> key_map;
         label ctr{0};
         for (auto el : tmp) {
-            if (key_map.count(el)) {
+            if (key_map.count(el)==0) {
                 key_map[el] = ctr;
                 ctr++;
             }
         }
 
         for (size_t i = 0; i < in.size(); i++) {
-            in[i] = key_map[i];
+            in[i] = key_map[in[i]];
         }
     };
 
@@ -71,10 +71,14 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
         dist_mtx_->get_non_local_matrix())
         ->convert_to(non_loc_ret.get());
 
+    // overwrite with global
+    bool write_global = true;
+    if (write_global){
     std::copy(non_local_sparsity_->col_idxs.get_const_data(),
               non_local_sparsity_->col_idxs.get_const_data() +
                   non_local_sparsity_->num_nnz,
               non_loc_ret->get_col_idxs());
+    }
     export_mtx(field_name + "_non_local", non_loc_ret, db);
 }
 
