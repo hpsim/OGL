@@ -95,64 +95,63 @@ void update_fused_impl(
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
     std::vector<std::pair<bool, label>> local_interfaces)
 {
-    //   auto exec = exec_handler.get_ref_exec();
-    //   auto device_exec = exec_handler.get_device_exec();
-    //   auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
-    //   [[maybe_unused]] bool requires_host_buffer =
-    //       exec_handler.get_gko_force_host_buffer();
+    auto exec = exec_handler.get_ref_exec();
+    auto device_exec = exec_handler.get_device_exec();
+    auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
+    [[maybe_unused]] bool requires_host_buffer =
+        exec_handler.get_gko_force_host_buffer();
+
+    label rank{exec_handler.get_rank()};
+    label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    bool owner = repartitioner->is_owner(exec_handler);
+    label nrows = host_A->get_local_nrows();
+    label local_matrix_nnz = host_A->get_local_matrix_nnz();
+    label tot_local_matrix_nnz = local_sparsity->num_nnz;
+    label n_interfaces = tot_local_matrix_nnz - local_matrix_nnz;
+
+    // size + padding has to be local_matrix_nnz
+    // [upper, lower, diag, interfaces]
+    auto diag_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, nrows, tot_local_matrix_nnz,
+        local_matrix_nnz - nrows, n_interfaces);
+    label upper_nnz = host_A->get_upper_nnz();
+    auto upper_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, upper_nnz, tot_local_matrix_nnz, 0,
+        tot_local_matrix_nnz - upper_nnz);
+    auto lower_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, upper_nnz, tot_local_matrix_nnz, upper_nnz,
+        nrows + n_interfaces);
+
+    scalar *local_ptr = nullptr;
+    // label nnz = 0;
     //
-    //   label rank{exec_handler.get_rank()};
-    //   label owner_rank = repartitioner->get_owner_rank(exec_handler);
-    //   bool owner = repartitioner->is_owner(exec_handler);
-    //   label nrows = host_A->get_local_nrows();
-    //   label local_matrix_nnz = host_A->get_local_matrix_nnz();
-    //
-    //   // size + padding has to be local_matrix_nnz
-    //   auto diag_comm_pattern = compute_gather_to_owner_counts(
-    //       exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
-    //       local_matrix_nnz - nrows, 0);
-    //   label upper_nnz = host_A->get_upper_nnz();
-    //   auto upper_comm_pattern = compute_gather_to_owner_counts(
-    //       exec_handler, ranks_per_gpu, upper_nnz, local_matrix_nnz, 0,
-    //       local_matrix_nnz - upper_nnz);
-    //   auto lower_comm_pattern =
-    //       compute_gather_to_owner_counts(exec_handler, ranks_per_gpu,
-    //       upper_nnz,
-    //                                      local_matrix_nnz, upper_nnz, nrows);
-    //
-    //   scalar *local_ptr = nullptr;
-    //   // label nnz = 0;
-    //
-    //   // update main values
-    //   std::vector<scalar> loc_buffer;
-    //   auto local_mtx =
-    //       gko::as<CombinationMatrix<LocalMatrixType>>(dist_A->get_local_matrix());
-    //
-    //   std::shared_ptr<const LocalMatrixType> local =
-    //       (owner) ? gko::as<LocalMatrixType>(local_mtx->get_operators()[0])
-    //               : std::shared_ptr<const LocalMatrixType>{};
-    //
-    //   if (owner) {
-    //       local_ptr = const_cast<scalar *>(local->get_const_values());
-    //   }
-    //
-    //   communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
-    //                      local_ptr, requires_host_buffer);
-    //   communicate_values(exec_handler, upper_comm_pattern,
-    //   host_A->get_upper(),
-    //                      local_ptr, requires_host_buffer);
-    //
-    //   if (host_A->get_symmetric()) {
-    //       // TODO FIXME
-    //       // if symmetric we can reuse already copied data
-    //       communicate_values(exec_handler, lower_comm_pattern,
-    //                          host_A->get_lower(), local_ptr,
-    //                          requires_host_buffer);
-    //   } else {
-    //       communicate_values(exec_handler, lower_comm_pattern,
-    //                          host_A->get_lower(), local_ptr,
-    //                          requires_host_buffer);
-    //   }
+    // update main values
+    std::vector<scalar> loc_buffer;
+    auto local_mtx =
+        gko::as<CombinationMatrix<LocalMatrixType>>(dist_A->get_local_matrix());
+
+    std::shared_ptr<const LocalMatrixType> local =
+        (owner) ? gko::as<LocalMatrixType>(local_mtx->get_operators()[0])
+                : std::shared_ptr<const LocalMatrixType>{};
+
+    if (owner) {
+        local_ptr = const_cast<scalar *>(local->get_const_values());
+    }
+
+    communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
+                       local_ptr);
+    communicate_values(exec_handler, upper_comm_pattern, host_A->get_upper(),
+                       local_ptr);
+
+    if (host_A->get_symmetric()) {
+        // TODO FIXME
+        // if symmetric we can reuse already copied data
+        communicate_values(exec_handler, lower_comm_pattern,
+                           host_A->get_lower(), local_ptr);
+    } else {
+        communicate_values(exec_handler, lower_comm_pattern,
+                           host_A->get_lower(), local_ptr);
+    }
     //
     //   // copy interface values
     //   auto comm = *exec_handler.get_communicator().get();
