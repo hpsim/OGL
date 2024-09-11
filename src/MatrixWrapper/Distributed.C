@@ -5,11 +5,11 @@
 #include "OGL/MatrixWrapper/Distributed.H"
 
 template <typename MatrixType>
-std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
+std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const SparsityPattern> sparsity, bool compress_cols)
 {
-    std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
+    std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
     auto compress_columns = [](std::vector<label> &in) {
         std::vector<label> tmp = in;
         std::stable_sort(tmp.begin(), tmp.end());
@@ -458,10 +458,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     std::shared_ptr<dist_mtx> dist_A;
     if (repartitioner->get_fused()) {
-        // dist_A = gko::share(dist_mtx::create(
-        //     device_exec, comm, global_dim, local_linops[0],
-        //     non_local_linops[0], recv_sizes, recv_offsets,
-        //     recv_gather_idxs));
+        dist_A = gko::share(dist_mtx::create(
+            device_exec, comm, global_dim, local_linops[0], non_local_linops[0],
+            recv_sizes, recv_offsets, recv_gather_idxs));
         // update_fused_impl<LocalMatrixType>(
         //     exec_handler, repartitioner, host_A, dist_A, repart_loc_sparsity,
         //     repart_non_loc_sparsity, src_comm_pattern, local_interfaces);

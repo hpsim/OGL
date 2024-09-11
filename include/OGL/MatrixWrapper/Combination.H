@@ -181,7 +181,7 @@ protected:
 
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
                       gko::dim<2> size,
-                      std::vector<std::shared_ptr<const gko::LinOp>> operators)
+                      std::vector<std::shared_ptr<gko::LinOp>> operators)
         : gko::EnableLinOp<CombinationMatrix>(exec),
           comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
     {
