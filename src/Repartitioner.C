@@ -336,15 +336,6 @@ std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
             std::vector<label> tmp_rank_local_cols(
                 non_local_cols.data() + begin, non_local_cols.data() + end);
 
-            std::cout << __FILE__ << " rank " << rank << " i " << i
-                      << " tmp_rank_local_cols " << tmp_rank_local_cols
-                      << " comm_target_ids[i]=" << comm_target_ids[i] << "\n";
-
-            // the columns need to be in local indices wrt to the rank
-            // it communicates after repartitioning
-            // FIXME comm_target_ids are before repartitioning
-            // detail::convert_to_local(partition, tmp_rank_local_cols,
-            //                          get_owner_rank(comm_target_ids[i]));
             copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
                              tmp_rank_local_cols.end());
             copy_mapping.insert(copy_mapping.end(),
