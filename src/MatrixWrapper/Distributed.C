@@ -14,8 +14,6 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
-
-
         auto mtx_data = gko::device_matrix_data<scalar, label>(
             exec->get_master(), sparsity->dim,
             gko::array<label>(exec->get_master(),
@@ -26,8 +24,8 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
                               sparsity->col_idxs.get_const_data() + end),
             coeffs);
         if (compress_cols) {
-            std::iota(mtx_data.get_row_idxs() + begin,
-                      mtx_data.get_row_idxs() + end, 0);
+            std::iota(mtx_data.get_col_idxs() ,
+                      mtx_data.get_col_idxs() + end - begin, begin);
         }
         auto mtx = gko::share(MatrixType::create(exec));
         gko::as<MatrixType>(mtx)->read(mtx_data);

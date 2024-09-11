@@ -343,21 +343,8 @@ std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
             // the columns need to be in local indices wrt to the rank
             // it communicates after repartitioning
             // FIXME comm_target_ids are before repartitioning
-            detail::convert_to_local(partition, tmp_rank_local_cols,
-                                     get_owner_rank(comm_target_ids[i]));
-
-            // need to add offset of original comm rank
-            // since rows of the repartitioned rank might have changed
-            // label rank_offset =
-            //     partition->get_range_bounds()[non_local_rank_origin[i]] -
-            //     partition->get_range_bounds()[get_owner_rank(
-            //         non_local_rank_origin[i])];
-
-            // std::transform(
-            //     tmp_rank_local_cols.begin(), tmp_rank_local_cols.end(),
-            //     tmp_rank_local_cols.begin(),
-            //     [rank_offset](label idx) { return idx + rank_offset; });
-
+            // detail::convert_to_local(partition, tmp_rank_local_cols,
+            //                          get_owner_rank(comm_target_ids[i]));
             copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
                              tmp_rank_local_cols.end());
             copy_mapping.insert(copy_mapping.end(),
