@@ -171,6 +171,7 @@ Repartitioner::repartition_sparsity(
             src_non_local_pattern->spans.size(),
             std::pair<bool, label>(false, rank));
 
+
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
@@ -222,14 +223,10 @@ Repartitioner::repartition_sparsity(
 
 
     // comm ranks are based on non repartitioned ranks
-
-    auto tmp_send_global_cols = detail::convert_to_global(
-        orig_partition_, src_non_local_pattern->col_idxs.get_const_data(),
-        src_non_local_pattern->spans, src_non_local_target_ids);
-
-    auto tmp_non_local_cols = gather_labels_to_owner(
-        exec_handler, non_local_comm_pattern, tmp_send_global_cols.data(),
-        tmp_send_global_cols.size(), 0);
+    auto tmp_non_local_cols =
+        gather_labels_to_owner(exec_handler, non_local_comm_pattern,
+                               src_non_local_pattern->col_idxs.get_data(),
+                               src_non_local_pattern->num_nnz, 0);
 
     std::vector<label> tmp_non_local_mapping =
         std::vector<label>(tmp_non_local_rows.size());

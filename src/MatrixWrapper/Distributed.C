@@ -17,7 +17,7 @@ std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
         std::map<label, label> key_map;
         label ctr{0};
         for (auto el : tmp) {
-            if (key_map.count(el)==0) {
+            if (key_map.count(el) == 0) {
                 key_map[el] = ctr;
                 ctr++;
             }
@@ -73,11 +73,11 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
 
     // overwrite with global
     bool write_global = true;
-    if (write_global){
-    std::copy(non_local_sparsity_->col_idxs.get_const_data(),
-              non_local_sparsity_->col_idxs.get_const_data() +
-                  non_local_sparsity_->num_nnz,
-              non_loc_ret->get_col_idxs());
+    if (write_global) {
+        std::copy(non_local_sparsity_->col_idxs.get_const_data(),
+                  non_local_sparsity_->col_idxs.get_const_data() +
+                      non_local_sparsity_->num_nnz,
+                  non_loc_ret->get_col_idxs());
     }
     export_mtx(field_name + "_non_local", non_loc_ret, db);
 }
@@ -420,6 +420,14 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto src_comm_pattern = host_A->create_communication_pattern();
     auto repart_comm_pattern =
         repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
+
+    auto tmp_send_global_cols = detail::convert_to_global(
+        repartitioner->get_orig_partition(),
+        non_local_sparsity->col_idxs.get_const_data(),
+        non_local_sparsity->spans, src_comm_pattern->target_ids);
+
+    std::copy(tmp_send_global_cols.begin(), tmp_send_global_cols.end(),
+              non_local_sparsity->col_idxs.get_data());
 
     auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
         repartitioner->repartition_sparsity(
