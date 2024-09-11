@@ -238,10 +238,12 @@ Repartitioner::repartition_sparsity(
         new_spans, tmp_comm_ranks);
 
     if (fuse_) {
+    if (is_owner(exec_handler)) {
         fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
                       tmp_local_span);
         fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
                       tmp_non_local_mapping, new_spans);
+    }
     }
 
     gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};
