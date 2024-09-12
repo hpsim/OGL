@@ -3,7 +3,7 @@
 
 include(CheckLanguage)
 
-if(NOT DEFINED GINKGO_ENABLE_CUDA)
+if(NOT DEFINED GINKGO_BUILD_CUDA)
   check_language(CUDA)
 
   if(CMAKE_CUDA_COMPILER)
@@ -17,7 +17,7 @@ if(NOT DEFINED GINKGO_ENABLE_CUDA)
   endif()
 endif()
 
-if(NOT DEFINED GINKGO_ENABLE_HIP)
+if(NOT DEFINED GINKGO_BUILD_HIP)
   check_language(HIP)
 
   if(CMAKE_HIP_COMPILER)
