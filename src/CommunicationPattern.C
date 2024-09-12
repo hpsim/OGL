@@ -27,12 +27,12 @@ AllToAllPattern compute_scatter_from_owner_counts(
     label total_ranks{comm.size()};
     label rank{comm.rank()};
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
-    std::vector<label> send_counts(total_ranks, 0);
-    std::vector<label> recv_counts(total_ranks, 0);
-    std::vector<label> send_offsets(total_ranks + 1, 0);
-    std::vector<label> recv_offsets(total_ranks + 1, 0);
+    std::vector<int> send_counts(total_ranks, 0);
+    std::vector<int> recv_counts(total_ranks, 0);
+    std::vector<int> send_offsets(total_ranks + 1, 0);
+    std::vector<int> recv_offsets(total_ranks + 1, 0);
 
-    label comm_elements_buffer{0};
+    int comm_elements_buffer{0};
     if (rank == owner_rank) {
         // send and recv to it self
         recv_offsets[owner_rank] = 0;
@@ -74,14 +74,14 @@ AllToAllPattern compute_gather_to_owner_counts(
     label total_ranks{comm.size()};
     label rank{comm.rank()};
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
-    std::vector<label> send_counts(total_ranks, 0);
-    std::vector<label> recv_counts(total_ranks, 0);
+    std::vector<int> send_counts(total_ranks, 0);
+    std::vector<int> recv_counts(total_ranks, 0);
     // last entry of offsets vector for total sum
-    std::vector<label> send_offsets(total_ranks + 1, 0);
-    std::vector<label> recv_offsets(total_ranks + 1, 0);
+    std::vector<int> send_offsets(total_ranks + 1, 0);
+    std::vector<int> recv_offsets(total_ranks + 1, 0);
 
-    label tot_recv_elements{0};
-    label comm_elements_buffer{0};
+    int tot_recv_elements{0};
+    int comm_elements_buffer{0};
     if (rank == owner_rank) {
         // send and recv to it self
         recv_offsets[owner_rank] = padding_before;
@@ -258,13 +258,13 @@ AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
     auto comm = *exec_handler.get_communicator().get();
 
-    std::vector<label> send_counts(comm.size());
-    std::vector<label> send_offsets(comm.size() + 1);
-    std::vector<label> recv_counts(comm.size());
-    std::vector<label> recv_offsets(comm.size() + 1);
+    std::vector<int> send_counts(comm.size());
+    std::vector<int> send_offsets(comm.size() + 1);
+    std::vector<int> recv_counts(comm.size());
+    std::vector<int> recv_offsets(comm.size() + 1);
 
     label comm_ranks = target_ids.size();
-    label tot_comm_size = 0;
+    int tot_comm_size = 0;
     for (label i = 0; i < comm_ranks; i++) {
         auto comm_rank = target_ids.data()[i];
         auto comm_size = target_sizes.data()[i];

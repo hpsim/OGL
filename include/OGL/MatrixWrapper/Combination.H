@@ -69,19 +69,19 @@ public:
     }
 
 
-    void write(gko::matrix_data<scalar> &res) const override
+    void write(gko::matrix_data<scalar, label> &res) const override
     {
         auto exec = this->get_executor();
         auto operators = this->get_operators();
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         res.nonzeros = data;
         res.size = this->get_size();
     }
@@ -119,12 +119,12 @@ public:
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         mat_data.nonzeros = data;
         mat_data.size = this->get_size();
 
@@ -141,12 +141,12 @@ public:
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         mat_data.nonzeros = data;
         mat_data.size = this->get_size();
 

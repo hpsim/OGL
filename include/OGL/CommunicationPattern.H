@@ -13,10 +13,10 @@
 /** Struct holding vectors needded for MPI all to all communication
  */
 struct AllToAllPattern {
-    std::vector<label> send_counts;
-    std::vector<label> send_offsets;
-    std::vector<label> recv_counts;
-    std::vector<label> recv_offsets;
+    std::vector<int> send_counts;
+    std::vector<int> send_offsets;
+    std::vector<int> recv_counts;
+    std::vector<int> recv_offsets;
 };
 
 /* @brief  This function computes the send and recv counts vectors and the send
