@@ -137,11 +137,11 @@ void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
     mapping = detail::apply_permutation(mapping, permutation);
 
     span.clear();
-    span.emplace_back(0, end);
+    span.emplace_back(0, rows.size());
 }
 
 std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
-           std::vector<std::pair<bool, label>>>
+           std::vector<std::tuple<bool, label, label>>>
 Repartitioner::repartition_sparsity(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const SparsityPattern> src_local_pattern,
@@ -165,20 +165,45 @@ Repartitioner::repartition_sparsity(
 
     // early return if no repartitioning requested
     if (ranks_per_gpu == 1) {
+        // FIXME if fuse is selected also the non local interfaces
+        // should be fused
+        // thus we need to call
+        //
         // no interface gets repartitioned, thus all interfaces are available on
         // local rank
-        std::vector<std::pair<bool, label>> ret(
-            src_non_local_pattern->spans.size(),
-            std::pair<bool, label>(false, rank));
+        std::vector<std::tuple<bool, label, label>> ret;
+        for (auto span : src_non_local_pattern->spans) {
+            ret.emplace_back(false, rank, span.length());
+        }
 
+        std::shared_ptr<SparsityPattern> ret_non_local;
+        if (fuse) {
+            auto non_local_rows =
+                convert_to_vector(src_non_local_pattern->row_idxs);
+            auto non_local_cols =
+                convert_to_vector(src_non_local_pattern->col_idxs);
+            auto non_local_map =
+                convert_to_vector(src_non_local_pattern->ldu_mapping);
+
+            fuse_sparsity(non_local_rows, non_local_cols, non_local_map,
+                          src_non_local_pattern->spans);
+
+            ret_non_local = std::make_shared<SparsityPattern>(
+                src_non_local_pattern->row_idxs.get_executor(),
+                src_non_local_pattern->dim, non_local_rows, non_local_cols,
+                non_local_map, src_non_local_pattern->spans);
+
+        } else {
+            ret_non_local =
+                std::make_shared<SparsityPattern>(*src_non_local_pattern.get());
+        }
 
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
-                               std::vector<std::pair<bool, label>>>(
+                               std::vector<std::tuple<bool, label, label>>>(
             std::make_shared<SparsityPattern>(*src_local_pattern.get()),
-            std::make_shared<SparsityPattern>(*src_non_local_pattern.get()),
-            std::move(ret));
+            std::move(ret_non_local), std::move(ret));
     }
 
     // Step 1. gather all local sparsity pattern to owner rank
@@ -238,12 +263,12 @@ Repartitioner::repartition_sparsity(
         new_spans, tmp_comm_ranks);
 
     if (fuse_) {
-    if (is_owner(exec_handler)) {
-        fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
-                      tmp_local_span);
-        fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
-                      tmp_non_local_mapping, new_spans);
-    }
+        if (is_owner(exec_handler)) {
+            fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
+                          tmp_local_span);
+            fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
+                          tmp_non_local_mapping, new_spans);
+        }
     }
 
     gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};
@@ -259,21 +284,22 @@ Repartitioner::repartition_sparsity(
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
-                               std::vector<std::pair<bool, label>>>(
+                               std::vector<std::tuple<bool, label, label>>>(
             std::move(local_pattern), std::move(non_local_pattern),
             std::move(is_local));
     } else {
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
-                               std::vector<std::pair<bool, label>>>(
+                               std::vector<std::tuple<bool, label, label>>>(
             std::make_shared<SparsityPattern>(exec),
             std::make_shared<SparsityPattern>(exec), std::move(is_local));
     }
 }
 
 
-std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
+std::vector<std::tuple<bool, label, label>>
+Repartitioner::build_non_local_interfaces(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
@@ -287,7 +313,7 @@ std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
     std::vector<label> &comm_target_ids) const
 {
     auto rank = exec_handler.get_rank();
-    std::vector<std::pair<bool, label>> is_local;
+    std::vector<std::tuple<bool, label, label>> is_local;
     std::vector<label> mark_keep;
 
     for (size_t i = 0; i < non_local_spans.size(); i++) {
@@ -314,7 +340,7 @@ std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
         } else {
             mark_keep.push_back(i);
         }
-        is_local.emplace_back(local, non_local_rank_origin[i]);
+        is_local.emplace_back(local, non_local_rank_origin[i], end - begin);
     }
 
     // remove data from non_local vectors

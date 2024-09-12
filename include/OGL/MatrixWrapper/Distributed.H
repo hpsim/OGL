@@ -110,7 +110,7 @@ public:
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
         std::shared_ptr<const Repartitioner> repartitioner,
-        std::vector<std::pair<bool, label>> &local_interfaces)
+        std::vector<std::tuple<bool, label, label>> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           dist_mtx_(std::move(dist_mtx)),
@@ -193,7 +193,7 @@ private:
 
     std::shared_ptr<const Repartitioner> repartitioner_;
 
-    std::vector<std::pair<bool, label>> local_interfaces_;
+    std::vector<std::tuple<bool, label, label>> local_interfaces_;
 };
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
