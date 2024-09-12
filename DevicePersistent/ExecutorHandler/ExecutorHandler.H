@@ -34,7 +34,8 @@ struct ExecutorInitFunctor {
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
-    {}
+    {
+    }
 
 
     void update(std::shared_ptr<gko::Executor>) const {}
@@ -56,7 +57,7 @@ struct ExecutorInitFunctor {
             return gko::share(gko::CudaExecutor::create(
                 device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
         }
-        if (executor_name_ == "sycl" || "dpcpp") {
+        if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "SYCL Backend was not compiled. Recompile OGL/Ginkgo "
