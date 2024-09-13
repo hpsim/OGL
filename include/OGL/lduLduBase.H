@@ -38,6 +38,8 @@ private:
 
     const bool force_host_buffer_;
 
+    const bool fused_;
+
     const label ranks_per_gpu_;
 
     const word matrix_format_;
@@ -50,6 +52,7 @@ public:
           debug_(solverControls.lookupOrDefault<Switch>("debug", false)),
           force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
+          fused_(solverControls.lookupOrDefault<Switch>("fuse", true)),
           ranks_per_gpu_(
               solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
@@ -86,6 +89,8 @@ public:
             std::string(ginkgo_git_revision()) +
             std::string("\n\tMPI is GPU aware: ") +
             std::to_string(gko::experimental::mpi::is_gpu_aware()) +
+            std::string("\n\tFuses matrix interface: ") +
+            std::to_string(fused_) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
             std::string("\n\tCPU ranks per GPU: ") +
@@ -199,7 +204,7 @@ public:
     {
         label ranks_per_gpu =
             solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
-        bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", false);
+        bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", true);
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
