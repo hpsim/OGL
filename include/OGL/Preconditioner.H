@@ -6,6 +6,7 @@
 
 #include <ginkgo/ginkgo.hpp>
 #include "OGL/DevicePersistent/Base.H"
+#include "OGL/MatrixWrapper/Distributed.H"
 #include "fvCFD.H"
 #include "regIOobject.H"
 
@@ -46,43 +47,37 @@ public:
 
     template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
-        if (Pstream::parRun()) {
-            return gko::share(
-                ras::build()
-                    .with_generated_local_solver(gko::share(precond->generate(
-                        gko::as<gko::experimental::distributed::Matrix<
-                            scalar, label, label>>(gkomatrix)
-                            ->get_local_matrix())))
-                    .on(device_exec)
-                    ->generate(gkomatrix));
-        }
-        return gko::share(precond->generate(gkomatrix));
+        auto local = get_local(gkomatrix);
+        return gko::share(
+            ras::build()
+                .with_generated_local_solver(
+                    gko::share(precond->generate(local)))
+                .on(device_exec)
+                ->generate(
+                    gko::as<RepartDistMatrix>(gkomatrix)->get_dist_mtx()));
     }
 
     template <typename PrecondFactory, typename Factorization>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond,
         std::shared_ptr<Factorization> factorization) const
     {
-        if (Pstream::parRun()) {
-            return gko::share(ras::build()
-                                  .with_generated_local_solver(
-                                      precond->generate(factorization))
-                                  .on(device_exec)
-                                  ->generate(gkomatrix));
-        }
-        return gko::share(precond->generate(factorization));
+        return gko::share(
+            ras::build()
+                .with_generated_local_solver(precond->generate(factorization))
+                .on(device_exec)
+                ->generate(gkomatrix));
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &controls,
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         bool skip_sorting =
@@ -354,7 +349,7 @@ public:
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner(
-        std::shared_ptr<gko::LinOp> gkomatrix,
+        std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
         const word precond_store_name = "Cached_preconditinoner";
@@ -362,7 +357,6 @@ public:
         bool stored{db_.template foundObject<regIOobject>(precond_store_name)};
 
         word name;
-
 #ifdef WITH_ESI_VERSION
         const entry &e =
             solverControls_.lookupEntry("preconditioner", keyType::LITERAL);
@@ -385,7 +379,6 @@ public:
         const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
-
 
         if (stored) {
             if (cache > 0) {

@@ -41,12 +41,8 @@ public:
         RepartDistMatrix>::convert_to;
     using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
 
-    std::shared_ptr<const gko::LinOp> get_local_matrix()
-    {
-        return this->dist_mtx_->get_local_matrix();
-    }
 
-    std::shared_ptr<const gko::LinOp> get_non_local_matrix()
+    std::shared_ptr<const gko::LinOp> get_non_local_matrix() const
     {
         return this->dist_mtx_->get_non_local_matrix();
     }
@@ -102,6 +98,20 @@ public:
                 std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
 
+    template <typename InnerType>
+    std::shared_ptr<const gko::LinOp> get_local() const
+    {
+        if (repartitioner_->get_fused()) {
+            return dist_mtx_->get_local_matrix();
+        } else {
+            return gko::as<InnerType>(gko::as<CombinationMatrix<InnerType>>(
+                                          dist_mtx_->get_local_matrix())
+                                          ->get_operators()[0]);
+        }
+    }
+
+    std::shared_ptr<const gko::LinOp> get_dist_mtx() const { return dist_mtx_; }
+
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
         std::shared_ptr<dist_mtx> dist_mtx,
@@ -126,9 +136,7 @@ public:
 
     template <typename LocalMatrixType>
     void write(const ExecutorHandler &exec_handler, const word field_name_,
-               const objectRegistry &db_
-
-    ) const;
+               const objectRegistry &db_) const;
 
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
@@ -195,6 +203,9 @@ private:
 
     std::vector<std::tuple<bool, label, label>> local_interfaces_;
 };
+
+std::shared_ptr<const gko::LinOp> get_local(
+    std::shared_ptr<const gko::LinOp> dist_A);
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
                        const objectRegistry &db,

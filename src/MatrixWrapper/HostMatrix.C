@@ -234,6 +234,7 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 {
     label element_ctr = 0;
     label interface_ctr = 0;
+
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
@@ -476,27 +477,21 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     size_t element_ctr = 0;
     // label interface_ctr{0};
 
-    // TODO currently we set permute eventhough this is not required
-    // anymore, remove permute from non_local_interfaces
     for (auto [interface_idx, col, row, rank] : non_local_indices) {
         rows[element_ctr] = row;
         cols[element_ctr] = col;
         permute[element_ctr] = element_ctr;
 
-        // a new interface started or the last element on last interface has
-        // been reached
-        bool last_element = element_ctr == non_local_indices.size() - 1;
-        if (interface_idx > prev_interface_ctr || last_element) {
-            // this check will be reached one element earlier if we reached
-            // the end of the non_local_indices thus we need to increment
-            // the element_ctr once more
-            end = (last_element) ? element_ctr + 1 : element_ctr;
-            spans.emplace_back(start, end);
+        // a new interface started been reached
+        if (interface_idx > prev_interface_ctr) {
+            end = element_ctr;
+            spans.emplace_back(start, element_ctr);
             start = end;
             prev_interface_ctr = interface_idx;
         }
         element_ctr++;
     }
+    spans.emplace_back(end, non_local_indices.size());
 
     gko::dim<2> dim{static_cast<gko::size_type>(nrows_),
                     static_cast<gko::size_type>(non_local_matrix_nnz_)};

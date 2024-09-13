@@ -118,13 +118,8 @@ label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
 void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
                    std::vector<label> &mapping, std::vector<gko::span> &span)
 {
-    auto end = span.back().end;
-
     // add offset to mapping
     // so interface mapping is not continous
-    size_t interface_begin = span[0].end;
-    size_t offset = span[0].length();
-
     std::vector<label> permutation(rows.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::stable_sort(permutation.begin(), permutation.end(),
@@ -165,12 +160,11 @@ Repartitioner::repartition_sparsity(
 
     // early return if no repartitioning requested
     if (ranks_per_gpu == 1) {
-        // FIXME if fuse is selected also the non local interfaces
-        // should be fused
-        // thus we need to call
-        //
         // no interface gets repartitioned, thus all interfaces are available on
         // local rank
+        // if fuse is selected also the non local interfaces
+        // should be fused
+        // thus we need to call
         std::vector<std::tuple<bool, label, label>> ret;
         for (auto span : src_non_local_pattern->spans) {
             ret.emplace_back(false, rank, span.length());
@@ -396,7 +390,7 @@ Repartitioner::repartition_comm_pattern(
         return src_comm_pattern;
     }
 
-    using comm_size_type = label;
+    // using comm_size_type = label;
     auto exec = exec_handler.get_ref_exec();
     auto comm = src_comm_pattern->get_comm();
 
@@ -461,7 +455,7 @@ Repartitioner::repartition_comm_pattern(
                                recv_buffer.begin(),
                                [&](label idx) { return idx + offset; });
 
-                auto target_id = gathered_target_ids[j + owner_recv_counts];
+                // auto target_id = gathered_target_ids[j + owner_recv_counts];
                 send_idxs.emplace_back(recv_buffer);
             }
         }
@@ -530,7 +524,7 @@ Repartitioner::repartition_comm_pattern(
     send_idxs.clear();
 
     for (size_t i = 0; i < merged_target_ids.size(); i++) {
-        label target_id = merged_target_ids[i];
+        // label target_id = merged_target_ids[i];
         send_idxs.emplace_back(merged_send_idxs[i]);
     }
 

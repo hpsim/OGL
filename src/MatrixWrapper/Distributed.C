@@ -114,7 +114,7 @@ void update_fused_impl(
         dist_A,
     std::shared_ptr<const SparsityPattern> local_sparsity,
     std::shared_ptr<const SparsityPattern> non_local_sparsity,
-    std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+    [[maybe_unused]] std::shared_ptr<const CommunicationPattern> src_comm_pattern,
     std::vector<std::tuple<bool, label, label>> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
@@ -124,12 +124,12 @@ void update_fused_impl(
         exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
-    label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    // label owner_rank = repartitioner->get_owner_rank(exec_handler);
     bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
     label local_matrix_nnz = host_A->get_local_matrix_nnz();
     label n_interfaces = 0;  // number of fused interface coefficients
-    for (int i = 0; i < local_interfaces.size(); i++) {
+    for (size_t i = 0; i < local_interfaces.size(); i++) {
         auto [local, rank, size] = local_interfaces[i];
         if (local) {
             n_interfaces += size;
@@ -180,7 +180,7 @@ void update_fused_impl(
         label loc_ctr{1};
         label nloc_ctr{0};
         label host_interface_ctr{0};
-        label tag = 0;
+        // label tag = 0;
         label begin = 0;
         scalar *recv_buffer_ptr;
         for (auto [is_local, orig_rank, size] : local_interfaces) {
@@ -300,7 +300,7 @@ void update_impl(
         gko::experimental::distributed::Matrix<scalar, label, label>>
         dist_A,
     std::shared_ptr<const SparsityPattern> local_sparsity,
-    std::shared_ptr<const SparsityPattern> non_local_sparsity,
+    [[maybe_unused]] std::shared_ptr<const SparsityPattern> non_local_sparsity,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
     std::vector<std::tuple<bool, label, label>> local_interfaces)
 {
@@ -498,7 +498,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
-    // label rank = exec_handler.get_rank();
+    label rank = exec_handler.get_rank();
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
 
@@ -506,8 +506,13 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
 
     auto src_comm_pattern = host_A->create_communication_pattern();
+    if (non_local_sparsity->spans.size() != src_comm_pattern->target_ids.size()) {
+        FatalErrorInFunction << " Inconsistency detected non_local_sparsity->spans.size() !=src_comm_pattern->target_ids.size() on rank" << exit(FatalError);
+    }
+
     auto repart_comm_pattern =
         repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
+
 
     auto tmp_send_global_cols = detail::convert_to_global(
         repartitioner->get_orig_partition(),
@@ -568,6 +573,19 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     return std::make_shared<RepartDistMatrix>(
         device_exec, comm, dist_A, repart_loc_sparsity, repart_non_loc_sparsity,
         src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
+}
+
+std::shared_ptr<const gko::LinOp> get_local(std::shared_ptr<const gko::LinOp> dist_A
+                       )
+{
+    word matrix_format = "Coo";
+    if (matrix_format == "Coo") {
+        return gko::as<RepartDistMatrix>(dist_A)->get_local<const gko::matrix::Coo<scalar, label>>();
+    }
+    if (matrix_format == "Csr") {
+        return gko::as<RepartDistMatrix>(dist_A)->get_local<const gko::matrix::Csr<scalar, label>>();
+    }
+
 }
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
