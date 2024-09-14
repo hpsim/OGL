@@ -12,13 +12,6 @@ gko::dim<2> compute_dimensions(const std::vector<label> &rows)
     return gko::dim<2>{num_rows, num_rows};
 }
 
-void compress_cols(gko::array<label> &in)
-{
-    for (size_t i = 0; i < in.get_size(); i++) {
-        in.get_data()[i] = i;
-    }
-}
-
 void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu)
