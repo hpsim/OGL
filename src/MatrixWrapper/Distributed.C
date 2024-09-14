@@ -17,10 +17,8 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
         std::map<label, label> key_map;
         label ctr{0};
         for (auto el : tmp) {
-            if (key_map.count(el) == 0) {
-                key_map[el] = ctr;
-                ctr++;
-            }
+            key_map[el] = ctr;
+            ctr++;
         }
 
         for (size_t i = 0; i < in.size(); i++) {
@@ -544,6 +542,13 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // interfaces.
     auto recv_gather_idxs =
         repart_comm_pattern->compute_recv_gather_idxs(exec_handler);
+
+
+    std::cout << __FILE__ << " rank " << rank
+        << "recv_gather " <<  convert_to_vector(recv_gather_idxs)
+        << " recv_sizes " <<  recv_sizes
+        << " recv_offsets " <<  recv_offsets
+        << "\n";
 
     auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
