@@ -309,12 +309,25 @@ HostMatrixWrapper::create_communication_pattern() const
             }
         });
 
-    // create index_sets
+    // create unique index_sets
     std::vector<std::vector<label>> send_idxs;
     for (label proc : target_ids) {
         // for (auto [proc, interface_cells] : interface_cell_map) {
         auto exec = exec_.get_ref_exec();
-        send_idxs.emplace_back(interface_cell_map[proc]);
+        auto cells_on_interface = interface_cell_map[proc];
+        // remove duplicates, since we don't to send duplicate values
+        // twice, here
+        std::vector<label> tmp.reserve(cells_on_interface.size());
+
+        tmp.push_back(cells_on_interface[0]);
+
+        for (size_t i = 1; i < cells_on_interface.size(); i++) {
+            if (tmp[i - 1] != cells_on_interface[i]) {
+                tmp.push_back(cells_on_interface[i]);
+            }
+        }
+
+        send_idxs.push_back(tmp);
     }
 
     return std::make_shared<CommunicationPattern>(get_exec_handler(),
