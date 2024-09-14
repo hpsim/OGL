@@ -317,7 +317,8 @@ HostMatrixWrapper::create_communication_pattern() const
         auto cells_on_interface = interface_cell_map[proc];
         // remove duplicates, since we don't to send duplicate values
         // twice, here
-        std::vector<label> tmp.reserve(cells_on_interface.size());
+        std::vector<label> tmp;
+        tmp.reserve(cells_on_interface.size());
 
         tmp.push_back(cells_on_interface[0]);
 
