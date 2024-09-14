@@ -160,8 +160,9 @@ struct CommunicationPattern {
      */
     std::vector<label> total_rank_send_idx() const;
 
-    /* @brief concatenate all separate send idxs arrays into one contiguous
-     * array
+    /* @brief computes the recv_gather_idxs, ie the send_idxs of the
+     * neighbouring ranks in local indexing
+     *
      */
     gko::array<label> compute_recv_gather_idxs(
         const ExecutorHandler &exec_handler) const;
