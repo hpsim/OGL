@@ -313,7 +313,6 @@ HostMatrixWrapper::create_communication_pattern() const
     std::vector<std::vector<label>> send_idxs;
     for (label proc : target_ids) {
         // for (auto [proc, interface_cells] : interface_cell_map) {
-        auto exec = exec_.get_ref_exec();
         auto cells_on_interface = interface_cell_map[proc];
         // remove duplicates, since we don't to send duplicate values
         // twice, here
@@ -323,7 +322,7 @@ HostMatrixWrapper::create_communication_pattern() const
         tmp.push_back(cells_on_interface[0]);
 
         for (size_t i = 1; i < cells_on_interface.size(); i++) {
-            if (tmp[i - 1] != cells_on_interface[i]) {
+            if (tmp.back() != cells_on_interface[i]) {
                 tmp.push_back(cells_on_interface[i]);
             }
         }

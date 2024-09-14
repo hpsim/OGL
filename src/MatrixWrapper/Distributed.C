@@ -513,7 +513,6 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto repart_comm_pattern =
         repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
 
-
     auto tmp_send_global_cols = detail::convert_to_global(
         repartitioner->get_orig_partition(),
         non_local_sparsity->col_idxs.get_const_data(),
