@@ -10,28 +10,14 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     std::shared_ptr<const SparsityPattern> sparsity, bool compress_cols)
 {
     std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
-    auto compress_columns = [](std::vector<label> &in) {
-        std::vector<label> tmp = in;
-        std::stable_sort(tmp.begin(), tmp.end());
-
-        std::map<label, label> key_map;
-        label ctr{0};
-        for (auto el : tmp) {
-            key_map[el] = ctr;
-            ctr++;
-        }
-
-        for (size_t i = 0; i < in.size(); i++) {
-            in[i] = key_map[in[i]];
-        }
-    };
-
-    std::vector<label> tmp_cols(
-        sparsity->col_idxs.get_const_data(),
-        sparsity->col_idxs.get_const_data() + sparsity->num_nnz);
-    if (compress_cols) {
-        compress_columns(tmp_cols);
-    }
+    std::vector<label> tmp_cols =
+        (compress_cols)
+            ? std::vector<label>(
+                  sparsity->ldu_mapping.get_const_data(),
+                  sparsity->ldu_mapping.get_const_data() + sparsity->num_nnz)
+            : std::vector<label>(
+                  sparsity->col_idxs.get_const_data(),
+                  sparsity->col_idxs.get_const_data() + sparsity->num_nnz);
     if (sparsity->spans.size() == 0) {
         lin_ops.push_back(
             gko::share(MatrixType::create(exec, gko::dim<2>{0, 0})));
@@ -112,7 +98,8 @@ void update_fused_impl(
         dist_A,
     std::shared_ptr<const SparsityPattern> local_sparsity,
     std::shared_ptr<const SparsityPattern> non_local_sparsity,
-    [[maybe_unused]] std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+    [[maybe_unused]] std::shared_ptr<const CommunicationPattern>
+        src_comm_pattern,
     std::vector<std::tuple<bool, label, label>> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
@@ -263,29 +250,32 @@ void update_fused_impl(
         auto dense_vec = row_collection->clone();
         dense_vec->row_gather(&mapping_view, row_collection.get());
 
-
         // non local data
-        auto non_local_mtx = gko::as<LocalMatrixType>(dist_A->get_non_local_matrix());
+        auto non_local_mtx =
+            gko::as<LocalMatrixType>(dist_A->get_non_local_matrix());
         auto non_local_elements = non_local_mtx->get_num_stored_elements();
-    scalar *non_local_ptr =
-        (owner) ? const_cast<scalar *>(non_local_mtx->get_const_values()) : nullptr;
+        scalar *non_local_ptr =
+            (owner) ? const_cast<scalar *>(non_local_mtx->get_const_values())
+                    : nullptr;
 
         // TODO make sure this doesn't copy
         // create a non owning dense matrix of local_values
-        auto non_local_row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            non_local_mtx->get_executor(),
-            gko::dim<2>{static_cast<dim_type>(non_local_elements), 1},
-            gko::array<scalar>::view(non_local_mtx->get_executor(), non_local_elements,
-                                     non_local_ptr),
-            1));
+        auto non_local_row_collection =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                non_local_mtx->get_executor(),
+                gko::dim<2>{static_cast<dim_type>(non_local_elements), 1},
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr),
+                1));
 
         non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
         auto non_local_mapping_view = gko::array<label>::view(
-           non_local_sparsity->ldu_mapping.get_executor(), non_local_elements,
-           non_local_sparsity->ldu_mapping.get_data());
+            non_local_sparsity->ldu_mapping.get_executor(), non_local_elements,
+            non_local_sparsity->ldu_mapping.get_data());
 
         auto non_local_dense_vec = non_local_row_collection->clone();
-        non_local_dense_vec->row_gather(&non_local_mapping_view, non_local_row_collection.get());
+        non_local_dense_vec->row_gather(&non_local_mapping_view,
+                                        non_local_row_collection.get());
     }
 }
 
@@ -438,8 +428,7 @@ void update_impl(
         // TODO reorder everything doesnt need row_collection clone
         using dim_type = gko::dim<2>::dimension_type;
 
-        std::shared_ptr<const LocalMatrixType> local =
-        gko::as<LocalMatrixType>(
+        std::shared_ptr<const LocalMatrixType> local = gko::as<LocalMatrixType>(
             gko::as<CombinationMatrix<LocalMatrixType>>(
                 dist_A->get_local_matrix())
                 ->get_combination()
@@ -464,6 +453,83 @@ void update_impl(
 
         auto dense_vec = row_collection->clone();
         dense_vec->row_gather(&mapping_view, row_collection.get());
+
+
+        // TODO move reorder up to interface update
+        auto tmp = gko::array<scalar>(dist_A->get_executor(),
+                                      non_local_sparsity->num_nnz);
+        tmp.fill(0);
+
+        auto non_local_dense_vec =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                dist_A->get_executor(),
+                gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz),
+                            1},
+                tmp, 1));
+
+        auto non_local_row_vec = gko::share(gko::matrix::Dense<scalar>::create(
+            dist_A->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz), 1},
+            gko::array<scalar>(dist_A->get_executor(),
+                               non_local_sparsity->num_nnz),
+            1));
+        non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
+        auto non_local_mapping_view = gko::array<label>::view(
+            non_local_sparsity->ldu_mapping.get_executor(),
+            non_local_sparsity->num_nnz,
+            non_local_sparsity->ldu_mapping.get_data());
+
+        for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
+            std::shared_ptr<const LocalMatrixType> non_local_mtx =
+                gko::as<LocalMatrixType>(
+                    gko::as<CombinationMatrix<LocalMatrixType>>(
+                        dist_A->get_non_local_matrix())
+                        ->get_combination()
+                        ->get_operators()[i]);
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
+                const_cast<scalar *>(non_local_mtx->get_const_values());
+            auto value_view =
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr);
+
+            // FIXME currently we need a tmp copy of the values to num_nnzs long
+            // array to sort into the row_collection
+            auto non_local_dense_view = gko::array<scalar>::view(
+                dist_A->get_executor(), non_local_elements,
+                non_local_dense_vec->get_values() + non_local_sparsity->spans[i].begin);
+            non_local_dense_view = value_view;
+        }
+
+        // use value view instead of row collection?
+        non_local_dense_vec->row_gather(&non_local_mapping_view,
+                                        non_local_row_vec.get());
+
+            auto non_local_dense_view = gko::array<scalar>::view(
+                dist_A->get_executor(), non_local_sparsity->num_nnz,
+                non_local_dense_vec->get_values());
+
+        for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
+            std::shared_ptr<const LocalMatrixType> non_local_mtx =
+                gko::as<LocalMatrixType>(
+                    gko::as<CombinationMatrix<LocalMatrixType>>(
+                        dist_A->get_non_local_matrix())
+                        ->get_combination()
+                        ->get_operators()[i]);
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
+                const_cast<scalar *>(non_local_mtx->get_const_values());
+            auto value_view =
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr);
+
+            auto non_local_row_view = gko::array<scalar>::view(
+                dist_A->get_executor(), non_local_elements,
+                non_local_row_vec->get_values() +
+                    non_local_sparsity->spans[i].begin);
+
+            value_view = non_local_row_view;
+        }
     }
 }
 
@@ -474,16 +540,14 @@ void RepartDistMatrix::update(
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
-
     if (repartitioner->get_fused()) {
-    update_fused_impl<InnerType>(exec_handler, repartitioner, host_A, dist_mtx_,
-                           local_sparsity_, non_local_sparsity_,
-                           src_comm_pattern_, local_interfaces_);
+        update_fused_impl<InnerType>(
+            exec_handler, repartitioner, host_A, dist_mtx_, local_sparsity_,
+            non_local_sparsity_, src_comm_pattern_, local_interfaces_);
     } else {
-    update_impl<InnerType>(exec_handler, repartitioner, host_A, dist_mtx_,
-                           local_sparsity_, non_local_sparsity_,
-                           src_comm_pattern_, local_interfaces_);
-
+        update_impl<InnerType>(exec_handler, repartitioner, host_A, dist_mtx_,
+                               local_sparsity_, non_local_sparsity_,
+                               src_comm_pattern_, local_interfaces_);
     }
 }
 
@@ -504,8 +568,12 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
 
     auto src_comm_pattern = host_A->create_communication_pattern();
-    if (non_local_sparsity->spans.size() != src_comm_pattern->target_ids.size()) {
-        FatalErrorInFunction << " Inconsistency detected non_local_sparsity->spans.size() !=src_comm_pattern->target_ids.size() on rank" << exit(FatalError);
+    if (non_local_sparsity->spans.size() !=
+        src_comm_pattern->target_ids.size()) {
+        FatalErrorInFunction
+            << " Inconsistency detected non_local_sparsity->spans.size() "
+               "!=src_comm_pattern->target_ids.size() on rank"
+            << exit(FatalError);
     }
 
     auto repart_comm_pattern =
@@ -543,13 +611,6 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto recv_gather_idxs =
         repart_comm_pattern->compute_recv_gather_idxs(exec_handler);
 
-
-    std::cout << __FILE__ << " rank " << rank
-        << "recv_gather " <<  convert_to_vector(recv_gather_idxs)
-        << " recv_sizes " <<  recv_sizes
-        << " recv_offsets " <<  recv_offsets
-        << "\n";
-
     auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
 
@@ -579,17 +640,18 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
 }
 
-std::shared_ptr<const gko::LinOp> get_local(std::shared_ptr<const gko::LinOp> dist_A
-                       )
+std::shared_ptr<const gko::LinOp> get_local(
+    std::shared_ptr<const gko::LinOp> dist_A)
 {
     word matrix_format = "Coo";
     if (matrix_format == "Coo") {
-        return gko::as<RepartDistMatrix>(dist_A)->get_local<const gko::matrix::Coo<scalar, label>>();
+        return gko::as<RepartDistMatrix>(dist_A)
+            ->get_local<const gko::matrix::Coo<scalar, label>>();
     }
     if (matrix_format == "Csr") {
-        return gko::as<RepartDistMatrix>(dist_A)->get_local<const gko::matrix::Csr<scalar, label>>();
+        return gko::as<RepartDistMatrix>(dist_A)
+            ->get_local<const gko::matrix::Csr<scalar, label>>();
     }
-
 }
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,

@@ -135,6 +135,25 @@ void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
     span.emplace_back(0, rows.size());
 }
 
+void sort_sparsity(std::vector<label> &rows, std::vector<label> &cols,
+                   std::vector<label> &mapping, std::vector<gko::span> &span)
+{
+    // add offset to mapping
+    // so interface mapping is not continous
+    std::vector<label> permutation(rows.size());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    for (auto [begin, end] : span) {
+        std::stable_sort(permutation.begin() + begin, permutation.begin() + end,
+                         [&](std::size_t i, std::size_t j) {
+                             return std::tie(rows[i], cols[i]) <
+                                    std::tie(rows[j], cols[j]);
+                         });
+    }
+    rows = detail::apply_permutation(rows, permutation);
+    cols = detail::apply_permutation(cols, permutation);
+    mapping = detail::apply_permutation(mapping, permutation);
+}
+
 std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
            std::vector<std::tuple<bool, label, label>>>
 Repartitioner::repartition_sparsity(
@@ -162,9 +181,6 @@ Repartitioner::repartition_sparsity(
     if (ranks_per_gpu == 1) {
         // no interface gets repartitioned, thus all interfaces are available on
         // local rank
-        // if fuse is selected also the non local interfaces
-        // should be fused
-        // thus we need to call
         std::vector<std::tuple<bool, label, label>> ret;
         for (auto span : src_non_local_pattern->spans) {
             ret.emplace_back(false, rank, span.length());
@@ -188,8 +204,20 @@ Repartitioner::repartition_sparsity(
                 non_local_map, src_non_local_pattern->spans);
 
         } else {
-            ret_non_local =
-                std::make_shared<SparsityPattern>(*src_non_local_pattern.get());
+            auto non_local_rows =
+                convert_to_vector(src_non_local_pattern->row_idxs);
+            auto non_local_cols =
+                convert_to_vector(src_non_local_pattern->col_idxs);
+            auto non_local_map =
+                convert_to_vector(src_non_local_pattern->ldu_mapping);
+
+            sort_sparsity(non_local_rows, non_local_cols, non_local_map,
+                          src_non_local_pattern->spans);
+
+            ret_non_local = std::make_shared<SparsityPattern>(
+                src_non_local_pattern->row_idxs.get_executor(),
+                src_non_local_pattern->dim, non_local_rows, non_local_cols,
+                non_local_map, src_non_local_pattern->spans);
         }
 
         LOG_1(verbose_, "done repartition sparsity pattern")
