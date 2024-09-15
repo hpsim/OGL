@@ -92,7 +92,8 @@ public:
 
     // non local data
     vec_vec non_local_rows{{1}, {0, 1}, {0, 1}, {0}};
-    vec_vec non_local_cols{{0}, {1, 0}, {1, 0}, {1}};
+    // non local columns in global idxs
+    vec_vec non_local_cols{{2}, {1, 4}, {3, 6}, {5}};
     vec_vec non_local_mapping{{0}, {0, 1}, {0, 1}, {0}};
     // communication partners (ranks)
     vec_vec ids{{1}, {0, 2}, {1, 3}, {2}};
@@ -327,10 +328,10 @@ TEST_P(RepartitionerFixture1D,
     exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
     exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
 
-    // expected cols are in compressed format
+    // expected cols are in global idxs
     std::map<label, vec_vec> exp_non_local_cols;
     exp_non_local_cols.emplace(1, non_local_cols);
-    exp_non_local_cols.emplace(2, vec_vec{{0}, {}, {3}, {}});
+    exp_non_local_cols.emplace(2, vec_vec{{4}, {}, {3}, {}});
     exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
 
     std::vector<std::vector<label>> comm_target_ids{{1}, {0, 2}, {1, 3}, {2}};
@@ -451,10 +452,10 @@ TEST_P(RepartitionerFixture1D,
     exp_non_local_rows.emplace(2, vec_vec{{3}, {}, {0}, {}});
     exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
 
-    // expected cols are in compressed format
+    // expected cols are in global idxs
     std::map<label, vec_vec> exp_non_local_cols;
     exp_non_local_cols.emplace(1, non_local_cols);
-    exp_non_local_cols.emplace(2, vec_vec{{0}, {}, {3}, {}});
+    exp_non_local_cols.emplace(2, vec_vec{{4}, {}, {3}, {}});
     exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
 
     std::vector<std::vector<label>> comm_target_ids{{1}, {0, 2}, {1, 3}, {2}};
