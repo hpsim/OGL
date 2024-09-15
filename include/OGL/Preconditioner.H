@@ -390,10 +390,30 @@ public:
                 cache = cache - 1;
 
                 set_next_caching(sys_matrix_name_, db_, cache--);
-                return db_
-                    .template lookupObjectRef<DevicePersistentBase<gko::LinOp>>(
-                        precond_store_name)
-                    .get_ptr();
+                auto ret =
+                    db_.template lookupObjectRef<
+                           DevicePersistentBase<gko::LinOp>>(precond_store_name)
+                        .get_ptr();
+
+                if (name == "Multigrid") {
+                    word msg = "Update Multigrid preconditioner";
+                    MLOG_1(verbose_, msg)
+                    word type =
+                        controls.lookupOrDefault("type", word("Schwarz"));
+                    if (type == "Schwarz") {
+                        auto local_solver = std::const_pointer_cast<gko::LinOp>(
+                            gko::as<ras>(ret)->get_local_solver());
+                        gko::as<gko::UpdateMatrixValue>(local_solver)
+                            ->update_matrix_value(
+                                gko::as<RepartDistMatrix>(gkomatrix)
+                                    ->get_local_matrix());
+                    } else {
+                        gko::as<gko::UpdateMatrixValue>(ret)
+                            ->update_matrix_value(gkomatrix);
+                    }
+                }
+
+                return ret;
             } else {
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);

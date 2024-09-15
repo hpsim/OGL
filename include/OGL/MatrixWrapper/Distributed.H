@@ -41,11 +41,28 @@ public:
         RepartDistMatrix>::convert_to;
     using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
 
+    std::shared_ptr<const gko::LinOp> get_local_matrix() const
+    {
+        return this->dist_mtx_->get_local_matrix();
+    }
 
     std::shared_ptr<const gko::LinOp> get_non_local_matrix() const
     {
         return this->dist_mtx_->get_non_local_matrix();
     }
+
+    template <typename InnerType>
+    std::shared_ptr<const gko::LinOp> get_local() const
+    {
+        if (repartitioner_->get_fused()) {
+            return dist_mtx_->get_local_matrix();
+        } else {
+            return gko::as<InnerType>(gko::as<CombinationMatrix<InnerType>>(
+                                          dist_mtx_->get_local_matrix())
+                                          ->get_operators()[0]);
+        }
+    }
+
 
     /**
      * Copy-assigns a CombinationMatrix matrix. Preserves executor, copies
@@ -97,18 +114,6 @@ public:
     void update(const ExecutorHandler &exec_handler,
                 std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
-
-    template <typename InnerType>
-    std::shared_ptr<const gko::LinOp> get_local() const
-    {
-        if (repartitioner_->get_fused()) {
-            return dist_mtx_->get_local_matrix();
-        } else {
-            return gko::as<InnerType>(gko::as<CombinationMatrix<InnerType>>(
-                                          dist_mtx_->get_local_matrix())
-                                          ->get_operators()[0]);
-        }
-    }
 
     std::shared_ptr<const gko::LinOp> get_dist_mtx() const { return dist_mtx_; }
 
