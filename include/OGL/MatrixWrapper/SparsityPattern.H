@@ -65,7 +65,7 @@ struct SparsityPattern {
           dim(gko::dim<2>{})
     {}
 
-    SparsityPattern(const SparsityPattern& in)
+    SparsityPattern(const SparsityPattern &in)
         : num_nnz(in.num_nnz),
           row_idxs{in.row_idxs},
           col_idxs{in.col_idxs},
