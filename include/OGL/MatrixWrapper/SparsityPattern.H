@@ -65,6 +65,15 @@ struct SparsityPattern {
           dim(gko::dim<2>{})
     {}
 
+    SparsityPattern(const SparsityPattern& in)
+        : num_nnz(in.num_nnz),
+          row_idxs{in.row_idxs},
+          col_idxs{in.col_idxs},
+          ldu_mapping{in.ldu_mapping},
+          dim{in.dim},
+          spans{in.spans}
+    {}
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
                     gko::dim<2> dim, std::vector<label> &rows,
                     std::vector<label> &cols, std::vector<label> &map,

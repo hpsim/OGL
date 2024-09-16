@@ -102,6 +102,7 @@ void update_fused_impl(
         src_comm_pattern,
     std::vector<std::tuple<bool, label, label>> local_interfaces)
 {
+    std::cout << __FILE__ << ":" << __LINE__ << "fused_update_impl \n";
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
@@ -572,6 +573,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A)
 {
+    std::cout << __FILE__ << ":" << __LINE__ << " create_impl\n";
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
     label rank = exec_handler.get_rank();
@@ -590,13 +592,16 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             << exit(FatalError);
     }
 
+    std::cout << __FILE__ << ":" << __LINE__ << " repart comm pattern \n";
     auto repart_comm_pattern =
         repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
+    std::cout << __FILE__ << ":" << __LINE__ << " done comm pattern \n";
 
     auto tmp_send_global_cols = detail::convert_to_global(
         repartitioner->get_orig_partition(),
         non_local_sparsity->col_idxs.get_const_data(),
         non_local_sparsity->spans, src_comm_pattern->target_ids);
+    std::cout << __FILE__ << ":" << __LINE__ << " done convert to global \n";
 
     std::copy(tmp_send_global_cols.begin(), tmp_send_global_cols.end(),
               non_local_sparsity->col_idxs.get_data());
@@ -605,15 +610,18 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         repartitioner->repartition_sparsity(
             exec_handler, local_sparsity, non_local_sparsity,
             src_comm_pattern->target_ids, repartitioner->get_fused());
+    std::cout << __FILE__ << ":" << __LINE__ << " done repartition sparsity\n";
 
     // create vector of inner type linops
     // if fuse the vector contains only a single element
     // thus we can unwrap it.
     auto device_exec = exec_handler.get_device_exec();
+    std::cout << __FILE__ << ":" << __LINE__ << " start inner linops\n";
     auto local_linops = generate_inner_linops<LocalMatrixType>(
         device_exec, repart_loc_sparsity, false);
     auto non_local_linops = generate_inner_linops<LocalMatrixType>(
         device_exec, repart_non_loc_sparsity, true);
+    std::cout << __FILE__ << ":" << __LINE__ << " done inner linops\n";
 
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
@@ -630,9 +638,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     std::shared_ptr<dist_mtx> dist_A;
     if (repartitioner->get_fused()) {
+    std::cout << __FILE__ << ":" << __LINE__ << " create dist mtx\n";
         dist_A = gko::share(dist_mtx::create(
             device_exec, comm, global_dim, local_linops[0], non_local_linops[0],
             recv_sizes, recv_offsets, recv_gather_idxs));
+    std::cout << __FILE__ << ":" << __LINE__ << " done dist mtx\n";
         update_fused_impl<LocalMatrixType>(
             exec_handler, repartitioner, host_A, dist_A, repart_loc_sparsity,
             repart_non_loc_sparsity, src_comm_pattern, local_interfaces);

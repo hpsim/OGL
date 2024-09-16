@@ -220,12 +220,13 @@ Repartitioner::repartition_sparsity(
                 non_local_map, src_non_local_pattern->spans);
         }
 
+	auto copy_local_pattern = std::make_shared<SparsityPattern>(
+                *src_local_pattern.get());
+
         LOG_1(verbose_, "done repartition sparsity pattern")
-        return std::make_tuple<std::shared_ptr<SparsityPattern>,
-                               std::shared_ptr<SparsityPattern>,
-                               std::vector<std::tuple<bool, label, label>>>(
-            std::make_shared<SparsityPattern>(*src_local_pattern.get()),
-            std::move(ret_non_local), std::move(ret));
+	return {
+            copy_local_pattern,
+            ret_non_local, std::vector(ret)};
     }
 
     // Step 1. gather all local sparsity pattern to owner rank
@@ -296,19 +297,19 @@ Repartitioner::repartition_sparsity(
     gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};
 
     if (is_owner(exec_handler)) {
-        auto local_pattern = std::make_shared<SparsityPattern>(
-            exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
-            tmp_local_mapping, tmp_local_span);
-        auto non_local_pattern = std::make_shared<SparsityPattern>(
-            exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
-            tmp_non_local_mapping, new_spans);
-
         LOG_1(verbose_, "done repartition sparsity pattern")
-        return std::make_tuple<std::shared_ptr<SparsityPattern>,
+        auto ret = std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::tuple<bool, label, label>>>(
-            std::move(local_pattern), std::move(non_local_pattern),
-            std::move(is_local));
+		std::make_shared<SparsityPattern>(
+            exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
+            tmp_local_mapping, tmp_local_span),
+           std::make_shared<SparsityPattern>(
+            exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
+            tmp_non_local_mapping, new_spans)
+            ,std::vector(is_local));
+    std::cout << __FILE__ << ":" << __LINE__ << " done make tuple \n";
+	return ret;
     } else {
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
