@@ -184,11 +184,28 @@ public:
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
+	bool host_buffer = true;
         std::vector<scalar> host_send_buffer;
+	label repart_size = repartitioner->get_repart_size();
+	if (host_buffer){
+		host_send_buffer.resize(repart_size);
+		auto host_send_view = gko::array<scalar>::view(ref_exec, repart_size, host_send_buffer.data());
+		auto target_send_view = gko::array<scalar>::view(exec, repart_size, get_vector()->get_local_values());
 
-        communicate_values(exec_, comm_pattern,
-                           get_vector()->get_local_values(),
-                           const_cast<T *>(memory_));
+		host_send_view = target_send_view;
+        communicate_values(
+			ref_exec, ref_exec, comm
+			, comm_pattern,
+                           (host_buffer)? host_send_buffer.data(): get_vector()->get_local_values(),
+                           const_cast<T *>(memory_), false, repart_size );
+	} else {
+        communicate_values(
+			exec_
+			, comm_pattern,
+                         get_vector()->get_local_values(),
+                           const_cast<T *>(memory_) );
+	}
+
     }
 
     /** Writes the content of the distributed vector to disk
