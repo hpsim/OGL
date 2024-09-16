@@ -168,16 +168,19 @@ void communicate_values(
             comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
     } else {
         if (force_host_buffer) {
-            auto tmp = gko::array<scalar>(
-                src_exec, send_buffer,
-                send_buffer + comm_pattern.send_offsets.back());
-            tmp.set_executor(target_exec);
+            auto tmp =
+                gko::array<scalar>(src_exec, comm_pattern.recv_offsets.back());
 
-            comm->all_to_all_v(target_exec, tmp.get_const_data(),
+            comm->all_to_all_v(src_exec, send_buffer,
                                comm_pattern.send_counts.data(),
-                               comm_pattern.send_offsets.data(), recv_buffer,
+                               comm_pattern.send_offsets.data(), tmp.get_data(),
                                comm_pattern.recv_counts.data(),
                                comm_pattern.recv_offsets.data());
+
+            auto recv_view = gko::array<scalar>::view(
+                target_exec, comm_pattern.recv_offsets.back(), recv_buffer);
+
+            recv_view = tmp;
         }
     }
 }
