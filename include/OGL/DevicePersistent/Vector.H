@@ -65,9 +65,14 @@ struct VectorInitFunctor {
         // TODO store
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
+	bool host_buffer = exec_.get_gko_force_host_buffer();
 
-        communicate_values(exec_, comm_pattern, host_view.get_const_data(),
-                           persistent_vector->get_local_values());
+	if (host_buffer){
+		persistent_vector = init();
+	} else {
+		communicate_values(exec_, comm_pattern, host_view.get_const_data(),
+				   persistent_vector->get_local_values());
+	}
     }
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
@@ -177,6 +182,7 @@ public:
         auto exec = exec_.get_device_exec();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_communicator();
+	bool host_buffer = exec_.get_gko_force_host_buffer();
 
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
@@ -184,7 +190,6 @@ public:
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-	bool host_buffer = true;
         std::vector<scalar> host_send_buffer;
 	label repart_size = repartitioner->get_repart_size();
 	if (host_buffer){

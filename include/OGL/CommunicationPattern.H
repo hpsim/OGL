@@ -97,7 +97,7 @@ void communicate_values(
     std::shared_ptr<const gko::Executor> target_exec,
     std::shared_ptr<const gko::experimental::mpi::communicator> comm,
     const AllToAllPattern &comm_pattern, const scalar *send_buffer,
-    scalar *recv_buffer, bool force_host_buffer);
+    scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size);
 
 /* @brief A function that can perform an offsetted gather to owner rank
  *

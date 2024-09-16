@@ -159,7 +159,7 @@ void communicate_values(
     std::shared_ptr<const gko::Executor> target_exec,
     std::shared_ptr<const gko::experimental::mpi::communicator> comm,
     const AllToAllPattern &comm_pattern, const scalar *send_buffer,
-    scalar *recv_buffer, bool force_host_buffer)
+    scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size)
 {
     if (src_exec == target_exec) {
         comm->all_to_all_v(
@@ -167,29 +167,22 @@ void communicate_values(
             comm_pattern.send_offsets.data(), recv_buffer,
             comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
     } else {
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
         if (force_host_buffer) {
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
             auto tmp =
-                gko::array<scalar>(src_exec, comm_pattern.recv_offsets.back());
+                gko::array<scalar>(src_exec, recv_buffer_size);
 
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
             comm->all_to_all_v(src_exec, send_buffer,
                                comm_pattern.send_counts.data(),
                                comm_pattern.send_offsets.data(), tmp.get_data(),
                                comm_pattern.recv_counts.data(),
                                comm_pattern.recv_offsets.data());
 
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
             auto recv_view = gko::array<scalar>::view(
-                target_exec, comm_pattern.recv_offsets.back(), recv_buffer);
+                target_exec, recv_buffer_size, recv_buffer);
 
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
             recv_view = tmp;
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
         }
     }
-		std::cout << __FILE__ << ":" << __LINE__ << " host buffer comm\n";
 }
 
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
