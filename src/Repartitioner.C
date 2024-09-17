@@ -277,7 +277,11 @@ Repartitioner::repartition_sparsity(
                                src_non_local_pattern->num_nnz, 0);
 
     std::vector<label> tmp_non_local_mapping =
-        std::vector<label>(tmp_non_local_rows.size());
+        gather_labels_to_owner(exec_handler, non_local_comm_pattern,
+                               src_non_local_pattern->ldu_mapping.get_data(),
+                               src_non_local_pattern->num_nnz, 0);
+
+    std::cout << __FILE__ << "tmp_non_local_mapping: "  << tmp_non_local_mapping << "\n";
 
     auto is_local = build_non_local_interfaces(
         exec_handler, orig_partition_, tmp_local_rows, tmp_local_cols,
@@ -308,7 +312,6 @@ Repartitioner::repartition_sparsity(
             exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
             tmp_non_local_mapping, new_spans)
             ,std::vector(is_local));
-    std::cout << __FILE__ << ":" << __LINE__ << " done make tuple \n";
 	return ret;
     } else {
         LOG_1(verbose_, "done repartition sparsity pattern")
@@ -339,6 +342,7 @@ Repartitioner::build_non_local_interfaces(
     std::vector<std::tuple<bool, label, label>> is_local;
     std::vector<label> mark_keep;
 
+    label interface_offset = 0;
     for (size_t i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, comm_target_ids[i]);
@@ -354,9 +358,11 @@ Repartitioner::build_non_local_interfaces(
                               tmp_rank_local_cols.end());
 
             for (size_t i = 0; i < end - begin; i++) {
-                local_mapping.push_back(non_local_mapping[begin + i] +
-                                        rows_start);
+                // local_mapping.push_back(non_local_mapping[begin + i] +
+                //                         interface_offset);
+                local_mapping.push_back(i + interface_offset);
             }
+            interface_offset += end - begin;
             local_spans.emplace_back(
                 rows_start,
                 rows_start + static_cast<gko::size_type>(end - begin));
