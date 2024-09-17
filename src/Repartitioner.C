@@ -382,8 +382,10 @@ Repartitioner::build_non_local_interfaces(
         std::vector<label> copy_rows, copy_cols, copy_mapping, copy_ranks;
         std::vector<gko::span> copy_spans;
         label span_ctr{0};
+        interface_offset = 0;
         for (label i : mark_keep) {
             auto [begin, end] = non_local_spans[i];
+            std::cout << " mark keep " << i << " begin " << begin << " end " << end << "\n";
             copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
                              non_local_rows.data() + end);
 
@@ -392,9 +394,15 @@ Repartitioner::build_non_local_interfaces(
 
             copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
                              tmp_rank_local_cols.end());
-            copy_mapping.insert(copy_mapping.end(),
-                                non_local_mapping.data() + begin,
-                                non_local_mapping.data() + end);
+            // copy_mapping.insert(copy_mapping.end(),
+            //                     non_local_mapping.data() + begin,
+            //                     non_local_mapping.data() + end);
+            for (size_t i = 0; i < end - begin; i++) {
+                // local_mapping.push_back(non_local_mapping[begin + i] +
+                //                         interface_offset);
+                copy_mapping.push_back(i + interface_offset);
+            }
+            interface_offset += end - begin;
 
             // the spans are now consecutive based on all gathered spans,
             // thus we need to make them consecutive based on kept interfaces

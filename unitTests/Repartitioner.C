@@ -309,6 +309,9 @@ public:
     std::map<label, vec> exp_local_dim{
         {1, {4, 4, 4, 4}}, {2, {8, 0, 8, 0}}, {4, {16, 0, 0, 0}}};
 
+    std::map<label, std::vector<label>> exp_non_local_nnz{
+        {1, {4, 4, 4, 4}}, {2, {4, 0, 4, 0}}, {4, {0, 0, 0, 0}}};
+
     // expected local row indices in local indices
     // first map fused true/false
     // local row indices
@@ -434,6 +437,34 @@ public:
          {{1, {{13}, {13}, {13}, {13}}},
           {2, {{10}, {}, {10}, {}}},
           {4, {{22}, {}, {}, {}}}}}};
+
+    // non local data
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_rows{
+        {false,
+         {{1, non_local_rows},
+          {2, {{2, 3, 6, 7}, {}, {0, 1, 4, 5}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {true,
+         {{1, non_local_rows},
+          {2, {{}, {}, {}, {}}},  // missing
+          {4, {{}, {}, {}, {}}}}}};
+
+    // non local cols are in global indices
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_cols{
+        {false,
+         {{1, non_local_cols},
+          {2, {{8, 9, 12, 13}, {}, {2, 3, 6, 7}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {true,
+         {{1, non_local_cols}, {2, {{}, {}, {}, {}}}, {4, {{}, {}, {}, {}}}}}};
+
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_mapping{
+        {false,
+         {{1, {{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}}},
+          {2, {{0, 1, 2, 3}, {}, {0, 1, 2, 3}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {true,
+         {{1, non_local_cols}, {2, {{}, {}, {}, {}}}, {4, {{}, {}, {}, {}}}}}};
 };
 
 INSTANTIATE_TEST_SUITE_P(RepartitionerFixture1DInstantiation,
@@ -615,9 +646,8 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern_2D_for_n_ranks)
         ref_exec, gko::dim<2>{4, 4}, rows, cols, mapping, spans);
 
     auto non_local_sparsity = std::make_shared<SparsityPattern>(
-        ref_exec, gko::dim<2>{4, non_local_ranks[rank].size()},
-        non_local_rows[rank], non_local_cols[rank], non_local_mapping[rank],
-        non_local_spans[rank]);
+        ref_exec, gko::dim<2>{4, 4}, non_local_rows[rank], non_local_cols[rank],
+        non_local_mapping[rank], non_local_spans[rank]);
 
     // Act
     auto [repart_local, repart_non_local, tracking] =
@@ -666,19 +696,22 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern_2D_for_n_ranks)
     ASSERT_EQ(res_local_spans_end,
               exp_local_spans_end[fused][ranks_per_gpu][rank]);
 
-    // // non local properties
-    // ASSERT_EQ(repart_non_local->num_nnz,
-    //           exp_non_local_nnz[ranks_per_gpu][rank]);
-    // ASSERT_EQ(repart_non_local->dim[0], exp_local_dim[ranks_per_gpu][rank]);
-    // ASSERT_EQ(repart_non_local->dim[1],
-    // exp_non_local_nnz[ranks_per_gpu][rank]);
+    // non local properties
+    ASSERT_EQ(repart_non_local->num_nnz,
+              exp_non_local_nnz[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[0], exp_local_dim[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->dim[1], exp_non_local_nnz[ranks_per_gpu][rank]);
 
-    // auto res_non_local_rows = convert_to_vector(repart_non_local->row_idxs);
-    // auto res_non_local_cols = convert_to_vector(repart_non_local->col_idxs);
-    // ASSERT_EQ(res_non_local_rows,
-    //           exp_non_local_rows[fused][ranks_per_gpu][rank]);
-    // ASSERT_EQ(res_non_local_cols,
-    //           exp_non_local_cols[fused][ranks_per_gpu][rank]);
+    auto res_non_local_rows = convert_to_vector(repart_non_local->row_idxs);
+    auto res_non_local_cols = convert_to_vector(repart_non_local->col_idxs);
+    ASSERT_EQ(res_non_local_rows,
+              exp_non_local_rows[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_cols,
+              exp_non_local_cols[fused][ranks_per_gpu][rank]);
+    auto res_non_local_mapping =
+        convert_to_vector(repart_non_local->ldu_mapping);
+    ASSERT_EQ(res_non_local_mapping,
+              exp_non_local_mapping[fused][ranks_per_gpu][rank]);
 }
 
 
