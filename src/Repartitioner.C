@@ -62,13 +62,16 @@ exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
         count += length;
     }
 
+    // it starts with span.size interfaces with this rank
+    auto rank = exec_handler.get_rank();
     std::vector<label> origins{};
     if (gathered_size.size() > 0) {
-        auto rank = exec_handler.get_rank();
-        for (int i = 0; i < ranks_per_gpu; i++) {
-            auto j = comm_pattern.recv_counts[i + rank];
-            for (int k = 0; k < j; k++) {
-                origins.push_back(i + rank);
+        for (int i = 0; i < comm_pattern.recv_counts.size(); i++) {
+            label num_interfaces = comm_pattern.recv_counts[i];
+            if ( num_interfaces > 0) {
+                for (int j=0;j<num_interfaces;j++){
+                    origins.push_back(i);
+                }
             }
         }
     }
@@ -281,8 +284,6 @@ Repartitioner::repartition_sparsity(
                                src_non_local_pattern->ldu_mapping.get_data(),
                                src_non_local_pattern->num_nnz, 0);
 
-    std::cout << __FILE__ << "tmp_non_local_mapping: "  << tmp_non_local_mapping << "\n";
-
     auto is_local = build_non_local_interfaces(
         exec_handler, orig_partition_, tmp_local_rows, tmp_local_cols,
         tmp_local_mapping, tmp_local_span, tmp_non_local_rows,
@@ -342,6 +343,13 @@ Repartitioner::build_non_local_interfaces(
     std::vector<std::tuple<bool, label, label>> is_local;
     std::vector<label> mark_keep;
 
+    if (non_local_spans.size() != non_local_rank_origin.size()) {
+                FatalErrorInFunction
+            << "non_local_spans and non_local_rank_origins sizes are different"
+            << exit(FatalError);
+    }
+
+
     label interface_offset = 0;
     for (size_t i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
@@ -385,7 +393,6 @@ Repartitioner::build_non_local_interfaces(
         interface_offset = 0;
         for (label i : mark_keep) {
             auto [begin, end] = non_local_spans[i];
-            std::cout << " mark keep " << i << " begin " << begin << " end " << end << "\n";
             copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
                              non_local_rows.data() + end);
 
