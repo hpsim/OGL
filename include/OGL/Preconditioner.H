@@ -18,7 +18,7 @@ class Preconditioner {
     using ir = gko::solver::Ir<scalar>;
     using cg = gko::solver::Cg<scalar>;
     using mg = gko::solver::Multigrid;
-    using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
+    using pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
@@ -45,6 +45,49 @@ public:
           verbose_(verbose)
     {}
 
+
+    template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::unique_ptr<PrecondFactory> precond) const
+    {
+        using solver = gko::solver::Cg<scalar>;
+        auto local = get_local(gkomatrix);
+
+        auto pre_factory =
+            gko::share(bj::build()
+                           .with_skip_sorting(true)
+                           .with_max_block_size(static_cast<gko::uint32>(1))
+                           .on(device_exec));
+
+        auto coarse_solver = gko::share(
+            solver::build()
+                .with_preconditioner(
+                    ras::build().with_local_solver(pre_factory).on(device_exec))
+                .with_criteria(
+                    gko::stop::Iteration::build().with_max_iters(15).on(
+                        device_exec),
+                    gko::stop::ResidualNorm<scalar>::build()
+                        .with_reduction_factor(1e-3)
+                        .on(device_exec))
+                .on(device_exec));
+
+        auto pgm_fac =
+            gko::share(pgm::build().with_skip_sorting(true).on(device_exec));
+
+        return gko::share(
+            ras::build()
+                .with_generated_local_solver(
+                    gko::share(precond->generate(local)))
+                .with_galerkin_ops(pgm_fac)
+                .with_coarse_solver(coarse_solver)
+                .on(device_exec)
+                ->generate(
+                    gko::as<RepartDistMatrix>(gkomatrix)->get_dist_mtx()));
+    }
+
+
     template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
         std::shared_ptr<const gko::LinOp> gkomatrix,
@@ -59,6 +102,20 @@ public:
                 .on(device_exec)
                 ->generate(
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_mtx()));
+    }
+
+    template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_schwarz(
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::unique_ptr<PrecondFactory> precond, bool multi_level) const
+    {
+        if (multi_level) {
+            return wrap_multi_level_schwarz(gkomatrix, device_exec,
+                                            std::move(precond));
+        } else {
+            return wrap_schwarz(gkomatrix, device_exec, std::move(precond));
+        }
     }
 
     template <typename PrecondFactory, typename Factorization>
@@ -82,14 +139,17 @@ public:
     {
         bool skip_sorting =
             controls.lookupOrDefault<Switch>("skipSorting", true);
+        bool multi_level_schwarz =
+            controls.lookupOrDefault<Switch>("multiLevelSchwarz", true);
 
+        word msg = "Generate preconditioner " + name + " multiLevelSchwarz " +
+                   std::to_string(multi_level_schwarz);
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(
                 controls.lookupOrDefault("maxBlockSize", label(1)));
 
-            word msg = "Generate preconditioner " + name + " MaxBlockSize " +
-                       std::to_string(max_block_size);
+            msg += " MaxBlockSize " + std::to_string(max_block_size);
             MLOG_0(verbose_, msg)
 
             auto pre_factory = bj::build()
@@ -97,10 +157,10 @@ public:
                                    .with_max_block_size(
                                        static_cast<gko::uint32>(max_block_size))
                                    .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory),
+                                multi_level_schwarz);
         }
         if (name == "ILU") {
-            word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
 
             auto factorization_factory =
@@ -121,7 +181,6 @@ public:
                                 std::move(precond_factory), factorization);
         }
         if (name == "ILUT") {
-            word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
 
             auto factorization_factory =
@@ -173,7 +232,6 @@ public:
                                 std::move(precond_factory), factorization);
         }
         if (name == "IC") {
-            word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
 
             auto factorization_factory =
@@ -196,9 +254,7 @@ public:
         if (name == "ICT") {
             bool approx_select(
                 controls.lookupOrDefault("approximateSelect", false));
-            word msg = "Generate preconditioner " + name +
-                       " with approximate select " +
-                       std::to_string(approx_select);
+            msg += " with approximate select " + std::to_string(approx_select);
             MLOG_0(verbose_, msg)
 
             auto factorization_factory =
@@ -222,8 +278,7 @@ public:
             label sparsity_power(
                 controls.lookupOrDefault("sparsityPower", label(1)));
 
-            word msg = "Generate preconditioner " + name + " SparsityPower " +
-                       std::to_string(sparsity_power);
+            msg += " SparsityPower " + std::to_string(sparsity_power);
             MLOG_0(verbose_, msg)
 
             auto pre_factory =
@@ -233,14 +288,14 @@ public:
                     .with_sparsity_power(sparsity_power)
                     .on(device_exec);
 
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory),
+                                multi_level_schwarz);
         }
         if (name == "GISAI") {
             label sparsity_power(
                 controls.lookupOrDefault("sparsityPower", label(1)));
 
-            word msg = "Generate preconditioner " + name + " SparsityPower " +
-                       std::to_string(sparsity_power);
+            msg += " SparsityPower " + std::to_string(sparsity_power);
             MLOG_0(verbose_, msg)
 
             auto pre_factory = gko::preconditioner::Isai<
@@ -250,7 +305,8 @@ public:
                                    .with_sparsity_power(sparsity_power)
                                    .on(device_exec);
 
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory),
+                                multi_level_schwarz);
         }
         if (name == "Multigrid") {
             auto inner_solver_gen =
@@ -267,7 +323,7 @@ public:
 
             // Create MultigridLevel factory
             auto mg_level_gen =
-                amgx_pgm::build().with_deterministic(true).on(device_exec);
+                pgm::build().with_deterministic(true).on(device_exec);
 
             // Create CoarsestSolver factory
             // std::shared_ptr<gko::LinOp> coarsest_gen;
@@ -313,10 +369,10 @@ public:
                 controls.lookupOrDefault("minCoarseRows", label(10)));
             bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
 
-            word msg = "Generate preconditioner " + name + " MaxLevels " +
-                       std::to_string(max_levels) + " MinCoarseRows " +
-                       std::to_string(min_coarse_rows) + " ZeroGuess " +
-                       std::to_string(zeroGuess) + " Cycle " + cycle_name;
+            msg += " MaxLevels " + std::to_string(max_levels) +
+                   " MinCoarseRows " + std::to_string(min_coarse_rows) +
+                   " ZeroGuess " + std::to_string(zeroGuess) + " Cycle " +
+                   cycle_name;
             MLOG_0(verbose_, msg)
 
             auto pre_factory =
@@ -327,15 +383,17 @@ public:
                         static_cast<gko::uint32>(min_coarse_rows))
                     .with_pre_smoother(smoother_gen)
                     .with_post_uses_pre(true)
-                    .with_mg_level(
-                        amgx_pgm::build().with_deterministic(true).on(
-                            device_exec))
+                    .with_mg_level(pgm::build()
+                                       .with_deterministic(true)
+                                       .with_skip_sorting(true)
+                                       .on(device_exec))
                     .with_coarsest_solver(coarsest_gen)
                     .with_criteria(
                         gko::stop::Iteration::build().with_max_iters(1u).on(
                             device_exec))
                     .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory),
+                                multi_level_schwarz);
         }
         if (name == "none") {
             return {};
