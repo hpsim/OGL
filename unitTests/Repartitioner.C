@@ -236,8 +236,15 @@ public:
           {2, {{4}, {}, {3}, {}}},
           {4, {{}, {}, {}, {}}}}}};
 
-    // TODO implement non_local mapping
-    std::map<bool, std::map<label, vec_vec>> exp_non_local_mapping;
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_mapping{
+        {false,
+         {{1, {{0}, {0, 1}, {0, 1}, {0}}},
+          {2, {{0}, {}, {0}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {true,
+         {{1, {{0}, {0, 1}, {0, 1}, {0}}},
+          {2, {{0}, {}, {0}, {}}},
+          {4, {{}, {}, {}, {}}}}}};
 };
 
 /* @brief Test fixture class for 1D mesh
@@ -631,6 +638,10 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
               exp_non_local_rows[fused][ranks_per_gpu][rank]);
     ASSERT_EQ(res_non_local_cols,
               exp_non_local_cols[fused][ranks_per_gpu][rank]);
+    auto res_non_local_mapping =
+        convert_to_vector(repart_non_local->ldu_mapping);
+    ASSERT_EQ(res_non_local_mapping,
+              exp_non_local_mapping[fused][ranks_per_gpu][rank]);
 }
 
 TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern_2D_for_n_ranks)
