@@ -161,26 +161,24 @@ void communicate_values(
     const AllToAllPattern &comm_pattern, const scalar *send_buffer,
     scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size)
 {
-        if (force_host_buffer && src_exec != target_exec) {
-            auto tmp =
-                gko::array<scalar>(src_exec, recv_buffer_size);
+    if (force_host_buffer && src_exec != target_exec) {
+        auto tmp = gko::array<scalar>(src_exec, recv_buffer_size);
 
-            comm->all_to_all_v(src_exec, send_buffer,
-                               comm_pattern.send_counts.data(),
-                               comm_pattern.send_offsets.data(), tmp.get_data(),
-                               comm_pattern.recv_counts.data(),
-                               comm_pattern.recv_offsets.data());
+        comm->all_to_all_v(
+            src_exec, send_buffer, comm_pattern.send_counts.data(),
+            comm_pattern.send_offsets.data(), tmp.get_data(),
+            comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
 
-            auto recv_view = gko::array<scalar>::view(
-                target_exec, recv_buffer_size, recv_buffer);
+        auto recv_view = gko::array<scalar>::view(target_exec, recv_buffer_size,
+                                                  recv_buffer);
 
-            recv_view = tmp;
-        } else {
+        recv_view = tmp;
+    } else {
         comm->all_to_all_v(
             target_exec, send_buffer, comm_pattern.send_counts.data(),
             comm_pattern.send_offsets.data(), recv_buffer,
             comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
-        }
+    }
 }
 
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,

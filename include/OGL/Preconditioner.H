@@ -356,6 +356,7 @@ public:
         const fileName path = precond_store_name;
         bool stored{db_.template foundObject<regIOobject>(precond_store_name)};
 
+
         word name;
 #ifdef WITH_ESI_VERSION
         const entry &e =
@@ -377,6 +378,11 @@ public:
 #endif
 
         const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
+
+        const label caching_period =
+            (name == "Multigrid")
+                ? controls.lookupOrDefault<label>("caching", 10)
+                : controls.lookupOrDefault<label>("caching", 0);
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
@@ -417,8 +423,6 @@ public:
             } else {
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
-                const label caching_period =
-                    controls.lookupOrDefault<label>("caching", 0);
                 set_next_caching(sys_matrix_name_, db_, caching_period);
 
                 auto generated_precond = init_preconditioner_impl(
@@ -429,8 +433,6 @@ public:
                 return precond_ptr;
             }
         }
-        const label caching_period =
-            controls.lookupOrDefault<label>("caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
         cache = get_next_caching(sys_matrix_name_, db_);
 

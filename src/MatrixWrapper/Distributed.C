@@ -105,8 +105,7 @@ void update_fused_impl(
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
-    bool requires_host_buffer =
-        exec_handler.get_gko_force_host_buffer();
+    bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
     // label owner_rank = repartitioner->get_owner_rank(exec_handler);
@@ -144,32 +143,29 @@ void update_fused_impl(
         (owner) ? const_cast<scalar *>(local_mtx->get_const_values()) : nullptr;
 
     communicate_values(
-           exec_handler.get_ref_exec(),
-	   exec_handler.get_device_exec(),
-           exec_handler.get_communicator(),
-        diag_comm_pattern, host_A->get_diag(),
-                       local_ptr, requires_host_buffer, tot_local_matrix_nnz);
-    communicate_values(
-            exec_handler.get_ref_exec(),
-            exec_handler.get_device_exec(),
-            exec_handler.get_communicator(), upper_comm_pattern, host_A->get_upper(),
-                       local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+        exec_handler.get_ref_exec(), exec_handler.get_device_exec(),
+        exec_handler.get_communicator(), diag_comm_pattern, host_A->get_diag(),
+        local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+    communicate_values(exec_handler.get_ref_exec(),
+                       exec_handler.get_device_exec(),
+                       exec_handler.get_communicator(), upper_comm_pattern,
+                       host_A->get_upper(), local_ptr, requires_host_buffer,
+                       tot_local_matrix_nnz);
 
     if (host_A->get_symmetric()) {
         // TODO FIXME
         // if symmetric we can reuse already copied data
-        communicate_values(
-            exec_handler.get_ref_exec(),
-            exec_handler.get_device_exec(),
-            exec_handler.get_communicator(),
-                           lower_comm_pattern,
-                           host_A->get_lower(), local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+        communicate_values(exec_handler.get_ref_exec(),
+                           exec_handler.get_device_exec(),
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
     } else {
         communicate_values(exec_handler.get_ref_exec(),
                            exec_handler.get_device_exec(),
-                           exec_handler.get_communicator(),
-                           lower_comm_pattern,
-                           host_A->get_lower(), local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
     }
 
     // copy interface values
@@ -511,7 +507,8 @@ void update_impl(
             // array to sort into the row_collection
             auto non_local_dense_view = gko::array<scalar>::view(
                 dist_A->get_executor(), non_local_elements,
-                non_local_dense_vec->get_values() + non_local_sparsity->spans[i].begin);
+                non_local_dense_vec->get_values() +
+                    non_local_sparsity->spans[i].begin);
             non_local_dense_view = value_view;
         }
 
@@ -519,9 +516,9 @@ void update_impl(
         non_local_dense_vec->row_gather(&non_local_mapping_view,
                                         non_local_row_vec.get());
 
-            auto non_local_dense_view = gko::array<scalar>::view(
-                dist_A->get_executor(), non_local_sparsity->num_nnz,
-                non_local_dense_vec->get_values());
+        auto non_local_dense_view = gko::array<scalar>::view(
+            dist_A->get_executor(), non_local_sparsity->num_nnz,
+            non_local_dense_vec->get_values());
 
         for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
             std::shared_ptr<const LocalMatrixType> non_local_mtx =
