@@ -6,13 +6,25 @@
 
 namespace Foam {
 
+gko::dim<2> compute_dimensions(const std::vector<label> &rows)
+{
+    gko::size_type num_rows = rows.back() + 1;
+    return gko::dim<2>{num_rows, num_rows};
+}
+
+void compress_cols(gko::array<label> &in)
+{
+    for (label i = 0; i < in.get_size(); i++) {
+        in.get_data()[i] = i;
+    }
+};
+
 void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
-                                  gko::array<label> &ldu_mapping, label rank,
+                                  std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu)
 {
-    // TODO check if ldu_mapping is on host exec
     label ldu_offset = 0;
-    auto *data = ldu_mapping.get_data();
+    auto *data = ldu_mapping.data();
 
     for (label i = 0; i < ranks_per_gpu; i++) {
         auto size = comm_pattern.recv_counts[i];

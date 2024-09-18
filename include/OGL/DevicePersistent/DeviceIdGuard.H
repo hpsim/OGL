@@ -26,7 +26,8 @@ struct DeviceIdGuardInitFunctor {
     std::shared_ptr<gko::scoped_device_id_guard> init() const
     {
         return std::make_shared<gko::scoped_device_id_guard>(
-            std::move(executor_->get_scoped_device_id_guard()));
+            executor_->get_scoped_device_id_guard());
+        // std::move(executor_->get_scoped_device_id_guard()));
     }
 };
 
@@ -41,6 +42,4 @@ public:
     {}
 };
 
-
 }  // namespace Foam
-   // namespace Foam

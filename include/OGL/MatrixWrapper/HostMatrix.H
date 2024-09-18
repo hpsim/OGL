@@ -110,6 +110,12 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
+    /* number of elements on each interfach */
+    mutable std::vector<label> interface_length_;
+
+    /* Pointer to interface data*/
+    mutable std::vector<const scalar *> interface_ptr_;
+
     /* Iterates all interfaces and collects the coefficients into a vector
     **
     ** @param local whether local or non local coefficients should be collected
@@ -216,11 +222,39 @@ public:
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
      */
-    [[nodiscard]] CommunicationPattern create_communication_pattern() const;
+    [[nodiscard]] std::shared_ptr<CommunicationPattern>
+    create_communication_pattern() const;
 
     bool get_verbose() const { return verbose_; }
 
     label get_local_nrows() const { return nrows_; }
+
+    label get_local_matrix_nnz() const
+    {
+        return local_matrix_w_interfaces_nnz_;
+    }
+
+    label get_upper_nnz() const { return upper_nnz_; }
+
+    const scalar *get_lower() const { return lower_; }
+
+    const scalar *get_upper() const { return upper_; }
+
+    const scalar *get_diag() const { return diag_; }
+
+    std::vector<label> get_interface_length() const
+    {
+        return interface_length_;
+    };
+
+    label get_num_interfaces() const { return interface_ptr_.size(); };
+
+    const scalar *get_interface_data(label i) const
+    {
+        return interface_ptr_[i];
+    }
+
+    bool get_symmetric() const { return symmetric_; }
 
     gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
 

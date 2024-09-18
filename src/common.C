@@ -36,27 +36,6 @@ void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
     export_x(fn, x);
 }
 
-void export_mtx(const word fieldName, std::shared_ptr<const gko::LinOp> A,
-                const word local, const objectRegistry &db,
-                const word matrixFormat)
-{
-    std::string folder{db.time().timePath()};
-    std::filesystem::create_directories(folder);
-    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "exporting " << fn << std::endl;
-    std::ofstream stream{fn};
-    stream << std::setprecision(15);
-    if (matrixFormat == "Coo") {
-        gko::write(stream, (const gko::matrix::Coo<scalar> *)A.get());
-    }
-    if (matrixFormat == "Csr") {
-        gko::write(stream, (const gko::matrix::Csr<scalar> *)A.get());
-    }
-    if (matrixFormat == "Ell") {
-        gko::write(stream, (const gko::matrix::Ell<scalar> *)A.get());
-    }
-}
-
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
                    const gko::matrix::Dense<scalar> *b, const word time)
@@ -145,6 +124,49 @@ label get_solve_prev_iters(word sys_matrix_name, const objectRegistry &db,
     return get_gko_solver_property(sys_matrix_name, iters_name, db, label(1));
 }
 
+std::shared_ptr<gko::array<label>> convert_to_array(
+    const std::vector<label> &in)
+{
+    return std::make_shared<gko::array<label>>(gko::ReferenceExecutor::create(),
+                                               in.begin(), in.end());
+}
+
+std::pair<label, const scalar *> get_val(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in)
+{
+    return std::make_pair(in->get_num_stored_elements(),
+                          in->get_const_values());
+}
+
+std::pair<label, const label *> get_col(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in)
+{
+    return std::make_pair(in->get_num_stored_elements(),
+                          in->get_const_col_idxs());
+}
+
+std::pair<label, const label *> get_row(
+    std::shared_ptr<const gko::matrix::Coo<scalar, label>> in)
+{
+    return std::make_pair(in->get_num_stored_elements(),
+                          in->get_const_row_idxs());
+}
+
+std::vector<label> convert_to_vector(const gko::array<label> &in)
+{
+    return std::vector<label>(in.get_const_data(),
+                              in.get_const_data() + in.get_size());
+}
+
+
+std::vector<scalar> convert_to_vector(
+    std::shared_ptr<const gko::matrix::Diagonal<scalar>> in)
+{
+    return std::vector<scalar>(in->get_const_values(),
+                               in->get_const_values() + in->get_size()[0]);
+}
+
+
 std::ostream &operator<<(std::ostream &os,
                          const std::shared_ptr<gko::matrix::Dense<scalar>> in)
 {
@@ -152,7 +174,7 @@ std::ostream &operator<<(std::ostream &os,
     auto array = in->clone(ref_exec);
     label size = array->get_size()[0];
     os << size << " elements [";
-    if (size > 100) {
+    if (size > 200) {
         for (label i = 0; i < 9; i++) {
             os << array->at(i) << ", ";
         }
@@ -163,13 +185,14 @@ std::ostream &operator<<(std::ostream &os,
         os << array->at(size - 1) << "]\n";
     } else {
         for (label i = 0; i < size - 1; i++) {
-            os << "(" << i << ", " << array->at(i) << ") ";
+            os << array->at(i) << ", ";
         }
-        os << "(" << size - 1 << ", " << array->at(size - 1) << ")]\n";
+        os << ", " << array->at(size - 1) << "]\n";
     }
     return os;
 }
 
+template <>
 std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
 {
     label size = in.size();
@@ -177,7 +200,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
         return os;
     }
     os << size << " elements [";
-    if (size > 100) {
+    if (size > 200) {
         for (label i = 0; i < 9; i++) {
             os << in[i] << ", ";
         }
@@ -188,10 +211,37 @@ std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
         os << in[size - 1] << "]\n";
     } else {
         for (label i = 0; i < size - 1; i++) {
-            os << "(" << i << ", " << in[i] << ") ";
+            os << in[i] << ", ";
         }
-        os << "(" << size - 1 << ", " << in[size - 1] << ")]\n";
+        os << ", " << in[size - 1] << "]\n";
+    }
+    return os;
+}
+
+template <>
+std::ostream &operator<<(std::ostream &os, const std::vector<scalar> &in)
+{
+    label size = in.size();
+    if (size == 0) {
+        return os;
+    }
+    os << size << " elements [";
+    if (size > 200) {
+        for (label i = 0; i < 9; i++) {
+            os << in[i] << ", ";
+        }
+        os << in[10] << " ... ";
+        for (label i = size - 9; i < size - 1; i++) {
+            os << in[i] << ", ";
+        }
+        os << in[size - 1] << "]\n";
+    } else {
+        for (label i = 0; i < size - 1; i++) {
+            os << in[i] << ", ";
+        }
+        os << ", " << in[size - 1] << "]\n";
     }
     return os;
 };
+
 }  // namespace Foam

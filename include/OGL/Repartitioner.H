@@ -11,26 +11,56 @@
 #include "CommunicationPattern.H"
 #include "MatrixWrapper/SparsityPattern.H"
 
+namespace detail {
+
+/* Convert to global
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+std::vector<label> convert_to_global(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const std::vector<label> &ranks);
+
+/* Convert to local
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+void convert_to_local(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    std::vector<label> &in, label rank);
+
+/* @brief exchange spans and rank between owner and non-owner ranks
+**
+** returns a pair vector spans
+*/
+std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
+exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
+                    const std::vector<gko::span> &spans,
+                    const std::vector<label> &ranks);
+
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
-                                 const std::vector<label> &p)
-{
-    std::vector<T> sorted_vec(vec.size());
-    std::transform(p.begin(), p.end(), sorted_vec.begin(),
-                   [&](label i) { return vec[i]; });
-    return sorted_vec;
-}
+                                 const std::vector<label> &p);
 
+/* Sorts a vector and returns the permutation for reuse
+ */
 template <typename T, typename Compare>
-std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
-{
-    std::vector<label> p(vec.size());
-    std::iota(p.begin(), p.end(), 0);
-    std::stable_sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
-        return compare(vec[i], vec[j]);
-    });
-    return p;
-}
+std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare);
+
+}  // namespace detail
 
 /** @class Collects functions to repartition communication patterns
  * and matrices. Here repartitioning refers to changing a given partitioning on
@@ -40,9 +70,9 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    const label size_;  //! Size (n matrix rows) before repartitioning
+    const label size_;  //! Local size (matrix rows) before repartitioning
 
-    const label repart_size_;  //! Size after repartitioning
+    const label repart_size_;  //! Local size (matrix rows) after repartitioning
 
     const label ranks_per_gpu_;
 
@@ -103,6 +133,8 @@ public:
     static label compute_repart_size(label local_size, label ranks_per_gpu,
                                      const ExecutorHandler &exec_handler);
 
+    label get_orig_size() const { return size_; }
+
     label get_repart_size() const { return repart_size_; }
 
     // TODO pass original dim as argument, if size can also be nnz
@@ -115,19 +147,30 @@ public:
     std::shared_ptr<const partition> get_orig_partition() const
     {
         return orig_partition_;
-    };
+    }
 
-
-    /* @brief given received interfaces this function sorts interfaces into
-     *local and non local returns: SparsityPattern storing new non_local
-     *sparsity pattern, and a pair of locality information, where the first bool
-     *stores if the interface performs a local communication and the second bool
-     *if the the interface was originally from this rank
+    /* @brief given gathered sparsity information copy local interfaces
+     *
+     * After gathering local and non-local rows, cols, and mapping
+     * we have interfaces that are now local in the non-local rows, cols and
+     * mapping. Thus this function copies the rows, cols and mapping, spans etc
+     * to the corresponding local vectors.
+     * returns a vector of locality information.
+     * @param non_local_cols vector in comm rank local indices
      */
-    std::pair<SparsityPattern, std::vector<bool>> build_non_local_interfaces(
-        const ExecutorHandler &exec_handler, SparsityPattern &loc,
-        const SparsityPattern &non_loc) const;
-
+    std::vector<std::pair<bool, label>> build_non_local_interfaces(
+        const ExecutorHandler &exec_handler,
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition,
+        std::vector<label> &local_rows, std::vector<label> &local_cols,
+        std::vector<label> &local_mapping, std::vector<label> &local_ranks,
+        std::vector<gko::span> &local_spans, std::vector<label> &non_local_rows,
+        std::vector<label> &non_local_cols,
+        std::vector<label> &non_local_mapping,
+        std::vector<label> &non_local_ranks,
+        std::vector<label> &non_local_rank_origin,
+        std::vector<gko::span> &non_local_spans) const;
 
     /* @brief function to repartition a sparsity pattern
      *
@@ -165,12 +208,9 @@ public:
      * @param src_comm_pattern the original communication pattern of the current
      * rank belonging to the distributed matrix
      * @param partition the original partition belonging to the distributed
-     * matrix returns the repartitioned communcation pattern
+     * matrix returns the repartitioned communication pattern
      */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
-        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-        std::shared_ptr<
-            const gko::experimental::distributed::Partition<label, label>>
-            partition) const;
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern) const;
 };
