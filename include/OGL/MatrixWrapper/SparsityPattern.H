@@ -103,6 +103,9 @@ struct SparsityPattern {
                        });
     }
 
+    /* @brief sort row, col idx and mapping in row major order */
+    void sort_sparsity();
+
     // TODO num_nnz makes no sense ->nnz;
     const label num_nnz;
 

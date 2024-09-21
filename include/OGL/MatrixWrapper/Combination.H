@@ -185,9 +185,11 @@ protected:
         : gko::EnableLinOp<CombinationMatrix>(exec),
           comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
     {
-        for (auto &op : operators) {
-            this->comb_->add_operators(
-                gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
+        if (size[1] > 0) {
+            for (auto &op : operators) {
+                this->comb_->add_operators(
+                    gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
+            }
         }
         this->set_size(size);
     }

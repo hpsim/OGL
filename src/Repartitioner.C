@@ -483,14 +483,15 @@ Repartitioner::repartition_comm_pattern(
     // next the send_ixs need to be updated we send them piecewise since
     // the send_idxs are a vector of gko::arrays
     if (owner) {
-        label owner_recv_counts = comm_pattern.recv_counts[rank];
+        label recv_ctr = comm_pattern.recv_counts[rank];
         // retrieved from i-th neighbor
         for (int i = 1; i < ranks_per_gpu_; i++) {
             // how many gko::arrays to with send_indexes to receive
             // from i-th neighbor
-            label recv_count = comm_pattern.recv_counts[rank + i];
+             label recv_count = comm_pattern.recv_counts[rank + i];
+
             for (int j = 0; j < recv_count; j++) {
-                auto target_size = gathered_target_sizes[j + owner_recv_counts];
+              auto target_size = gathered_target_sizes[j + recv_ctr];
                 std::vector<label> recv_buffer(target_size);
 
                 comm.recv(exec, recv_buffer.data(), target_size, rank + i,
@@ -508,6 +509,7 @@ Repartitioner::repartition_comm_pattern(
                 // auto target_id = gathered_target_ids[j + owner_recv_counts];
                 send_idxs.emplace_back(recv_buffer);
             }
+            recv_ctr+= recv_count;
         }
     } else {
         label owner = get_owner_rank(exec_handler);
