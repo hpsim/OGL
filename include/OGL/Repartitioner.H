@@ -11,6 +11,20 @@
 #include "CommunicationPattern.H"
 #include "MatrixWrapper/SparsityPattern.H"
 
+struct InterfaceLocality {
+    // whether this interface is local or non-local
+    bool local;
+
+    // on which rank this interface this rank was created
+    label orig_rank;
+
+    // size of the interface
+    unsigned long size;
+
+    // the mapping to local/non local ginkgo submatrix
+    label ctr;
+};
+
 namespace detail {
 
 /* Convert to global
@@ -164,8 +178,7 @@ public:
      * returns a vector of locality information.
      * @param non_local_cols vector in global local indices
      */
-    std::vector<std::tuple<bool, label, label, label>>
-    build_non_local_interfaces(
+    std::vector<InterfaceLocality> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
@@ -198,8 +211,7 @@ public:
      * @param fuse whether to combine all submatrices
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
-               std::shared_ptr<SparsityPattern>,
-               std::vector<std::tuple<bool, label, label, label>>>
+               std::shared_ptr<SparsityPattern>, std::vector<InterfaceLocality>>
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const SparsityPattern> src_local_pattern,

@@ -125,7 +125,7 @@ public:
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
         std::shared_ptr<const Repartitioner> repartitioner,
-        std::vector<std::tuple<bool, label, label, label>> &local_interfaces)
+        std::vector<InterfaceLocality> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           dist_mtx_(std::move(dist_mtx)),
@@ -206,7 +206,7 @@ private:
 
     std::shared_ptr<const Repartitioner> repartitioner_;
 
-    std::vector<std::tuple<bool, label, label, label>> local_interfaces_;
+    std::vector<InterfaceLocality> local_interfaces_;
 };
 
 std::shared_ptr<const gko::LinOp> get_local(

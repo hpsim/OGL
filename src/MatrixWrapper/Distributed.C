@@ -100,7 +100,7 @@ void update_fused_impl(
     std::shared_ptr<const SparsityPattern> non_local_sparsity,
     [[maybe_unused]] std::shared_ptr<const CommunicationPattern>
         src_comm_pattern,
-    std::vector<std::tuple<bool, label, label, label>> local_interfaces)
+    std::vector<InterfaceLocality> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
@@ -304,7 +304,7 @@ void update_impl(
     std::shared_ptr<const SparsityPattern> local_sparsity,
     [[maybe_unused]] std::shared_ptr<const SparsityPattern> non_local_sparsity,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-    std::vector<std::tuple<bool, label, label, label>> local_interfaces)
+    std::vector<InterfaceLocality> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
@@ -365,16 +365,11 @@ void update_impl(
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
-        // label loc_ctr{1};
-        // label nloc_ctr{0};
         label host_interface_ctr{0};
         label tag = 0;
         scalar *recv_buffer_ptr;
-        // scalar *recv_buffer_ptr_2;
-        // std::vector<scalar> host_recv_buffer;
         label remain_host_interfaces = host_A->get_num_interfaces();
         for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
-            std::cout << __FILE__ << " ctr " << ctr << "\n";
             if (is_local) {
                 mtx = gko::as<LocalMatrixType>(
                     gko::as<CombinationMatrix<LocalMatrixType>>(
