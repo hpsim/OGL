@@ -164,7 +164,8 @@ public:
      * returns a vector of locality information.
      * @param non_local_cols vector in global local indices
      */
-    std::vector<std::tuple<bool, label, label>> build_non_local_interfaces(
+    std::vector<std::tuple<bool, label, label, label>>
+    build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
@@ -198,7 +199,7 @@ public:
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
                std::shared_ptr<SparsityPattern>,
-               std::vector<std::tuple<bool, label, label>>>
+               std::vector<std::tuple<bool, label, label, label>>>
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const SparsityPattern> src_local_pattern,

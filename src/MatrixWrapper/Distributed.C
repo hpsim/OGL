@@ -100,7 +100,7 @@ void update_fused_impl(
     std::shared_ptr<const SparsityPattern> non_local_sparsity,
     [[maybe_unused]] std::shared_ptr<const CommunicationPattern>
         src_comm_pattern,
-    std::vector<std::tuple<bool, label, label>> local_interfaces)
+    std::vector<std::tuple<bool, label, label, label>> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
@@ -115,7 +115,7 @@ void update_fused_impl(
     label local_matrix_nnz = host_A->get_local_matrix_nnz();
     label n_interfaces = 0;  // number of fused interface coefficients
     for (size_t i = 0; i < local_interfaces.size(); i++) {
-        auto [local, rank, size] = local_interfaces[i];
+        auto [local, rank, size, ctr] = local_interfaces[i];
         if (local) {
             n_interfaces += size;
         }
@@ -176,14 +176,14 @@ void update_fused_impl(
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
-        label loc_ctr{1};
-        label nloc_ctr{0};
+        // label loc_ctr{1};
+        // label nloc_ctr{0};
         label host_interface_ctr{0};
         // label tag = 0;
         label begin = 0;
         scalar *recv_buffer_ptr;
-        for (auto [is_local, orig_rank, size] : local_interfaces) {
-            label &ctr = (is_local) ? loc_ctr : nloc_ctr;
+        for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
+            // label &ctr = (is_local) ? loc_ctr : nloc_ctr;
             if (is_local) {
                 // TODO if fused it is only operator 0
                 mtx =
@@ -192,7 +192,7 @@ void update_fused_impl(
                 mtx = gko::as<const LocalMatrixType>(
                     dist_A->get_non_local_matrix());
             }
-            ctr++;
+            // ctr++;
 
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
@@ -304,7 +304,7 @@ void update_impl(
     std::shared_ptr<const SparsityPattern> local_sparsity,
     [[maybe_unused]] std::shared_ptr<const SparsityPattern> non_local_sparsity,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-    std::vector<std::tuple<bool, label, label>> local_interfaces)
+    std::vector<std::tuple<bool, label, label, label>> local_interfaces)
 {
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
@@ -361,23 +361,21 @@ void update_impl(
                            host_A->get_lower(), local_ptr);
     }
 
-
     // copy interface values
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
-        label loc_ctr{1};
-        label nloc_ctr{0};
+        // label loc_ctr{1};
+        // label nloc_ctr{0};
         label host_interface_ctr{0};
         label tag = 0;
         scalar *recv_buffer_ptr;
         // scalar *recv_buffer_ptr_2;
         // std::vector<scalar> host_recv_buffer;
         label remain_host_interfaces = host_A->get_num_interfaces();
-        for (auto [is_local, orig_rank, size] : local_interfaces) {
-            label &ctr = (is_local) ? loc_ctr : nloc_ctr;
+        for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
+            std::cout << __FILE__ << " ctr " << ctr << "\n";
             if (is_local) {
-                // TODO if fused it is only operator 0
                 mtx = gko::as<LocalMatrixType>(
                     gko::as<CombinationMatrix<LocalMatrixType>>(
                         dist_A->get_local_matrix())
@@ -390,7 +388,6 @@ void update_impl(
                         ->get_combination()
                         ->get_operators()[ctr]);
             }
-            ctr++;
 
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
@@ -451,7 +448,7 @@ void update_impl(
 
         // TODO make sure this doesn't copy
         // create a non owning dense matrix of local_values
-    auto local_view=
+        auto local_view=
             gko::array<scalar>::view(local->get_executor(), local_elements,
                                      local_ptr);
 
@@ -478,7 +475,8 @@ void update_impl(
                                      row_collection->get_values());
         local_view = row_view;
 
-        // // TODO move reorder up to interface update
+        // TODO localized interfaces need to be reordered too.
+        // TODO move reorder up to interface update
         // auto tmp = gko::array<scalar>(dist_A->get_executor(),
         //                               non_local_sparsity->num_nnz);
         // tmp.fill(0);
