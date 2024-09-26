@@ -105,25 +105,26 @@ void update_fused_impl(
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
-    bool requires_host_buffer =
-        exec_handler.get_gko_force_host_buffer();
+    bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
-    // label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    label owner_rank = repartitioner->get_owner_rank(exec_handler);
     bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
     label local_matrix_nnz = host_A->get_local_matrix_nnz();
     label n_interfaces = 0;  // number of fused interface coefficients
     for (size_t i = 0; i < local_interfaces.size(); i++) {
-        auto [local, rank, size, ctr] = local_interfaces[i];
-        if (local) {
+        auto [local, orig_rank, size, ctr] = local_interfaces[i];
+        if (local && rank == orig_rank) {
             n_interfaces += size;
         }
     }
+
+
     label tot_local_matrix_nnz = local_matrix_nnz + n_interfaces;
 
     // size + padding has to be local_matrix_nnz
-    // [upper, lower, diag, interfaces]
+    // [upper, lower, diag, interfaces] | [upper, lower, diag, interfaces]
     auto diag_comm_pattern = compute_gather_to_owner_counts(
         exec_handler, ranks_per_gpu, nrows, tot_local_matrix_nnz,
         local_matrix_nnz - nrows, n_interfaces);
@@ -144,74 +145,98 @@ void update_fused_impl(
         (owner) ? const_cast<scalar *>(local_mtx->get_const_values()) : nullptr;
 
     communicate_values(
-           exec_handler.get_ref_exec(),
-	   exec_handler.get_device_exec(),
-           exec_handler.get_communicator(),
-        diag_comm_pattern, host_A->get_diag(),
-                       local_ptr, requires_host_buffer, tot_local_matrix_nnz);
-    communicate_values(
-            exec_handler.get_ref_exec(),
-            exec_handler.get_device_exec(),
-            exec_handler.get_communicator(), upper_comm_pattern, host_A->get_upper(),
-                       local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+        exec_handler.get_ref_exec(), exec_handler.get_device_exec(),
+        exec_handler.get_communicator(), diag_comm_pattern, host_A->get_diag(),
+        local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+    communicate_values(exec_handler.get_ref_exec(),
+                       exec_handler.get_device_exec(),
+                       exec_handler.get_communicator(), upper_comm_pattern,
+                       host_A->get_upper(), local_ptr, requires_host_buffer,
+                       tot_local_matrix_nnz);
 
     if (host_A->get_symmetric()) {
         // TODO FIXME
         // if symmetric we can reuse already copied data
-        communicate_values(
-            exec_handler.get_ref_exec(),
-            exec_handler.get_device_exec(),
-            exec_handler.get_communicator(),
-                           lower_comm_pattern,
-                           host_A->get_lower(), local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+        communicate_values(exec_handler.get_ref_exec(),
+                           exec_handler.get_device_exec(),
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
     } else {
         communicate_values(exec_handler.get_ref_exec(),
                            exec_handler.get_device_exec(),
-                           exec_handler.get_communicator(),
-                           lower_comm_pattern,
-                           host_A->get_lower(), local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
     }
 
     // copy interface values
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
-        // label loc_ctr{1};
-        // label nloc_ctr{0};
+        // TODO the begin idx need to be exchanged
         label host_interface_ctr{0};
-        // label tag = 0;
-        label begin = 0;
+        label local_begin = local_matrix_nnz;
+        label local_non_local_begin = 0;
+        label non_local_begin = tot_local_matrix_nnz;
+        label non_local_non_local_begin = n_interfaces;
+        label prev_orig_rank = rank;
         scalar *recv_buffer_ptr;
         for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
-            // label &ctr = (is_local) ? loc_ctr : nloc_ctr;
             if (is_local) {
-                // TODO if fused it is only operator 0
                 mtx =
                     gko::as<const LocalMatrixType>(dist_A->get_local_matrix());
             } else {
                 mtx = gko::as<const LocalMatrixType>(
                     dist_A->get_non_local_matrix());
             }
-            // ctr++;
 
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
+            label next_begin = size;
+
             if (orig_rank == rank) {
                 // if data is already on this rank
-                // TODO probably better if we handle this case separately
                 auto data_view = gko::array<scalar>::const_view(
                     exec, size, host_A->get_interface_data(host_interface_ctr));
 
+                label begin = (is_local) ? local_begin : local_non_local_begin;
+
                 auto target_view = gko::array<scalar>::view(
                     mtx->get_executor(), size, recv_buffer_ptr + begin);
-                begin += size;
-
                 target_view = data_view;
                 host_interface_ctr++;
+
+                if (is_local) {
+                    local_begin += next_begin;
+                } else {
+                    local_non_local_begin += next_begin;
+                }
+
             } else {
                 // data is not already on rank
-                // comm.recv(device_exec, recv_buffer_ptr, size, orig_rank,
-                // tag);
+                label begin =
+                    (is_local) ? non_local_begin : non_local_non_local_begin;
+                if (is_local && orig_rank != prev_orig_rank) {
+                    begin += local_matrix_nnz;
+                }
+                comm.recv(device_exec, recv_buffer_ptr + begin, size, orig_rank,
+                          0);
+                if (orig_rank == prev_orig_rank) {
+                    if (is_local) {
+                        non_local_begin += next_begin;
+                    } else {
+                        non_local_non_local_begin += next_begin;
+                    }
+                } else {
+                    if (is_local) {
+                        non_local_begin += local_matrix_nnz + next_begin;
+                    } else {
+                        non_local_non_local_begin +=
+                            local_matrix_nnz + next_begin;
+                    }
+                    prev_orig_rank = orig_rank;
+                }
             }
         }
         // interface values need to be multiplied by -1
@@ -231,14 +256,13 @@ void update_fused_impl(
     } else {
         // the non owner has send all its interfaces to owner
         // thus all values need to be communicated to the owner as well
-        // label num_interfaces = src_comm_pattern->target_ids.size();
-        // label tag = 0;
-        // for (int i = 0; i < num_interfaces; i++) {
-        //     label comm_size = src_comm_pattern->target_sizes.data()[i];
-        //     const scalar *send_buffer_ptr = host_A->get_interface_data(i);
-        //     comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank,
-        //     tag);
-        // }
+        label num_interfaces = src_comm_pattern->target_ids.size();
+        label tag = 0;
+        for (int i = 0; i < num_interfaces; i++) {
+            label comm_size = src_comm_pattern->target_sizes.data()[i];
+            const scalar *send_buffer_ptr = host_A->get_interface_data(i);
+            comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
+        }
     }
 
     // reorder updated values
@@ -443,9 +467,8 @@ void update_impl(
 
         // TODO make sure this doesn't copy
         // create a non owning dense matrix of local_values
-        auto local_view=
-            gko::array<scalar>::view(local->get_executor(), local_elements,
-                                     local_ptr);
+        auto local_view = gko::array<scalar>::view(local->get_executor(),
+                                                   local_elements, local_ptr);
 
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             local->get_executor(),
@@ -459,13 +482,12 @@ void update_impl(
 
         auto dense_vec = gko::share(gko::matrix::Dense<scalar>::create(
             local->get_executor(),
-            gko::dim<2>{static_cast<dim_type>(local_elements), 1},
-            local_view,
+            gko::dim<2>{static_cast<dim_type>(local_elements), 1}, local_view,
             1));
 
         dense_vec->row_gather(&mapping_view, row_collection.get());
 
-        auto row_view=
+        auto row_view =
             gko::array<scalar>::view(local->get_executor(), local_elements,
                                      row_collection->get_values());
         local_view = row_view;
@@ -483,10 +505,11 @@ void update_impl(
         //                     1},
         //         tmp, 1));
 
-        // auto non_local_row_vec = gko::share(gko::matrix::Dense<scalar>::create(
+        // auto non_local_row_vec =
+        // gko::share(gko::matrix::Dense<scalar>::create(
         //     dist_A->get_executor(),
-        //     gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz), 1},
-        //     gko::array<scalar>(dist_A->get_executor(),
+        //     gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz),
+        //     1}, gko::array<scalar>(dist_A->get_executor(),
         //                        non_local_sparsity->num_nnz),
         //     1));
         // non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
@@ -502,18 +525,20 @@ void update_impl(
         //                 dist_A->get_non_local_matrix())
         //                 ->get_combination()
         //                 ->get_operators()[i]);
-        //     auto non_local_elements = non_local_mtx->get_num_stored_elements();
-        //     scalar *non_local_ptr =
+        //     auto non_local_elements =
+        //     non_local_mtx->get_num_stored_elements(); scalar *non_local_ptr =
         //         const_cast<scalar *>(non_local_mtx->get_const_values());
         //     auto value_view =
         //         gko::array<scalar>::view(non_local_mtx->get_executor(),
         //                                  non_local_elements, non_local_ptr);
 
-        //     // FIXME currently we need a tmp copy of the values to num_nnzs long
+        //     // FIXME currently we need a tmp copy of the values to num_nnzs
+        //     long
         //     // array to sort into the row_collection
         //     auto non_local_dense_view = gko::array<scalar>::view(
         //         dist_A->get_executor(), non_local_elements,
-        //         non_local_dense_vec->get_values() + non_local_sparsity->spans[i].begin);
+        //         non_local_dense_vec->get_values() +
+        //         non_local_sparsity->spans[i].begin);
         //     non_local_dense_view = value_view;
         // }
 
@@ -532,8 +557,8 @@ void update_impl(
         //                 dist_A->get_non_local_matrix())
         //                 ->get_combination()
         //                 ->get_operators()[i]);
-        //     auto non_local_elements = non_local_mtx->get_num_stored_elements();
-        //     scalar *non_local_ptr =
+        //     auto non_local_elements =
+        //     non_local_mtx->get_num_stored_elements(); scalar *non_local_ptr =
         //         const_cast<scalar *>(non_local_mtx->get_const_values());
         //     auto value_view =
         //         gko::array<scalar>::view(non_local_mtx->get_executor(),
