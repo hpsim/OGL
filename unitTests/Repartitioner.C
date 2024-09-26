@@ -287,6 +287,74 @@ public:
         {gko::span{0, 2}, gko::span{2, 4}},  // rank 2
         {gko::span{0, 2}, gko::span{2, 4}},  // rank 3
     };
+
+    // Expected results
+       std::map<label, std::vector<label>> exp_local_nnz;
+    exp_local_nnz.emplace(1, std::vector<label>{12, 12, 12, 12});
+    exp_local_nnz.emplace(2, std::vector<label>{28, 0, 28, 0});
+    exp_local_nnz.emplace(4, std::vector<label>{64, 0, 0, 0});
+
+    std::map<label, std::vector<label>> exp_non_local_nnz;
+    exp_non_local_nnz.emplace(1, std::vector<label>{4, 4, 4, 4});
+    exp_non_local_nnz.emplace(2, std::vector<label>{4, 0, 4, 0});
+    exp_non_local_nnz.emplace(4, std::vector<label>{0, 0, 0, 0});
+
+    std::map<label, vec_vec> exp_local_rows;
+    exp_local_rows.emplace(1, vec_vec{rows, rows, rows, rows});
+   
+    vec rows_2 = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 1, 3, 4, 6};
+    exp_local_rows.emplace(2, vec_vec{rows_2, {}, rows_2, {}});
+    vec rows_4 = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 
+                    9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 15,  
+                    1, 2, 3, 3, 4, 6, 6, 7, 8, 9, 9, 11, 12, 12, 13, 14};
+    exp_local_rows.emplace(4, vec_vec{rows_4, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_cols;
+    exp_local_cols.emplace(1, vec_vec{cols, cols, cols, cols});
+    vec cols_2 = {0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 4, 6, 1, 3};
+    exp_local_cols.emplace(2, vec_vec{cols_2, {}, cols_2, {}});
+    vec cols_4 = {0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 8, 9, 10, 8,
+                     9, 11, 8, 10, 11, 9, 10, 11, 12, 13, 14, 12, 13, 15, 12, 14, 15, 13, 14, 15, 4, 8, 
+                     6, 9, 1, 3, 12, 13, 2, 3, 12, 14, 6, 9, 7, 11};
+    exp_local_cols.emplace(4, vec_vec{cols_4, {}, {}, {}});
+
+    std::map<label, vec> exp_local_dim_rows;
+    exp_local_dim_rows.emplace(
+        1, vec{local_size, local_size, local_size, local_size});
+    exp_local_dim_rows.emplace(2, vec{2 * local_size, 0, 2 * local_size, 0});
+    exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
+
+    std::map<label, vec_vec> exp_local_mapping;
+    exp_local_mapping.emplace(1, vec_vec{mapping, mapping, mapping, mapping});
+    vec mapping_2{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 0, 0, 0};
+    exp_local_mapping.emplace(2, vec_vec{{mapping_2}, {}, {mapping_2}, {}});
+    vec mapping_4{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+                    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    exp_local_mapping.emplace(4, vec_vec{{mapping_4}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_spans_begin;
+    exp_local_spans_begin.emplace(1, vec_vec{{0}, {0}, {0}, {0}});
+    exp_local_spans_begin.emplace(2, vec_vec{{0, 24, 25, 26, 27}, {}, {0, 24, 25, 26, 27}, {}});
+    exp_local_spans_begin.emplace(
+        4, vec_vec{{0, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_local_spans_end;
+    exp_local_spans_end.emplace(1, vec_vec{{12}, {12}, {12}, {12}});
+    exp_local_spans_end.emplace(2, vec_vec{{24, 25, 26, 27, 28}, {}, {24, 25, 26, 27, 28}, {}});
+    exp_local_spans_end.emplace(
+        4, vec_vec{{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}, {}, {}, {}});
+
+    std::map<label, vec_vec> exp_non_local_rows;
+    exp_non_local_rows.emplace(1, non_local_rows);
+    exp_non_local_rows.emplace(2, vec_vec{{2, 3, 6, 7}, {}, {0, 1, 4, 5}, {}});
+    exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
+
+    // expected cols are in compressed format
+    std::map<label, vec_vec> exp_non_local_cols;
+    exp_non_local_cols.emplace(1, non_local_cols);
+    exp_non_local_cols.emplace(2, vec_vec{{0, 1, 4, 5}, {}, {2, 3, 6, 7}, {}});
+    exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
 };
 
 INSTANTIATE_TEST_SUITE_P(RepartitionerFixture1DInstantiation,
@@ -463,78 +531,10 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern_2D_for_n_ranks_u
     auto local_sparsity = std::make_shared<SparsityPattern>(
         ref_exec, gko::dim<2>{4, 4}, rows, cols, mapping, spans, ranks);
 
-    // TO DO: the 
     auto non_local_sparsity = std::make_shared<SparsityPattern>(
         ref_exec, gko::dim<2>{4, non_local_ranks[rank].size()},
         non_local_rows[rank], non_local_cols[rank], non_local_mapping[rank],
         non_local_spans[rank], non_local_ranks[rank]);
-
-    std::map<label, std::vector<label>> exp_local_nnz;
-    exp_local_nnz.emplace(1, std::vector<label>{12, 12, 12, 12});
-    exp_local_nnz.emplace(2, std::vector<label>{28, 0, 28, 0});
-    exp_local_nnz.emplace(4, std::vector<label>{64, 0, 0, 0});
-
-    std::map<label, std::vector<label>> exp_non_local_nnz;
-    exp_non_local_nnz.emplace(1, std::vector<label>{4, 4, 4, 4});
-    exp_non_local_nnz.emplace(2, std::vector<label>{4, 0, 4, 0});
-    exp_non_local_nnz.emplace(4, std::vector<label>{0, 0, 0, 0});
-
-    std::map<label, vec_vec> exp_local_rows;
-    exp_local_rows.emplace(1, vec_vec{rows, rows, rows, rows});
-   
-    vec rows_2 = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 1, 3, 4, 6};
-    exp_local_rows.emplace(2, vec_vec{rows_2, {}, rows_2, {}});
-    vec rows_4 = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 
-                    9, 9, 9, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 15,  
-                    1, 2, 3, 3, 4, 6, 6, 7, 8, 9, 9, 11, 12, 12, 13, 14};
-    exp_local_rows.emplace(4, vec_vec{rows_4, {}, {}, {}});
-
-    std::map<label, vec_vec> exp_local_cols;
-    exp_local_cols.emplace(1, vec_vec{cols, cols, cols, cols});
-    vec cols_2 = {0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 4, 6, 1, 3};
-    exp_local_cols.emplace(2, vec_vec{cols_2, {}, cols_2, {}});
-    vec cols_4 = {0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 8, 9, 10, 8,
-                     9, 11, 8, 10, 11, 9, 10, 11, 12, 13, 14, 12, 13, 15, 12, 14, 15, 13, 14, 15, 4, 8, 
-                     6, 9, 1, 3, 12, 13, 2, 3, 12, 14, 6, 9, 7, 11};
-    exp_local_cols.emplace(4, vec_vec{cols_4, {}, {}, {}});
-
-    std::map<label, vec> exp_local_dim_rows;
-    exp_local_dim_rows.emplace(
-        1, vec{local_size, local_size, local_size, local_size});
-    exp_local_dim_rows.emplace(2, vec{2 * local_size, 0, 2 * local_size, 0});
-    exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
-
-    std::map<label, vec_vec> exp_local_mapping;
-    exp_local_mapping.emplace(1, vec_vec{mapping, mapping, mapping, mapping});
-    vec mapping_2{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 0, 0, 0};
-    exp_local_mapping.emplace(2, vec_vec{{mapping_2}, {}, {mapping_2}, {}});
-    vec mapping_4{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-                    25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    exp_local_mapping.emplace(4, vec_vec{{mapping_4}, {}, {}, {}});
-
-    std::map<label, vec_vec> exp_local_spans_begin;
-    exp_local_spans_begin.emplace(1, vec_vec{{0}, {0}, {0}, {0}});
-    exp_local_spans_begin.emplace(2, vec_vec{{0, 24, 25, 26, 27}, {}, {0, 24, 25, 26, 27}, {}});
-    exp_local_spans_begin.emplace(
-        4, vec_vec{{0, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}, {}, {}, {}});
-
-    std::map<label, vec_vec> exp_local_spans_end;
-    exp_local_spans_end.emplace(1, vec_vec{{12}, {12}, {12}, {12}});
-    exp_local_spans_end.emplace(2, vec_vec{{24, 25, 26, 27, 28}, {}, {24, 25, 26, 27, 28}, {}});
-    exp_local_spans_end.emplace(
-        4, vec_vec{{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}, {}, {}, {}});
-
-    std::map<label, vec_vec> exp_non_local_rows;
-    exp_non_local_rows.emplace(1, non_local_rows);
-    exp_non_local_rows.emplace(2, vec_vec{{2, 3, 6, 7}, {}, {0, 1, 4, 5}, {}});
-    exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
-
-    // expected cols are in compressed format
-    std::map<label, vec_vec> exp_non_local_cols;
-    exp_non_local_cols.emplace(1, non_local_cols);
-    exp_non_local_cols.emplace(2, vec_vec{{0, 1, 4, 5}, {}, {2, 3, 6, 7}, {}});
-    exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
 
     // Act
     auto [repart_local, repart_non_local, tracking] =
