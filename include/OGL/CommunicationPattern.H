@@ -157,6 +157,12 @@ struct CommunicationPattern {
      */
     gko::array<label> total_rank_send_idx() const;
 
+    /* @brief concatenate all separate send idxs arrays into one contiguous
+     * array
+     */
+    gko::array<label> compute_recv_gather_idxs(
+        const ExecutorHandler &exec_handler) const;
+
 
     /** Computes the send and recv pattern for ginkgos distributed matrix SpMV
      */

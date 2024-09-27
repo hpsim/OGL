@@ -26,21 +26,7 @@ std::vector<label> convert_to_global(
         const gko::experimental::distributed::Partition<label, label>>
         partition,
     const std::vector<label> &idx, const std::vector<gko::span> &spans,
-    const std::vector<label> &ranks)
-{
-    std::vector<label> ret;
-    ret.reserve(idx.size());
-
-    for (label i = 0; i < ranks.size(); i++) {
-        auto rank = ranks[i];
-        auto [begin, end] = spans[i];
-        label offset = partition->get_range_bounds()[rank];
-        for (label j = begin; j < end; j++) {
-            ret.push_back(idx.data()[j] + offset);
-        }
-    }
-    return ret;
-}
+    const std::vector<label> &ranks);
 
 /* Convert to local
 ** Given an array of column indices local to the communication rank
@@ -54,12 +40,7 @@ void convert_to_local(
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
         partition,
-    std::vector<label> &in, label rank)
-{
-    label offset = partition->get_range_bounds()[rank];
-    std::transform(in.begin(), in.end(), in.begin(),
-                   [&](label idx) { return idx - offset; });
-}
+    std::vector<label> &in, label rank);
 
 /* @brief exchange spans and rank between owner and non-owner ranks
 **
@@ -89,9 +70,9 @@ class Repartitioner {
 private:
     using partition = gko::experimental::distributed::Partition<label, label>;
 
-    const label size_;  //! Size (matrix rows) before repartitioning
+    const label size_;  //! Local size (matrix rows) before repartitioning
 
-    const label repart_size_;  //! Size (matrix rows) after repartitioning
+    const label repart_size_;  //! Local size (matrix rows) after repartitioning
 
     const label ranks_per_gpu_;
 
@@ -152,6 +133,8 @@ public:
     static label compute_repart_size(label local_size, label ranks_per_gpu,
                                      const ExecutorHandler &exec_handler);
 
+    label get_orig_size() const { return size_; }
+
     label get_repart_size() const { return repart_size_; }
 
     // TODO pass original dim as argument, if size can also be nnz
@@ -175,7 +158,7 @@ public:
      * returns a vector of locality information.
      * @param non_local_cols vector in comm rank local indices
      */
-    std::vector<bool> build_non_local_interfaces(
+    std::vector<std::pair<bool, label>> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
@@ -229,8 +212,5 @@ public:
      */
     std::shared_ptr<const CommunicationPattern> repartition_comm_pattern(
         const ExecutorHandler &exec_handler,
-        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-        std::shared_ptr<
-            const gko::experimental::distributed::Partition<label, label>>
-            partition) const;
+        std::shared_ptr<const CommunicationPattern> src_comm_pattern) const;
 };

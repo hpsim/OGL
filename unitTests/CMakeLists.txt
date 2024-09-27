@@ -19,6 +19,8 @@ macro(ogl_unit_test TEST FILE)
     ${TEST}
     OpenFOAM
     GTest::gtest_main
+    GTest::gtest
+    GTest::gmock
     OGL
     Ginkgo::ginkgo
     ginkgo_hip

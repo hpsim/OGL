@@ -24,6 +24,8 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
 
+void compress_cols(gko::array<label> &in);
+
 /* @brief computes the dimensions of square matrix based row index array
  *
  * @note assumes that rows are ordered
@@ -64,17 +66,10 @@ struct SparsityPattern {
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec)
         : num_nnz(0),
-          dim(gko::dim<2>{}),
           row_idxs{exec},
           col_idxs{exec},
-          ldu_mapping{exec}
-    {}
-
-    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size)
-        : num_nnz(size),
-          row_idxs{exec, static_cast<gko::size_type>(size)},
-          col_idxs{exec, static_cast<gko::size_type>(size)},
-          ldu_mapping{exec, static_cast<gko::size_type>(size)}
+          ldu_mapping{exec},
+          dim(gko::dim<2>{})
     {}
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
@@ -83,10 +78,10 @@ struct SparsityPattern {
                     std::vector<label> &spans_begin,
                     std::vector<label> &spans_end, std::vector<label> &ranks)
         : num_nnz(size),
-          dim(dim),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
-          ldu_mapping{exec, static_cast<gko::size_type>(size)}
+          ldu_mapping{exec, static_cast<gko::size_type>(size)},
+          dim(dim)
     {
         ASSERT_EQ(size, rows.size());
         std::copy(rows.begin(), rows.end(), row_idxs.get_data());

@@ -6,6 +6,38 @@
 
 namespace detail {
 
+std::vector<label> convert_to_global(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const std::vector<label> &ranks)
+{
+    std::vector<label> ret;
+    ret.reserve(idx.size());
+
+    for (label i = 0; i < ranks.size(); i++) {
+        auto rank = ranks[i];
+        auto [begin, end] = spans[i];
+        label offset = partition->get_range_bounds()[rank];
+        for (label j = begin; j < end; j++) {
+            ret.push_back(idx.data()[j] + offset);
+        }
+    }
+    return ret;
+}
+
+void convert_to_local(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    std::vector<label> &in, label rank)
+{
+    label offset = partition->get_range_bounds()[rank];
+    std::transform(in.begin(), in.end(), in.begin(),
+                   [&](label idx) { return idx - offset; });
+}
+
 std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
 exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
                     const std::vector<gko::span> &spans,
@@ -108,7 +140,7 @@ Repartitioner::repartition_sparsity(
     // early return if no repartitioning requested
     if (ranks_per_gpu == 1) {
         std::vector<std::pair<bool, label>> ret;
-        for (auto comm_rank : src_non_local_pattern->rank) {
+        for ([[maybe_unused]] auto comm_rank : src_non_local_pattern->rank) {
             ret.emplace_back(false, rank);
         }
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
@@ -187,17 +219,18 @@ Repartitioner::repartition_sparsity(
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::pair<bool, label>>>(
-            std::move(local_pattern), std::move(non_local_pattern), {});
+            std::move(local_pattern), std::move(non_local_pattern),
+            std::move(is_local));
     } else {
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
                                std::shared_ptr<SparsityPattern>,
                                std::vector<std::pair<bool, label>>>(
             std::make_shared<SparsityPattern>(exec),
-            std::make_shared<SparsityPattern>(exec), {});
+            std::make_shared<SparsityPattern>(exec), std::move(is_local));
     }
 }
 
-std::vector<bool> Repartitioner::build_non_local_interfaces(
+std::vector<std::pair<bool, label>> Repartitioner::build_non_local_interfaces(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
@@ -211,7 +244,7 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     std::vector<gko::span> &non_local_spans) const
 {
     auto rank = exec_handler.get_rank();
-    std::vector<bool> is_local;
+    std::vector<std::pair<bool, label>> is_local;
     std::vector<label> mark_keep;
 
     auto tmp_non_local_cols = detail::convert_to_global(
@@ -220,7 +253,6 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     for (int i = 0; i < non_local_spans.size(); i++) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, non_local_ranks[i]);
-        is_local.push_back(local);
 
         if (local) {
             gko::size_type rows_start = local_rows.size();
@@ -237,12 +269,14 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
             local_mapping.insert(local_mapping.end(),
                                  non_local_mapping.data() + begin,
                                  non_local_mapping.data() + end);
-            local_spans.emplace_back(rows_start,
-                                     rows_start + static_cast<gko::size_type>(end - begin));
+            local_spans.emplace_back(
+                rows_start,
+                rows_start + static_cast<gko::size_type>(end - begin));
             local_ranks.push_back(non_local_rank_origin[i]);
         } else {
             mark_keep.push_back(i);
         }
+        is_local.emplace_back(local, non_local_rank_origin[i]);
     }
 
     // remove data from non_local vectors
@@ -255,6 +289,7 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
     } else {
         std::vector<label> copy_rows, copy_cols, copy_mapping, copy_ranks;
         std::vector<gko::span> copy_spans;
+        label span_ctr{0};
         for (label i : mark_keep) {
             auto [begin, end] = non_local_spans[i];
             copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
@@ -283,8 +318,12 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
                                 non_local_mapping.data() + begin,
                                 non_local_mapping.data() + end);
             copy_ranks.push_back(repart_comm_rank);
-            copy_spans.emplace_back(non_local_spans[i].begin,
-                                    non_local_spans[i].end);
+
+            // the spans are now consecutive based on all gathered spans,
+            // thus we need to make them consecutive based on kept interfaces
+            copy_spans.emplace_back(span_ctr,
+                                    span_ctr + non_local_spans[i].length());
+            span_ctr += non_local_spans[i].length();
         }
         non_local_rows = copy_rows;
         non_local_cols = copy_cols;
@@ -303,10 +342,7 @@ std::vector<bool> Repartitioner::build_non_local_interfaces(
 std::shared_ptr<const CommunicationPattern>
 Repartitioner::repartition_comm_pattern(
     const ExecutorHandler &exec_handler,
-    std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition) const
+    std::shared_ptr<const CommunicationPattern> src_comm_pattern) const
 {
     if (ranks_per_gpu_ == 1) {
         return src_comm_pattern;
@@ -370,8 +406,9 @@ Repartitioner::repartition_comm_pattern(
                           rank);
 
                 // the new offset is
-                auto offset = partition->get_range_bounds()[rank + i] -
-                              partition->get_range_bounds()[rank];
+                auto offset =
+                    get_orig_partition()->get_range_bounds()[rank + i] -
+                    get_orig_partition()->get_range_bounds()[rank];
 
                 std::transform(recv_buffer.begin(), recv_buffer.end(),
                                recv_buffer.begin(),

@@ -223,6 +223,7 @@ target_sources(
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
           src/MatrixWrapper/SparsityPattern.C
+          src/MatrixWrapper/Distributed.C
           src/Repartitioner.C
   # src/Solver/CG/GKOCG.C src/Solver/BiCGStab/GKOBiCGStab.C
   # src/Solver/GMRES/GKOGMRES.C
