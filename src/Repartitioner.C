@@ -274,7 +274,6 @@ Repartitioner::repartition_sparsity(
                                      src_non_local_pattern->spans,
                                      src_non_local_target_ids);
 
-
     // comm ranks are based on non repartitioned ranks
     auto tmp_non_local_cols =
         gather_labels_to_owner(exec_handler, non_local_comm_pattern,
@@ -352,11 +351,11 @@ Repartitioner::build_non_local_interfaces(
     }
 
     // iterate in the order of the target ids
-    std::vector<label> iteration_order(comm_target_ids.size());
+    std::vector<label> iteration_order(comm_target_ids.size(), 0);
     std::iota(iteration_order.begin(), iteration_order.end(), 0);
     std::stable_sort(iteration_order.begin(), iteration_order.end(),
-                     [&](std::size_t i, std::size_t j) {
-                         return comm_target_ids[i]< comm_target_ids[j];
+                     [comm_target_ids](std::size_t i, std::size_t j) {
+                         return comm_target_ids[i] < comm_target_ids[j];
                      });
 
     label interface_offset = 0;

@@ -134,9 +134,11 @@ public:
     // local row indices
     // repartitioned 2 [ 0 1 , 2 3 | 0 1 , 2 3 ] | new  boundary , old boundary
     // repartitioned 4 [ 0 1 , 2 3 , 4 5 , 6 7 ] | new  boundary , old boundary
-    vec nf_rows_2 = {0, 0, 1, 1, 2, 2, 3, 3, 1, 2};
+    // the last two elements are now local interfaces, they are in in order
+    // of target_ids
+    vec nf_rows_2 = {0, 0, 1, 1, 2, 2, 3, 3, 2, 1};
     vec nf_rows_4 = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5,
-                     5, 6, 6, 7, 7, 1, 2, 3, 4, 5, 6};
+                     5, 6, 6, 7, 7, 2, 1, 4, 3, 6, 5};
     // fused
     vec f_rows_2 = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3};
     vec f_rows_4 = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3,
@@ -151,9 +153,9 @@ public:
           {2, {f_rows_2, {}, f_rows_2, {}}},
           {4, {f_rows_4, {}, {}, {}}}}}};
 
-    vec nf_cols_2 = {0, 1, 0, 1, 2, 3, 2, 3, 2, 1};
+    vec nf_cols_2 = {0, 1, 0, 1, 2, 3, 2, 3, 1, 2};
     vec nf_cols_4 = {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4,
-                     5, 6, 7, 6, 7, 2, 1, 4, 3, 6, 5};
+                     5, 6, 7, 6, 7, 1, 2, 3, 4, 5, 6};
     // fused
     vec f_cols_2 = {0, 1, 0, 1, 2, 1, 2, 3, 2, 3};
     vec f_cols_4 = {0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4,
@@ -263,20 +265,11 @@ class RepartitionerFixture2D
 public:
     label local_size = 4;
 
-    vec_vec ids{{1, 2}, {0, 3}, {0, 3}, {1, 2}};
-
     vec_vec idxs{
         {0, 2, 0, 1},  // rank 0
         {1, 3, 0, 1},  // rank 1
         {2, 3, 0, 2},  // rank 2
         {2, 3, 1, 3}   // rank 3
-    };
-    // vector
-    vec_vec ranks{
-        {1, 2},  // rank 0
-        {0, 3},  // rank 1
-        {0, 3},  // rank 2
-        {1, 2}   // rank 3
     };
 
     std::vector<label> rows{0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3};
@@ -294,7 +287,7 @@ public:
     vec_vec non_local_mapping{
         {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}};
     // communication partners (ranks)
-    vec_vec comm_target_ids{{1, 2}, {0, 2}, {0, 3}, {1, 2}};
+    vec_vec comm_target_ids{{1, 2}, {0, 3}, {0, 3}, {1, 2}};
 
     std::vector<std::vector<gko::span>> non_local_spans{
         {gko::span{0, 2}, gko::span{2, 4}},  // rank 0
@@ -332,9 +325,9 @@ public:
      *   0    [ 0 1 | 4 5 ]  1    |  [  0  1 |  4  5 ]
      *   */
     vec nf_rows_2 = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4,
-                     4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 1, 3, 4, 6};
+                     4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 4, 6, 1, 3};
     vec nf_cols_2 = {0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3, 4, 5,
-                     6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 4, 6, 1, 3};
+                     6, 4, 5, 7, 4, 6, 7, 5, 6, 7, 1, 3, 4, 6};
     // [upper [0-3|12-15], lower [4,7|16-19], diag [8, 11|20-23], interfaces
     // [24-27]]
     vec nf_map_2 = {8,  0,  1,  4,  9,  2,
@@ -363,16 +356,18 @@ public:
      *        [ 2 3 | 6 7 ]       |  [  2  3 |  6  7 ]
      *   0    [ 0 1 | 4 5 ]  1    |  [  0  1 |  4  5 ]
      *   */
+    // NOTE the interfaces are in order of the comm_target indices
+    // ie [0, 0, 0 (1), (1), 2 (2), 2 (3), 2 (2), 2 (3)]
     vec nf_rows_4 = {0,  0,  0,  1,  1,  1,  2,  2,  2,  3,  3,  3,  4,
                      4,  4,  5,  5,  5,  6,  6,  6,  7,  7,  7,  8,  8,
                      8,  9,  9,  9,  10, 10, 10, 11, 11, 11, 12, 12, 12,
-                     13, 13, 13, 14, 14, 14, 15, 15, 15, 1,  3,  2,  3,
-                     4,  6,  6,  7,  8,  9,  9,  11, 12, 13, 12, 14};
+                     13, 13, 13, 14, 14, 14, 15, 15, 15, 4,  6,  8,  9,
+                     1,  3,  12, 13, 2,  3,  12,  14,  6,  7,  9,  11};
     vec nf_cols_4 = {0,  1,  2,  0,  1,  3,  0,  2,  3,  1,  2,  3,  4,
                      5,  6,  4,  5,  7,  4,  6,  7,  5,  6,  7,  8,  9,
                      10, 8,  9,  11, 8,  10, 11, 9,  10, 11, 12, 13, 14,
-                     12, 13, 15, 12, 14, 15, 13, 14, 15, 4,  6,  8,  9,
-                     1,  3,  12, 13, 2,  3,  12, 14, 6,  7,  9,  11};
+                     12, 13, 15, 12, 14, 15, 13, 14, 15, 1,  3,  2,  3,
+                     4,  6,  6,  7,  8,  9,  9,  11, 12, 13, 12, 14};
     vec nf_map_4{8,  0,  1,  4,  9,  2,  5,  10, 3,  6,  7,  11,  // 1st sd done
                  20, 12, 13, 16, 21, 14, 17, 22, 15, 18, 19, 23,  // 2nd sd done
                  32, 24, 25, 28, 33, 26, 29, 34, 27, 30, 31, 35,  // 3rd sd done
@@ -532,7 +527,7 @@ TEST_P(RepartitionerFixture2D, can_convert_to_global)
 
     // Act
     auto global_idxs = detail::convert_to_global(
-        partition, idxs[rank].data(), non_local_spans[rank], ranks[rank]);
+        partition, idxs[rank].data(), non_local_spans[rank], comm_target_ids[rank]);
 
     // Assert
     EXPECT_EQ(global_idxs, exp_global_idxs[rank]);
@@ -790,7 +785,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
 
     // expected communication ranks
     std::map<label, vec_vec> exp_res_ids{};
-    exp_res_ids[1] = ids;  // in the ranks_per_gpu==1 case nothing changes
+    exp_res_ids[1] = comm_target_ids;  // in the ranks_per_gpu==1 case nothing changes
     // only communication partners are 0-2 and 2-0
     exp_res_ids.emplace(2, vec_vec{{2}, {}, {0}, {}});
     // no communication if all ranks are repartitioned to single owner
@@ -828,7 +823,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
 
     // the original comm_pattern
     auto comm_pattern =
-        std::make_shared<CommunicationPattern>(exec, ids[rank], rows[rank]);
+        std::make_shared<CommunicationPattern>(exec, comm_target_ids[rank], rows[rank]);
 
     // Act
     auto repart_comm_pattern =
