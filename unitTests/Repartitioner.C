@@ -305,14 +305,18 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     exp_local_dim_rows.emplace(4, vec{4 * local_size, 0, 0, 0});
 
     std::map<label, vec_vec> exp_local_spans_begin;
-    exp_local_spans_begin.emplace(1, vec_vec{{0}, {0}, {0}, {0}});
-    exp_local_spans_begin.emplace(2, vec_vec{{0, 8, 9}, {}, {0, 8, 9}, {}});
+    exp_local_spans_begin.emplace(
+        1, vec_vec{{0}, {0}, {0}, {0}});
+    exp_local_spans_begin.emplace(
+        2, vec_vec{{0, 8, 9}, {}, {0, 8, 9}, {}});
     exp_local_spans_begin.emplace(
         4, vec_vec{{0, 16, 17, 18, 19, 20, 21}, {}, {}, {}});
 
     std::map<label, vec_vec> exp_local_spans_end;
-    exp_local_spans_end.emplace(1, vec_vec{{5}, {5}, {5}, {5}});
-    exp_local_spans_end.emplace(2, vec_vec{{8, 9, 10}, {}, {8, 9, 10}, {}});
+    exp_local_spans_end.emplace(
+        1, vec_vec{{5}, {5}, {5}, {5}});
+    exp_local_spans_end.emplace(
+        2, vec_vec{{8, 9, 10}, {}, {8, 9 ,10}, {}});
     exp_local_spans_end.emplace(
         4, vec_vec{{16, 17, 18, 19, 20, 21, 22}, {}, {}, {}});
 
@@ -339,15 +343,13 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern_1D_for_n_ranks)
     auto res_local_rows = convert_to_vector(repart_local->row_idxs);
     auto res_local_cols = convert_to_vector(repart_local->col_idxs);
     ASSERT_EQ(res_local_rows, exp_local_rows[ranks_per_gpu][rank]);
-
-    std::vector<label> res_local_spans_begin{};
-    std::vector<label> res_local_spans_end{};
-    for (auto [begin, end] : repart_local->spans) {
+    std::vector<label> res_local_spans_begin {};
+    std::vector<label> res_local_spans_end {};
+    for (auto [begin, end]: repart_local->spans) {
         res_local_spans_begin.push_back(begin);
         res_local_spans_end.push_back(end);
     }
-    ASSERT_EQ(res_local_spans_begin,
-              exp_local_spans_begin[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_local_spans_begin, exp_local_spans_begin[ranks_per_gpu][rank]);
     ASSERT_EQ(res_local_spans_end, exp_local_spans_end[ranks_per_gpu][rank]);
 
     // non local properties
