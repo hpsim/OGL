@@ -358,7 +358,7 @@ Repartitioner::build_non_local_interfaces(
                          return comm_target_ids[i] < comm_target_ids[j];
                      });
 
-    label interface_offset = 0;
+    label interface_offset = local_spans.back().end;
     label ctr = 0;
     label local_ctr =0;
     label non_local_ctr = 0;

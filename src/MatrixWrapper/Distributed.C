@@ -124,7 +124,7 @@ void update_fused_impl(
     label tot_local_matrix_nnz = local_matrix_nnz + n_interfaces;
 
     // size + padding has to be local_matrix_nnz
-    // [upper, lower, diag, interfaces] | [upper, lower, diag, interfaces]
+    // [upper, lower, diag] | [upper, lower, diag], [interfaces | interfaces]
     auto diag_comm_pattern = compute_gather_to_owner_counts(
         exec_handler, ranks_per_gpu, nrows, tot_local_matrix_nnz,
         local_matrix_nnz - nrows, n_interfaces);
