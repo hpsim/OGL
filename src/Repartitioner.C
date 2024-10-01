@@ -122,7 +122,7 @@ void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
                    std::vector<label> &mapping, std::vector<gko::span> &span)
 {
     // add offset to mapping
-    // so interface mapping is not continous
+    // so interface mapping is not continuous
     std::vector<label> permutation(rows.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::stable_sort(permutation.begin(), permutation.end(),
@@ -142,7 +142,7 @@ void sort_sparsity(std::vector<label> &rows, std::vector<label> &cols,
                    std::vector<label> &mapping, std::vector<gko::span> &span)
 {
     // add offset to mapping
-    // so interface mapping is not continous
+    // so interface mapping is not continuous
     std::vector<label> permutation(rows.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     for (auto [begin, end] : span) {

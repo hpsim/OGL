@@ -84,6 +84,18 @@
       "configuration": "Develop"
     }
   ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "configuration": "Release"
+    },
+    {
+      "name": "develop",
+      "configurePreset": "develop",
+      "configuration": "Develop"
+    }
+  ],
   "workflowPresets": [
     {
       "name": "release",

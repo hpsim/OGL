@@ -302,7 +302,7 @@ HostMatrixWrapper::create_communication_pattern() const
             } else {
                 FatalErrorInFunction
                     << " Currently only unique neighbour ranks are supported "
-                    << " Neighbor proccessor " << neighbProcNo
+                    << " Neighbor processor " << neighbProcNo
                     << " observed twice" << exit(FatalError);
                 // auto &vec = search->second;
                 // vec.insert(vec.end(), face_cells.begin(), face_cells.end());
