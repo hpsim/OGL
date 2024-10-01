@@ -70,7 +70,7 @@ AllToAllPattern compute_gather_to_owner_counts(
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
 
-    ASSERT_EQ(total_size, size + padding_before + padding_after);
+    OGL_ASSERT_EQ(total_size, size + padding_before + padding_after);
     label total_ranks{comm.size()};
     label rank{comm.rank()};
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
