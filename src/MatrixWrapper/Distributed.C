@@ -680,19 +680,20 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
 }
 
-std::shared_ptr<const gko::LinOp> get_local(
-    std::shared_ptr<const gko::LinOp> dist_A)
-{
-    word matrix_format = "Coo";
-    if (matrix_format == "Coo") {
-        return gko::as<RepartDistMatrix>(dist_A)
-            ->get_local<const gko::matrix::Coo<scalar, label>>();
-    }
-    if (matrix_format == "Csr") {
-        return gko::as<RepartDistMatrix>(dist_A)
-            ->get_local<const gko::matrix::Csr<scalar, label>>();
-    }
-}
+// std::shared_ptr<const gko::LinOp> get_local(
+//     std::shared_ptr<const gko::LinOp> dist_A)
+// {
+//     word matrix_format = "Coo";
+//     if (matrix_format == "Coo") {
+//         return gko::as<RepartDistMatrix>(dist_A)
+//             ->get_local<const gko::matrix::Coo<scalar, label>>();
+//     }
+//     if (matrix_format == "Csr") {
+//         return gko::as<RepartDistMatrix>(dist_A)
+//             ->get_local<const gko::matrix::Csr<scalar, label>>();
+//     }
+//     return {};
+// }
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
                        const objectRegistry &db,

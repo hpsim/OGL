@@ -51,7 +51,7 @@ public:
         std::shared_ptr<gko::Executor> device_exec,
         std::unique_ptr<PrecondFactory> precond) const
     {
-        auto local = get_local(gkomatrix);
+        auto local = gko::as<RepartDistMatrix>(gkomatrix)->get_local();
         return gko::share(
             ras::build()
                 .with_generated_local_solver(
