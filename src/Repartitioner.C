@@ -68,8 +68,8 @@ exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
     if (gathered_size.size() > 0) {
         for (int i = 0; i < comm_pattern.recv_counts.size(); i++) {
             label num_interfaces = comm_pattern.recv_counts[i];
-            if ( num_interfaces > 0) {
-                for (int j=0;j<num_interfaces;j++){
+            if (num_interfaces > 0) {
+                for (int j = 0; j < num_interfaces; j++) {
                     origins.push_back(i);
                 }
             }
@@ -225,13 +225,11 @@ Repartitioner::repartition_sparsity(
                 non_local_map, src_non_local_pattern->spans);
         }
 
-	auto copy_local_pattern = std::make_shared<SparsityPattern>(
-                *src_local_pattern.get());
+        auto copy_local_pattern =
+            std::make_shared<SparsityPattern>(*src_local_pattern.get());
 
         LOG_1(verbose_, "done repartition sparsity pattern")
-	return {
-            copy_local_pattern,
-            ret_non_local, std::vector(ret)};
+        return {copy_local_pattern, ret_non_local, std::vector(ret)};
     }
 
     // Step 1. gather all local sparsity pattern to owner rank
@@ -305,16 +303,16 @@ Repartitioner::repartition_sparsity(
     if (is_owner(exec_handler)) {
         LOG_1(verbose_, "done repartition sparsity pattern")
         auto ret = std::make_tuple<std::shared_ptr<SparsityPattern>,
-                               std::shared_ptr<SparsityPattern>,
-                               std::vector<InterfaceLocality>>(
-		std::make_shared<SparsityPattern>(
-            exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
-            tmp_local_mapping, tmp_local_span),
-           std::make_shared<SparsityPattern>(
-            exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
-            tmp_non_local_mapping, new_spans)
-            ,std::vector(is_local));
-	return ret;
+                                   std::shared_ptr<SparsityPattern>,
+                                   std::vector<InterfaceLocality>>(
+            std::make_shared<SparsityPattern>(
+                exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
+                tmp_local_mapping, tmp_local_span),
+            std::make_shared<SparsityPattern>(
+                exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
+                tmp_non_local_mapping, new_spans),
+            std::vector(is_local));
+        return ret;
     } else {
         LOG_1(verbose_, "done repartition sparsity pattern")
         return std::make_tuple<std::shared_ptr<SparsityPattern>,
@@ -326,8 +324,7 @@ Repartitioner::repartition_sparsity(
 }
 
 
-std::vector<InterfaceLocality>
-Repartitioner::build_non_local_interfaces(
+std::vector<InterfaceLocality> Repartitioner::build_non_local_interfaces(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
@@ -345,7 +342,7 @@ Repartitioner::build_non_local_interfaces(
     std::vector<label> mark_keep;
 
     if (non_local_spans.size() != non_local_rank_origin.size()) {
-                FatalErrorInFunction
+        FatalErrorInFunction
             << "non_local_spans and non_local_rank_origins sizes are different"
             << exit(FatalError);
     }
@@ -360,14 +357,14 @@ Repartitioner::build_non_local_interfaces(
 
     label interface_offset = local_spans.back().end;
     label ctr = 0;
-    label local_ctr =0;
+    label local_ctr = 0;
     label non_local_ctr = 0;
     for (auto i : iteration_order) {
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, comm_target_ids[i]);
 
         if (local) {
-            local_ctr++; // local interface starts counting at 1;
+            local_ctr++;  // local interface starts counting at 1;
             gko::size_type rows_start = local_rows.size();
             local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
                               non_local_rows.data() + end);
@@ -392,7 +389,8 @@ Repartitioner::build_non_local_interfaces(
             ctr = non_local_ctr;
             non_local_ctr++;
         }
-        is_local.push_back(InterfaceLocality{local, non_local_rank_origin[i], end - begin, ctr});
+        is_local.push_back(InterfaceLocality{local, non_local_rank_origin[i],
+                                             end - begin, ctr});
     }
 
     // remove data from non_local vectors
@@ -498,10 +496,10 @@ Repartitioner::repartition_comm_pattern(
         for (int i = 1; i < ranks_per_gpu_; i++) {
             // how many gko::arrays to with send_indexes to receive
             // from i-th neighbor
-             label recv_count = comm_pattern.recv_counts[rank + i];
+            label recv_count = comm_pattern.recv_counts[rank + i];
 
             for (int j = 0; j < recv_count; j++) {
-              auto target_size = gathered_target_sizes[j + recv_ctr];
+                auto target_size = gathered_target_sizes[j + recv_ctr];
                 std::vector<label> recv_buffer(target_size);
 
                 comm.recv(exec, recv_buffer.data(), target_size, rank + i,
@@ -519,7 +517,7 @@ Repartitioner::repartition_comm_pattern(
                 // auto target_id = gathered_target_ids[j + owner_recv_counts];
                 send_idxs.emplace_back(recv_buffer);
             }
-            recv_ctr+= recv_count;
+            recv_ctr += recv_count;
         }
     } else {
         label owner = get_owner_rank(exec_handler);

@@ -10,5 +10,6 @@ namespace Foam {
 
 // to store the std::shared_ptr<T> in the IO registry the type needs to be
 // declared
-defineTemplateTypeNameWithName(DevicePersistentBase<RepartDistMatrix>, "PersistentDistributedMatrix");
+defineTemplateTypeNameWithName(DevicePersistentBase<RepartDistMatrix>,
+                               "PersistentDistributedMatrix");
 }  // namespace Foam

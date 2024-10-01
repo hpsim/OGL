@@ -176,7 +176,7 @@ std::vector<label> convert_to_vector(const gko::array<label> &in)
 std::vector<scalar> convert_to_vector(const gko::array<scalar> &in)
 {
     return std::vector<scalar>(in.get_const_data(),
-                              in.get_const_data() + in.get_size());
+                               in.get_const_data() + in.get_size());
 }
 
 std::vector<scalar> convert_to_vector(

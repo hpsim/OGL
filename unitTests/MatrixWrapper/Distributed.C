@@ -161,7 +161,8 @@ public:
 //     DistributedMatrixFixtureInstantiationMatrixFormat,
 //     DistributedMatrixFixtureMatrixFormat,
 //     testing::Combine(testing::Values(1,
-//                                      2),  // TODO FIXME case for  4 subdomains
+//                                      2),  // TODO FIXME case for  4
+//                                      subdomains
 //                      testing::Values("Coo", "Csr")));
 
 INSTANTIATE_TEST_SUITE_P(DistributedMatrixFixtureInstantiation,
@@ -248,7 +249,7 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
         0,  1,  3,  0,  1,  2,  4,  1,  2,  5,  0,  3,  4,  6,  1,  3,  4,  5,
         7,  2,  4,  5,  8,  3,  6,  7,  4,  6,  7,  8,  5,  7,  8,  9,  10, 12,
         9,  10, 11, 13, 10, 11, 14, 9,  12, 13, 15, 10, 12, 13, 14, 16, 11, 13,
-        14, 17, 12, 15, 16, 13, 15, 16, 17, 14, 16, 17, 2,  5, 8, 9,  12,  15};
+        14, 17, 12, 15, 16, 13, 15, 16, 17, 14, 16, 17, 2,  5,  8,  9,  12, 15};
     exp_local_cols.emplace(2, vec_vec{exp_cols_2, {}, exp_cols_2, {}});
     vec exp_col_4 = {
         0,  1,  3,  0,  1,  2,  4,  1,  2,  5,  0,  3,  4,  6,  1,  3,  4,  5,
@@ -258,8 +259,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
         22, 19, 20, 23, 18, 21, 22, 24, 19, 21, 22, 23, 25, 20, 22, 23, 26, 21,
         24, 25, 22, 24, 25, 26, 23, 25, 26, 27, 28, 30, 27, 28, 29, 31, 28, 29,
         32, 27, 30, 31, 33, 28, 30, 31, 32, 34, 29, 31, 32, 35, 30, 33, 34, 31,
-        33, 34, 35, 32, 34, 35, 2,  5, 8, 6, 7, 8, 9,  12,  15,  15, 16, 17,
-        18,  19,  20,  20, 23, 26, 27, 28, 29, 27, 30, 33};
+        33, 34, 35, 32, 34, 35, 2,  5,  8,  6,  7,  8,  9,  12, 15, 15, 16, 17,
+        18, 19, 20, 20, 23, 26, 27, 28, 29, 27, 30, 33};
     exp_local_cols.emplace(4, vec_vec{exp_col_4, {}, {}, {}});
 
     auto res_local_rows = convert_to_vector(get_row(local));
@@ -280,7 +281,7 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
                      4,  4,  4,  4,  5,  5,  5,  5,  6,  6,  6,  7,  7,  7,  7,
                      8,  8,  8,  9,  9,  9,  10, 10, 10, 10, 11, 11, 11, 12, 12,
                      12, 12, 13, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 16,
-                     16, 16, 16, 17, 17, 17, 9,  12,  15,  2,  5, 8};
+                     16, 16, 16, 17, 17, 17, 9,  12, 15, 2,  5,  8};
     exp_local_rows.emplace(2, vec_vec{exp_row_2, {}, exp_row_2, {}});
     /*
      * The mesh has the following structure
@@ -301,8 +302,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectLocalMatrix)
         19, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 22, 23, 23, 23, 23, 24,
         24, 24, 25, 25, 25, 25, 26, 26, 26, 27, 27, 27, 28, 28, 28, 28, 29, 29,
         29, 30, 30, 30, 30, 31, 31, 31, 31, 31, 32, 32, 32, 32, 33, 33, 33, 34,
-        34, 34, 34, 35, 35, 35, 9,  12,  15,  18,  19,  20,  2,  5, 8, 27, 28, 29,
-        6, 7, 8, 27, 30, 33, 15, 16, 17, 20, 23, 26};
+        34, 34, 34, 35, 35, 35, 9,  12, 15, 18, 19, 20, 2,  5,  8,  27, 28, 29,
+        6,  7,  8,  27, 30, 33, 15, 16, 17, 20, 23, 26};
     exp_local_rows.emplace(4, vec_vec{exp_row_4, {}, {}, {}});
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[1],
@@ -337,7 +338,7 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
     auto res_non_local_values = convert_to_vector(get_val(non_local));
 
     std::map<label, vec_vec_s> exp_non_local_values;
-    std::vector<scalar> exp_non_local {1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
+    std::vector<scalar> exp_non_local{1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
     exp_non_local_values.emplace(1, vec_vec_s(4, exp_non_local));
     exp_non_local_values.emplace(
         2, vec_vec_s{exp_non_local, {}, exp_non_local, {}});
@@ -371,7 +372,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
     ASSERT_EQ(res_non_local_cols, exp_non_local_cols[ranks_per_gpu][rank]);
 }
 
-// TEST_P(DistributedMatrixFixtureMatrixFormat, distributedMatrixCanApplyCorrectly)
+// TEST_P(DistributedMatrixFixtureMatrixFormat,
+// distributedMatrixCanApplyCorrectly)
 // {
 //     auto [ranks_per_gpu, format] = GetParam();
 //     bool fused = false;
@@ -383,15 +385,18 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 //     auto distributed =
 //         create_distributed(exec, repartitioner, hostMatrix, format);
 
-//     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
+//     gko::dim<2>
+//     global_vec_dim{repartitioner->get_orig_partition()->get_size(),
 //                                1};
 //     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
-//     auto b = gko::share(gko::experimental::distributed::Vector<scalar>::create(
+//     auto b =
+//     gko::share(gko::experimental::distributed::Vector<scalar>::create(
 //         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
 //     b->fill(1);
 
-//     auto x = gko::share(gko::experimental::distributed::Vector<scalar>::create(
+//     auto x =
+//     gko::share(gko::experimental::distributed::Vector<scalar>::create(
 //         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
 //     x->fill(0);
 
@@ -406,7 +411,8 @@ TEST_P(DistributedMatrixFixture, distributedMatrixHasCorrectNonLocalMatrix)
 //                                            5, 5, 4, 6, 6, 5, 6, 6, 5};
 //     std::vector<scalar> exp_x_local_2_2 = {5, 6, 6, 5, 6, 6, 4, 5, 5,
 //                                            6, 6, 5, 6, 6, 5, 5, 5, 4};
-//     exp_x_local.emplace(2, vec_vec_s{exp_x_local_2_1, {}, exp_x_local_2_2, {}});
+//     exp_x_local.emplace(2, vec_vec_s{exp_x_local_2_1, {}, exp_x_local_2_2,
+//     {}});
 
 //     std::vector<scalar> exp_x_local_4 = {4, 5, 5, 5, 6, 6, 5, 6, 6, 5, 5, 4,
 //                                          6, 6, 5, 6, 6, 5, 5, 6, 6, 5, 6, 6,

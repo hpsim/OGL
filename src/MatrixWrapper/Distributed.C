@@ -505,11 +505,10 @@ void update_impl(
                             1},
                 tmp, 1));
 
-        auto non_local_row_vec =
-        gko::share(gko::matrix::Dense<scalar>::create(
+        auto non_local_row_vec = gko::share(gko::matrix::Dense<scalar>::create(
             dist_A->get_executor(),
-            gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz),
-            1}, gko::array<scalar>(dist_A->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz), 1},
+            gko::array<scalar>(dist_A->get_executor(),
                                non_local_sparsity->num_nnz),
             1));
         non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
@@ -525,8 +524,8 @@ void update_impl(
                         dist_A->get_non_local_matrix())
                         ->get_combination()
                         ->get_operators()[i]);
-            auto non_local_elements =
-            non_local_mtx->get_num_stored_elements(); scalar *non_local_ptr =
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
                 const_cast<scalar *>(non_local_mtx->get_const_values());
             auto value_view =
                 gko::array<scalar>::view(non_local_mtx->get_executor(),
@@ -538,7 +537,7 @@ void update_impl(
             auto non_local_dense_view = gko::array<scalar>::view(
                 dist_A->get_executor(), non_local_elements,
                 non_local_dense_vec->get_values() +
-                non_local_sparsity->spans[i].begin);
+                    non_local_sparsity->spans[i].begin);
             non_local_dense_view = value_view;
         }
 
@@ -546,9 +545,9 @@ void update_impl(
         non_local_dense_vec->row_gather(&non_local_mapping_view,
                                         non_local_row_vec.get());
 
-            auto non_local_dense_view = gko::array<scalar>::view(
-                dist_A->get_executor(), non_local_sparsity->num_nnz,
-                non_local_dense_vec->get_values());
+        auto non_local_dense_view = gko::array<scalar>::view(
+            dist_A->get_executor(), non_local_sparsity->num_nnz,
+            non_local_dense_vec->get_values());
 
         for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
             std::shared_ptr<const LocalMatrixType> non_local_mtx =
@@ -557,8 +556,8 @@ void update_impl(
                         dist_A->get_non_local_matrix())
                         ->get_combination()
                         ->get_operators()[i]);
-            auto non_local_elements =
-            non_local_mtx->get_num_stored_elements(); scalar *non_local_ptr =
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
                 const_cast<scalar *>(non_local_mtx->get_const_values());
             auto value_view =
                 gko::array<scalar>::view(non_local_mtx->get_executor(),
