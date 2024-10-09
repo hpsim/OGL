@@ -89,19 +89,18 @@ public:
                     5,  10, 3,  6,  7,  11,  // here first sd is done
                     20, 12, 13, 16, 21, 14,
                     17, 22, 15, 18, 19, 23,  // here interfaces start
-                    0,  1,  2,  3};
+                    24, 25, 26, 27};
     vec f_rows_2 = {0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3,
                     4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7};
     vec f_cols_2 = {0, 1, 2, 0, 1, 3, 4, 0, 2, 3, 1, 2, 3, 6,
                     1, 4, 5, 6, 4, 5, 7, 3, 4, 6, 7, 5, 6, 7};
 
-    // rank 0                          | rank 1
-    // [upper, lower, diag, interfaces | upper, lower, diag, interfaces]
-    // vec f_map_2 = {8,  0,  1,  4,  9,  2,  24, 5,  10, 3,  6,  7,  11, 24,
-    //                26, 20, 12, 13, 16, 21, 14, 26, 17, 22, 15, 18, 19, 23};
-    //                the one below is broken
-    vec f_map_2 = {8,  0,  1,  4,  9,  2,  24, 5,  10, 3,  6,  7,  11, 24,
-                   26, 20, 12, 13, 16, 21, 14, 26, 17, 22, 15, 18, 19, 23};
+    // [ rank 0            | rank 1             ] [ rank 0    | rank 1 ]
+    // [upper, lower, diag | upper, lower,  diag] [interfaces | interfaces]
+    // [0-3,   4-7,   8-11 | 12-15, 16-19, 20-23] [24-25,     | 26-27]
+    // interfaces start at 24
+    vec f_map_2 = {8,  0,  1,  4,  9,  2,  26, 5,  10, 3,  6,  7,  11, 27,
+                   24, 20, 12, 13, 16, 21, 14, 25, 17, 22, 15, 18, 19, 23};
     /*
      * The mesh has the following structure
      *         local ids          |   global ids
@@ -127,21 +126,25 @@ public:
                  20, 12, 13, 16, 21, 14, 17, 22, 15, 18, 19, 23,  // 2nd sd done
                  32, 24, 25, 28, 33, 26, 29, 34, 27, 30, 31, 35,  // 3rd sd done
                  44, 36, 37, 40, 45, 38, 41, 46, 39, 42, 43, 47,  // 4th sd done
-                 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-                 12, 13, 14, 15};
+                 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+                 60, 61, 62, 63};
     // fused
-    vec f_rows_4 = {0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,
-                    3,  3,  3,  4,  4,  4,  4,  5,  5,  5,  6,  6,  6,
-                    6,  6,  7,  7,  7,  7,  8,  8,  8,  8,  9,  9,  9,
-                    9,  9,  10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12,
-                    12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15};
+    vec f_rows_4 = {
+        0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,  3,  3,  3,   //
+        4,  4,  4,  4,  5,  5,  5,  6,  6,  6,  6,  6,  7,  7,  7,  7,   //
+        8,  8,  8,  8,  9,  9,  9,  9,  9,  10, 10, 10, 11, 11, 11, 11,  //
+        12, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15   //
+    };
     vec f_cols_4 = {0,  1,  2,  0,  1,  3,  4,  0,  2,  3,  8,  1,  2,
                     3,  6,  9,  1,  4,  5,  6,  4,  5,  7,  3,  4,  6,
                     7,  12, 5,  6,  7,  13, 2,  8,  9,  10, 3,  8,  9,
                     11, 12, 8,  10, 11, 9,  10, 11, 14, 6,  9,  12, 13,
                     14, 7,  12, 13, 15, 11, 12, 14, 15, 13, 14, 15};
-    vec f_map_4{0,  1, 2, 3,  16, 17, 4,  5,  6,  7,  18,
-                19, 8, 9, 10, 11, 20, 21, 12, 13, 14, 15};
+    vec f_map_4{
+        8,  0,  1,  4,  9,  2,  52, 5,  10, 3,  56, 6,  7,  11, 53, 57,  //
+        48, 20, 12, 13, 16, 21, 14, 49, 17, 22, 15, 60, 18, 19, 23, 61,  //
+        50, 32, 24, 25, 51, 28, 33, 26, 62, 29, 34, 27, 30, 31, 35, 63,  //
+        54, 58, 44, 36, 37, 55, 40, 45, 38, 59, 41, 46, 39, 42, 43, 47};
 
     std::map<bool, std::map<label, vec_vec>> exp_local_rows{
         {false,
@@ -387,10 +390,10 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern)
             << " failed at index " << i;
     }
     ASSERT_EQ(res_local_mapping.size(),
-              exp_local_cols[fused][ranks_per_gpu][rank].size());
-    for (size_t i = 0; i < res_local_cols.size(); i++) {
-        ASSERT_EQ(res_local_cols[i],
-                  exp_local_cols[fused][ranks_per_gpu][rank][i])
+              exp_local_mapping[fused][ranks_per_gpu][rank].size());
+    for (size_t i = 0; i < res_local_mapping.size(); i++) {
+        ASSERT_EQ(res_local_mapping[i],
+                  exp_local_mapping[fused][ranks_per_gpu][rank][i])
             << " failed at index " << i;
     }
 

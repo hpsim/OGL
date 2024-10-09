@@ -118,11 +118,10 @@ label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
     return all_to_all_pattern.recv_offsets.back();
 }
 
+/* reorders the sparsity pattern so that it is in row major order */
 void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
                    std::vector<label> &mapping, std::vector<gko::span> &span)
 {
-    // add offset to mapping
-    // so interface mapping is not continuous
     std::vector<label> permutation(rows.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::stable_sort(permutation.begin(), permutation.end(),
