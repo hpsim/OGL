@@ -264,10 +264,12 @@ public:
         bool export_system(
             solver_controls_.lookupOrDefault<Switch>("export", false));
         if (export_system && db_.time().writeTime()) {
+            bool write_global(
+                solver_controls_.lookupOrDefault<Switch>("writeGlobal", false));
             LOG_0(verbose_, "Export system")
             // dist_b.write();
             write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
-                              "Coo");
+                              write_global);
         }
 
         LOG_1(verbose_, "start create solver")

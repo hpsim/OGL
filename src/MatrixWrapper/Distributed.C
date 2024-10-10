@@ -45,47 +45,38 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
 
 template <typename LocalMatrixType>
 void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
-                             const word field_name,
-                             const objectRegistry &db) const
+                             const word field_name, const objectRegistry &db,
+                             bool write_global) const
 {
-    if (repartitioner_->get_fused()) {
-        auto ret_local =
-            gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix());
-        auto coo_local = gko::share(gko::matrix::Coo<scalar, label>::create(
-            exec_handler.get_ref_exec()));
-        ret_local->convert_to(coo_local.get());
-        export_mtx(field_name + "_local", coo_local, db);
+    auto local = gko::share(
+        gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
+    auto non_local = gko::share(
+        gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
 
-        auto ret_non_local =
-            gko::as<LocalMatrixType>(dist_mtx_->get_non_local_matrix());
-        auto coo_non_local = gko::share(gko::matrix::Coo<scalar, label>::create(
-            exec_handler.get_ref_exec()));
-        ret_non_local->convert_to(coo_non_local.get());
-        export_mtx(field_name + "_non_local", coo_non_local, db);
+    if (repartitioner_->get_fused()) {
+        gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
+            ->convert_to(local.get());
+        gko::as<LocalMatrixType>(dist_mtx_->get_non_local_matrix())
+            ->convert_to(non_local.get());
     } else {
-        auto ret = gko::share(gko::matrix::Coo<scalar, label>::create(
-            exec_handler.get_ref_exec()));
         gko::as<CombinationMatrix<LocalMatrixType>>(
             dist_mtx_->get_local_matrix())
-            ->convert_to(ret.get());
-        export_mtx(field_name + "_local", ret, db);
-
-        auto non_loc_ret = gko::share(gko::matrix::Coo<scalar, label>::create(
-            exec_handler.get_ref_exec()));
+            ->convert_to(local.get());
         gko::as<CombinationMatrix<LocalMatrixType>>(
             dist_mtx_->get_non_local_matrix())
-            ->convert_to(non_loc_ret.get());
-
-        // overwrite with global
-        bool write_global = false;
-        if (write_global) {
-            std::copy(non_local_sparsity_->col_idxs.get_const_data(),
-                      non_local_sparsity_->col_idxs.get_const_data() +
-                          non_local_sparsity_->num_nnz,
-                      non_loc_ret->get_col_idxs());
-        }
-        export_mtx(field_name + "_non_local", non_loc_ret, db);
+            ->convert_to(non_local.get());
     }
+
+    // overwrite column indices with global indices
+    if (write_global) {
+        std::copy(non_local_sparsity_->col_idxs.get_const_data(),
+                  non_local_sparsity_->col_idxs.get_const_data() +
+                      non_local_sparsity_->num_nnz,
+                  non_local->get_col_idxs());
+    }
+
+    export_mtx(field_name + "_local", local, db);
+    export_mtx(field_name + "_non_local", non_local, db);
 }
 
 template <typename LocalMatrixType>
@@ -592,7 +583,7 @@ template <typename LocalMatrixType>
 std::shared_ptr<RepartDistMatrix> create_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> host_A)
+    std::shared_ptr<const HostMatrixWrapper> host_A, word matrix_format)
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
@@ -672,22 +663,24 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     }
 
     return std::make_shared<RepartDistMatrix>(
-        device_exec, comm, dist_A, repart_loc_sparsity, repart_non_loc_sparsity,
-        src_comm_pattern, repart_comm_pattern, repartitioner, local_interfaces);
+        device_exec, comm, matrix_format, dist_A, repart_loc_sparsity,
+        repart_non_loc_sparsity, src_comm_pattern, repart_comm_pattern,
+        repartitioner, local_interfaces);
 }
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
                        const objectRegistry &db,
                        std::shared_ptr<RepartDistMatrix> dist_A,
-                       word matrix_format)
+                       bool write_global)
 {
+    auto matrix_format{dist_A->get_matrix_format()};
     if (matrix_format == "Coo") {
-        return dist_A->write<gko::matrix::Coo<scalar, label>>(exec_handler,
-                                                              field_name, db);
+        return dist_A->write<gko::matrix::Coo<scalar, label>>(
+            exec_handler, field_name, db, write_global);
     }
     if (matrix_format == "Csr") {
-        return dist_A->write<gko::matrix::Csr<scalar, label>>(exec_handler,
-                                                              field_name, db);
+        return dist_A->write<gko::matrix::Csr<scalar, label>>(
+            exec_handler, field_name, db, write_global);
     }
 }
 
@@ -719,15 +712,15 @@ std::shared_ptr<RepartDistMatrix> create_distributed(
 {
     if (matrix_format == "Ell") {
         return create_impl<gko::matrix::Ell<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix);
+            exec_handler, repartitioner, hostMatrix, matrix_format);
     }
     if (matrix_format == "Coo") {
         return create_impl<gko::matrix::Coo<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix);
+            exec_handler, repartitioner, hostMatrix, matrix_format);
     }
     if (matrix_format == "Csr") {
         return create_impl<gko::matrix::Csr<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix);
+            exec_handler, repartitioner, hostMatrix, matrix_format);
     }
 
     FatalErrorInFunction

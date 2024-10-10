@@ -114,11 +114,13 @@ public:
                 std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
 
+    word get_matrix_format() const { return matrix_format_; }
+
     std::shared_ptr<const gko::LinOp> get_dist_mtx() const { return dist_mtx_; }
 
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
-        std::shared_ptr<dist_mtx> dist_mtx,
+        word matrix_format, std::shared_ptr<dist_mtx> dist_mtx,
         std::shared_ptr<const SparsityPattern> local_sparsity,
         std::shared_ptr<const SparsityPattern> non_local_sparsity,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
@@ -127,6 +129,7 @@ public:
         std::vector<InterfaceLocality> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
+          matrix_format_(matrix_format),
           dist_mtx_(std::move(dist_mtx)),
           local_sparsity_(local_sparsity),
           non_local_sparsity_(non_local_sparsity),
@@ -140,7 +143,7 @@ public:
 
     template <typename LocalMatrixType>
     void write(const ExecutorHandler &exec_handler, const word field_name_,
-               const objectRegistry &db_) const;
+               const objectRegistry &db_, bool write_global) const;
 
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
@@ -193,6 +196,8 @@ protected:
 
 
 private:
+    const word matrix_format_;
+
     std::shared_ptr<dist_mtx> dist_mtx_;
 
     std::shared_ptr<const SparsityPattern> local_sparsity_;
@@ -214,7 +219,7 @@ std::shared_ptr<const gko::LinOp> get_local(
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
                        const objectRegistry &db,
                        std::shared_ptr<RepartDistMatrix> dist_A,
-                       word matrix_format);
+                       bool write_global);
 
 void update_distributed(const ExecutorHandler &exec_handler,
                         std::shared_ptr<const Repartitioner> repartitioner,
