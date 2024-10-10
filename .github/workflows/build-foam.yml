@@ -69,6 +69,12 @@ jobs:
          key: build_PR_${{ github.event.pull_request.number }}_${{matrix.OF.path}}
          path: ${{github.workspace}}/build
 
+    - name: Cache FOAM_USER_LIBBIN
+      uses: actions/cache@v4
+      with:
+         key: FOAM_USER_LIBBIN-${{ matrix.OF.path }}-${{ github.sha }}
+         path: ${{matrix.OF.foam_user_libbin}}
+
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -76,29 +82,19 @@ jobs:
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         mkdir -p ${{matrix.OF.foam_user_libbin}}
-        mkdir -p build
-        cd build
-        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -GNinja \
-          -DOGL_ALLOW_REFERENCE_ONLY=On \
-          -DOGL_BUILD_UNITTEST=ON \
-          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-          -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
+        cmake --preset develop
 
     - name: Build OGL
-      working-directory: ${{github.workspace}}/build
+      working-directory: ${{github.workspace}}
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --build . --config $BUILD_TYPE
+        cmake  --build --preset develop
 
     - name: Install OGL
       working-directory: ${{github.workspace}}
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --install ./build
-        ls $FOAM_USER_LIBBIN
-        ls ${{matrix.OF.foam_user_libbin}}
-
+        cmake --build --preset develop --target install
 
     - name: Check folders
       working-directory: ${{github.workspace}}

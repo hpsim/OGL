@@ -51,15 +51,14 @@ public:
         return this->dist_mtx_->get_non_local_matrix();
     }
 
-    template <typename InnerType>
     std::shared_ptr<const gko::LinOp> get_local() const
     {
         if (repartitioner_->get_fused()) {
             return dist_mtx_->get_local_matrix();
         } else {
-            return gko::as<InnerType>(gko::as<CombinationMatrix<InnerType>>(
-                                          dist_mtx_->get_local_matrix())
-                                          ->get_operators()[0]);
+            return gko::as<CombinationMatrix<gko::LinOp>>(
+                       dist_mtx_->get_local_matrix())
+                ->get_operators()[0];
         }
     }
 

@@ -97,9 +97,10 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});
     norm1_host->copy_from(norm1.get());
     scalar residual_norm = norm1_host->at(0);
-    if (residual_norm != residual_norm){
-            FatalErrorInFunction << " Problem with residual norm detected: " << residual_norm
-                                 << exit(FatalError);
+    if (residual_norm != residual_norm) {
+        FatalErrorInFunction
+            << " Problem with residual norm detected: " << residual_norm
+            << exit(FatalError);
     }
 
     bool result = false;

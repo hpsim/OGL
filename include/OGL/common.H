@@ -90,7 +90,7 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
-#define ASSERT_EQ(_val1, _val2)                                               \
+#define OGL_ASSERT_EQ(_val1, _val2)                                           \
     if (_val1 != _val2) {                                                     \
         FatalErrorInFunction << "Expected equal values: " << _val1 << " and " \
                              << _val2 << abort(FatalError);                   \

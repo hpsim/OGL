@@ -37,10 +37,10 @@ jobs:
     - name: Create Compilation Database
       run: |
         source /root/OpenFOAM/openfoam/etc/bashrc
-        cmake --preset ninja-cpuonly-release \
+        cmake --preset develop \
           -DCMAKE_CXX_COMPILER=clang++ \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        cmake --build --preset ninja-cpuonly-release
+        cmake --build --preset develop
     - uses: actions/upload-artifact@v4
       with:
         name: build-artifact

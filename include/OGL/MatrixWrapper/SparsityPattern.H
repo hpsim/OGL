@@ -53,8 +53,8 @@ struct SparsityPattern {
           dim(dim_),
           spans(spans_)
     {
-        ASSERT_EQ(rows.size(), cols.size());
-        ASSERT_EQ(rows.size(), mapping.size());
+        OGL_ASSERT_EQ(rows.size(), cols.size());
+        OGL_ASSERT_EQ(rows.size(), mapping.size());
     }
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec)
@@ -85,16 +85,16 @@ struct SparsityPattern {
           ldu_mapping{exec, static_cast<gko::size_type>(size)},
           dim(dim)
     {
-        ASSERT_EQ(static_cast<size_t>(size), rows.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), rows.size());
         std::copy(rows.begin(), rows.end(), row_idxs.get_data());
 
-        ASSERT_EQ(static_cast<size_t>(size), cols.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), cols.size());
         std::copy(cols.begin(), cols.end(), col_idxs.get_data());
 
-        ASSERT_EQ(static_cast<size_t>(size), map.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), map.size());
         std::copy(map.begin(), map.end(), ldu_mapping.get_data());
 
-        ASSERT_EQ(spans_begin.size(), spans_end.size());
+        OGL_ASSERT_EQ(spans_begin.size(), spans_end.size());
         std::transform(spans_begin.begin(), spans_begin.end(),
                        spans_end.begin(), std::back_inserter(spans),
                        [](const auto begin, const auto end) {

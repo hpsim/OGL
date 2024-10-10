@@ -204,7 +204,7 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     //     8,  10, 19, 11,     // cell 7
     //     9,  11, 20          // cell 8
     // });
-    // asymetric case
+    // asymmetric case
     std::vector<label> mapping_expected({
         24, 0,  1,          // cell 0
         12, 25, 2,  3,      // cell 1

@@ -142,7 +142,7 @@ struct CommunicationPattern {
           send_idxs(send_idxs_)
     {
         // every communication ranks needs a set of send_idxs associated
-        ASSERT_EQ(ranks.size(), send_idxs_.size());
+        OGL_ASSERT_EQ(ranks.size(), send_idxs_.size());
 
         for (auto &rows : send_idxs) {
             target_sizes.push_back(rows.size());
