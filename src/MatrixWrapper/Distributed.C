@@ -307,8 +307,6 @@ void update_fused_impl(
             non_local_sparsity->ldu_mapping.get_executor(), non_local_elements,
             non_local_sparsity->ldu_mapping.get_data());
 
-        auto non_lcoal_vals = gko::array<scalar>::view(
-            non_local_mtx->get_executor(), non_local_elements, non_local_ptr);
         auto non_local_dense_vec = non_local_row_collection->clone();
         non_local_dense_vec->row_gather(&non_local_mapping_view,
                                         non_local_row_collection.get());
