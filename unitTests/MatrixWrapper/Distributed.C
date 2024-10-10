@@ -196,11 +196,11 @@ public:
         2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1,  // 50-64
         3, 1, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 2, 3,  // 65-78
         1, 2, 1, 1, 2, 1, 2, 1, 1, 3, 1, 2, 1, 1,  // 80-92
-        1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 2, // 93
-        1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 3, //
-        1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 3, 1, 2, 1, //
-        2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, //
-        3, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2 };
+        1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 2,  // 93
+        1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 3,           //
+        1, 1, 2, 1, 1, 2, 1, 2, 1, 1, 3, 1, 2, 1,  //
+        2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1,  //
+        3, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2};
     std::map<bool, std::map<label, vec_vec_s>> exp_local_coeffs{
         {true,
          {{1,
@@ -214,6 +214,59 @@ public:
             exp_local_coeff_1}},
           {2, {exp_local_coeff_2_nf, {}, exp_local_coeff_2_nf, {}}},
           {4, {exp_local_coeff_4, {}, {}, {}}}}}};
+
+    std::vector<scalar> non_local_coeffs{1, 2, 3, 1, 2, 3};
+    std::map<bool, std::map<label, vec_vec_s>> exp_non_local_coeffs{
+        {true,
+         {{1,
+           {{1, 2, 1, 2, 3, 3},
+            {1, 2, 3, 1, 2, 3},
+            {1, 2, 3, 1, 2, 3},
+            {1, 1, 2, 3, 2, 3}}},
+          {2, {non_local_coeffs, {}, non_local_coeffs, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {false,
+         {{1,
+           {non_local_coeffs, non_local_coeffs, non_local_coeffs,
+            non_local_coeffs}},
+          {2, {{1, 2, 3, 1, 2, 3}, {}, {1, 2, 3, 1, 2, 3}, {}}},
+          {4, {{}, {}, {}, {}}}}}};
+
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_rows{
+        {true,
+         {{1,
+           {{2, 5, 6, 7, 8, 8},
+            {0, 3, 6, 6, 7, 8},
+            {0, 1, 2, 2, 5, 8},
+            {0, 0, 1, 2, 3, 6}}},
+          {2, {{6, 7, 8, 15, 16, 17}, {}, {0, 1, 2, 9, 10, 11}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {false,
+         {{1,
+           {{2, 5, 8, 6, 7, 8},
+            {0, 3, 6, 6, 7, 8},
+            {0, 1, 2, 2, 5, 8},
+            {0, 1, 2, 0, 3, 6}}},
+          {2, {{6, 7, 8, 15, 16, 17}, {}, {0, 1, 2, 9, 10, 11}, {}}},
+          {4, {{}, {}, {}, {}}}}}};
+
+    std::map<bool, std::map<label, vec_vec>> exp_non_local_cols{
+        {true,
+         {{1,
+           {{0, 1, 3, 4, 2, 5},
+            {0, 1, 2, 3, 4, 5},
+            {0, 1, 2, 3, 4, 5},
+            {0, 3, 1, 2, 4, 5}}},
+          {2, {{0, 1, 2, 3, 4, 5}, {}, {0, 1, 2, 3, 4, 5}, {}}},
+          {4, {{}, {}, {}, {}}}}},
+        {false,
+         {{1,
+           {{0, 1, 2, 3, 4, 5},
+            {0, 1, 2, 3, 4, 5},
+            {0, 1, 2, 3, 4, 5},
+            {0, 1, 2, 3, 4, 5}}},
+          {2, {{0, 1, 2, 3, 4, 5}, {}, {0, 1, 2, 3, 4, 5}, {}}},
+          {4, {{}, {}, {}, {}}}}}};
 
     /*
      * The mesh has the following structure
@@ -314,6 +367,27 @@ public:
          {{1, {local_cols_1, local_cols_1, local_cols_1, local_cols_1}},
           {2, {local_cols_2, {}, local_cols_2, {}}},
           {4, {local_cols_4, {}, {}, {}}}}}};
+
+    vec_vec_s x_1{{4, 5, 5, 5, 6, 7, 5, 7, 10},
+                  {5, 5, 4, 7, 6, 5, 8, 7, 7},
+                  {5, 7, 8, 5, 6, 7, 4, 5, 7},
+                  {6, 7, 7, 7, 6, 5, 7, 5, 4}};
+    std::vector<scalar> exp_x_2_1 = {4, 5, 5, 5, 6, 7, 5, 7, 10,
+                                     5, 5, 4, 7, 6, 5, 8, 7, 7};
+    std::vector<scalar> exp_x_2_2 = {5, 7, 8, 5, 6, 7, 4, 5, 7,
+                                     6, 7, 7, 7, 6, 5, 7, 5, 4};
+    std::vector<scalar> exp_x_4 = {4, 5, 5, 5, 6, 7, 5, 7, 10, 5, 5, 4,
+                                   7, 6, 5, 8, 7, 7, 5, 7, 8,  5, 6, 7,
+                                   4, 5, 7, 6, 7, 7, 7, 6, 5,  7, 5, 4};
+    std::map<bool, std::map<label, vec_vec_s>> exp_x{
+        {true,
+         {{1, x_1},
+          {2, {exp_x_2_1, {}, exp_x_2_2, {}}},
+          {4, {exp_x_4, {}, {}, {}}}}},
+        {false,
+         {{1, x_1},
+          {2, {exp_x_2_1, {}, exp_x_2_2, {}}},
+          {4, {exp_x_4, {}, {}, {}}}}}};
 };
 
 
@@ -438,44 +512,25 @@ TEST_P(DistributedMatrixFixtureFormat, hasCorrectNonLocalMatrix)
     auto distributed =
         create_distributed(exec, repartitioner, hostMatrix, matrix_format);
 
-    auto non_local = detail::convert_combination_to_coo(
-        exec.get_ref_exec(), distributed->get_non_local_matrix());
+    auto non_local =
+        (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
+                      distributed->get_non_local_matrix())
+                : detail::convert_combination_to_coo(
+                      exec.get_ref_exec(), distributed->get_non_local_matrix());
 
-    auto res_non_local_values = convert_to_vector(get_val(non_local));
-
-    std::map<label, vec_vec_s> exp_non_local_values;
-    std::vector<scalar> exp_non_local{1.0, 2.0, 3.0, 1.0, 2.0, 3.0};
-    exp_non_local_values.emplace(1, vec_vec_s(4, exp_non_local));
-    exp_non_local_values.emplace(
-        2, vec_vec_s{exp_non_local, {}, exp_non_local, {}});
-    exp_non_local_values.emplace(4, vec_vec_s{{}, {}, {}, {}});
-
+    auto res_non_local_coeffs = convert_to_vector(get_val(non_local));
     auto res_non_local_cols = convert_to_vector(get_col(non_local));
-    std::map<label, vec_vec> exp_non_local_cols;
-    exp_non_local_cols.emplace(1, vec_vec{{0, 1, 2, 3, 4, 5},
-                                          {0, 1, 2, 3, 4, 5},
-                                          {0, 1, 2, 3, 4, 5},
-                                          {0, 1, 2, 3, 4, 5}});
-    exp_non_local_cols.emplace(
-        2, vec_vec{{0, 1, 2, 3, 4, 5}, {}, {0, 1, 2, 3, 4, 5}, {}});
-    exp_non_local_cols.emplace(4, vec_vec{{}, {}, {}, {}});
-
     auto res_non_local_rows = convert_to_vector(get_row(non_local));
-    std::map<label, vec_vec> exp_non_local_rows;
-    exp_non_local_rows.emplace(1, vec_vec{{2, 5, 8, 6, 7, 8},
-                                          {0, 3, 6, 6, 7, 8},
-                                          {0, 1, 2, 2, 5, 8},
-                                          {0, 1, 2, 0, 3, 6}});
-    exp_non_local_rows.emplace(
-        2, vec_vec{{6, 7, 8, 15, 16, 17}, {}, {0, 1, 2, 9, 10, 11}, {}});
-    exp_non_local_rows.emplace(4, vec_vec{{}, {}, {}, {}});
 
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1],
               exp_non_local_size[ranks_per_gpu][rank]);
 
-    ASSERT_EQ(res_non_local_values, exp_non_local_values[ranks_per_gpu][rank]);
-    ASSERT_EQ(res_non_local_rows, exp_non_local_rows[ranks_per_gpu][rank]);
-    ASSERT_EQ(res_non_local_cols, exp_non_local_cols[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_coeffs,
+              exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_rows,
+              exp_non_local_rows[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_cols,
+              exp_non_local_cols[fused][ranks_per_gpu][rank]);
 }
 
 TEST_P(DistributedMatrixFixtureFormat, canApplyCorrectly)
@@ -501,32 +556,13 @@ TEST_P(DistributedMatrixFixtureFormat, canApplyCorrectly)
         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
     x->fill(0);
 
-    std::map<int, vec_vec_s> exp_x_local;
-
-
-    exp_x_local.emplace(1, vec_vec_s{{4, 5, 5, 5, 6, 7, 5, 7, 10},
-                                     {5, 5, 4, 7, 6, 5, 10, 7, 5},
-                                     {5, 7, 10, 5, 6, 7, 4, 5, 8},
-                                     {6, 6, 5, 6, 6, 5, 5, 5, 4}});
-
-    std::vector<scalar> exp_x_local_2_1 = {4, 5, 5, 5, 6, 6, 5, 6, 6,
-                                           5, 5, 4, 6, 6, 5, 6, 6, 5};
-    std::vector<scalar> exp_x_local_2_2 = {5, 6, 6, 5, 6, 6, 4, 5, 5,
-                                           6, 6, 5, 6, 6, 5, 5, 5, 4};
-    exp_x_local.emplace(2, vec_vec_s{exp_x_local_2_1, {}, exp_x_local_2_2, {}});
-
-    std::vector<scalar> exp_x_local_4 = {4, 5, 5, 5, 6, 6, 5, 6, 6, 5, 5, 4,
-                                         6, 6, 5, 6, 6, 5, 5, 6, 6, 5, 6, 6,
-                                         4, 5, 5, 6, 6, 5, 6, 6, 5, 5, 5, 4};
-    exp_x_local.emplace(4, vec_vec_s{exp_x_local_4, {}, {}, {}});
-
     // Act
     distributed->apply(b, x);
-    auto x_local = std::vector<scalar>(
+    auto res_x = std::vector<scalar>(
         x->get_local_vector()->get_const_values(),
         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
 
-    ASSERT_EQ(x_local, exp_x_local[ranks_per_gpu][rank]);
+    ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
 }
 
 int main(int argc, char *argv[])
