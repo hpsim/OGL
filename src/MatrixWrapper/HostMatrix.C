@@ -23,9 +23,9 @@ const lduInterfaceField *interface_getter(
 }
 
 void init_local_sparsity(const label nrows, const label upper_nnz,
-                         const bool is_symmetric, const label *upper,
-                         const label *lower, label *rows, label *cols,
-                         label *permute)
+                         // const bool is_symmetric,
+                         const label *upper, const label *lower, label *rows,
+                         label *cols, label *permute)
 {
     // for OpenFOAMs addressing see
     // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
@@ -33,7 +33,10 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
     // stored such that upper rows are monotonic ascending
     // upper - rows of lower triangular matrix
     // lower - columns of lower triangular matrix
-    label after_neighbours = (is_symmetric) ? upper_nnz : 2 * upper_nnz;
+    // TODO FIXME
+    // if symmetric we can reuse already copied data
+    // see also note in Distributed.C
+    label after_neighbours = 2 * upper_nnz;
 
     // first pass order elements row wise
     // scan through all faces
@@ -68,7 +71,6 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
               });
 
     // now we have tmp_upper and tmp_lower in row order
-
     label element_ctr = 0;
     label upper_ctr = 0;
     label lower_ctr = 0;
@@ -81,8 +83,11 @@ void init_local_sparsity(const label nrows, const label upper_nnz,
         while (row_lower == row) {
             rows[element_ctr] = row_lower;
             cols[element_ctr] = col_lower;
-            permute[element_ctr] =
-                (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
+            permute[element_ctr] = upper_nnz + faceI_lower;
+            // TODO we copy the full vector to GPU thus this is not
+            // required at the moment
+            // permute[element_ctr] =
+            //     (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
             element_ctr++;
             lower_ctr++;
             if (lower_ctr >= lower_size) {
@@ -125,7 +130,7 @@ HostMatrixWrapper::HostMatrixWrapper(
     label upper_nnz, bool symmetric, const scalar *diag, const scalar *upper,
     const scalar *lower, const lduAddressing &addr,
     const FieldField<Field, scalar> &interfaceBouCoeffs,
-    const FieldField<Field, scalar> &interfaceIntCoeffs,
+    [[maybe_unused]] const FieldField<Field, scalar> &interfaceIntCoeffs,
     const lduInterfaceFieldPtrsList &interfaces,
     const dictionary &solverControls, const word &fieldName, label verbose)
     : exec_{exec},
@@ -229,6 +234,7 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
 {
     label element_ctr = 0;
     label interface_ctr = 0;
+
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
@@ -274,6 +280,7 @@ HostMatrixWrapper::create_communication_pattern() const
     using comm_size_type = CommunicationPattern::comm_size_type;
     // temp map, mapping from neighbour rank interface cells
     std::map<label, std::vector<label>> interface_cell_map{};
+    std::vector<label> target_ids;
 
     // iterate all interfaces, count number of neighbour procs
     // and store rows to send to neighbour procs
@@ -284,6 +291,8 @@ HostMatrixWrapper::create_communication_pattern() const
             const auto &face_cells{iface->interface().faceCells()};
             const label neighbProcNo = patch.neighbProcNo();
 
+            target_ids.push_back(neighbProcNo);
+
             auto search = interface_cell_map.find(neighbProcNo);
             if (search == interface_cell_map.end()) {
                 n_procs++;
@@ -291,34 +300,23 @@ HostMatrixWrapper::create_communication_pattern() const
                     neighbProcNo,
                     std::vector<label>(face_cells.begin(), face_cells.end())});
             } else {
-                auto &vec = search->second;
-                vec.insert(vec.end(), face_cells.begin(), face_cells.end());
+                FatalErrorInFunction
+                    << " Currently only unique neighbour ranks are supported "
+                    << " Neighbor processor " << neighbProcNo
+                    << " observed twice" << exit(FatalError);
+                // auto &vec = search->second;
+                // vec.insert(vec.end(), face_cells.begin(), face_cells.end());
             }
         });
 
     // create index_sets
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-    for (auto [proc, interface_cells] : interface_cell_map) {
-        auto exec = exec_.get_ref_exec();
-        send_idxs.push_back(std::pair<gko::array<label>, comm_size_type>(
-            gko::array<label>(exec, interface_cells.begin(),
-                              interface_cells.end()),
-            proc));
+    std::vector<std::vector<label>> send_idxs;
+    for (label proc : target_ids) {
+        send_idxs.emplace_back(interface_cell_map[proc]);
     }
 
-    // convert to gko::array
-    gko::array<comm_size_type> target_ids{exec_.get_ref_exec(), n_procs};
-    gko::array<comm_size_type> target_sizes{exec_.get_ref_exec(), n_procs};
-
-    label iter = 0;
-    for (const auto &[proc, interface_cells] : interface_cell_map) {
-        target_ids.get_data()[iter] = proc;
-        target_sizes.get_data()[iter] = interface_cells.size();
-        iter++;
-    }
-
-    return std::make_shared<CommunicationPattern>(
-        get_exec_handler(), target_ids, target_sizes, send_idxs);
+    return std::make_shared<CommunicationPattern>(get_exec_handler(),
+                                                  target_ids, send_idxs);
 }
 
 
@@ -406,8 +404,9 @@ HostMatrixWrapper::collect_local_interface_indices(
     local_interface_idxs.reserve(local_interface_nnz_);
 
     neg_interface_iterator<processorFvPatch>(
-        interfaces, [&](label &element_ctr, const label interface_size,
-                        const lduInterfaceField *iface) {
+        interfaces,
+        [&](label &element_ctr, [[maybe_unused]] const label interface_size,
+            const lduInterfaceField *iface) {
             // check whether interface is either an cyclicFvPatch,
             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
             // indices
@@ -464,7 +463,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     std::vector<label> rows_vec(non_local_matrix_nnz_);
     std::vector<label> cols_vec(non_local_matrix_nnz_);
     std::vector<label> mapping_vec(non_local_matrix_nnz_);
-    std::vector<label> ranks{};
     std::vector<gko::span> spans{};
 
     auto rows = rows_vec.data();
@@ -474,38 +472,29 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     label end{0};
     label start{0};
 
-    label element_ctr = 0;
+    size_t element_ctr = 0;
     // label interface_ctr{0};
-    label prev_rank{0};
 
-    // TODO currently we set permute eventhough this is not required
-    // anymore, remove permute from non_local_interfaces
     for (auto [interface_idx, col, row, rank] : non_local_indices) {
         rows[element_ctr] = row;
         cols[element_ctr] = col;
         permute[element_ctr] = element_ctr;
 
-        // a new interface started or the last element on last interface has
-        // been reached
-        bool last_element = element_ctr == non_local_indices.size() - 1;
-        if (interface_idx > prev_interface_ctr || last_element) {
-            // this check will be reached one element earlier if we reached
-            // the end of the non_local_indices thus we need to increment
-            // the element_ctr once more
-            end = (last_element) ? element_ctr + 1 : element_ctr;
-            spans.emplace_back(start, end);
-            ranks.emplace_back(prev_rank);
+        // a new interface started been reached
+        if (interface_idx > prev_interface_ctr) {
+            end = element_ctr;
+            spans.emplace_back(start, element_ctr);
             start = end;
             prev_interface_ctr = interface_idx;
         }
-        prev_rank = rank;
         element_ctr++;
     }
+    spans.emplace_back(end, non_local_indices.size());
 
     gko::dim<2> dim{static_cast<gko::size_type>(nrows_),
                     static_cast<gko::size_type>(non_local_matrix_nnz_)};
-    return std::make_shared<SparsityPattern>(
-        exec->get_master(), dim, rows_vec, cols_vec, mapping_vec, spans, ranks);
+    return std::make_shared<SparsityPattern>(exec->get_master(), dim, rows_vec,
+                                             cols_vec, mapping_vec, spans);
 }
 
 
@@ -517,7 +506,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     std::vector<label> rows_vec(local_matrix_w_interfaces_nnz_);
     std::vector<label> cols_vec(local_matrix_w_interfaces_nnz_);
     std::vector<label> mapping_vec(local_matrix_w_interfaces_nnz_);
-    std::vector<label> ranks{exec_.get_rank()};
     std::vector<gko::span> spans{gko::span{
         0, static_cast<gko::size_type>(local_matrix_w_interfaces_nnz_)}};
 
@@ -545,9 +533,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    // label after_neighbours = (symmetric_) ? upper_nnz_ : 2 * upper_nnz_;
-    init_local_sparsity(nrows_, upper_nnz_, symmetric_, upper, lower, rows,
-                        cols, permute);
+    init_local_sparsity(nrows_, upper_nnz_, upper, lower, rows, cols, permute);
 
     // if no local interfaces are present we are done here
     // otherwise we need to add local interfaces to local_sparsity in order
@@ -585,11 +571,11 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
             // check if a new interface has started or final interface has been
             // reache
             if (interface_idx > prev_interface_idx ||
-                local_interface_ctr + 1 == local_interfaces.size()) {
+                static_cast<size_t>(local_interface_ctr + 1) ==
+                    local_interfaces.size()) {
                 end = start + local_interface_ctr;
                 local_interface_ctr = 0;
                 spans.emplace_back(start, end);
-                ranks.emplace_back(exec_.get_rank());
                 start = end;
                 prev_interface_idx = interface_idx;
             }
@@ -598,9 +584,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     }
 
     LOG_1(verbose_, "done init host sparsity pattern")
-    return std::make_shared<SparsityPattern>(exec->get_master(), get_size(),
-                                             rows_vec, cols_vec, mapping_vec,
-                                             spans, ranks);
+    return std::make_shared<SparsityPattern>(
+        exec->get_master(), get_size(), rows_vec, cols_vec, mapping_vec, spans);
 }
 
 }  // namespace Foam

@@ -35,7 +35,7 @@ TEST(Combination, CanCreateCombinationWithLinOpVector)
         gko::share(gko::matrix::Csr<scalar, label>::create(exec, dim));
     m1linop->read(m1);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m1linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m1linop};
 
     auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
         exec, dim, linops);
@@ -76,7 +76,7 @@ TEST(Combination, CanCreateCombinationMatrixWithSparseRealMatrix)
 
     auto b = gko::read<vec>(std::ifstream("data/b.mtx"), exec);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m1linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m1linop};
 
     // Act
     auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
@@ -124,8 +124,7 @@ TEST(Combination, CanCreateCombinationMatrixWithOpenFOAMLDUMatrix)
 
     auto b = gko::read<vec>(std::ifstream("data/b.mtx"), exec);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{Llinop, Dlinop,
-                                                          Ulinop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{Llinop, Dlinop, Ulinop};
 
     // Act
     auto cmb = CombinationMatrix<gko::matrix::Csr<scalar, label>>::create(
@@ -172,7 +171,7 @@ TEST(Combination, CanConvertToCoo)
     auto m2linop = gko::share(InputFormat::create(exec, dim));
     m2linop->read(m2);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m2linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m2linop};
 
     auto cmb = CombinationMatrix<InputFormat>::create(exec, dim, linops);
 
@@ -229,7 +228,7 @@ TEST(Combination, CanConvertToCsr)
     auto m2linop = gko::share(InputFormat::create(exec, dim));
     m2linop->read(m2);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m2linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m2linop};
 
     auto cmb = CombinationMatrix<InputFormat>::create(exec, dim, linops);
 
@@ -285,7 +284,7 @@ TEST(Combination, CanMoveToCoo)
     auto m2linop = gko::share(InputFormat::create(exec, dim));
     m2linop->read(m2);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m2linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m2linop};
 
     auto cmb = CombinationMatrix<InputFormat>::create(exec, dim, linops);
 
@@ -343,7 +342,7 @@ TEST(Combination, CanMoveToCsr)
     auto m2linop = gko::share(InputFormat::create(exec, dim));
     m2linop->read(m2);
 
-    std::vector<std::shared_ptr<const gko::LinOp>> linops{m1linop, m2linop};
+    std::vector<std::shared_ptr<gko::LinOp>> linops{m1linop, m2linop};
 
     auto cmb = CombinationMatrix<InputFormat>::create(exec, dim, linops);
 

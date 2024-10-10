@@ -27,12 +27,12 @@ AllToAllPattern compute_scatter_from_owner_counts(
     label total_ranks{comm.size()};
     label rank{comm.rank()};
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
-    std::vector<label> send_counts(total_ranks, 0);
-    std::vector<label> recv_counts(total_ranks, 0);
-    std::vector<label> send_offsets(total_ranks + 1, 0);
-    std::vector<label> recv_offsets(total_ranks + 1, 0);
+    std::vector<int> send_counts(total_ranks, 0);
+    std::vector<int> recv_counts(total_ranks, 0);
+    std::vector<int> send_offsets(total_ranks + 1, 0);
+    std::vector<int> recv_offsets(total_ranks + 1, 0);
 
-    label comm_elements_buffer{0};
+    int comm_elements_buffer{0};
     if (rank == owner_rank) {
         // send and recv to it self
         recv_offsets[owner_rank] = 0;
@@ -70,18 +70,18 @@ AllToAllPattern compute_gather_to_owner_counts(
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
 
-    ASSERT_EQ(total_size, size + padding_before + padding_after);
+    OGL_ASSERT_EQ(total_size, size + padding_before + padding_after);
     label total_ranks{comm.size()};
     label rank{comm.rank()};
     label owner_rank = compute_owner_rank(rank, ranks_per_owner);
-    std::vector<label> send_counts(total_ranks, 0);
-    std::vector<label> recv_counts(total_ranks, 0);
+    std::vector<int> send_counts(total_ranks, 0);
+    std::vector<int> recv_counts(total_ranks, 0);
     // last entry of offsets vector for total sum
-    std::vector<label> send_offsets(total_ranks + 1, 0);
-    std::vector<label> recv_offsets(total_ranks + 1, 0);
+    std::vector<int> send_offsets(total_ranks + 1, 0);
+    std::vector<int> recv_offsets(total_ranks + 1, 0);
 
-    label tot_recv_elements{0};
-    label comm_elements_buffer{0};
+    int tot_recv_elements{0};
+    int comm_elements_buffer{0};
     if (rank == owner_rank) {
         // send and recv to it self
         recv_offsets[owner_rank] = padding_before;
@@ -154,6 +154,33 @@ void communicate_values(const ExecutorHandler &exec_handler,
                       comm_pattern.recv_offsets.data());
 }
 
+void communicate_values(
+    std::shared_ptr<const gko::Executor> src_exec,
+    std::shared_ptr<const gko::Executor> target_exec,
+    std::shared_ptr<const gko::experimental::mpi::communicator> comm,
+    const AllToAllPattern &comm_pattern, const scalar *send_buffer,
+    scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size)
+{
+    if (force_host_buffer && src_exec != target_exec) {
+        auto tmp = gko::array<scalar>(src_exec, recv_buffer_size);
+
+        comm->all_to_all_v(
+            src_exec, send_buffer, comm_pattern.send_counts.data(),
+            comm_pattern.send_offsets.data(), tmp.get_data(),
+            comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
+
+        auto recv_view = gko::array<scalar>::view(target_exec, recv_buffer_size,
+                                                  recv_buffer);
+
+        recv_view = tmp;
+    } else {
+        comm->all_to_all_v(
+            target_exec, send_buffer, comm_pattern.send_counts.data(),
+            comm_pattern.send_offsets.data(), recv_buffer,
+            comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
+    }
+}
+
 std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
                                           const AllToAllPattern &comm_pattern,
                                           const label *send_buffer,
@@ -187,7 +214,7 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     // TODO add implementation
-    // out << "CommunicationPattern: for rank: " << e.get_comm().rank();
+    out << "CommunicationPattern: for rank: " << e.exec_handler.get_rank();
     // out << " {";
     // out << "\ntarget_ids: " << e.target_ids;
     // out << "\ntarget_sizes: " << e.target_sizes;
@@ -196,18 +223,15 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 }
 
 
-gko::array<label> CommunicationPattern::total_rank_send_idx() const
+std::vector<label> CommunicationPattern::total_rank_send_idx() const
 {
     std::vector<label> tmp;
 
-    for (auto &[arr, id] : send_idxs) {
-        label arr_size = arr.get_size();
-        tmp.insert(tmp.end(), arr.get_const_data(),
-                   arr.get_const_data() + arr_size);
+    for (auto &rows : send_idxs) {
+        tmp.insert(tmp.end(), rows.begin(), rows.end());
     }
 
-    return gko::array<label>(exec_handler.get_ref_exec(), tmp.begin(),
-                             tmp.end());
+    return tmp;
 }
 
 
@@ -219,9 +243,9 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
     auto rs_idx = total_rank_send_idx();
     auto pattern = send_recv_pattern();
     auto recv_buffer =
-        gko::array<label>(exec_handler.get_ref_exec(), rs_idx.get_size());
+        gko::array<label>(exec_handler.get_ref_exec(), rs_idx.size());
 
-    comm.all_to_all_v(exec, rs_idx.get_const_data(), pattern.send_counts.data(),
+    comm.all_to_all_v(exec, rs_idx.data(), pattern.send_counts.data(),
                       pattern.send_offsets.data(), recv_buffer.get_data(),
                       pattern.recv_counts.data(), pattern.recv_offsets.data());
 
@@ -233,16 +257,16 @@ AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
     auto comm = *exec_handler.get_communicator().get();
 
-    std::vector<label> send_counts(comm.size());
-    std::vector<label> send_offsets(comm.size() + 1);
-    std::vector<label> recv_counts(comm.size());
-    std::vector<label> recv_offsets(comm.size() + 1);
+    std::vector<int> send_counts(comm.size());
+    std::vector<int> send_offsets(comm.size() + 1);
+    std::vector<int> recv_counts(comm.size());
+    std::vector<int> recv_offsets(comm.size() + 1);
 
-    label comm_ranks = target_ids.get_size();
-    label tot_comm_size = 0;
+    label comm_ranks = target_ids.size();
+    int tot_comm_size = 0;
     for (label i = 0; i < comm_ranks; i++) {
-        auto comm_rank = target_ids.get_const_data()[i];
-        auto comm_size = target_sizes.get_const_data()[i];
+        auto comm_rank = target_ids.data()[i];
+        auto comm_size = target_sizes.data()[i];
         tot_comm_size += comm_size;
         send_counts[comm_rank] = comm_size;
         recv_counts[comm_rank] = comm_size;

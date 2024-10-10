@@ -90,7 +90,7 @@ namespace Foam {
 
 #define UNUSED(x) (void)(x)
 
-#define ASSERT_EQ(_val1, _val2)                                               \
+#define OGL_ASSERT_EQ(_val1, _val2)                                           \
     if (_val1 != _val2) {                                                     \
         FatalErrorInFunction << "Expected equal values: " << _val1 << " and " \
                              << _val2 << abort(FatalError);                   \
@@ -102,6 +102,10 @@ std::ostream &operator<<(
 
 template <typename ValueType>
 std::ostream &operator<<(std::ostream &os, const std::vector<ValueType> &in);
+
+void export_mtx(const word fieldName,
+                std::shared_ptr<const gko::matrix::Coo<scalar, label>> A,
+                const objectRegistry &db);
 
 void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
                    const gko::matrix::Dense<scalar> *x,
@@ -141,6 +145,7 @@ std::pair<label, const label *> get_row(
     std::shared_ptr<const gko::matrix::Coo<scalar, label>> in);
 
 std::vector<label> convert_to_vector(const gko::array<label> &in);
+std::vector<scalar> convert_to_vector(const gko::array<scalar> &in);
 
 std::vector<scalar> convert_to_vector(
     std::shared_ptr<const gko::matrix::Diagonal<scalar>> in);

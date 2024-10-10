@@ -89,7 +89,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init -gy --config /__w/OGL/OGL/test/integration.yaml
+        obr init -g --config /__w/OGL/OGL/test/integration.yaml
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -128,7 +128,7 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV

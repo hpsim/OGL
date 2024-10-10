@@ -38,7 +38,7 @@ public:
 
 /* Base class for storing ginkgo and OGL data structures in the Objectregistry
  *
- * This class creates an unitialised Ginkgo array and copies the
+ * This class creates an uninitialised Ginkgo array and copies the
  * shared ptr to the DevicePersistentBase. This will prevent it from
  * being deleted when leaving the scope.
  *

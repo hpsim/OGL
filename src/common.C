@@ -51,6 +51,21 @@ void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
     export_x(fn_x, x);
 }
 
+void export_mtx(const word fieldName,
+                std::shared_ptr<const gko::matrix::Coo<scalar, label>> A,
+                const objectRegistry &db)
+{
+    std::string folder{db.time().timePath()};
+    std::filesystem::create_directories(folder);
+
+    std::string fn{folder + "/" + fieldName + "_A.mtx"};
+    std::cout << "[OGL LOG] exporting " << fn << std::endl;
+    std::ofstream stream{fn};
+    stream << std::setprecision(15);
+
+    gko::write(stream, A.get());
+}
+
 void set_gko_solver_property(word sys_matrix_name, const objectRegistry &db,
                              const word key, label value)
 {
@@ -158,6 +173,11 @@ std::vector<label> convert_to_vector(const gko::array<label> &in)
                               in.get_const_data() + in.get_size());
 }
 
+std::vector<scalar> convert_to_vector(const gko::array<scalar> &in)
+{
+    return std::vector<scalar>(in.get_const_data(),
+                               in.get_const_data() + in.get_size());
+}
 
 std::vector<scalar> convert_to_vector(
     std::shared_ptr<const gko::matrix::Diagonal<scalar>> in)
@@ -213,7 +233,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<label> &in)
         for (label i = 0; i < size - 1; i++) {
             os << in[i] << ", ";
         }
-        os << ", " << in[size - 1] << "]\n";
+        os << in[size - 1] << "]\n";
     }
     return os;
 }
@@ -242,6 +262,6 @@ std::ostream &operator<<(std::ostream &os, const std::vector<scalar> &in)
         os << ", " << in[size - 1] << "]\n";
     }
     return os;
-};
+}
 
 }  // namespace Foam

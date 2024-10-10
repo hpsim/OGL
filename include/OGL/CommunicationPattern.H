@@ -13,10 +13,10 @@
 /** Struct holding vectors needded for MPI all to all communication
  */
 struct AllToAllPattern {
-    std::vector<label> send_counts;
-    std::vector<label> send_offsets;
-    std::vector<label> recv_counts;
-    std::vector<label> recv_offsets;
+    std::vector<int> send_counts;
+    std::vector<int> send_offsets;
+    std::vector<int> recv_counts;
+    std::vector<int> recv_offsets;
 };
 
 /* @brief  This function computes the send and recv counts vectors and the send
@@ -80,6 +80,25 @@ void communicate_values(const ExecutorHandler &exec_handler,
                         const AllToAllPattern &comm_pattern,
                         const scalar *send_buffer, scalar *recv_buffer);
 
+/* @brief Given a comm_pattern this function executes the communication
+ *
+ * this function makes sure to have the data on the host_exec before
+ * execution of the mpi all_to_all_v function if force_host_buffer
+ * is selected
+ *
+ * @param exec_handler The executor handler
+ * @param comm_pattern The communication pattern i.e. the send, recv counts and
+ * offsets
+ * @param send_buffer Pointer to the data buffer to send
+ * @param recv_buffer Pointer to the data buffer to recv
+ */
+void communicate_values(
+    std::shared_ptr<const gko::Executor> src_exec,
+    std::shared_ptr<const gko::Executor> target_exec,
+    std::shared_ptr<const gko::experimental::mpi::communicator> comm,
+    const AllToAllPattern &comm_pattern, const scalar *send_buffer,
+    scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size);
+
 /* @brief A function that can perform an offsetted gather to owner rank
  *
  * This function is similar to communicate_values. However, it takes care of
@@ -104,45 +123,29 @@ struct CommunicationPattern {
     const ExecutorHandler &exec_handler;
 
     // an array storing to which rank to communicate
-    gko::array<comm_size_type> target_ids;
+    std::vector<label> target_ids;
 
     // an array storing how many elements to communicate
     // to the corresponding target_id
-    gko::array<comm_size_type> target_sizes;
+    std::vector<label> target_sizes;
 
     // send_idxs stores the index_set ie which cells
     // are owned by the interface and the corresponding target rank
-    std::vector<std::pair<gko::array<label>, comm_size_type>> send_idxs;
-
-    CommunicationPattern(
-        const ExecutorHandler &exec, gko::array<comm_size_type> ids,
-        gko::array<comm_size_type> sizes,
-        std::vector<std::pair<gko::array<label>, comm_size_type>> idxs)
-        : exec_handler(exec),
-          target_ids(ids),
-          target_sizes(sizes),
-          send_idxs(idxs)
-    {
-        ASSERT_EQ(target_ids.get_size(), target_sizes.get_size());
-        // TODO check size of send_idxs
-        //
-        // ASSERT_EQ(target_ids.get_size(), send_idxs.size());
-    }
+    std::vector<std::vector<label>> send_idxs;
 
     CommunicationPattern(const ExecutorHandler &exec,
                          const std::vector<label> &ranks,
-                         const std::vector<std::vector<label>> &rows)
+                         const std::vector<std::vector<label>> &send_idxs_)
         : exec_handler(exec),
-          target_ids(exec.get_ref_exec(), ranks.begin(), ranks.end()),
-          target_sizes(exec.get_ref_exec(), ranks.size())
+          target_ids(ranks),
+          target_sizes(),
+          send_idxs(send_idxs_)
     {
-        ASSERT_EQ(ranks.size(), rows.size());
+        // every communication ranks needs a set of send_idxs associated
+        OGL_ASSERT_EQ(ranks.size(), send_idxs_.size());
 
-        for (int i = 0; i < rows.size(); i++) {
-            target_sizes.get_data()[i] = rows[i].size();
-            gko::array<label> row_array(exec.get_ref_exec(), rows[i].begin(),
-                                        rows[i].end());
-            send_idxs.push_back({row_array, ranks[i]});
+        for (auto &rows : send_idxs) {
+            target_sizes.push_back(rows.size());
         }
     }
 
@@ -155,10 +158,11 @@ struct CommunicationPattern {
     /* @brief concatenate all separate send idxs arrays into one contiguous
      * array
      */
-    gko::array<label> total_rank_send_idx() const;
+    std::vector<label> total_rank_send_idx() const;
 
-    /* @brief concatenate all separate send idxs arrays into one contiguous
-     * array
+    /* @brief computes the recv_gather_idxs, ie the send_idxs of the
+     * neighbouring ranks in local indexing
+     *
      */
     gko::array<label> compute_recv_gather_idxs(
         const ExecutorHandler &exec_handler) const;

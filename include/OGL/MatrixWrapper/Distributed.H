@@ -22,40 +22,46 @@
  * constraint it is required that the inner matrix types of the distributed
  * matrix are of RepartDistMatrix type.
  * */
-template <typename LocalMatrixType>
 class RepartDistMatrix
-    : public gko::experimental::EnableDistributedLinOp<
-          RepartDistMatrix<LocalMatrixType>>,
-      public gko::EnableCreateMethod<RepartDistMatrix<LocalMatrixType>>,
+    : public gko::experimental::EnableDistributedLinOp<RepartDistMatrix>,
+      public gko::EnableCreateMethod<RepartDistMatrix>,
       public gko::experimental::distributed::DistributedBase {
-    friend class gko::EnableCreateMethod<RepartDistMatrix<LocalMatrixType>>;
-    friend class gko::EnablePolymorphicObject<RepartDistMatrix<LocalMatrixType>,
-                                              gko::LinOp>;
+    friend class gko::EnableCreateMethod<RepartDistMatrix>;
+    friend class gko::EnablePolymorphicObject<RepartDistMatrix, gko::LinOp>;
 
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
-
     using part_type = gko::experimental::distributed::Partition<label, label>;
-
     using vec = gko::matrix::Dense<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
 
 public:
     using gko::experimental::EnableDistributedLinOp<
-        RepartDistMatrix<LocalMatrixType>>::convert_to;
-    using gko::experimental::EnableDistributedLinOp<
-        RepartDistMatrix<LocalMatrixType>>::move_to;
+        RepartDistMatrix>::convert_to;
+    using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
 
-    std::shared_ptr<const gko::LinOp> get_local_matrix()
+    std::shared_ptr<const gko::LinOp> get_local_matrix() const
     {
         return this->dist_mtx_->get_local_matrix();
     }
 
-    std::shared_ptr<const gko::LinOp> get_non_local_matrix()
+    std::shared_ptr<const gko::LinOp> get_non_local_matrix() const
     {
         return this->dist_mtx_->get_non_local_matrix();
     }
+
+    std::shared_ptr<const gko::LinOp> get_local() const
+    {
+        if (repartitioner_->get_fused()) {
+            return dist_mtx_->get_local_matrix();
+        } else {
+            return gko::as<CombinationMatrix<gko::LinOp>>(
+                       dist_mtx_->get_local_matrix())
+                ->get_operators()[0];
+        }
+    }
+
 
     /**
      * Copy-assigns a CombinationMatrix matrix. Preserves executor, copies
@@ -74,6 +80,8 @@ public:
             this->local_sparsity_ = other.local_sparsity_;
             this->non_local_sparsity_ = other.non_local_sparsity_;
             this->src_comm_pattern_ = other.src_comm_pattern_;
+            this->repart_comm_pattern_ = other.repart_comm_pattern_;
+            this->repartitioner_ = other.repartitioner_;
             this->local_interfaces_ = other.local_interfaces_;
         }
         return *this;
@@ -94,39 +102,48 @@ public:
             this->local_sparsity_ = std::move(other.local_sparsity_);
             this->non_local_sparsity_ = std::move(other.non_local_sparsity_);
             this->src_comm_pattern_ = std::move(other.src_comm_pattern_);
+            this->repart_comm_pattern_ = std::move(other.repart_comm_pattern_);
+            this->repartitioner_ = std::move(other.repartitioner_);
             this->local_interfaces_ = std::move(other.local_interfaces_);
         }
         return *this;
     }
 
-    static std::shared_ptr<gko::LinOp> create(
-        const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-        std::shared_ptr<const HostMatrixWrapper> host_A);
-
+    template <typename InnerType>
     void update(const ExecutorHandler &exec_handler,
-                const Repartitioner &repartitioner,
+                std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
+
+    word get_matrix_format() const { return matrix_format_; }
+
+    std::shared_ptr<const gko::LinOp> get_dist_mtx() const { return dist_mtx_; }
 
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
-        gko::dim<2> local_size, gko::dim<2> global_size,
-        std::shared_ptr<dist_mtx> dist_mtx,
+        word matrix_format, std::shared_ptr<dist_mtx> dist_mtx,
         std::shared_ptr<const SparsityPattern> local_sparsity,
         std::shared_ptr<const SparsityPattern> non_local_sparsity,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-        std::vector<std::pair<bool, label>> &local_interfaces)
+        std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
+        std::shared_ptr<const Repartitioner> repartitioner,
+        std::vector<InterfaceLocality> &local_interfaces)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
+          matrix_format_(matrix_format),
           dist_mtx_(std::move(dist_mtx)),
           local_sparsity_(local_sparsity),
           non_local_sparsity_(non_local_sparsity),
           src_comm_pattern_(src_comm_pattern),
+          repart_comm_pattern_(repart_comm_pattern),
+          repartitioner_(repartitioner),
           local_interfaces_(local_interfaces)
     {
-        this->set_size(global_size);
+        this->set_size(dist_mtx_->get_size());
     }
 
-    void write(const word field_name_, const objectRegistry &db_) const;
+    template <typename LocalMatrixType>
+    void write(const ExecutorHandler &exec_handler, const word field_name_,
+               const objectRegistry &db_, bool write_global) const;
 
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
@@ -134,6 +151,22 @@ public:
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase{comm}
     {}
+
+    std::shared_ptr<const CommunicationPattern> get_comm_pattern() const
+    {
+        return repart_comm_pattern_;
+    }
+
+    std::shared_ptr<const SparsityPattern> get_local_sparsity() const
+    {
+        return local_sparsity_;
+    }
+
+    std::shared_ptr<const Repartitioner> get_repartitioner() const
+    {
+        return repartitioner_;
+    }
+
 
 protected:
     // Here we implement the application of the linear operator, x = A * b.
@@ -163,6 +196,8 @@ protected:
 
 
 private:
+    const word matrix_format_;
+
     std::shared_ptr<dist_mtx> dist_mtx_;
 
     std::shared_ptr<const SparsityPattern> local_sparsity_;
@@ -171,22 +206,28 @@ private:
 
     std::shared_ptr<const CommunicationPattern> src_comm_pattern_;
 
-    std::vector<std::pair<bool, label>> local_interfaces_;
+    std::shared_ptr<const CommunicationPattern> repart_comm_pattern_;
+
+    std::shared_ptr<const Repartitioner> repartitioner_;
+
+    std::vector<InterfaceLocality> local_interfaces_;
 };
 
+std::shared_ptr<const gko::LinOp> get_local(
+    std::shared_ptr<const gko::LinOp> dist_A);
 
-std::shared_ptr<gko::LinOp> create_distributed(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
-{
-    if (matrix_format == "Coo") {
-        return RepartDistMatrix<gko::matrix::Coo<scalar, label>>::create(
-            exec_handler, repartitioner, hostMatrix);
-    }
-    if (matrix_format == "Csr") {
-        return RepartDistMatrix<gko::matrix::Csr<scalar, label>>::create(
-            exec_handler, repartitioner, hostMatrix);
-    }
+void write_distributed(const ExecutorHandler &exec_handler, word field_name,
+                       const objectRegistry &db,
+                       std::shared_ptr<RepartDistMatrix> dist_A,
+                       bool write_global);
 
-    return {};
-}
+void update_distributed(const ExecutorHandler &exec_handler,
+                        std::shared_ptr<const Repartitioner> repartitioner,
+                        std::shared_ptr<const HostMatrixWrapper> host_A,
+                        std::shared_ptr<RepartDistMatrix> dist_A,
+                        word matrix_format);
+
+std::shared_ptr<RepartDistMatrix> create_distributed(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format);

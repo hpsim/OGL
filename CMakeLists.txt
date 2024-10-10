@@ -44,10 +44,10 @@ option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
-option(GINKGO_BUILD_CUDA "Build Ginkgo with cuda backend" FALSE)
-option(GINKGO_BUILD_HIP "Build Ginkgo with hip backend" FALSE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
+
+include(cmake/AutoEnableDevice.cmake)
 
 set(GINKGO_BUILD_MPI
     ON
@@ -79,7 +79,7 @@ to turn off this check")
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "ogl_rebase_1.8.0"
+    "ogl_0600_ml_schwarz_reuse_pgm"
     CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
@@ -217,16 +217,17 @@ target_sources(
           src/BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
           ${CMAKE_CURRENT_BINARY_DIR}/version.C
           src/DevicePersistent/Base/Base.C
-          src/DevicePersistent/Partition/Partition.C
           src/DevicePersistent/Vector/Vector.C
           src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
+          src/DevicePersistent/DistributedMatrixAdapter.C
           src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
           src/MatrixWrapper/HostMatrix.C
           src/MatrixWrapper/SparsityPattern.C
           src/MatrixWrapper/Distributed.C
+          src/MatrixWrapper/Combination.C
           src/Repartitioner.C
-  # src/Solver/CG/GKOCG.C src/Solver/BiCGStab/GKOBiCGStab.C
-  # src/Solver/GMRES/GKOGMRES.C
+          src/Solver/CG/GKOCG.C
+  # src/Solver/BiCGStab/GKOBiCGStab.C src/Solver/GMRES/GKOGMRES.C
 )
 
 enable_sanitizers(

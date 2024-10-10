@@ -11,6 +11,20 @@
 #include "CommunicationPattern.H"
 #include "MatrixWrapper/SparsityPattern.H"
 
+struct InterfaceLocality {
+    // whether this interface is local or non-local
+    bool local;
+
+    // on which rank this interface this rank was created
+    label orig_rank;
+
+    // size of the interface
+    unsigned long size;
+
+    // the mapping to local/non local ginkgo submatrix
+    label ctr;
+};
+
 namespace detail {
 
 /* Convert to global
@@ -25,7 +39,7 @@ std::vector<label> convert_to_global(
     std::shared_ptr<
         const gko::experimental::distributed::Partition<label, label>>
         partition,
-    const std::vector<label> &idx, const std::vector<gko::span> &spans,
+    const label *idx, const std::vector<gko::span> &spans,
     const std::vector<label> &ranks);
 
 /* Convert to local
@@ -47,9 +61,9 @@ void convert_to_local(
 ** returns a pair vector spans
 */
 std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
-exchange_span_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
-                    const std::vector<gko::span> &spans,
-                    const std::vector<label> &ranks);
+exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
+                     const std::vector<gko::span> &spans,
+                     const std::vector<label> &src_ranks);
 
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
@@ -76,17 +90,21 @@ private:
 
     const label ranks_per_gpu_;
 
+    const bool fuse_;  //! Whether to merge all interfaces into a single
+                       //! local/non_local mtx
+
     const label verbose_;
 
     std::shared_ptr<const partition> orig_partition_;
 
 public:
     Repartitioner(label size, label ranks_per_gpu, label verbose,
-                  const ExecutorHandler &exec_handler)
+                  const ExecutorHandler &exec_handler, bool fuse)
         : size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
+          fuse_(fuse),
           verbose_(verbose),
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
@@ -124,6 +142,8 @@ public:
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
 
+    bool get_fused() const { return fuse_; }
+
     /* @brief computes the size of the submatrix owned by a given rank after
      * repartitioning
      *
@@ -156,21 +176,20 @@ public:
      * mapping. Thus this function copies the rows, cols and mapping, spans etc
      * to the corresponding local vectors.
      * returns a vector of locality information.
-     * @param non_local_cols vector in comm rank local indices
+     * @param non_local_cols vector in global local indices
      */
-    std::vector<std::pair<bool, label>> build_non_local_interfaces(
+    std::vector<InterfaceLocality> build_non_local_interfaces(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<
             const gko::experimental::distributed::Partition<label, label>>
             partition,
         std::vector<label> &local_rows, std::vector<label> &local_cols,
-        std::vector<label> &local_mapping, std::vector<label> &local_ranks,
-        std::vector<gko::span> &local_spans, std::vector<label> &non_local_rows,
-        std::vector<label> &non_local_cols,
+        std::vector<label> &local_mapping, std::vector<gko::span> &local_spans,
+        std::vector<label> &non_local_rows, std::vector<label> &non_local_cols,
         std::vector<label> &non_local_mapping,
-        std::vector<label> &non_local_ranks,
         std::vector<label> &non_local_rank_origin,
-        std::vector<gko::span> &non_local_spans) const;
+        std::vector<gko::span> &non_local_spans,
+        std::vector<label> &src_non_local_target_ids) const;
 
     /* @brief function to repartition a sparsity pattern
      *
@@ -189,14 +208,15 @@ public:
      * signals whether this is a new local interface (no communication), and
      *the
      * second entry (label) tracks the original rank of the interface
+     * @param fuse whether to combine all submatrices
      */
     std::tuple<std::shared_ptr<SparsityPattern>,
-               std::shared_ptr<SparsityPattern>,
-               std::vector<std::pair<bool, label>>>
+               std::shared_ptr<SparsityPattern>, std::vector<InterfaceLocality>>
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
         std::shared_ptr<const SparsityPattern> src_local_pattern,
-        std::shared_ptr<const SparsityPattern> src_non_local_pattern) const;
+        std::shared_ptr<const SparsityPattern> src_non_local_pattern,
+        std::vector<label> src_non_local_target_ids, bool fuse) const;
 
     /* @brief repartition a communication pattern
      * function to repartition a communication pattern based on ranks_per_gpu

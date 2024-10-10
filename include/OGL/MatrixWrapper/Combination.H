@@ -31,7 +31,7 @@ public:
 
     using matrix_data = gko::matrix_data<scalar, label>;
 
-    void read(const matrix_data &data) override
+    void read([[maybe_unused]] const matrix_data &data) override
     {
         FatalErrorInFunction << "Not implemented" << abort(FatalError);
     }
@@ -69,19 +69,19 @@ public:
     }
 
 
-    void write(gko::matrix_data<scalar> &res) const override
+    void write(gko::matrix_data<scalar, label> &res) const override
     {
         auto exec = this->get_executor();
         auto operators = this->get_operators();
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         res.nonzeros = data;
         res.size = this->get_size();
     }
@@ -119,12 +119,12 @@ public:
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         mat_data.nonzeros = data;
         mat_data.size = this->get_size();
 
@@ -141,12 +141,12 @@ public:
 
         std::vector<gko::matrix_data_entry<scalar, label>> data;
         for (auto op : operators) {
-            auto tmp_mat_data = gko::matrix_data<scalar>();
+            auto tmp_mat_data = gko::matrix_data<scalar, label>();
             gko::as<InnerMatrixType>(op)->write(tmp_mat_data);
             data.insert(data.end(), tmp_mat_data.nonzeros.begin(),
                         tmp_mat_data.nonzeros.end());
         }
-        auto mat_data = gko::matrix_data<scalar>();
+        auto mat_data = gko::matrix_data<scalar, label>();
         mat_data.nonzeros = data;
         mat_data.size = this->get_size();
 
@@ -181,13 +181,15 @@ protected:
 
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
                       gko::dim<2> size,
-                      std::vector<std::shared_ptr<const gko::LinOp>> operators)
+                      std::vector<std::shared_ptr<gko::LinOp>> operators)
         : gko::EnableLinOp<CombinationMatrix>(exec),
           comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
     {
-        for (auto &op : operators) {
-            this->comb_->add_operators(
-                gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
+        if (size[1] > 0) {
+            for (auto &op : operators) {
+                this->comb_->add_operators(
+                    gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
+            }
         }
         this->set_size(size);
     }
@@ -217,18 +219,10 @@ private:
     std::shared_ptr<gko::Combination<scalar>> comb_;
 };
 
-
 namespace detail {
 std::shared_ptr<gko::matrix::Coo<scalar, label>> convert_combination_to_coo(
     std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const gko::LinOp> in)
-{
-    auto out = gko::share(gko::matrix::Coo<scalar, label>::create(exec));
-    gko::as<CombinationMatrix<gko::matrix::Coo<scalar, label>>>(in)->convert_to(
-        out.get());
-
-    return out;
-}
+    std::shared_ptr<const gko::LinOp> in);
 
 template <typename InnerMatrixType>
 void export_mtx(const word fieldName,
@@ -236,16 +230,16 @@ void export_mtx(const word fieldName,
                 const word local, const objectRegistry &db,
                 const word matrixFormat)
 {
-    std::string folder{db.time().timePath()};
-    std::filesystem::create_directories(folder);
-    std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    std::cout << "exporting " << fn << std::endl;
-    std::ofstream stream{fn};
-    stream << std::setprecision(15);
-
-    auto coo = gko::share(
-        gko::matrix::Coo<scalar, label>::create(out->get_executor()));
-    out->convert_to(coo);
+    // std::string folder{db.time().timePath()};
+    // std::filesystem::create_directories(folder);
+    // std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
+    // std::cout << "exporting " << fn << std::endl;
+    // std::ofstream stream{fn};
+    // stream << std::setprecision(15);
+    //
+    // auto coo = gko::share(
+    //     gko::matrix::Coo<scalar, label>::create(out->get_executor()));
+    // out->convert_to(coo);
 }
 
 }  // namespace detail

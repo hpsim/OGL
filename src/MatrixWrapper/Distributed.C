@@ -5,51 +5,84 @@
 #include "OGL/MatrixWrapper/Distributed.H"
 
 template <typename MatrixType>
-std::vector<std::shared_ptr<const gko::LinOp>> generate_inner_linops(
-    bool fuse, std::shared_ptr<const gko::Executor> exec,
-    std::shared_ptr<const SparsityPattern> sparsity)
+std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
+    std::shared_ptr<const gko::Executor> exec,
+    std::shared_ptr<const SparsityPattern> sparsity, bool compress_cols)
 {
-    std::vector<std::shared_ptr<const gko::LinOp>> lin_ops;
-    for (int i = 0; i < sparsity->spans.size(); i++) {
+    std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
+    std::vector<label> tmp_cols =
+        (compress_cols)
+            ? std::vector<label>(
+                  sparsity->ldu_mapping.get_const_data(),
+                  sparsity->ldu_mapping.get_const_data() + sparsity->num_nnz)
+            : std::vector<label>(
+                  sparsity->col_idxs.get_const_data(),
+                  sparsity->col_idxs.get_const_data() + sparsity->num_nnz);
+    if (sparsity->spans.size() == 0) {
+        lin_ops.push_back(
+            gko::share(MatrixType::create(exec, gko::dim<2>{0, 0})));
+        return lin_ops;
+    }
+    for (size_t i = 0; i < sparsity->spans.size(); i++) {
         auto [begin, end] = sparsity->spans[i];
         gko::array<scalar> coeffs(exec, end - begin);
         coeffs.fill(0.0);
-        lin_ops.push_back(gko::share(MatrixType::create(
-            exec, sparsity->dim, coeffs,
-            gko::array<label>(exec->get_master(),
-                              sparsity->col_idxs.get_const_data() + begin,
-                              sparsity->col_idxs.get_const_data() + end),
+        auto mtx_data = gko::device_matrix_data<scalar, label>(
+            exec->get_master(), sparsity->dim,
             gko::array<label>(exec->get_master(),
                               sparsity->row_idxs.get_const_data() + begin,
-                              sparsity->row_idxs.get_const_data() + end))));
+                              sparsity->row_idxs.get_const_data() + end),
+            gko::array<label>(exec->get_master(), tmp_cols.data() + begin,
+                              tmp_cols.data() + end),
+            coeffs);
+        auto mtx = gko::share(MatrixType::create(exec));
+        gko::as<MatrixType>(mtx)->read(mtx_data);
+        lin_ops.push_back(mtx);
     }
     return lin_ops;
 }
 
 
 template <typename LocalMatrixType>
-void RepartDistMatrix<LocalMatrixType>::write(const word field_name_,
-                                              const objectRegistry &db_) const
+void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
+                             const word field_name, const objectRegistry &db,
+                             bool write_global) const
 {
-    // std::vector<std::shared_ptr<const gko::LinOp>> local_interfaces =
-    // auto local = dist_mtx_->get_local_matrix()->get_operators();
-    // if (fuse){
+    auto local = gko::share(
+        gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
+    auto non_local = gko::share(
+        gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
 
-    // }
-    // gko::as<CombinationMatrix<LocalMatrixType>>(dist_mtx_->get_local_matrix())
-    //     ->get_operators();
-    // export_mtx<Coo>(word(field_name_ + "_local"), local_interfaces, db_);
-    // auto non_local_interfaces = gko::as<CombinationMatrix<scalar, label,
-    // Coo>>(
-    //                                 dist_matrix->get_non_local_matrix())
-    //                                 ->get_combination()
-    //                                 ->get_operators();
-    // export_mtx<Coo>(field_name_ + "_non_local", non_local_interfaces, db_);
+    if (repartitioner_->get_fused()) {
+        gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
+            ->convert_to(local.get());
+        gko::as<LocalMatrixType>(dist_mtx_->get_non_local_matrix())
+            ->convert_to(non_local.get());
+    } else {
+        gko::as<CombinationMatrix<LocalMatrixType>>(
+            dist_mtx_->get_local_matrix())
+            ->convert_to(local.get());
+        gko::as<CombinationMatrix<LocalMatrixType>>(
+            dist_mtx_->get_non_local_matrix())
+            ->convert_to(non_local.get());
+    }
+
+    // overwrite column indices with global indices
+    if (write_global) {
+        std::copy(non_local_sparsity_->col_idxs.get_const_data(),
+                  non_local_sparsity_->col_idxs.get_const_data() +
+                      non_local_sparsity_->num_nnz,
+                  non_local->get_col_idxs());
+    }
+
+    export_mtx(field_name + "_local", local, db);
+    export_mtx(field_name + "_non_local", non_local, db);
 }
 
 template <typename LocalMatrixType>
-void update_impl(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
+void update_fused_impl(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A,
     std::shared_ptr<
         gko::experimental::distributed::Matrix<scalar, label, label>>
@@ -57,16 +90,242 @@ void update_impl(
     std::shared_ptr<const SparsityPattern> local_sparsity,
     std::shared_ptr<const SparsityPattern> non_local_sparsity,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-    std::vector<std::pair<bool, label>> local_interfaces)
+    std::vector<InterfaceLocality> local_interfaces)
 {
+    using vec = gko::matrix::Dense<scalar>;
     auto exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
-    auto ranks_per_gpu = repartitioner.get_ranks_per_gpu();
+    auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
     bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     label rank{exec_handler.get_rank()};
-    label owner_rank = repartitioner.get_owner_rank(exec_handler);
-    bool owner = repartitioner.is_owner(exec_handler);
+    label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    bool owner = repartitioner->is_owner(exec_handler);
+    label nrows = host_A->get_local_nrows();
+    label local_matrix_nnz = host_A->get_local_matrix_nnz();
+    label n_interfaces = 0;  // number of fused interface coefficients
+    for (size_t i = 0; i < local_interfaces.size(); i++) {
+        auto [local, orig_rank, size, ctr] = local_interfaces[i];
+        if (local && rank == orig_rank) {
+            n_interfaces += size;
+        }
+    }
+
+    label tot_local_matrix_nnz = local_matrix_nnz + n_interfaces;
+
+    // size + padding has to be local_matrix_nnz
+    // [upper, lower, diag] | [upper, lower, diag], [interfaces | interfaces]
+    auto diag_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, nrows, local_matrix_nnz,
+        local_matrix_nnz - nrows, 0);
+    label upper_nnz = host_A->get_upper_nnz();
+    auto upper_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, upper_nnz, local_matrix_nnz, 0,
+        local_matrix_nnz - upper_nnz);
+    auto lower_comm_pattern =
+        compute_gather_to_owner_counts(exec_handler, ranks_per_gpu, upper_nnz,
+                                       local_matrix_nnz, upper_nnz, nrows);
+
+    // label nnz = 0;
+    //
+    // update main values
+    std::vector<scalar> loc_buffer;
+    auto local_mtx = gko::as<LocalMatrixType>(dist_A->get_local_matrix());
+    scalar *local_ptr =
+        (owner) ? const_cast<scalar *>(local_mtx->get_const_values()) : nullptr;
+
+    communicate_values(
+        exec_handler.get_ref_exec(), exec_handler.get_device_exec(),
+        exec_handler.get_communicator(), diag_comm_pattern, host_A->get_diag(),
+        local_ptr, requires_host_buffer, tot_local_matrix_nnz);
+    communicate_values(exec_handler.get_ref_exec(),
+                       exec_handler.get_device_exec(),
+                       exec_handler.get_communicator(), upper_comm_pattern,
+                       host_A->get_upper(), local_ptr, requires_host_buffer,
+                       tot_local_matrix_nnz);
+
+    if (host_A->get_symmetric()) {
+        // TODO FIXME
+        // if symmetric we can reuse already copied data
+        communicate_values(exec_handler.get_ref_exec(),
+                           exec_handler.get_device_exec(),
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
+    } else {
+        communicate_values(exec_handler.get_ref_exec(),
+                           exec_handler.get_device_exec(),
+                           exec_handler.get_communicator(), lower_comm_pattern,
+                           host_A->get_lower(), local_ptr, requires_host_buffer,
+                           tot_local_matrix_nnz);
+    }
+
+    // copy interface values
+    auto comm = *exec_handler.get_communicator().get();
+    if (owner) {
+        std::shared_ptr<const LocalMatrixType> mtx;
+        // TODO the begin idx need to be exchanged
+        label host_interface_ctr{0};
+
+        label local_elements{0};
+        label non_local_elements{0};
+
+        // compute local_elements and non_local_elements before hand
+        for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
+            if (is_local) {
+                local_elements += size;
+            } else {
+                non_local_elements += size;
+            }
+        }
+        label local_begin = local_sparsity->num_nnz - local_elements;
+        label non_local_begin = 0;
+
+        scalar *recv_buffer_ptr;
+        for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
+            mtx =
+                (is_local)
+                    ? gko::as<const LocalMatrixType>(dist_A->get_local_matrix())
+                    : gko::as<const LocalMatrixType>(
+                          dist_A->get_non_local_matrix());
+            recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+
+            // where to put the data
+            label begin = 0;
+            if (is_local) {
+                begin = local_begin;
+                local_begin += size;
+            } else {
+                begin = non_local_begin;
+                non_local_begin += size;
+            }
+            if (orig_rank == rank) {
+                // if data is already on this rank
+                auto data_view = gko::array<scalar>::const_view(
+                    exec, size, host_A->get_interface_data(host_interface_ctr));
+                auto target_view = gko::array<scalar>::view(
+                    mtx->get_executor(), size, recv_buffer_ptr + begin);
+                target_view = data_view;
+                host_interface_ctr++;
+            } else {
+                comm.recv(device_exec, recv_buffer_ptr + begin, size, orig_rank,
+                          0);
+            }
+        }
+
+        // interface values need to be multiplied by -1
+        auto neg_one = gko::initialize<vec>({-1.0}, device_exec);
+        mtx = gko::as<const LocalMatrixType>(dist_A->get_local_matrix());
+        recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+        label num_interface_elems = tot_local_matrix_nnz - local_matrix_nnz;
+        auto local_interface_dense = vec::create(
+            mtx->get_executor(),
+            gko::dim<2>{static_cast<gko::size_type>(local_elements), 1},
+            gko::array<scalar>::view(
+                mtx->get_executor(), local_elements,
+                recv_buffer_ptr +
+                    (mtx->get_num_stored_elements() - local_elements)),
+            1);
+        local_interface_dense->scale(neg_one);
+
+        // TODO this currently skips scaling of now local interface part
+        mtx = gko::as<const LocalMatrixType>(dist_A->get_non_local_matrix());
+        recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
+        auto interface_dense = vec::create(
+            mtx->get_executor(),
+            gko::dim<2>{
+                static_cast<gko::size_type>(mtx->get_num_stored_elements()), 1},
+            gko::array<scalar>::view(mtx->get_executor(),
+                                     mtx->get_num_stored_elements(),
+                                     recv_buffer_ptr),
+            1);
+        interface_dense->scale(neg_one);
+    } else {
+        // the non owner has to send all its interfaces to owner
+        // thus all values need to be communicated to the owner as well
+        label num_interfaces = src_comm_pattern->target_ids.size();
+        label tag = 0;
+        for (int i = 0; i < num_interfaces; i++) {
+            label comm_size = src_comm_pattern->target_sizes.data()[i];
+            const scalar *send_buffer_ptr = host_A->get_interface_data(i);
+            comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
+        }
+    }
+
+    // reorder updated values
+    if (owner) {
+        // local data
+        using dim_type = gko::dim<2>::dimension_type;
+        auto local_elements = local_mtx->get_num_stored_elements();
+
+        // TODO make sure this doesn't copy
+        // create a non owning dense matrix of local_values
+        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            local_mtx->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(local_elements), 1},
+            gko::array<scalar>::view(local_mtx->get_executor(), local_elements,
+                                     local_ptr),
+            1));
+
+        local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
+        auto mapping_view = gko::array<label>::view(
+            local_sparsity->ldu_mapping.get_executor(), local_elements,
+            local_sparsity->ldu_mapping.get_data());
+
+        auto dense_vec = row_collection->clone();
+        dense_vec->row_gather(&mapping_view, row_collection.get());
+
+        // non local data
+        auto non_local_mtx =
+            gko::as<LocalMatrixType>(dist_A->get_non_local_matrix());
+        auto non_local_elements = non_local_mtx->get_num_stored_elements();
+        scalar *non_local_ptr =
+            (owner) ? const_cast<scalar *>(non_local_mtx->get_const_values())
+                    : nullptr;
+
+        // TODO make sure this doesn't copy
+        // create a non owning dense matrix of local_values
+        auto non_local_row_collection =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                non_local_mtx->get_executor(),
+                gko::dim<2>{static_cast<dim_type>(non_local_elements), 1},
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr),
+                1));
+
+        non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
+        auto non_local_mapping_view = gko::array<label>::view(
+            non_local_sparsity->ldu_mapping.get_executor(), non_local_elements,
+            non_local_sparsity->ldu_mapping.get_data());
+
+        auto non_local_dense_vec = non_local_row_collection->clone();
+        non_local_dense_vec->row_gather(&non_local_mapping_view,
+                                        non_local_row_collection.get());
+    }
+}
+
+template <typename LocalMatrixType>
+void update_impl(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> host_A,
+    std::shared_ptr<
+        gko::experimental::distributed::Matrix<scalar, label, label>>
+        dist_A,
+    std::shared_ptr<const SparsityPattern> local_sparsity,
+    std::shared_ptr<const SparsityPattern> non_local_sparsity,
+    std::shared_ptr<const CommunicationPattern> src_comm_pattern,
+    std::vector<InterfaceLocality> local_interfaces)
+{
+    using vec = gko::matrix::Dense<scalar>;
+    auto exec = exec_handler.get_ref_exec();
+    auto device_exec = exec_handler.get_device_exec();
+    auto ranks_per_gpu = repartitioner->get_ranks_per_gpu();
+    bool requires_host_buffer = exec_handler.get_gko_force_host_buffer();
+
+    label rank{exec_handler.get_rank()};
+    label owner_rank = repartitioner->get_owner_rank(exec_handler);
+    bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
     label local_matrix_nnz = host_A->get_local_matrix_nnz();
 
@@ -82,27 +341,20 @@ void update_impl(
         compute_gather_to_owner_counts(exec_handler, ranks_per_gpu, upper_nnz,
                                        local_matrix_nnz, upper_nnz, nrows);
 
-    scalar *local_ptr;
-    scalar *local_ptr_2;
-    label nnz = 0;
+    scalar *local_ptr = nullptr;
+    // label nnz = 0;
 
     // update main values
     std::vector<scalar> loc_buffer;
-    if (owner) {
-        std::shared_ptr<const LocalMatrixType> local = gko::as<LocalMatrixType>(
-            gko::as<CombinationMatrix<LocalMatrixType>>(
-                dist_A->get_local_matrix())
-                ->get_combination()
-                ->get_operators()[0]);
+    auto local_mtx =
+        gko::as<CombinationMatrix<LocalMatrixType>>(dist_A->get_local_matrix());
 
-        nnz = local->get_num_stored_elements();
-        if (requires_host_buffer) {
-            loc_buffer.resize(nnz);
-            local_ptr = loc_buffer.data();
-            local_ptr_2 = const_cast<scalar *>(local->get_const_values());
-        } else {
-            local_ptr = const_cast<scalar *>(local->get_const_values());
-        }
+    std::shared_ptr<const LocalMatrixType> local =
+        (owner) ? gko::as<LocalMatrixType>(local_mtx->get_operators()[0])
+                : std::shared_ptr<const LocalMatrixType>{};
+
+    if (owner) {
+        local_ptr = const_cast<scalar *>(local->get_const_values());
     }
 
     communicate_values(exec_handler, diag_comm_pattern, host_A->get_diag(),
@@ -120,75 +372,42 @@ void update_impl(
                            host_A->get_lower(), local_ptr);
     }
 
-    if (requires_host_buffer) {
-        auto host_buffer_view = gko::array<scalar>::view(exec, nnz, local_ptr);
-        auto target_buffer_view =
-            gko::array<scalar>::view(device_exec, nnz, local_ptr_2);
-        target_buffer_view = host_buffer_view;
-    }
-
     // copy interface values
     auto comm = *exec_handler.get_communicator().get();
     if (owner) {
         std::shared_ptr<const LocalMatrixType> mtx;
-        label loc_ctr{1};
-        label nloc_ctr{0};
         label host_interface_ctr{0};
         label tag = 0;
-        label comm_rank, comm_size;
         scalar *recv_buffer_ptr;
-        scalar *recv_buffer_ptr_2;
-        std::vector<scalar> host_recv_buffer;
         label remain_host_interfaces = host_A->get_num_interfaces();
-        for (auto [is_local, comm_rank] : local_interfaces) {
-            label &ctr = (is_local) ? loc_ctr : nloc_ctr;
+        for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
             if (is_local) {
-                // TODO make it work for other types
                 mtx = gko::as<LocalMatrixType>(
                     gko::as<CombinationMatrix<LocalMatrixType>>(
                         dist_A->get_local_matrix())
                         ->get_combination()
                         ->get_operators()[ctr]);
-                comm_size = local_sparsity->spans[ctr].length();
             } else {
                 mtx = gko::as<LocalMatrixType>(
                     gko::as<CombinationMatrix<LocalMatrixType>>(
                         dist_A->get_non_local_matrix())
                         ->get_combination()
                         ->get_operators()[ctr]);
-                comm_size = non_local_sparsity->spans[ctr].length();
             }
 
-            if (requires_host_buffer) {
-                host_recv_buffer.resize(comm_size);
-                recv_buffer_ptr = host_recv_buffer.data();
-                recv_buffer_ptr_2 =
-                    const_cast<scalar *>(mtx->get_const_values());
-            } else {
-                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
-            }
+            recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
 
-            if (comm_rank != rank) {
-                comm.recv(device_exec, recv_buffer_ptr, comm_size, comm_rank,
-                          tag);
-                if (requires_host_buffer) {
-                    auto host_buffer_view = gko::array<scalar>::view(
-                        exec, comm_size, recv_buffer_ptr);
-                    auto target_buffer_view = gko::array<scalar>::view(
-                        device_exec, comm_size, recv_buffer_ptr_2);
-                    target_buffer_view = host_buffer_view;
-                }
-
+            if (orig_rank != rank) {
+                // data is not already on rank
+                comm.recv(device_exec, recv_buffer_ptr, size, orig_rank, tag);
             } else {
                 // if data is already on this rank
+                // TODO probably better if we handle this case separately
                 auto data_view = gko::array<scalar>::const_view(
-                    exec, comm_size,
-                    host_A->get_interface_data(host_interface_ctr));
+                    exec, size, host_A->get_interface_data(host_interface_ctr));
 
-                // TODO FIXME this needs target executor
-                recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
                 auto target_view = gko::array<scalar>::view(
-                    device_exec, comm_size, recv_buffer_ptr);
+                    mtx->get_executor(), size, recv_buffer_ptr);
 
                 target_view = data_view;
 
@@ -196,36 +415,32 @@ void update_impl(
                 remain_host_interfaces--;
             }
 
-            ctr++;
             // interface values need to be multiplied by -1
             using vec = gko::matrix::Dense<scalar>;
             recv_buffer_ptr = const_cast<scalar *>(mtx->get_const_values());
             auto neg_one = gko::initialize<vec>({-1.0}, device_exec);
-            auto interface_dense = vec::create(
-                device_exec,
-                gko::dim<2>{static_cast<gko::size_type>(comm_size), 1},
-                gko::array<scalar>::view(device_exec, comm_size,
-                                         recv_buffer_ptr),
-                1);
-
+            auto interface_dense =
+                vec::create(local->get_executor(),
+                            gko::dim<2>{static_cast<gko::size_type>(size), 1},
+                            gko::array<scalar>::view(local->get_executor(),
+                                                     size, recv_buffer_ptr),
+                            1);
             interface_dense->scale(neg_one);
         }
     } else {
         // the non owner has send all its interfaces to owner
         // thus all values need to be communicated to the owner as well
-        label num_interfaces = src_comm_pattern->target_ids.get_size();
+        label num_interfaces = src_comm_pattern->target_ids.size();
         label tag = 0;
         for (int i = 0; i < num_interfaces; i++) {
-            label comm_size =
-                src_comm_pattern->target_sizes.get_const_data()[i];
+            label size = src_comm_pattern->target_sizes.data()[i];
             const scalar *send_buffer_ptr = host_A->get_interface_data(i);
-            comm.send(device_exec, send_buffer_ptr, comm_size, owner_rank, tag);
+            comm.send(device_exec, send_buffer_ptr, size, owner_rank, tag);
         }
     }
 
     // reorder updated values
     if (owner) {
-        // NOTE local sparsity size includes the interfaces
         using dim_type = gko::dim<2>::dimension_type;
 
         std::shared_ptr<const LocalMatrixType> local = gko::as<LocalMatrixType>(
@@ -239,72 +454,179 @@ void update_impl(
 
         // TODO make sure this doesn't copy
         // create a non owning dense matrix of local_values
+        auto local_view = gko::array<scalar>::view(local->get_executor(),
+                                                   local_elements, local_ptr);
+
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            device_exec, gko::dim<2>{static_cast<dim_type>(local_elements), 1},
-            gko::array<scalar>::view(device_exec, local_elements, local_ptr),
-            1));
+            local->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(local_elements), 1}));
+
+        local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
         auto mapping_view = gko::array<label>::view(
-            exec, local_elements, local_sparsity->ldu_mapping.get_data());
+            local_sparsity->ldu_mapping.get_executor(), local_elements,
+            local_sparsity->ldu_mapping.get_data());
 
 
-        // TODO this needs to copy ldu_mapping to the device
-        auto dense_vec = row_collection->clone();
-        // auto dense_vec =
-        // gko::share(gko::matrix::Dense<scalar>::create(exec,
-        // row_collection->get_size()));
+        auto dense_vec = gko::share(gko::matrix::Dense<scalar>::create(
+            local->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(local_elements), 1}, local_view,
+            1));
 
         dense_vec->row_gather(&mapping_view, row_collection.get());
+
+        auto row_view =
+            gko::array<scalar>::view(local->get_executor(), local_elements,
+                                     row_collection->get_values());
+        local_view = row_view;
+
+        // TODO localized interfaces need to be reordered too.
+        // TODO move reorder up to interface update
+        auto tmp = gko::array<scalar>(dist_A->get_executor(),
+                                      non_local_sparsity->num_nnz);
+        tmp.fill(0);
+
+        auto non_local_dense_vec =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                dist_A->get_executor(),
+                gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz),
+                            1},
+                tmp, 1));
+
+        auto non_local_row_vec = gko::share(gko::matrix::Dense<scalar>::create(
+            dist_A->get_executor(),
+            gko::dim<2>{static_cast<dim_type>(non_local_sparsity->num_nnz), 1},
+            gko::array<scalar>(dist_A->get_executor(),
+                               non_local_sparsity->num_nnz),
+            1));
+        non_local_sparsity->ldu_mapping.set_executor(dist_A->get_executor());
+        auto non_local_mapping_view = gko::array<label>::view(
+            non_local_sparsity->ldu_mapping.get_executor(),
+            non_local_sparsity->num_nnz,
+            non_local_sparsity->ldu_mapping.get_data());
+
+        for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
+            std::shared_ptr<const LocalMatrixType> non_local_mtx =
+                gko::as<LocalMatrixType>(
+                    gko::as<CombinationMatrix<LocalMatrixType>>(
+                        dist_A->get_non_local_matrix())
+                        ->get_combination()
+                        ->get_operators()[i]);
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
+                const_cast<scalar *>(non_local_mtx->get_const_values());
+            auto value_view =
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr);
+
+            // FIXME currently we need a tmp copy of the values to num_nnzs
+            // long
+            // array to sort into the row_collection
+            auto non_local_dense_view = gko::array<scalar>::view(
+                dist_A->get_executor(), non_local_elements,
+                non_local_dense_vec->get_values() +
+                    non_local_sparsity->spans[i].begin);
+            non_local_dense_view = value_view;
+        }
+
+        // use value view instead of row collection?
+        non_local_dense_vec->row_gather(&non_local_mapping_view,
+                                        non_local_row_vec.get());
+
+        auto non_local_dense_view = gko::array<scalar>::view(
+            dist_A->get_executor(), non_local_sparsity->num_nnz,
+            non_local_dense_vec->get_values());
+
+        for (size_t i = 0; i < non_local_sparsity->spans.size(); i++) {
+            std::shared_ptr<const LocalMatrixType> non_local_mtx =
+                gko::as<LocalMatrixType>(
+                    gko::as<CombinationMatrix<LocalMatrixType>>(
+                        dist_A->get_non_local_matrix())
+                        ->get_combination()
+                        ->get_operators()[i]);
+            auto non_local_elements = non_local_mtx->get_num_stored_elements();
+            scalar *non_local_ptr =
+                const_cast<scalar *>(non_local_mtx->get_const_values());
+            auto value_view =
+                gko::array<scalar>::view(non_local_mtx->get_executor(),
+                                         non_local_elements, non_local_ptr);
+
+            auto non_local_row_view = gko::array<scalar>::view(
+                dist_A->get_executor(), non_local_elements,
+                non_local_row_vec->get_values() +
+                    non_local_sparsity->spans[i].begin);
+
+            value_view = non_local_row_view;
+        }
+    }
+}
+
+
+template <typename InnerType>
+void RepartDistMatrix::update(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> host_A)
+{
+    if (repartitioner->get_fused()) {
+        update_fused_impl<InnerType>(
+            exec_handler, repartitioner, host_A, dist_mtx_, local_sparsity_,
+            non_local_sparsity_, src_comm_pattern_, local_interfaces_);
+    } else {
+        update_impl<InnerType>(exec_handler, repartitioner, host_A, dist_mtx_,
+                               local_sparsity_, non_local_sparsity_,
+                               src_comm_pattern_, local_interfaces_);
     }
 }
 
 
 template <typename LocalMatrixType>
-void RepartDistMatrix<LocalMatrixType>::update(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> host_A)
+std::shared_ptr<RepartDistMatrix> create_impl(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> host_A, word matrix_format)
 {
-    update_impl<LocalMatrixType>(exec_handler, repartitioner, host_A, dist_mtx_,
-                                 local_sparsity_, non_local_sparsity_,
-                                 src_comm_pattern_, local_interfaces_);
-}
-
-
-template <typename LocalMatrixType>
-static std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
-    const ExecutorHandler &exec_handler, const Repartitioner &repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> host_A)
-{
+    using dist_mtx =
+        gko::experimental::distributed::Matrix<scalar, label, label>;
     label rank = exec_handler.get_rank();
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
 
-    // repartition things here first by creating device_matrix_data on
-    // device with correct size on each rank
-    //
-    // NOTE Start by copying first and repartition later
     auto local_sparsity = host_A->compute_local_sparsity(exec);
     auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
 
     auto src_comm_pattern = host_A->create_communication_pattern();
-    auto repart_comm_pattern =
-        repartitioner.repartition_comm_pattern(exec_handler, src_comm_pattern);
+    if (non_local_sparsity->spans.size() !=
+        src_comm_pattern->target_ids.size()) {
+        FatalErrorInFunction
+            << " Inconsistency detected non_local_sparsity->spans.size() "
+               "!=src_comm_pattern->target_ids.size() on rank"
+            << exit(FatalError);
+    }
 
-    // bool owner = repartitioner.is_owner(exec_handler);
+    auto repart_comm_pattern =
+        repartitioner->repartition_comm_pattern(exec_handler, src_comm_pattern);
+
+    auto tmp_send_global_cols = detail::convert_to_global(
+        repartitioner->get_orig_partition(),
+        non_local_sparsity->col_idxs.get_const_data(),
+        non_local_sparsity->spans, src_comm_pattern->target_ids);
+
+    std::copy(tmp_send_global_cols.begin(), tmp_send_global_cols.end(),
+              non_local_sparsity->col_idxs.get_data());
 
     auto [repart_loc_sparsity, repart_non_loc_sparsity, local_interfaces] =
-        repartitioner.repartition_sparsity(exec_handler, local_sparsity,
-                                           non_local_sparsity);
-
-    compress_cols(repart_non_loc_sparsity->col_idxs);
+        repartitioner->repartition_sparsity(
+            exec_handler, local_sparsity, non_local_sparsity,
+            src_comm_pattern->target_ids, repartitioner->get_fused());
 
     // create vector of inner type linops
     // if fuse the vector contains only a single element
     // thus we can unwrap it.
     auto device_exec = exec_handler.get_device_exec();
     auto local_linops = generate_inner_linops<LocalMatrixType>(
-        false, device_exec, repart_loc_sparsity);
+        device_exec, repart_loc_sparsity, false);
     auto non_local_linops = generate_inner_linops<LocalMatrixType>(
-        false, device_exec, repart_non_loc_sparsity);
+        device_exec, repart_non_loc_sparsity, true);
 
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
@@ -316,31 +638,95 @@ static std::shared_ptr<gko::LinOp> RepartDistMatrix<LocalMatrixType>::create(
     auto recv_gather_idxs =
         repart_comm_pattern->compute_recv_gather_idxs(exec_handler);
 
-    auto global_rows = repartitioner.get_orig_partition()->get_size();
+    auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
 
     std::shared_ptr<dist_mtx> dist_A;
-    bool fuse = false;
-    if (fuse) {
+    if (repartitioner->get_fused()) {
+        dist_A = gko::share(dist_mtx::create(
+            device_exec, comm, global_dim, local_linops[0], non_local_linops[0],
+            recv_sizes, recv_offsets, recv_gather_idxs));
+        update_fused_impl<LocalMatrixType>(
+            exec_handler, repartitioner, host_A, dist_A, repart_loc_sparsity,
+            repart_non_loc_sparsity, src_comm_pattern, local_interfaces);
     } else {
         dist_A = gko::share(dist_mtx::create(
-            exec, comm, global_dim,
+            device_exec, comm, global_dim,
             gko::share(CombinationMatrix<LocalMatrixType>::create(
-                exec, repart_loc_sparsity->dim, local_linops)),
+                device_exec, repart_loc_sparsity->dim, local_linops)),
             gko::share(CombinationMatrix<LocalMatrixType>::create(
-                exec, repart_non_loc_sparsity->dim, non_local_linops)),
+                device_exec, repart_non_loc_sparsity->dim, non_local_linops)),
             recv_sizes, recv_offsets, recv_gather_idxs));
+        update_impl<LocalMatrixType>(
+            exec_handler, repartitioner, host_A, dist_A, repart_loc_sparsity,
+            repart_non_loc_sparsity, src_comm_pattern, local_interfaces);
     }
 
-    update_impl<LocalMatrixType>(exec_handler, repartitioner, host_A, dist_A,
-                                 repart_loc_sparsity, repart_non_loc_sparsity,
-                                 src_comm_pattern, local_interfaces);
-
-    return std::make_shared<RepartDistMatrix<LocalMatrixType>>(
-        exec, comm, repartitioner.get_repart_dim(), dist_A->get_size(),
-        std::move(dist_A), repart_loc_sparsity, repart_non_loc_sparsity,
-        src_comm_pattern, local_interfaces);
+    return std::make_shared<RepartDistMatrix>(
+        device_exec, comm, matrix_format, dist_A, repart_loc_sparsity,
+        repart_non_loc_sparsity, src_comm_pattern, repart_comm_pattern,
+        repartitioner, local_interfaces);
 }
 
-template class RepartDistMatrix<gko::matrix::Coo<scalar, label>>;
-template class RepartDistMatrix<gko::matrix::Csr<scalar, label>>;
+void write_distributed(const ExecutorHandler &exec_handler, word field_name,
+                       const objectRegistry &db,
+                       std::shared_ptr<RepartDistMatrix> dist_A,
+                       bool write_global)
+{
+    auto matrix_format{dist_A->get_matrix_format()};
+    if (matrix_format == "Coo") {
+        return dist_A->write<gko::matrix::Coo<scalar, label>>(
+            exec_handler, field_name, db, write_global);
+    }
+    if (matrix_format == "Csr") {
+        return dist_A->write<gko::matrix::Csr<scalar, label>>(
+            exec_handler, field_name, db, write_global);
+    }
+}
+
+void update_distributed(const ExecutorHandler &exec_handler,
+                        std::shared_ptr<const Repartitioner> repartitioner,
+                        std::shared_ptr<const HostMatrixWrapper> host_A,
+                        std::shared_ptr<RepartDistMatrix> dist_A,
+                        word matrix_format)
+{
+    if (matrix_format == "Ell") {
+        FatalErrorInFunction
+            << " Updating Ell matrix not supported\nSet regenerate 1;"
+            << exit(FatalError);
+    }
+    if (matrix_format == "Coo") {
+        return dist_A->update<gko::matrix::Coo<scalar, label>>(
+            exec_handler, repartitioner, host_A);
+    }
+    if (matrix_format == "Csr") {
+        return dist_A->update<gko::matrix::Csr<scalar, label>>(
+            exec_handler, repartitioner, host_A);
+    }
+}
+
+std::shared_ptr<RepartDistMatrix> create_distributed(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<const Repartitioner> repartitioner,
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format)
+{
+    if (matrix_format == "Ell") {
+        return create_impl<gko::matrix::Ell<scalar, label>>(
+            exec_handler, repartitioner, hostMatrix, matrix_format);
+    }
+    if (matrix_format == "Coo") {
+        return create_impl<gko::matrix::Coo<scalar, label>>(
+            exec_handler, repartitioner, hostMatrix, matrix_format);
+    }
+    if (matrix_format == "Csr") {
+        return create_impl<gko::matrix::Csr<scalar, label>>(
+            exec_handler, repartitioner, hostMatrix, matrix_format);
+    }
+
+    FatalErrorInFunction
+        << "Matrix format " << matrix_format
+        << " not supported. Supported formats are: Ell, Csr, and Coo."
+        << abort(FatalError);
+
+    return {};
+}

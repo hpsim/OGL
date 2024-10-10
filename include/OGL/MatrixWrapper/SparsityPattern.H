@@ -24,8 +24,6 @@ void make_ldu_mapping_consecutive(const AllToAllPattern &comm_pattern,
                                   std::vector<label> &ldu_mapping, label rank,
                                   label ranks_per_gpu);
 
-void compress_cols(gko::array<label> &in);
-
 /* @brief computes the dimensions of square matrix based row index array
  *
  * @note assumes that rows are ordered
@@ -47,21 +45,16 @@ struct SparsityPattern {
                     const std::vector<label> &rows,
                     const std::vector<label> &cols,
                     const std::vector<label> &mapping,
-                    const std::vector<gko::span> &spans_,
-                    const std::vector<label> &rank_)
+                    const std::vector<gko::span> &spans_)
         : num_nnz(rows.size()),
           row_idxs(exec, rows.begin(), rows.end()),
           col_idxs(exec, cols.begin(), cols.end()),
           ldu_mapping(exec, mapping.begin(), mapping.end()),
           dim(dim_),
-          spans(spans_),
-          rank(rank_)
+          spans(spans_)
     {
-        // For every rank there should be a span
-        ASSERT_EQ(spans.size(), rank.size());
-
-        ASSERT_EQ(rows.size(), cols.size());
-        ASSERT_EQ(rows.size(), mapping.size());
+        OGL_ASSERT_EQ(rows.size(), cols.size());
+        OGL_ASSERT_EQ(rows.size(), mapping.size());
     }
 
     SparsityPattern(std::shared_ptr<const gko::Executor> exec)
@@ -72,48 +65,57 @@ struct SparsityPattern {
           dim(gko::dim<2>{})
     {}
 
+    SparsityPattern(const SparsityPattern &in)
+        : num_nnz(in.num_nnz),
+          row_idxs{in.row_idxs},
+          col_idxs{in.col_idxs},
+          ldu_mapping{in.ldu_mapping},
+          dim{in.dim},
+          spans{in.spans}
+    {}
+
     SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
                     gko::dim<2> dim, std::vector<label> &rows,
                     std::vector<label> &cols, std::vector<label> &map,
                     std::vector<label> &spans_begin,
-                    std::vector<label> &spans_end, std::vector<label> &ranks)
+                    std::vector<label> &spans_end)
         : num_nnz(size),
           row_idxs{exec, static_cast<gko::size_type>(size)},
           col_idxs{exec, static_cast<gko::size_type>(size)},
           ldu_mapping{exec, static_cast<gko::size_type>(size)},
           dim(dim)
     {
-        ASSERT_EQ(size, rows.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), rows.size());
         std::copy(rows.begin(), rows.end(), row_idxs.get_data());
 
-        ASSERT_EQ(size, cols.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), cols.size());
         std::copy(cols.begin(), cols.end(), col_idxs.get_data());
 
-        ASSERT_EQ(size, map.size());
+        OGL_ASSERT_EQ(static_cast<size_t>(size), map.size());
         std::copy(map.begin(), map.end(), ldu_mapping.get_data());
 
-        ASSERT_EQ(spans_begin.size(), spans_end.size());
+        OGL_ASSERT_EQ(spans_begin.size(), spans_end.size());
         std::transform(spans_begin.begin(), spans_begin.end(),
                        spans_end.begin(), std::back_inserter(spans),
                        [](const auto begin, const auto end) {
                            return gko::span{static_cast<gko::size_type>(begin),
                                             static_cast<gko::size_type>(end)};
                        });
-
-        ASSERT_EQ(spans_begin.size(), ranks.size());
-        rank = ranks;
     }
+
+    /* @brief sort row, col idx and mapping in row major order */
+    void sort_sparsity();
 
     // TODO num_nnz makes no sense ->nnz;
     const label num_nnz;
 
-    mutable gko::Array<label> row_idxs;
+    mutable gko::array<label> row_idxs;
 
-    mutable gko::Array<label> col_idxs;
+    mutable gko::array<label> col_idxs;
 
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
-    mutable gko::Array<label> ldu_mapping;
+    mutable gko::array<label> ldu_mapping;
 
     // dimensions of the resulting matrix
     mutable gko::dim<2> dim;
@@ -125,10 +127,8 @@ struct SparsityPattern {
     // needed anymore. However, removing would require row and col_idxs to
     // be stored in a std::vector<gko::Array>
     mutable std::vector<gko::span> spans;
-
-    // keep track of original (local sparsity) or communication (non-local) rank
-    // of each interface or matrix block
-    mutable std::vector<label> rank;
 };
+
+// convert_to_global(std::shared_ptr<const SparsityPattern> pattern, Partition)
 
 }  // namespace Foam

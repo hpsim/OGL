@@ -217,7 +217,7 @@ public:
 
     /** Iterates all interfaces and counts the number of unique neighbour
      ** processors and number of interfaces in total for this processor
-     ** and collects all interface cells of this rank.
+     ** and collects the unique interface cells (send_idxs) of this rank.
      **
      ** @param interfaces The list of interfaces for the search
      ** @return the CommunicationPattern
