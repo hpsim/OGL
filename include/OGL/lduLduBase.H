@@ -267,7 +267,7 @@ public:
             bool write_global(
                 solver_controls_.lookupOrDefault<Switch>("writeGlobal", false));
             LOG_0(verbose_, "Export system")
-            // dist_b.write();
+            dist_b.write();
             write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
                               write_global);
         }

@@ -67,12 +67,29 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
             ->convert_to(non_local.get());
     }
 
-    // overwrite column indices with global indices
     if (write_global) {
+        // overwrite non_local column indices with global indices
+        label rank{exec_handler.get_rank()};
+        auto partition = get_repartitioner()->get_orig_partition();
         std::copy(non_local_sparsity_->col_idxs.get_const_data(),
                   non_local_sparsity_->col_idxs.get_const_data() +
                       non_local_sparsity_->num_nnz,
                   non_local->get_col_idxs());
+
+        //
+        std::vector<gko::span> local_spans {gko::span {0, static_cast<gko::size_type>(local_sparsity_->num_nnz)}};
+        std::vector<label> local_ranks {rank};
+
+        auto global_local_rows  =detail::convert_to_global(partition, local->get_row_idxs(), local_spans, local_ranks);
+        auto global_local_cols  =detail::convert_to_global(partition, local->get_col_idxs(), local_spans, local_ranks);
+
+        std::copy(global_local_rows.begin(),
+                  global_local_rows.end(),
+                  local->get_row_idxs());
+        std::copy(global_local_cols.begin(),
+                  global_local_cols.end(),
+                  local->get_col_idxs());
+
     }
 
     export_mtx(field_name + "_local", local, db);
