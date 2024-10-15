@@ -232,7 +232,7 @@ public:
 
         PersistentVector<scalar> dist_x{
             psi.begin(),
-            this->fieldName() + "_solution",
+            this->fieldName() + "_initial_guess",
             db_,
             exec_handler_,
             dist_A_v,
