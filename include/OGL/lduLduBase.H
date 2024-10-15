@@ -270,6 +270,7 @@ public:
             write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
                               write_global);
             dist_b.write();
+            dist_x.write();
         }
 
         LOG_1(verbose_, "start create solver")

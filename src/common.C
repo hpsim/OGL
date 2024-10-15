@@ -21,34 +21,12 @@ void export_x(const std::string fn, const gko::matrix::Dense<scalar> *x)
     gko::write(stream_x, x);
 }
 
-void export_x(const std::string fn, const gko::matrix::Csr<scalar> *A)
-{
-    LOG_1(1, "Writing " + fn)
-    std::ofstream stream{fn};
-    gko::write(stream, A, gko::layout_type::coordinate);
-}
-
 void export_vec(const word fieldName, const gko::matrix::Dense<scalar> *x,
                 const objectRegistry &db)
 {
     std::string folder{db.time().timePath()};
-    std::string fn{folder + "/" + fieldName + "_b_.mtx"};
+    std::string fn{folder + "/" + fieldName + ".mtx"};
     export_x(fn, x);
-}
-
-void export_system(const word fieldName, const gko::matrix::Csr<scalar> *A,
-                   const gko::matrix::Dense<scalar> *x,
-                   const gko::matrix::Dense<scalar> *b, const word time)
-{
-    system("mkdir -p export/" + time);
-    std::string fn_mtx{"export/" + time + "/" + fieldName + "_A.mtx"};
-    export_x(fn_mtx, A);
-
-    std::string fn_b{"export/" + time + "/" + fieldName + "_b.mtx"};
-    export_x(fn_b, b);
-
-    std::string fn_x{"export/" + time + "/" + fieldName + "_x0.mtx"};
-    export_x(fn_x, x);
 }
 
 void export_mtx(const word fieldName,
