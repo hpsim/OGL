@@ -73,13 +73,14 @@ Argument | Default | Description
 ------------ | ------------- | -------------
 updateRHS | true | whether to copy the system matrix to device on every solver call
 updateInitGuess | false |whether to copy the initial guess to device on every solver call
-export | false | write the complete system to disk
-verbose | 0 | print out extra info
+verbose | 0 | print out extra info. Valid values (0-2)
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`
 adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 scaling | 1.0 | Scale the complete system by the scaling factor
 forceHostBuffer  | false | whether to copy to host before MPI calls
+export | false | write the complete system (matrix and rhs) to disk as .mtx file using controlDict/writeControl
+writeGlobal | false | convert all indices to global indices
 
 ### Supported Solver
 Currently, the following solver are supported
