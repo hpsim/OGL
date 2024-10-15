@@ -232,7 +232,7 @@ public:
 
         PersistentVector<scalar> dist_x{
             psi.begin(),
-            this->fieldName() + "_solution",
+            this->fieldName() + "_initial_guess",
             db_,
             exec_handler_,
             dist_A_v,
@@ -265,11 +265,12 @@ public:
             solver_controls_.lookupOrDefault<Switch>("export", false));
         if (export_system && db_.time().writeTime()) {
             bool write_global(
-                solver_controls_.lookupOrDefault<Switch>("writeGlobal", false));
+                solver_controls_.lookupOrDefault<Switch>("writeGlobal", true));
             LOG_0(verbose_, "Export system")
-            // dist_b.write();
             write_distributed(exec_handler_, this->fieldName(), db_, dist_A_v,
                               write_global);
+            dist_b.write();
+            dist_x.write();
         }
 
         LOG_1(verbose_, "start create solver")
