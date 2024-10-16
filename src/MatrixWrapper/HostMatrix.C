@@ -300,12 +300,8 @@ HostMatrixWrapper::create_communication_pattern() const
                     neighbProcNo,
                     std::vector<label>(face_cells.begin(), face_cells.end())});
             } else {
-                FatalErrorInFunction
-                    << " Currently only unique neighbour ranks are supported "
-                    << " Neighbor processor " << neighbProcNo
-                    << " observed twice" << exit(FatalError);
-                // auto &vec = search->second;
-                // vec.insert(vec.end(), face_cells.begin(), face_cells.end());
+                std::vector<label>& neighbour_cells = interface_cell_map[neighbProcNo];
+                neighbour_cells.insert(neighbour_cells.end(), face_cells.begin(), face_cells.end());
             }
         });
 
