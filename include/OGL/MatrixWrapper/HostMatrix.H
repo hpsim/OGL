@@ -19,6 +19,25 @@
 
 namespace Foam {
 
+struct interface_locality {
+    interface_locality(label interface_id_, label col_, label row_, label rank_,
+                       label local_nnz_ctr_, label non_local_nnz_ctr_)
+        : interface_id(interface_id_),
+          col(col_),
+          row(row_),
+          rank(rank_),
+          local_nnz_ctr(local_nnz_ctr_),
+          non_local_nnz_ctr(non_local_nnz_ctr_)
+    {}
+
+    label interface_id;       //! patchid
+    label col;                //! col in other side local idx
+    label row;                //! row in local idx
+    label rank;               //! target rank, ie rank on which col is local row
+    label local_nnz_ctr;      //!
+    label non_local_nnz_ctr;  //!
+};
+
 // Free functions
 const lduInterfaceField *interface_getter(
     const lduInterfaceFieldPtrsList &interfaces, const label i);
@@ -150,14 +169,13 @@ private:
     /** Iterates all interfaces and collect the corresponding cell id (row)
     ** and a unique counter
     **
-    ** @return vector of size nnz_non_local, with a running index, row
+    ** @return a vector of size interface nnz, with a running index, row
     ** index, the column index, and the corresponding target rank
     ** sections for each interface
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    [[nodiscard]] std::vector<std::tuple<label, label, label, label>>
-    collect_cells_on_non_local_interface(
+    [[nodiscard]] std::vector<interface_locality> collect_cells_on_interfaces(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
 public:
