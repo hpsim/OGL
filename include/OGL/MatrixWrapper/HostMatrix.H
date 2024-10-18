@@ -156,7 +156,8 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    [[nodiscard]] std::vector<std::tuple<label, label, label, label>>
+    [[nodiscard]] std::pair<label,
+                            std::vector<std::tuple<label, label, label, label>>>
     collect_cells_on_non_local_interface(
         const lduInterfaceFieldPtrsList &interfaces) const;
 

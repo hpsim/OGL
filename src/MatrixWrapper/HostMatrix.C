@@ -251,6 +251,28 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
     }
 }
 
+template <class Sel, class Func>
+void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
+{
+    label element_ctr = 0;
+    label interface_ctr = 0;
+
+    for (label i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+        const auto iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (isA<Sel>(iface->interface())) {
+            const Sel &patch = refCast<const Sel>(iface->interface());
+            func(element_ctr, interface_ctr, interface_size, patch, iface);
+            interface_ctr++;
+        }
+    }
+}
+
 
 /** Same as interface_iterator but checks if is *NOT* Sel
  */
@@ -316,119 +338,132 @@ HostMatrixWrapper::create_communication_pattern() const
 }
 
 
-template <typename PatchType>
-void collect_local_interface_indices_impl(
-    label &element_ctr, const lduInterfaceField *iface,
-    const lduAddressing &addr,
-    std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-{
-    if (isA<PatchType>(iface->interface())) {
-        const PatchType &patch = refCast<const PatchType>(iface->interface());
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-#ifdef WITH_ESI_VERSION
-        const label neighbPatchId = patch.neighbPatchID();
-#else
-        const label neighbPatchId = patch.nbrPatchID();
-#endif
-        const labelUList &cols = addr.patchAddr(neighbPatchId);
-        for (label cellI = 0; cellI < interface_size; cellI++) {
-            local_interface_idxs.push_back(
-                {element_ctr, face_cells[cellI], cols[cellI]});
-            element_ctr += 1;
-        }
-    }
-}
+// template <typename PatchType>
+// void collect_local_interface_indices_impl(
+//     label &element_ctr, const lduInterfaceField *iface,
+//     const lduAddressing &addr,
+//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
+// {
+//     if (isA<PatchType>(iface->interface())) {
+//         const PatchType &patch = refCast<const PatchType>(iface->interface());
+//         const auto &face_cells{iface->interface().faceCells()};
+//         const label interface_size = face_cells.size();
+// #ifdef WITH_ESI_VERSION
+//         const label neighbPatchId = patch.neighbPatchID();
+// #else
+//         const label neighbPatchId = patch.nbrPatchID();
+// #endif
+//         const labelUList &cols = addr.patchAddr(neighbPatchId);
+//         for (label cellI = 0; cellI < interface_size; cellI++) {
+//             local_interface_idxs.push_back(
+//                 {element_ctr, face_cells[cellI], cols[cellI]});
+//             element_ctr += 1;
+//         }
+//     }
+// }
 
-void collect_local_interface_indices_impl_cyclicAMIFvPatch(
-    label &element_ctr, const lduInterfaceField *iface,
-    const lduAddressing &addr,
-    std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-{
-    if (isA<cyclicAMIFvPatch>(iface->interface())) {
-        FatalErrorInFunction
-            << "Currently unsupported CyclicAMIFvPatch detected"
-            << exit(FatalError);
-        const cyclicAMIFvPatch &patch =
-            refCast<const cyclicAMIFvPatch>(iface->interface());
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-#ifdef WITH_ESI_VERSION
-        const label neighbPatchId = patch.cyclicAMIPatch().neighbPatchID();
-#else
-        const label neighbPatchId = patch.cyclicAMIPatch().nbrPatchID();
-#endif
-        const labelUList &cols = addr.patchAddr(neighbPatchId);
-        for (label cellI = 0; cellI < interface_size; cellI++) {
-            local_interface_idxs.push_back(
-                {element_ctr, face_cells[cellI], cols[cellI]});
-            element_ctr += 1;
-        }
-    }
-}
+// void collect_local_interface_indices_impl_cyclicAMIFvPatch(
+//     label &element_ctr, const lduInterfaceField *iface,
+//     const lduAddressing &addr,
+//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
+// {
+//     if (isA<cyclicAMIFvPatch>(iface->interface())) {
+//         FatalErrorInFunction
+//             << "Currently unsupported CyclicAMIFvPatch detected"
+//             << exit(FatalError);
+//         const cyclicAMIFvPatch &patch =
+//             refCast<const cyclicAMIFvPatch>(iface->interface());
+//         const auto &face_cells{iface->interface().faceCells()};
+//         const label interface_size = face_cells.size();
+// #ifdef WITH_ESI_VERSION
+//         const label neighbPatchId = patch.cyclicAMIPatch().neighbPatchID();
+// #else
+//         const label neighbPatchId = patch.cyclicAMIPatch().nbrPatchID();
+// #endif
+//         const labelUList &cols = addr.patchAddr(neighbPatchId);
+//         for (label cellI = 0; cellI < interface_size; cellI++) {
+//             local_interface_idxs.push_back(
+//                 {element_ctr, face_cells[cellI], cols[cellI]});
+//             element_ctr += 1;
+//         }
+//     }
+// }
 
-#ifdef WITH_ESI_VERSION
-void collect_local_interface_indices_impl_cyclicACMIFvPatch(
-    label &element_ctr, const lduInterfaceField *iface,
-    const lduAddressing &addr,
-    std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-{
-    if (isA<cyclicACMIFvPatch>(iface->interface())) {
-        FatalErrorInFunction
-            << "Currently unsupported CyclicACMIFvPatch detected"
-            << exit(FatalError);
-        const cyclicACMIFvPatch &patch =
-            refCast<const cyclicACMIFvPatch>(iface->interface());
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-        const labelUList &cols =
-            addr.patchAddr(patch.cyclicACMIPatch().neighbPatchID());
-        for (label cellI = 0; cellI < interface_size; cellI++) {
-            local_interface_idxs.push_back(
-                {element_ctr, face_cells[cellI], cols[cellI]});
-            element_ctr += 1;
-        }
-    }
-}
-#endif
+// #ifdef WITH_ESI_VERSION
+// void collect_local_interface_indices_impl_cyclicACMIFvPatch(
+//     label &element_ctr, const lduInterfaceField *iface,
+//     const lduAddressing &addr,
+//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
+// {
+//     if (isA<cyclicACMIFvPatch>(iface->interface())) {
+//         FatalErrorInFunction
+//             << "Currently unsupported CyclicACMIFvPatch detected"
+//             << exit(FatalError);
+//         const cyclicACMIFvPatch &patch =
+//             refCast<const cyclicACMIFvPatch>(iface->interface());
+//         const auto &face_cells{iface->interface().faceCells()};
+//         const label interface_size = face_cells.size();
+//         const labelUList &cols =
+//             addr.patchAddr(patch.cyclicACMIPatch().neighbPatchID());
+//         for (label cellI = 0; cellI < interface_size; cellI++) {
+//             local_interface_idxs.push_back(
+//                 {element_ctr, face_cells[cellI], cols[cellI]});
+//             element_ctr += 1;
+//         }
+//     }
+// }
+// #endif
 
-std::vector<std::tuple<label, label, label>>
-HostMatrixWrapper::collect_local_interface_indices(
-    const lduInterfaceFieldPtrsList &interfaces) const
-{
-    std::vector<std::tuple<label, label, label>> local_interface_idxs{};
-    local_interface_idxs.reserve(local_interface_nnz_);
+// std::vector<std::tuple<label, label, label>>
+// HostMatrixWrapper::collect_local_interface_indices(
+//     const lduInterfaceFieldPtrsList &interfaces) const
+// {
+//     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
+//     local_interface_idxs.reserve(local_interface_nnz_);
 
-    neg_interface_iterator<processorFvPatch>(
-        interfaces,
-        [&](label &element_ctr, [[maybe_unused]] const label interface_size,
-            const lduInterfaceField *iface) {
-            // check whether interface is either an cyclicFvPatch,
-            // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
-            // indices
-            collect_local_interface_indices_impl<cyclicFvPatch>(
-                element_ctr, iface, addr_, local_interface_idxs);
-            collect_local_interface_indices_impl_cyclicAMIFvPatch(
-                element_ctr, iface, addr_, local_interface_idxs);
-#ifdef WITH_ESI_VERSION
-            collect_local_interface_indices_impl_cyclicACMIFvPatch(
-                element_ctr, iface, addr_, local_interface_idxs);
-#endif
-        });
-    return local_interface_idxs;
-}
+//     neg_interface_iterator<processorFvPatch>(
+//         interfaces,
+//         [&](label &element_ctr, [[maybe_unused]] const label interface_size,
+//             const lduInterfaceField *iface) {
+//             // check whether interface is either an cyclicFvPatch,
+//             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
+//             // indices
+//             collect_local_interface_indices_impl<cyclicFvPatch>(
+//                 element_ctr, iface, addr_, local_interface_idxs);
+//             collect_local_interface_indices_impl_cyclicAMIFvPatch(
+//                 element_ctr, iface, addr_, local_interface_idxs);
+// #ifdef WITH_ESI_VERSION
+//             collect_local_interface_indices_impl_cyclicACMIFvPatch(
+//                 element_ctr, iface, addr_, local_interface_idxs);
+// #endif
+//         });
+//     return local_interface_idxs;
+// }
 
-std::vector<std::tuple<label, label, label, label>>
-HostMatrixWrapper::collect_cells_on_non_local_interface(
+std::pair< label,
+std::vector<std::tuple<label, label, label, label>>>
+HostMatrixWrapper::collect_cells_on_interfaces(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
-    std::vector<std::tuple<label, label, label, label>> non_local_idxs{};
-    non_local_idxs.reserve(non_local_matrix_nnz_);
-    interface_iterator<processorFvPatch>(
-        interfaces,
-        [&](label, label interface_id, label interface_size,
-            const processorLduInterface &, const lduInterfaceField *iface) {
+    std::vector<std::tuple<label, label, label, label>> interface_idxs{};
+    label interface_nnz = non_local_matrix_nnz_ + local_interface_nnz_;
+    interface_idxs.reserve(interface_nnz);
+    auto rank = get_exec_handler().get_rank();
+
+    label element_ctr = 0;
+    label interface_ctr = 0;
+
+    for (label i = 0; i < interfaces.size(); i++) {
+        if (interface_getter(interfaces, i) == nullptr) {
+            continue;
+        }
+        const auto iface{interface_getter(interfaces, i)};
+        const auto &face_cells{iface->interface().faceCells()};
+        const label interface_size = face_cells.size();
+
+        if (isA<processorFvPatch>(iface->interface())) {
+            const Sel &patch = refCast<const Sel>(iface->interface());
             const auto &face_cells{iface->interface().faceCells()};
 
             const processorLduInterface &pldui =
@@ -442,23 +477,41 @@ HostMatrixWrapper::collect_cells_on_non_local_interface(
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 auto local_row = face_cells[cellI];
                 auto col = otherSide_tmp()[cellI];
-                non_local_idxs.push_back(
+                interface_idxs.push_back(
                     {interface_id, col, local_row, neighbProcNo});
-            }
-        });
+
+            interface_ctr++;
+        }
+        }
+        if (isA<cyclicFvPatch>(iface->interface())) {
+            const PatchType &patch = refCast<const PatchType>(iface->interface());
+            const auto &face_cells{iface->interface().faceCells()};
+            const label interface_size = face_cells.size();
+    #ifdef WITH_ESI_VERSION
+            const label neighbPatchId = patch.neighbPatchID();
+    #else
+            const label neighbPatchId = patch.nbrPatchID();
+    #endif
+            const labelUList &cols = addr.patchAddr(neighbPatchId);
+
+            interface_idxs.push_back(
+                    {interface_id, faceCells[cellI], local_row, rank});
+
+        }
+    }
 
     word msg = "done collecting neighbouring processor cell id";
     LOG_2(verbose_, msg)
-    return non_local_idxs;
+    return {interface_nnz, interface_idxs};
 }
 
 std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
-    auto non_local_indices = collect_cells_on_non_local_interface(interfaces_);
-    std::vector<label> rows_vec(non_local_matrix_nnz_);
-    std::vector<label> cols_vec(non_local_matrix_nnz_);
-    std::vector<label> mapping_vec(non_local_matrix_nnz_);
+    auto [total_interface_nnz, non_local_indices] = collect_cells_on_interface(interfaces_);
+    std::vector<label> rows_vec(total_interface_nnz);
+    std::vector<label> cols_vec(total_interface_nnz);
+    std::vector<label> mapping_vec(total_interface_nnz);
     std::vector<gko::span> spans{};
 
     auto rows = rows_vec.data();
@@ -486,6 +539,50 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         element_ctr++;
     }
     spans.emplace_back(end, non_local_indices.size());
+
+    // // Add local_interfaces here
+    // if (local_interface_nnz_) {
+    //     // NOTE currently, this copies the interface indizes first to a vector
+    //     // of tuples before inserting it into the persistent arrays. We could
+    //     // remove the unnecessary copy via the vector of tuples and
+    //     // let collect_local_interface_indices_impl write directly to rows,
+    //     // cols, permute etc
+    //     auto local_interfaces = collect_local_interface_indices(interfaces_);
+
+    //     label local_interface_ctr{0};
+    //     for (label i = local_matrix_nnz_; i < local_matrix_w_interfaces_nnz_;
+    //          ++i) {
+    //         auto [interface_idx, interface_row, interface_col] =
+    //             local_interfaces[local_interface_ctr];
+    //         rows[i] = interface_row;
+    //         cols[i] = interface_col;
+    //         // if interfaces are treated separately we don't need to permute
+    //         // interface values
+    //         permute[i] = i;
+    //         local_interface_ctr++;
+    //     }
+
+    //     // TODO merge with above
+    //     local_interface_ctr = 0;
+    //     label prev_interface_idx{0};
+    //     label end{0};
+    //     label start{local_matrix_nnz_};
+    //     for (auto [interface_idx, interface_row, interface_col] :
+    //          local_interfaces) {
+    //         // check if a new interface has started or final interface has been
+    //         // reache
+    //         if (interface_idx > prev_interface_idx ||
+    //             static_cast<size_t>(local_interface_ctr + 1) ==
+    //                 local_interfaces.size()) {
+    //             end = start + local_interface_ctr;
+    //             local_interface_ctr = 0;
+    //             spans.emplace_back(start, end);
+    //             start = end;
+    //             prev_interface_idx = interface_idx;
+    //         }
+    //         local_interface_ctr++;
+    //     }
+    // }
 
     gko::dim<2> dim{static_cast<gko::size_type>(nrows_),
                     static_cast<gko::size_type>(non_local_matrix_nnz_)};
@@ -536,48 +633,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // of the interfaces to end of the col and row idx arrays. This will produce
     // idx = [d_1, u_1, l_2, d_2, u_2, ... d_n, i_11, i_12, .., i_nn] where
     // i_j,k j=interface index and k cell index on the interface
-    if (local_interface_nnz_) {
-        // NOTE currently, this copies the interface indizes first to a vector
-        // of tuples before inserting it into the persistent arrays. We could
-        // remove the unnecessary copy via the vector of tuples and
-        // let collect_local_interface_indices_impl write directly to rows,
-        // cols, permute etc
-        auto local_interfaces = collect_local_interface_indices(interfaces_);
-
-        label local_interface_ctr{0};
-        for (label i = local_matrix_nnz_; i < local_matrix_w_interfaces_nnz_;
-             ++i) {
-            auto [interface_idx, interface_row, interface_col] =
-                local_interfaces[local_interface_ctr];
-            rows[i] = interface_row;
-            cols[i] = interface_col;
-            // if interfaces are treated separately we don't need to permute
-            // interface values
-            permute[i] = i;
-            local_interface_ctr++;
-        }
-
-        // TODO merge with above
-        local_interface_ctr = 0;
-        label prev_interface_idx{0};
-        label end{0};
-        label start{local_matrix_nnz_};
-        for (auto [interface_idx, interface_row, interface_col] :
-             local_interfaces) {
-            // check if a new interface has started or final interface has been
-            // reache
-            if (interface_idx > prev_interface_idx ||
-                static_cast<size_t>(local_interface_ctr + 1) ==
-                    local_interfaces.size()) {
-                end = start + local_interface_ctr;
-                local_interface_ctr = 0;
-                spans.emplace_back(start, end);
-                start = end;
-                prev_interface_idx = interface_idx;
-            }
-            local_interface_ctr++;
-        }
-    }
 
     LOG_1(verbose_, "done init host sparsity pattern")
     return std::make_shared<SparsityPattern>(
