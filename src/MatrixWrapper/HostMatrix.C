@@ -300,8 +300,10 @@ HostMatrixWrapper::create_communication_pattern() const
                     neighbProcNo,
                     std::vector<label>(face_cells.begin(), face_cells.end())});
             } else {
-                std::vector<label>& neighbour_cells = interface_cell_map[neighbProcNo];
-                neighbour_cells.insert(neighbour_cells.end(), face_cells.begin(), face_cells.end());
+                std::vector<label> &neighbour_cells =
+                    interface_cell_map[neighbProcNo];
+                neighbour_cells.insert(neighbour_cells.end(),
+                                       face_cells.begin(), face_cells.end());
             }
         });
 
@@ -323,9 +325,10 @@ HostMatrixWrapper::create_communication_pattern() const
 //     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
 // {
 //     if (isA<PatchType>(iface->interface())) {
-//         const PatchType &patch = refCast<const PatchType>(iface->interface());
-//         const auto &face_cells{iface->interface().faceCells()};
-//         const label interface_size = face_cells.size();
+//         const PatchType &patch = refCast<const
+//         PatchType>(iface->interface()); const auto
+//         &face_cells{iface->interface().faceCells()}; const label
+//         interface_size = face_cells.size();
 // #ifdef WITH_ESI_VERSION
 //         const label neighbPatchId = patch.neighbPatchID();
 // #else
@@ -404,7 +407,8 @@ HostMatrixWrapper::create_communication_pattern() const
 //         [&](label &element_ctr, [[maybe_unused]] const label interface_size,
 //             const lduInterfaceField *iface) {
 //             // check whether interface is either an cyclicFvPatch,
-//             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local interface
+//             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local
+//             interface
 //             // indices
 //             collect_local_interface_indices_impl<cyclicFvPatch>(
 //                 element_ctr, iface, addr_, local_interface_idxs);
@@ -418,8 +422,7 @@ HostMatrixWrapper::create_communication_pattern() const
 //     return local_interface_idxs;
 // }
 
-std::vector<interface_locality>
-HostMatrixWrapper::collect_cells_on_interfaces(
+std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
@@ -441,7 +444,8 @@ HostMatrixWrapper::collect_cells_on_interfaces(
         const label interface_size = face_cells.size();
 
         if (isA<processorFvPatch>(iface->interface())) {
-            const auto &patch = refCast<const processorFvPatch>(iface->interface());
+            const auto &patch =
+                refCast<const processorFvPatch>(iface->interface());
             const auto &face_cells{iface->interface().faceCells()};
 
             const processorLduInterface &pldui =
@@ -455,26 +459,29 @@ HostMatrixWrapper::collect_cells_on_interfaces(
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 auto local_row = face_cells[cellI];
                 auto col = otherSide_tmp()[cellI];
-                interface_idxs.emplace_back(
-                    interface_id, col, local_row, neighbProcNo, local_ctr, interface_ctr);
+                interface_idxs.emplace_back(interface_id, col, local_row,
+                                            neighbProcNo, local_ctr,
+                                            interface_ctr);
 
-            interface_ctr++;
-        }
+                interface_ctr++;
+            }
         }
         if (isA<cyclicFvPatch>(iface->interface())) {
-            const cyclicFvPatch &patch = refCast<const cyclicFvPatch>(iface->interface());
+            const cyclicFvPatch &patch =
+                refCast<const cyclicFvPatch>(iface->interface());
             const auto &face_cells{iface->interface().faceCells()};
             const label interface_size = face_cells.size();
-    #ifdef WITH_ESI_VERSION
+#ifdef WITH_ESI_VERSION
             const label neighbPatchId = patch.neighbPatchID();
-    #else
+#else
             const label neighbPatchId = patch.nbrPatchID();
-    #endif
+#endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
 
             for (label cellI = 0; cellI < interface_size; cellI++) {
-                interface_idxs.emplace_back(
-                        interface_id, cols[cellI], face_cells[cellI], rank, local_ctr, interface_ctr);
+                interface_idxs.emplace_back(interface_id, cols[cellI],
+                                            face_cells[cellI], rank, local_ctr,
+                                            interface_ctr);
             }
 
             local_ctr++;
@@ -507,7 +514,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     size_t element_ctr = 0;
     // label interface_ctr{0};
 
-    for (auto [interface_idx, col, row, rank, local_nnz_ctr, non_local_nnz_ctr] : interface_loc_vec) {
+    for (auto [interface_idx, col, row, rank, local_nnz_ctr,
+               non_local_nnz_ctr] : interface_loc_vec) {
         rows[element_ctr] = row;
         cols[element_ctr] = col;
         permute[element_ctr] = element_ctr;
@@ -525,7 +533,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
 
     // // Add local_interfaces here
     // if (local_interface_nnz_) {
-    //     // NOTE currently, this copies the interface indizes first to a vector
+    //     // NOTE currently, this copies the interface indizes first to a
+    //     vector
     //     // of tuples before inserting it into the persistent arrays. We could
     //     // remove the unnecessary copy via the vector of tuples and
     //     // let collect_local_interface_indices_impl write directly to rows,
@@ -552,7 +561,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     //     label start{local_matrix_nnz_};
     //     for (auto [interface_idx, interface_row, interface_col] :
     //          local_interfaces) {
-    //         // check if a new interface has started or final interface has been
+    //         // check if a new interface has started or final interface has
+    //         been
     //         // reache
     //         if (interface_idx > prev_interface_idx ||
     //             static_cast<size_t>(local_interface_ctr + 1) ==
