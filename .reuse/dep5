@@ -7,6 +7,10 @@ Files: .github/workflows/test_matrix.json
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
+Files: test/validate.py
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
 Files: common/.common.H.swo
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later

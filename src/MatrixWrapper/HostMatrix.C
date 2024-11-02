@@ -318,110 +318,6 @@ HostMatrixWrapper::create_communication_pattern() const
 }
 
 
-// template <typename PatchType>
-// void collect_local_interface_indices_impl(
-//     label &element_ctr, const lduInterfaceField *iface,
-//     const lduAddressing &addr,
-//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-// {
-//     if (isA<PatchType>(iface->interface())) {
-//         const PatchType &patch = refCast<const
-//         PatchType>(iface->interface()); const auto
-//         &face_cells{iface->interface().faceCells()}; const label
-//         interface_size = face_cells.size();
-// #ifdef WITH_ESI_VERSION
-//         const label neighbPatchId = patch.neighbPatchID();
-// #else
-//         const label neighbPatchId = patch.nbrPatchID();
-// #endif
-//         const labelUList &cols = addr.patchAddr(neighbPatchId);
-//         for (label cellI = 0; cellI < interface_size; cellI++) {
-//             local_interface_idxs.push_back(
-//                 {element_ctr, face_cells[cellI], cols[cellI]});
-//             element_ctr += 1;
-//         }
-//     }
-// }
-
-// void collect_local_interface_indices_impl_cyclicAMIFvPatch(
-//     label &element_ctr, const lduInterfaceField *iface,
-//     const lduAddressing &addr,
-//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-// {
-//     if (isA<cyclicAMIFvPatch>(iface->interface())) {
-//         FatalErrorInFunction
-//             << "Currently unsupported CyclicAMIFvPatch detected"
-//             << exit(FatalError);
-//         const cyclicAMIFvPatch &patch =
-//             refCast<const cyclicAMIFvPatch>(iface->interface());
-//         const auto &face_cells{iface->interface().faceCells()};
-//         const label interface_size = face_cells.size();
-// #ifdef WITH_ESI_VERSION
-//         const label neighbPatchId = patch.cyclicAMIPatch().neighbPatchID();
-// #else
-//         const label neighbPatchId = patch.cyclicAMIPatch().nbrPatchID();
-// #endif
-//         const labelUList &cols = addr.patchAddr(neighbPatchId);
-//         for (label cellI = 0; cellI < interface_size; cellI++) {
-//             local_interface_idxs.push_back(
-//                 {element_ctr, face_cells[cellI], cols[cellI]});
-//             element_ctr += 1;
-//         }
-//     }
-// }
-
-// #ifdef WITH_ESI_VERSION
-// void collect_local_interface_indices_impl_cyclicACMIFvPatch(
-//     label &element_ctr, const lduInterfaceField *iface,
-//     const lduAddressing &addr,
-//     std::vector<std::tuple<label, label, label>> &local_interface_idxs)
-// {
-//     if (isA<cyclicACMIFvPatch>(iface->interface())) {
-//         FatalErrorInFunction
-//             << "Currently unsupported CyclicACMIFvPatch detected"
-//             << exit(FatalError);
-//         const cyclicACMIFvPatch &patch =
-//             refCast<const cyclicACMIFvPatch>(iface->interface());
-//         const auto &face_cells{iface->interface().faceCells()};
-//         const label interface_size = face_cells.size();
-//         const labelUList &cols =
-//             addr.patchAddr(patch.cyclicACMIPatch().neighbPatchID());
-//         for (label cellI = 0; cellI < interface_size; cellI++) {
-//             local_interface_idxs.push_back(
-//                 {element_ctr, face_cells[cellI], cols[cellI]});
-//             element_ctr += 1;
-//         }
-//     }
-// }
-// #endif
-
-// std::vector<std::tuple<label, label, label>>
-// HostMatrixWrapper::collect_local_interface_indices(
-//     const lduInterfaceFieldPtrsList &interfaces) const
-// {
-//     std::vector<std::tuple<label, label, label>> local_interface_idxs{};
-//     local_interface_idxs.reserve(local_interface_nnz_);
-
-//     neg_interface_iterator<processorFvPatch>(
-//         interfaces,
-//         [&](label &element_ctr, [[maybe_unused]] const label interface_size,
-//             const lduInterfaceField *iface) {
-//             // check whether interface is either an cyclicFvPatch,
-//             // cyclicAMIFvPatch or cyclicACMIFvPatch and collect local
-//             interface
-//             // indices
-//             collect_local_interface_indices_impl<cyclicFvPatch>(
-//                 element_ctr, iface, addr_, local_interface_idxs);
-//             collect_local_interface_indices_impl_cyclicAMIFvPatch(
-//                 element_ctr, iface, addr_, local_interface_idxs);
-// #ifdef WITH_ESI_VERSION
-//             collect_local_interface_indices_impl_cyclicACMIFvPatch(
-//                 element_ctr, iface, addr_, local_interface_idxs);
-// #endif
-//         });
-//     return local_interface_idxs;
-// }
-
 std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
@@ -529,7 +425,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         }
         element_ctr++;
     }
-    spans.emplace_back(end, total_interface_nnz);
+    spans.emplace_back(start, element_ctr);
 
     // // Add local_interfaces here
     // if (local_interface_nnz_) {
