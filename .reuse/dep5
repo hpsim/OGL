@@ -43,7 +43,11 @@ Files: .pre-commit-config.yaml
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
-Files: unitTests/case/*
+Files: unitTests/l2d/**
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
+Files: unitTests/p2d/**
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 

@@ -7,14 +7,36 @@ option(INSTALL_GTEST "Enable installation of googletest.\
 include(FetchContent)
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip)
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 find_package(MPI REQUIRED)
 
-macro(ogl_unit_test TEST FILE)
-  add_executable(${TEST} ${FILE})
+# genrate unit test based on a test case
+macro(ogl_unit_test_case TEST CASE)
+  add_executable(${TEST}_${CASE} ${TEST}_${CASE}.cpp)
+  target_link_libraries(
+    ${TEST}_${CASE}
+    OpenFOAM
+    GTest::gtest_main
+    GTest::gtest
+    GTest::gmock
+    OGL
+    Ginkgo::ginkgo
+    ginkgo_device
+    ginkgo_hip
+    ginkgo_reference
+    ${CMAKE_DL_LIBS})
+
+  add_test(
+    NAME ${TEST}_${CASE}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/unitTests/${CASE}
+    COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/${TEST}_${CASE} -parallel)
+endmacro()
+
+# genrate default unit test
+macro(ogl_unit_test TEST)
+  add_executable(${TEST} ${TEST}.cpp)
   target_link_libraries(
     ${TEST}
     OpenFOAM
@@ -30,12 +52,12 @@ macro(ogl_unit_test TEST FILE)
 
   add_test(
     NAME ${TEST}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/unitTests/case
-    COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/${TEST} -parallel)
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${TEST})
 endmacro()
 
-ogl_unit_test(CommunicationPattern "CommunicationPattern.C")
-ogl_unit_test(Repartitioner "Repartitioner1D.C")
-ogl_unit_test(Repartitioner2D "Repartitioner2D.C")
+ogl_unit_test_case(CommunicationPattern l2d)
+ogl_unit_test_case(Repartitioner1D l2d)
+ogl_unit_test_case(Repartitioner2D l2d)
 
 add_subdirectory(MatrixWrapper)

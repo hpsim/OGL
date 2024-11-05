@@ -1,0 +1,87 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2406                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    arch        "LSB;label=32;scalar=64";
+    class       polyBoundaryMesh;
+    location    "constant/polyMesh";
+    object      boundary;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+7
+(
+    movingWall
+    {
+        type            wall;
+        inGroups        1(wall);
+        nFaces          6;
+        startFace       10;
+    }
+    fixedWalls
+    {
+        type            wall;
+        inGroups        1(wall);
+        nFaces          0;
+        startFace       16;
+    }
+    side1
+    {
+        type            cyclic;
+        inGroups        1(cyclic);
+        nFaces          1;
+        startFace       16;
+        matchTolerance  0.0001;
+        transform       unknown;
+        neighbourPatch  side2;
+    }
+    side2
+    {
+        type            cyclic;
+        inGroups        1(cyclic);
+        nFaces          1;
+        startFace       17;
+        matchTolerance  0.0001;
+        transform       unknown;
+        neighbourPatch  side1;
+    }
+    frontAndBack
+    {
+        type            empty;
+        inGroups        1(empty);
+        nFaces          18;
+        startFace       18;
+    }
+    procBoundary3to2
+    {
+        type            processor;
+        inGroups        1(processor);
+        nFaces          7;
+        startFace       36;
+        matchTolerance  0.0001;
+        transform       unknown;
+        myProcNo        3;
+        neighbProcNo    2;
+    }
+    procBoundary3to2throughside1
+    {
+        type            processorCyclic;
+        inGroups        1(processorCyclic);
+        nFaces          1;
+        startFace       43;
+        matchTolerance  0.0001;
+        transform       unknown;
+        myProcNo        3;
+        neighbProcNo    2;
+        referPatch      side1;
+    }
+)
+
+// ************************************************************************* //
