@@ -426,52 +426,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     }
     spans.emplace_back(start, element_ctr);
 
-    // // Add local_interfaces here
-    // if (local_interface_nnz_) {
-    //     // NOTE currently, this copies the interface indizes first to a
-    //     vector
-    //     // of tuples before inserting it into the persistent arrays. We could
-    //     // remove the unnecessary copy via the vector of tuples and
-    //     // let collect_local_interface_indices_impl write directly to rows,
-    //     // cols, permute etc
-    //     auto local_interfaces = collect_local_interface_indices(interfaces_);
-
-    //     label local_interface_ctr{0};
-    //     for (label i = local_matrix_nnz_; i < local_matrix_w_interfaces_nnz_;
-    //          ++i) {
-    //         auto [interface_idx, interface_row, interface_col] =
-    //             local_interfaces[local_interface_ctr];
-    //         rows[i] = interface_row;
-    //         cols[i] = interface_col;
-    //         // if interfaces are treated separately we don't need to permute
-    //         // interface values
-    //         permute[i] = i;
-    //         local_interface_ctr++;
-    //     }
-
-    //     // TODO merge with above
-    //     local_interface_ctr = 0;
-    //     label prev_interface_idx{0};
-    //     label end{0};
-    //     label start{local_matrix_nnz_};
-    //     for (auto [interface_idx, interface_row, interface_col] :
-    //          local_interfaces) {
-    //         // check if a new interface has started or final interface has
-    //         been
-    //         // reache
-    //         if (interface_idx > prev_interface_idx ||
-    //             static_cast<size_t>(local_interface_ctr + 1) ==
-    //                 local_interfaces.size()) {
-    //             end = start + local_interface_ctr;
-    //             local_interface_ctr = 0;
-    //             spans.emplace_back(start, end);
-    //             start = end;
-    //             prev_interface_idx = interface_idx;
-    //         }
-    //         local_interface_ctr++;
-    //     }
-    // }
-
     gko::dim<2> dim{static_cast<gko::size_type>(nrows_),
                     static_cast<gko::size_type>(non_local_matrix_nnz_)};
     return std::make_shared<SparsityPattern>(exec->get_master(), dim, rows_vec,
