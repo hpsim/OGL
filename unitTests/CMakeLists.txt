@@ -12,7 +12,7 @@ FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 find_package(MPI REQUIRED)
 
-# genrate unit test based on a test case
+# generate unit test based on a test case
 macro(ogl_unit_test_case TEST CASE)
   add_executable(${TEST}_${CASE} ${TEST}_${CASE}.cpp)
   target_link_libraries(
@@ -34,7 +34,7 @@ macro(ogl_unit_test_case TEST CASE)
     COMMAND mpirun -np 4 ${CMAKE_CURRENT_BINARY_DIR}/${TEST}_${CASE} -parallel)
 endmacro()
 
-# genrate default unit test
+# generate default unit test
 macro(ogl_unit_test TEST)
   add_executable(${TEST} ${TEST}.cpp)
   target_link_libraries(
