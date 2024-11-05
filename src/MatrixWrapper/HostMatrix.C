@@ -394,7 +394,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
     auto interface_loc_vec = collect_cells_on_interfaces(interfaces_);
-    label total_interface_nnz = interface_loc_vec.back().non_local_nnz_ctr;
+    label total_interface_nnz = interface_loc_vec.back().non_local_nnz_ctr + 1;
     std::vector<label> rows_vec(total_interface_nnz);
     std::vector<label> cols_vec(total_interface_nnz);
     std::vector<label> mapping_vec(total_interface_nnz);
@@ -408,7 +408,6 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     label start{0};
 
     size_t element_ctr = 0;
-    // label interface_ctr{0};
 
     for (auto [interface_idx, col, row, rank, local_nnz_ctr,
                non_local_nnz_ctr] : interface_loc_vec) {
