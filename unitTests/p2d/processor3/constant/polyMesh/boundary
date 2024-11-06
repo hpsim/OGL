@@ -16,28 +16,28 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-7
+6
 (
     movingWall
     {
         type            wall;
         inGroups        1(wall);
-        nFaces          6;
-        startFace       10;
+        nFaces          8;
+        startFace       7;
     }
     fixedWalls
     {
         type            wall;
         inGroups        1(wall);
         nFaces          0;
-        startFace       16;
+        startFace       15;
     }
     side1
     {
         type            cyclic;
         inGroups        1(cyclic);
         nFaces          1;
-        startFace       16;
+        startFace       15;
         matchTolerance  0.0001;
         transform       unknown;
         neighbourPatch  side2;
@@ -47,7 +47,7 @@ FoamFile
         type            cyclic;
         inGroups        1(cyclic);
         nFaces          1;
-        startFace       17;
+        startFace       16;
         matchTolerance  0.0001;
         transform       unknown;
         neighbourPatch  side1;
@@ -56,31 +56,19 @@ FoamFile
     {
         type            empty;
         inGroups        1(empty);
-        nFaces          18;
-        startFace       18;
+        nFaces          16;
+        startFace       17;
     }
     procBoundary3to2
     {
         type            processor;
         inGroups        1(processor);
-        nFaces          7;
-        startFace       36;
+        nFaces          8;
+        startFace       33;
         matchTolerance  0.0001;
         transform       unknown;
         myProcNo        3;
         neighbProcNo    2;
-    }
-    procBoundary3to2throughside1
-    {
-        type            processorCyclic;
-        inGroups        1(processorCyclic);
-        nFaces          1;
-        startFace       43;
-        matchTolerance  0.0001;
-        transform       unknown;
-        myProcNo        3;
-        neighbProcNo    2;
-        referPatch      side1;
     }
 )
 

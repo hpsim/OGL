@@ -16,28 +16,28 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-8
+7
 (
     movingWall
     {
         type            wall;
         inGroups        1(wall);
         nFaces          0;
-        startFace       10;
+        startFace       7;
     }
     fixedWalls
     {
         type            wall;
         inGroups        1(wall);
         nFaces          0;
-        startFace       10;
+        startFace       7;
     }
     side1
     {
         type            cyclic;
         inGroups        1(cyclic);
         nFaces          1;
-        startFace       10;
+        startFace       7;
         matchTolerance  0.0001;
         transform       unknown;
         neighbourPatch  side2;
@@ -47,7 +47,7 @@ FoamFile
         type            cyclic;
         inGroups        1(cyclic);
         nFaces          1;
-        startFace       11;
+        startFace       8;
         matchTolerance  0.0001;
         transform       unknown;
         neighbourPatch  side1;
@@ -56,38 +56,26 @@ FoamFile
     {
         type            empty;
         inGroups        1(empty);
-        nFaces          18;
-        startFace       12;
+        nFaces          16;
+        startFace       9;
     }
     procBoundary1to0
     {
         type            processor;
         inGroups        1(processor);
-        nFaces          7;
-        startFace       30;
+        nFaces          8;
+        startFace       25;
         matchTolerance  0.0001;
         transform       unknown;
         myProcNo        1;
         neighbProcNo    0;
-    }
-    procBoundary1to0throughside1
-    {
-        type            processorCyclic;
-        inGroups        1(processorCyclic);
-        nFaces          1;
-        startFace       37;
-        matchTolerance  0.0001;
-        transform       unknown;
-        myProcNo        1;
-        neighbProcNo    0;
-        referPatch      side1;
     }
     procBoundary1to2
     {
         type            processor;
         inGroups        1(processor);
-        nFaces          6;
-        startFace       38;
+        nFaces          8;
+        startFace       33;
         matchTolerance  0.0001;
         transform       unknown;
         myProcNo        1;

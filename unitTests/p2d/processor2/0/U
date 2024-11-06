@@ -53,11 +53,6 @@ boundaryField
         type            processor;
         value           uniform (0 0 0);
     }
-    procBoundary2to3throughside2
-    {
-        type            processorCyclic;
-        value           uniform (0 0 0);
-    }
 }
 
 

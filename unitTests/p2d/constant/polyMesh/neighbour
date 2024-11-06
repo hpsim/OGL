@@ -10,7 +10,7 @@ FoamFile
     version     2.0;
     format      ascii;
     arch        "LSB;label=32;scalar=64";
-    note        "nPoints:98  nCells:36  nFaces:156  nInternalFaces:60";
+    note        "nPoints:90  nCells:32  nFaces:140  nInternalFaces:52";
     class       labelList;
     location    "constant/polyMesh";
     object      neighbour;
@@ -18,68 +18,60 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 
-60
+52
 (
 1
-6
+8
 2
-7
+9
 3
-8
+10
 4
-9
+11
 5
-10
-11
-7
 12
-8
+6
 13
+7
+14
+15
 9
-14
+16
 10
-15
+17
 11
-16
-17
-13
 18
+12
+19
+13
+20
 14
-19
+21
 15
-20
-16
-21
+22
+23
 17
-22
-23
-19
 24
+18
+25
+19
+26
 20
-25
+27
 21
-26
+28
 22
-27
+29
 23
-28
-29
-25
 30
+31
+25
 26
-31
 27
-32
 28
-33
 29
-34
-35
+30
 31
-32
-33
-34
-35
 )
 
 
