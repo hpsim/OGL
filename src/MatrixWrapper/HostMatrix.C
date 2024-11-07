@@ -517,7 +517,7 @@ HostMatrixWrapper::compute_local_sparsity(
 
     std::vector<label> rows_vec(local_matrix_nnz_);
     std::vector<label> cols_vec(local_matrix_nnz_);
-    std::vector<label> mapping_vec(local_matrix_w_interfaces_nnz_);
+    std::vector<label> mapping_vec(local_matrix_nnz_);
     std::vector<gko::span> spans{
         gko::span{0, static_cast<gko::size_type>(local_matrix_nnz_)}};
 

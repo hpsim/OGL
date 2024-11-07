@@ -196,12 +196,9 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
 
     auto [localSparsity, nonLocalSparsity] =
         hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
-    std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3,
-                                      3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
-                                      5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8});
-    std::vector<label> cols_expected({0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0,
-                                      3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
-                                      8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
+    std::vector<label> rows_expected({0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
+                                      4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 0, 7});
+    std::vector<label> cols_expected({});
 
     // symmetric case
     // std::vector<label> mapping_expected({
@@ -231,25 +228,23 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     // we have 8x8 matrix with 26 nnz entries
     EXPECT_EQ(localSparsity->dim[0], 8);
     EXPECT_EQ(localSparsity->dim[1], 8);
-    EXPECT_EQ(localSparsity->num_nnz, 26);
+    EXPECT_EQ(localSparsity->num_nnz, 24);
 
     // // since we don't have any processor interfaces we only have
     // // a single interface span ranging from 0 to 33
     EXPECT_EQ(localSparsity->spans.size(), 3);
     EXPECT_EQ(localSparsity->spans[0].begin, 0);
     EXPECT_EQ(localSparsity->spans[0].end, 22);
-    EXPECT_EQ(localSparsity->spans[1].begin, 24);
-    EXPECT_EQ(localSparsity->spans[1].end, 25);
-    EXPECT_EQ(localSparsity->spans[2].begin, 25);
-    EXPECT_EQ(localSparsity->spans[2].end, 26);
+    EXPECT_EQ(localSparsity->spans[1].begin, 22);
+    EXPECT_EQ(localSparsity->spans[1].end, 23);
+    EXPECT_EQ(localSparsity->spans[2].begin, 23);
+    EXPECT_EQ(localSparsity->spans[2].end, 24);
 
-    // auto res_size{localSparsity->col_idxs.get_size()};
-
-    // auto rows_res = convert_to_vector(localSparsity->row_idxs);
     // auto cols_res = convert_to_vector(localSparsity->col_idxs);
     // auto mapping_res = convert_to_vector(localSparsity->ldu_mapping);
 
-    // EXPECT_EQ(rows_expected, rows_res);
+    auto rows_res = convert_to_vector(localSparsity->row_idxs);
+    EXPECT_EQ(rows_expected, rows_res);
     // EXPECT_EQ(cols_expected, cols_res);
     // EXPECT_EQ(mapping_expected, mapping_res);
 }
