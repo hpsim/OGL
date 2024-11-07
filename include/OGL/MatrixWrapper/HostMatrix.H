@@ -178,6 +178,27 @@ private:
     [[nodiscard]] std::vector<interface_locality> collect_cells_on_interfaces(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
+    /** Based on OpenFOAMs ldu matrix and interfaces this function computes
+     ** the local sparsity pattern. Here, the sparsity pattern
+     ** contains coefficients that resides on the owning rank. The coefficient
+     ** can include local interfaces.
+     **/
+    [[nodiscard]] std::tuple<std::vector<label>, std::vector<label>,
+                             std::vector<label>, std::vector<gko::span>>
+    compute_local_sparsity(std::shared_ptr<const gko::Executor> exec) const;
+
+    /** Based on OpenFOAMs interfaces this function computes
+     ** the interface sparsity pattern.
+     ** Here, the sparsity pattern
+     ** only contains all coefficient that reside on an interface (local and
+     *non-local).
+     **/
+    [[nodiscard]] std::tuple<std::vector<label>, std::vector<label>,
+                             std::vector<label>, std::vector<label>,
+                             std::vector<gko::span>>
+    compute_interface_sparsity(std::shared_ptr<const gko::Executor> exec) const;
+
+
 public:
     // segregated matrix wrapper constructor
     HostMatrixWrapper(const ExecutorHandler &exec, const objectRegistry &db,
@@ -201,13 +222,12 @@ public:
                       const dictionary &solverControls, const word &fieldName,
                       label verbose);
 
-    /** Based on OpenFOAMs ldu matrix format this function computes two
-     ** consecutive index arrays (local_sparsisty_.row_idxs and col_idxs) in row
-     ** major ordering and the permutation index (local_sparsity_.ldu_mapping),
-     ** which are required to create to a ginkgo matrix
+    /** Based on OpenFOAMs ldu matrix and interfaces this function computes
+     ** the local and non-local sparsity pattern.
      **/
-    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_local_sparsity(
-        std::shared_ptr<const gko::Executor> exec) const;
+    [[nodiscard]] std::pair<std::shared_ptr<SparsityPattern>,
+                            std::shared_ptr<SparsityPattern>>
+    compute_sparsity_patterns(std::shared_ptr<const gko::Executor> exec) const;
 
     /** Copies the LDU matrix coefficients to local_coeffs without changing or
      ** reinstantiating the sparsity pattern.
@@ -224,14 +244,6 @@ public:
         std::shared_ptr<const SparsityPattern> sparsity,
         gko::array<scalar> &target_coeffs) const;
 
-    /** Based on OpenFOAMs interfaces this function computes two
-     ** consecutive index arrays (non_local_sparsisty_.row_idxs and col_idxs) in
-     ** row *major ordering and the permutation index
-     ** (non_local_sparsity_.ldu_mapping), which are required to create a ginkgo
-     ** matrix
-     **/
-    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_non_local_sparsity(
-        std::shared_ptr<const gko::Executor> exec) const;
 
     /** Iterates all interfaces and counts the number of unique neighbour
      ** processors and number of interfaces in total for this processor

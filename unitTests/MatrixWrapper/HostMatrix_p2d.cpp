@@ -250,46 +250,49 @@ TEST(HostMatrix, canCreateCommunicationPattern)
 //     EXPECT_EQ(mapping_expected, mapping_res);
 // }
 
-// TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
-// {
-//     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
-//     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-//     auto comm = exec->get_gko_mpi_device_comm();
+TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto comm = exec->get_gko_mpi_device_comm();
+    auto rank = exec->get_rank();
 
-//     auto nonLocalSparsity =
-//         hostMatrix->compute_non_local_sparsity(exec->get_device_exec());
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
 
-//     // corresponds to cell ids
-//     std::vector<std::vector<label>> rows_expected({{2, 5, 8, 6, 7, 8},
-//                                                    {0, 3, 6, 6, 7, 8},
-//                                                    {0, 1, 2, 2, 5, 8},
-//                                                    {0, 1, 2, 0, 3, 6}});
-//     // cols expected
-//     std::vector<std::vector<label>> cols_expected({{0, 3, 6, 0, 1, 2},
-//                                                    {2, 5, 8, 0, 1, 2},
-//                                                    {6, 7, 8, 0, 3, 6},
-//                                                    {6, 7, 8, 2, 5, 8}});
+    // corresponds to cell ids
+    std::vector<std::vector<label>> rows_expected({{2, 5, 8, 6, 7, 8},
+                                                   {0, 3, 6, 6, 7, 8},
+                                                   {0, 1, 2, 2, 5, 8},
+                                                   {0, 1, 2, 0, 3, 6}});
+    // cols expected
+    std::vector<std::vector<label>> cols_expected({{0, 3, 6, 0, 1, 2},
+                                                   {2, 5, 8, 0, 1, 2},
+                                                   {6, 7, 8, 0, 3, 6},
+                                                   {6, 7, 8, 2, 5, 8}});
 
-//     std::vector<label> mapping_expected({0, 1, 2, 3, 4, 5});
+    std::vector<label> mapping_expected({0, 1, 2, 3, 4, 5});
 
-//     // we dont test the cols expected for now,
-//     // as they are in compressed format
-//     EXPECT_EQ(nonLocalSparsity->num_nnz, 6);
-//     EXPECT_EQ(nonLocalSparsity->spans.size(), 2);
+    // we dont test the cols expected for now,
+    // as they are in compressed format
+    std::vector<label> exp_send_idx_size{8, 16, 16, 8};
+    EXPECT_EQ(nonLocalSparsity->num_nnz, exp_send_idx_size[rank]);
+    std::vector<label> exp_spans_size{1, 2, 2, 1};
+    EXPECT_EQ(nonLocalSparsity->spans.size(), exp_spans_size[rank]);
 
-//     EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
-//     EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
-//     EXPECT_EQ(nonLocalSparsity->spans[1].begin, 3);
-//     EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
+    // EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
+    // EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
+    // EXPECT_EQ(nonLocalSparsity->spans[1].begin, 3);
+    // EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
 
-//     auto res_size{nonLocalSparsity->row_idxs.get_size()};
-//     auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
-//     auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
-//     auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
-//     EXPECT_EQ(rows_expected[comm->rank()], rows_res);
-//     EXPECT_EQ(cols_expected[comm->rank()], cols_res);
-//     EXPECT_EQ(mapping_expected, mapping_res);
-// }
+    // auto res_size{nonLocalSparsity->row_idxs.get_size()};
+    // auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
+    // auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
+    // auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
+    // EXPECT_EQ(rows_expected[comm->rank()], rows_res);
+    // EXPECT_EQ(cols_expected[comm->rank()], cols_res);
+    // EXPECT_EQ(mapping_expected, mapping_res);
+}
 
 
 int main(int argc, char *argv[])

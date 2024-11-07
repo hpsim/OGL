@@ -362,6 +362,8 @@ std::vector<InterfaceLocality> Repartitioner::build_non_local_interfaces(
         auto [begin, end] = non_local_spans[i];
         bool local = reparts_to_local(exec_handler, comm_target_ids[i]);
 
+        // TODO this seems to depend on same copying functionality like HostMatrix.C to
+        // copy local interfaces over.
         if (local) {
             local_ctr++;  // local interface starts counting at 1;
             gko::size_type rows_start = local_rows.size();

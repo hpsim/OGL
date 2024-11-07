@@ -362,6 +362,7 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
                 interface_ctr++;
             }
         }
+
         if (isA<cyclicFvPatch>(iface->interface())) {
             const cyclicFvPatch &patch =
                 refCast<const cyclicFvPatch>(iface->interface());
@@ -373,13 +374,11 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
             const label neighbPatchId = patch.nbrPatchID();
 #endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
-
             for (label cellI = 0; cellI < interface_size; cellI++) {
                 interface_idxs.emplace_back(interface_id, cols[cellI],
                                             face_cells[cellI], rank, local_ctr,
                                             interface_ctr);
             }
-
             local_ctr++;
         }
         interface_id++;
@@ -390,7 +389,9 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
     return interface_idxs;
 }
 
-std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
+std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+           std::vector<label>, std::vector<gko::span>>
+HostMatrixWrapper::compute_interface_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
     auto interface_loc_vec = collect_cells_on_interfaces(interfaces_);
@@ -398,6 +399,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     std::vector<label> rows_vec(total_interface_nnz);
     std::vector<label> cols_vec(total_interface_nnz);
     std::vector<label> mapping_vec(total_interface_nnz);
+    std::vector<label> ranks{};
     std::vector<gko::span> spans{};
 
     auto rows = rows_vec.data();
@@ -406,6 +408,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
     label prev_interface_ctr{0};
     label end{0};
     label start{0};
+    label rank_;
 
     size_t element_ctr = 0;
 
@@ -415,25 +418,103 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_non_local_sparsity(
         cols[element_ctr] = col;
         permute[element_ctr] = element_ctr;
 
-        // a new interface started been reached
+        // a new interface start has been reached
         if (interface_idx > prev_interface_ctr) {
+            ranks.push_back(rank_);
             end = element_ctr;
             spans.emplace_back(start, element_ctr);
             start = end;
             prev_interface_ctr = interface_idx;
         }
+        rank_ = rank;
         element_ctr++;
     }
     spans.emplace_back(start, element_ctr);
-
-    gko::dim<2> dim{static_cast<gko::size_type>(nrows_),
-                    static_cast<gko::size_type>(non_local_matrix_nnz_)};
-    return std::make_shared<SparsityPattern>(exec->get_master(), dim, rows_vec,
-                                             cols_vec, mapping_vec, spans);
+    ranks.push_back(rank_);
+    return {rows_vec, cols_vec, mapping_vec, ranks, spans};
 }
 
 
-std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
+std::pair<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>>
+HostMatrixWrapper::compute_sparsity_patterns(
+    std::shared_ptr<const gko::Executor> exec) const
+{
+    auto rank = get_exec_handler().get_rank();
+    auto [local_rows, local_cols, local_mapping, local_spans] =
+        compute_local_sparsity(exec);
+    auto [non_local_rows, non_local_cols, non_local_mapping, non_local_ranks,
+          non_local_spans] = compute_interface_sparsity(exec);
+
+    // move all local interfaces to local rows and cols
+    std::vector<size_t> erase_non_local{};
+    std::vector<size_t> keep_non_local{};
+    for (int interface_ctr = 0; interface_ctr < non_local_spans.size();
+         interface_ctr++) {
+        if (non_local_ranks[interface_ctr] == rank) {
+            auto [begin, end] = non_local_spans[interface_ctr];
+            size_t start = local_rows.size();
+            local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
+                              non_local_rows.data() + end);
+            local_cols.insert(local_cols.end(), non_local_cols.data() + begin,
+                              non_local_cols.data() + end);
+            local_mapping.insert(local_mapping.end(),
+                                 non_local_mapping.data() + begin,
+                                 non_local_mapping.data() + end);
+            local_spans.emplace_back(start, local_rows.size());
+            erase_non_local.push_back(interface_ctr);
+        } else {
+            keep_non_local.push_back(interface_ctr);
+        }
+    }
+
+    // for (size_t erase_ctr=0; erase_ctr<erase_non_local.size();erase_ctr++) {
+    //         auto erase_id {erase_non_local[erase_non_local.size() - erase_ctr
+    //         - 1]}; auto [begin, end] = non_local_spans[erase_id];
+    //         non_local_rows.erase(non_local_rows.begin() + begin,
+    //                           non_local_rows.begin() + end);
+    //         non_local_cols.erase(non_local_cols.begin() + begin,
+    //                           non_local_cols.begin() + end);
+    //         non_local_mapping.erase(non_local_mapping.begin() + begin,
+    //                           non_local_mapping.begin() + end);
+    // }
+
+    std::vector<label> non_local_rows_copy, non_local_cols_copy,
+        non_local_mapping_copy;
+    std::vector<gko::span> non_local_spans_copy{};
+    size_t begin = 0;
+    for (auto keep : keep_non_local) {
+        auto span = non_local_spans[keep];
+        size_t length{span.end - span.begin};
+        non_local_spans_copy.emplace_back(begin, begin + length);
+        non_local_rows_copy.insert(non_local_rows_copy.end(),
+                                   non_local_rows.data() + span.begin,
+                                   non_local_rows.data() + span.end);
+
+        non_local_cols_copy.insert(non_local_cols_copy.end(),
+                                   non_local_cols.data() + span.begin,
+                                   non_local_cols.data() + span.end);
+
+        non_local_mapping_copy.insert(non_local_mapping_copy.end(),
+                                      non_local_mapping.data() + span.begin,
+                                      non_local_mapping.data() + span.end);
+
+        begin += length;
+    }
+
+    auto local_sparsity = std::make_shared<SparsityPattern>(
+        exec->get_master(), get_size(), local_rows, local_cols, local_mapping,
+        local_spans);
+    auto non_local_sparsity = std::make_shared<SparsityPattern>(
+        exec->get_master(), gko::dim<2>{nrows_, non_local_rows_copy.size()},
+        non_local_rows_copy, non_local_cols_copy, non_local_mapping_copy,
+        non_local_spans_copy);
+    return {local_sparsity, non_local_sparsity};
+}
+
+
+std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
+           std::vector<gko::span>>
+HostMatrixWrapper::compute_local_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
@@ -441,8 +522,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     std::vector<label> rows_vec(local_matrix_w_interfaces_nnz_);
     std::vector<label> cols_vec(local_matrix_w_interfaces_nnz_);
     std::vector<label> mapping_vec(local_matrix_w_interfaces_nnz_);
-    std::vector<gko::span> spans{gko::span{
-        0, static_cast<gko::size_type>(local_matrix_w_interfaces_nnz_)}};
+    std::vector<gko::span> spans{
+        gko::span{0, static_cast<gko::size_type>(local_matrix_nnz_)}};
 
     auto rows = rows_vec.data();
     auto cols = cols_vec.data();
@@ -477,8 +558,10 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity(
     // i_j,k j=interface index and k cell index on the interface
 
     LOG_1(verbose_, "done init host sparsity pattern")
-    return std::make_shared<SparsityPattern>(
-        exec->get_master(), get_size(), rows_vec, cols_vec, mapping_vec, spans);
+    // return std::make_shared<SparsityPattern>(
+    //     exec->get_master(), get_size(), rows_vec, cols_vec, mapping_vec,
+    //     spans);
+    return {rows_vec, cols_vec, mapping_vec, spans};
 }
 
 }  // namespace Foam

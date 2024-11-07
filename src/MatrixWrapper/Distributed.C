@@ -614,8 +614,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_communicator().get();
 
-    auto local_sparsity = host_A->compute_local_sparsity(exec);
-    auto non_local_sparsity = host_A->compute_non_local_sparsity(exec);
+    auto [local_sparsity,non_local_sparsity] = host_A->compute_sparsity_patterns(exec);
 
     auto src_comm_pattern = host_A->create_communication_pattern();
     if (non_local_sparsity->spans.size() !=

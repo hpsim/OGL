@@ -183,8 +183,8 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
 
-    auto localSparsity =
-        hostMatrix->compute_local_sparsity(exec->get_device_exec());
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
     std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3,
                                       3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
                                       5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8});
@@ -245,8 +245,8 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_device_comm();
 
-    auto nonLocalSparsity =
-        hostMatrix->compute_non_local_sparsity(exec->get_device_exec());
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
 
     // corresponds to cell ids
     std::vector<std::vector<label>> rows_expected({{2, 5, 8, 6, 7, 8},
