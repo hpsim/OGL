@@ -455,7 +455,6 @@ HostMatrixWrapper::compute_sparsity_patterns(
         if (non_local_ranks[interface_ctr] == rank) {
             auto [begin, end] = non_local_spans[interface_ctr];
             label interface_offs = local_cols.size();
-            size_t start = local_rows.size();
             local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
                               non_local_rows.data() + end);
             local_cols.insert(local_cols.end(), non_local_cols.data() + begin,
@@ -464,25 +463,11 @@ HostMatrixWrapper::compute_sparsity_patterns(
             for (size_t map_el = begin; map_el < end; map_el++) {
                 local_mapping.push_back(map_el + interface_offs);
             }
-            // local_mapping.insert(local_mapping.end(),
-            //                      non_local_mapping.data() + begin,
-            //                      non_local_mapping.data() + end);
-            local_spans.emplace_back(start, local_rows.size());
+            local_spans.emplace_back(interface_offs, local_rows.size());
         } else {
             keep_non_local.push_back(interface_ctr);
         }
     }
-
-    // for (size_t erase_ctr=0; erase_ctr<erase_non_local.size();erase_ctr++) {
-    //         auto erase_id {erase_non_local[erase_non_local.size() - erase_ctr
-    //         - 1]}; auto [begin, end] = non_local_spans[erase_id];
-    //         non_local_rows.erase(non_local_rows.begin() + begin,
-    //                           non_local_rows.begin() + end);
-    //         non_local_cols.erase(non_local_cols.begin() + begin,
-    //                           non_local_cols.begin() + end);
-    //         non_local_mapping.erase(non_local_mapping.begin() + begin,
-    //                           non_local_mapping.begin() + end);
-    // }
 
     std::vector<label> non_local_rows_copy, non_local_cols_copy,
         non_local_mapping_copy;
@@ -530,8 +515,8 @@ HostMatrixWrapper::compute_local_sparsity(
 {
     LOG_1(verbose_, "start init host sparsity pattern")
 
-    std::vector<label> rows_vec(local_matrix_w_interfaces_nnz_);
-    std::vector<label> cols_vec(local_matrix_w_interfaces_nnz_);
+    std::vector<label> rows_vec(local_matrix_nnz_);
+    std::vector<label> cols_vec(local_matrix_nnz_);
     std::vector<label> mapping_vec(local_matrix_w_interfaces_nnz_);
     std::vector<gko::span> spans{
         gko::span{0, static_cast<gko::size_type>(local_matrix_nnz_)}};

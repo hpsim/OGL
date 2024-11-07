@@ -189,66 +189,70 @@ TEST(HostMatrix, canCreateCommunicationPattern)
     EXPECT_EQ(target_sizes_exp[comm.rank()], target_size_res);
 }
 
-// TEST(HostMatrix, canGenerateLocalSparsityPattern)
-// {
-//     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
-//     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+TEST(HostMatrix, canGenerateLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
 
-//     auto localSparsity =
-//         hostMatrix->compute_local_sparsity(exec->get_device_exec());
-//     std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3,
-//                                       3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
-//                                       5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8});
-//     std::vector<label> cols_expected({0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0,
-//                                       3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
-//                                       8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
+    std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3,
+                                      3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,
+                                      5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8});
+    std::vector<label> cols_expected({0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0,
+                                      3, 4, 6, 1, 3, 4, 5, 7, 2, 4, 5,
+                                      8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8});
 
-//     // symmetric case
-//     // std::vector<label> mapping_expected({
-//     //     12, 0,  1,          // cell 0
-//     //     0,  13, 2,  3,      // cell 1
-//     //     2,  14, 4,          // cell 2
-//     //     1,  15, 5,  6,      // cell 3
-//     //     3,  5,  16, 7,  8,  // cell 4
-//     //     4,  7,  17, 9,      // cell 5
-//     //     6,  18, 10,         // cell 6
-//     //     8,  10, 19, 11,     // cell 7
-//     //     9,  11, 20          // cell 8
-//     // });
-//     // asymmetric case
-//     std::vector<label> mapping_expected({
-//         24, 0,  1,          // cell 0
-//         12, 25, 2,  3,      // cell 1
-//         14, 26, 4,          // cell 2
-//         13, 27, 5,  6,      // cell 3
-//         15, 17, 28, 7,  8,  // cell 4
-//         16, 19, 29, 9,      // cell 5
-//         18, 30, 10,         // cell 6
-//         20, 22, 31, 11,     // cell 7
-//         21, 23, 32          // cell 8
-//     });
+    // symmetric case
+    // std::vector<label> mapping_expected({
+    //     12, 0,  1,          // cell 0
+    //     0,  13, 2,  3,      // cell 1
+    //     2,  14, 4,          // cell 2
+    //     1,  15, 5,  6,      // cell 3
+    //     3,  5,  16, 7,  8,  // cell 4
+    //     4,  7,  17, 9,      // cell 5
+    //     6,  18, 10,         // cell 6
+    //     8,  10, 19, 11,     // cell 7
+    //     9,  11, 20          // cell 8
+    // });
+    // asymmetric case
+    std::vector<label> mapping_expected({
+        24, 0,  1,          // cell 0
+        12, 25, 2,  3,      // cell 1
+        14, 26, 4,          // cell 2
+        13, 27, 5,  6,      // cell 3
+        15, 17, 28, 7,  8,  // cell 4
+        16, 19, 29, 9,      // cell 5
+        18, 30, 10,         // cell 6
+        20, 22, 31, 11,     // cell 7
+        21, 23, 32          // cell 8
+    });
 
-//     // we have 9x9 matrix with 33 nnz entries
-//     EXPECT_EQ(localSparsity->num_nnz, 33);
-//     EXPECT_EQ(localSparsity->dim[0], 9);
-//     EXPECT_EQ(localSparsity->dim[1], 9);
+    // we have 8x8 matrix with 26 nnz entries
+    EXPECT_EQ(localSparsity->dim[0], 8);
+    EXPECT_EQ(localSparsity->dim[1], 8);
+    EXPECT_EQ(localSparsity->num_nnz, 26);
 
-//     // since we don't have any processor interfaces we only have
-//     // a single interface span ranging from 0 to 33
-//     EXPECT_EQ(localSparsity->spans.size(), 1);
-//     EXPECT_EQ(localSparsity->spans[0].begin, 0);
-//     EXPECT_EQ(localSparsity->spans[0].end, 33);
+    // // since we don't have any processor interfaces we only have
+    // // a single interface span ranging from 0 to 33
+    EXPECT_EQ(localSparsity->spans.size(), 3);
+    EXPECT_EQ(localSparsity->spans[0].begin, 0);
+    EXPECT_EQ(localSparsity->spans[0].end, 22);
+    EXPECT_EQ(localSparsity->spans[1].begin, 24);
+    EXPECT_EQ(localSparsity->spans[1].end, 25);
+    EXPECT_EQ(localSparsity->spans[2].begin, 25);
+    EXPECT_EQ(localSparsity->spans[2].end, 26);
 
-//     auto res_size{localSparsity->col_idxs.get_size()};
+    // auto res_size{localSparsity->col_idxs.get_size()};
 
-//     auto rows_res = convert_to_vector(localSparsity->row_idxs);
-//     auto cols_res = convert_to_vector(localSparsity->col_idxs);
-//     auto mapping_res = convert_to_vector(localSparsity->ldu_mapping);
+    // auto rows_res = convert_to_vector(localSparsity->row_idxs);
+    // auto cols_res = convert_to_vector(localSparsity->col_idxs);
+    // auto mapping_res = convert_to_vector(localSparsity->ldu_mapping);
 
-//     EXPECT_EQ(rows_expected, rows_res);
-//     EXPECT_EQ(cols_expected, cols_res);
-//     EXPECT_EQ(mapping_expected, mapping_res);
-// }
+    // EXPECT_EQ(rows_expected, rows_res);
+    // EXPECT_EQ(cols_expected, cols_res);
+    // EXPECT_EQ(mapping_expected, mapping_res);
+}
 
 TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
 {
