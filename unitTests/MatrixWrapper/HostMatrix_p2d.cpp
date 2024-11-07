@@ -272,7 +272,11 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
                                                    {6, 7, 8, 0, 3, 6},
                                                    {6, 7, 8, 2, 5, 8}});
 
-    std::vector<label> mapping_expected({0, 1, 2, 3, 4, 5});
+    std::vector<std::vector<label>> mapping_expected{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {0, 1, 2, 3, 4, 5, 6, 7}};
 
     // we dont test the cols expected for now,
     // as they are in compressed format
@@ -287,13 +291,13 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
     // EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
     // EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
 
-    // auto res_size{nonLocalSparsity->row_idxs.get_size()};
     auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
     EXPECT_EQ(rows_expected[rank], rows_res);
+    auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
+    EXPECT_EQ(mapping_expected[rank], mapping_res);
+
     // auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
-    // auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
     // EXPECT_EQ(cols_expected[comm->rank()], cols_res);
-    // EXPECT_EQ(mapping_expected, mapping_res);
 }
 
 

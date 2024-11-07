@@ -447,7 +447,6 @@ HostMatrixWrapper::compute_sparsity_patterns(
     auto [non_local_rows, non_local_cols, non_local_mapping, non_local_ranks,
           non_local_spans] = compute_interface_sparsity(exec);
 
-    std::cout << __FILE__ << " rank " << rank << " non_local_rows before " << non_local_rows << "\n";
     // move all local interfaces to local rows and cols
     // std::vector<size_t> erase_non_local{};
     std::vector<size_t> keep_non_local{};
@@ -455,16 +454,20 @@ HostMatrixWrapper::compute_sparsity_patterns(
          interface_ctr++) {
         if (non_local_ranks[interface_ctr] == rank) {
             auto [begin, end] = non_local_spans[interface_ctr];
+            label interface_offs = local_cols.size();
             size_t start = local_rows.size();
             local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
                               non_local_rows.data() + end);
             local_cols.insert(local_cols.end(), non_local_cols.data() + begin,
                               non_local_cols.data() + end);
-            local_mapping.insert(local_mapping.end(),
-                                 non_local_mapping.data() + begin,
-                                 non_local_mapping.data() + end);
+            // TODO FIXME
+            for (size_t map_el = begin; map_el < end; map_el++) {
+                local_mapping.push_back(map_el + interface_offs);
+            }
+            // local_mapping.insert(local_mapping.end(),
+            //                      non_local_mapping.data() + begin,
+            //                      non_local_mapping.data() + end);
             local_spans.emplace_back(start, local_rows.size());
-            // erase_non_local.push_back(interface_ctr);
         } else {
             keep_non_local.push_back(interface_ctr);
         }
@@ -485,6 +488,7 @@ HostMatrixWrapper::compute_sparsity_patterns(
         non_local_mapping_copy;
     std::vector<gko::span> non_local_spans_copy{};
     size_t begin = 0;
+    label interface_offset = 0;
     for (auto keep : keep_non_local) {
         auto span = non_local_spans[keep];
         size_t length{span.end - span.begin};
@@ -492,18 +496,21 @@ HostMatrixWrapper::compute_sparsity_patterns(
         non_local_rows_copy.insert(non_local_rows_copy.end(),
                                    non_local_rows.data() + span.begin,
                                    non_local_rows.data() + span.end);
-
         non_local_cols_copy.insert(non_local_cols_copy.end(),
                                    non_local_cols.data() + span.begin,
                                    non_local_cols.data() + span.end);
 
-        non_local_mapping_copy.insert(non_local_mapping_copy.end(),
-                                      non_local_mapping.data() + span.begin,
-                                      non_local_mapping.data() + span.end);
+        // mapping will be made consecutive in separate step
+        for (size_t j = 0; j < span.end - span.begin; j++) {
+            non_local_mapping_copy.push_back(j + interface_offset);
+        }
+        interface_offset += span.end - span.begin;
+        // non_local_mapping_copy.insert(non_local_mapping_copy.end(),
+        //                               non_local_mapping.data() + span.begin,
+        //                               non_local_mapping.data() + span.end);
 
         begin += length;
     }
-    std::cout << __FILE__ << " rank " << rank << " non_local_rows_copy " << non_local_rows_copy << "\n";
 
     auto local_sparsity = std::make_shared<SparsityPattern>(
         exec->get_master(), get_size(), local_rows, local_cols, local_mapping,

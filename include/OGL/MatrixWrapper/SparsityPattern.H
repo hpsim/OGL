@@ -113,6 +113,10 @@ struct SparsityPattern {
 
     mutable gko::array<label> col_idxs;
 
+    // ldu_mapping is used to reorder copied matrix coefficients
+    // to match the row major ordering of the sparsity pattern
+    // in both cases (local and non local sparsity) the full list of interfaces
+    // is reordered at once. thus all indices from [0, end) should be present.
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
     mutable gko::array<label> ldu_mapping;
