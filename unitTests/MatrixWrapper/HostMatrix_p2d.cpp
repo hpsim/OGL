@@ -261,10 +261,11 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
         hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
 
     // corresponds to cell ids
-    std::vector<std::vector<label>> rows_expected({{2, 5, 8, 6, 7, 8},
-                                                   {0, 3, 6, 6, 7, 8},
-                                                   {0, 1, 2, 2, 5, 8},
-                                                   {0, 1, 2, 0, 3, 6}});
+    std::vector<std::vector<label>> rows_expected{
+        {0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+        {0, 1, 2, 3, 4, 5, 6, 7}};
     // cols expected
     std::vector<std::vector<label>> cols_expected({{0, 3, 6, 0, 1, 2},
                                                    {2, 5, 8, 0, 1, 2},
@@ -277,19 +278,20 @@ TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
     // as they are in compressed format
     std::vector<label> exp_send_idx_size{8, 16, 16, 8};
     EXPECT_EQ(nonLocalSparsity->num_nnz, exp_send_idx_size[rank]);
+    // number of interfaces
     std::vector<label> exp_spans_size{1, 2, 2, 1};
     EXPECT_EQ(nonLocalSparsity->spans.size(), exp_spans_size[rank]);
 
     // EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
-    // EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
     // EXPECT_EQ(nonLocalSparsity->spans[1].begin, 3);
+    // EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
     // EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
 
     // auto res_size{nonLocalSparsity->row_idxs.get_size()};
-    // auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
+    auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
+    EXPECT_EQ(rows_expected[rank], rows_res);
     // auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
     // auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
-    // EXPECT_EQ(rows_expected[comm->rank()], rows_res);
     // EXPECT_EQ(cols_expected[comm->rank()], cols_res);
     // EXPECT_EQ(mapping_expected, mapping_res);
 }

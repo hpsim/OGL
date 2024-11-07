@@ -318,7 +318,8 @@ HostMatrixWrapper::create_communication_pattern() const
 }
 
 
-std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
+std::pair<label,
+std::vector<interface_locality>> HostMatrixWrapper::collect_cells_on_interfaces(
     const lduInterfaceFieldPtrsList &interfaces) const
 {
     // vector of neighbour cell idx connected to interface
@@ -327,9 +328,10 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
     interface_idxs.reserve(interface_nnz);
     auto rank = get_exec_handler().get_rank();
 
-    label local_ctr = 0;
-    label interface_ctr = 0;
-    label interface_id = 0;
+    label local_ctr = 0; // count local interface element
+    label interface_ctr = 0; // count non_local interface elment
+    label interface_id = 0; // count number of interfaces
+    label total_ctr = 0;
 
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
@@ -338,6 +340,7 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
         const auto iface{interface_getter(interfaces, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
+        total_ctr += interface_size;
 
         if (isA<processorFvPatch>(iface->interface())) {
             const auto &patch =
@@ -386,7 +389,7 @@ std::vector<interface_locality> HostMatrixWrapper::collect_cells_on_interfaces(
 
     word msg = "done collecting neighbouring processor cell id";
     LOG_2(verbose_, msg)
-    return interface_idxs;
+    return {total_ctr, interface_idxs};
 }
 
 std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
@@ -394,8 +397,7 @@ std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
 HostMatrixWrapper::compute_interface_sparsity(
     std::shared_ptr<const gko::Executor> exec) const
 {
-    auto interface_loc_vec = collect_cells_on_interfaces(interfaces_);
-    label total_interface_nnz = interface_loc_vec.back().non_local_nnz_ctr + 1;
+    auto [total_interface_nnz, interface_loc_vec] = collect_cells_on_interfaces(interfaces_);
     std::vector<label> rows_vec(total_interface_nnz);
     std::vector<label> cols_vec(total_interface_nnz);
     std::vector<label> mapping_vec(total_interface_nnz);
@@ -445,8 +447,9 @@ HostMatrixWrapper::compute_sparsity_patterns(
     auto [non_local_rows, non_local_cols, non_local_mapping, non_local_ranks,
           non_local_spans] = compute_interface_sparsity(exec);
 
+    std::cout << __FILE__ << " rank " << rank << " non_local_rows before " << non_local_rows << "\n";
     // move all local interfaces to local rows and cols
-    std::vector<size_t> erase_non_local{};
+    // std::vector<size_t> erase_non_local{};
     std::vector<size_t> keep_non_local{};
     for (int interface_ctr = 0; interface_ctr < non_local_spans.size();
          interface_ctr++) {
@@ -461,7 +464,7 @@ HostMatrixWrapper::compute_sparsity_patterns(
                                  non_local_mapping.data() + begin,
                                  non_local_mapping.data() + end);
             local_spans.emplace_back(start, local_rows.size());
-            erase_non_local.push_back(interface_ctr);
+            // erase_non_local.push_back(interface_ctr);
         } else {
             keep_non_local.push_back(interface_ctr);
         }
@@ -500,6 +503,7 @@ HostMatrixWrapper::compute_sparsity_patterns(
 
         begin += length;
     }
+    std::cout << __FILE__ << " rank " << rank << " non_local_rows_copy " << non_local_rows_copy << "\n";
 
     auto local_sparsity = std::make_shared<SparsityPattern>(
         exec->get_master(), get_size(), local_rows, local_cols, local_mapping,

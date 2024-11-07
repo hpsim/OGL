@@ -175,7 +175,8 @@ private:
     ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
     **         i0   i1,   i...
     */
-    [[nodiscard]] std::vector<interface_locality> collect_cells_on_interfaces(
+    [[nodiscard]] std::pair<label, std::vector<interface_locality>>
+    collect_cells_on_interfaces(
         const lduInterfaceFieldPtrsList &interfaces) const;
 
     /** Based on OpenFOAMs ldu matrix and interfaces this function computes
