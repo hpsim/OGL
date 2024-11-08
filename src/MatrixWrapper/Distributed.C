@@ -125,7 +125,7 @@ void update_fused_impl(
     label owner_rank = repartitioner->get_owner_rank(exec_handler);
     bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
-    label local_matrix_nnz = host_A->get_local_matrix_nnz();
+    label local_matrix_nnz = host_A->get_local_matrix_wo_interface_nnz();
     label n_interfaces = 0;  // number of fused interface coefficients
     for (size_t i = 0; i < local_interfaces.size(); i++) {
         auto [local, orig_rank, size, ctr] = local_interfaces[i];
@@ -350,7 +350,7 @@ void update_impl(
     label owner_rank = repartitioner->get_owner_rank(exec_handler);
     bool owner = repartitioner->is_owner(exec_handler);
     label nrows = host_A->get_local_nrows();
-    label local_matrix_nnz = host_A->get_local_matrix_nnz();
+    label local_matrix_nnz = host_A->get_local_matrix_wo_interface_nnz();
 
     // size + padding has to be local_matrix_nnz
     auto diag_comm_pattern = compute_gather_to_owner_counts(

@@ -98,7 +98,7 @@ const testing::Environment *global_env =
     AddGlobalTestEnvironment(new HostMatrixEnvironment);
 
 
-TEST(HostMatrix, returnsCorrectSize)
+TEST(HostMatrixL2D, returnsCorrectSize)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
@@ -122,7 +122,7 @@ TEST(HostMatrix, returnsCorrectSize)
     EXPECT_EQ(hostMatrix->get_interface_length(), exp_interface_length);
 }
 
-TEST(HostMatrix, givesAccessToData)
+TEST(HostMatrixL2D, givesAccessToData)
 {
     auto const max_abs_error = 1e-12;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
@@ -156,7 +156,7 @@ TEST(HostMatrix, givesAccessToData)
     }
 }
 
-TEST(HostMatrix, canCreateCommunicationPattern)
+TEST(HostMatrixL2D, canCreateCommunicationPattern)
 {
     std::shared_ptr<const HostMatrixWrapper> hostMatrix =
         ((HostMatrixEnvironment *)global_env)->hostMatrix;
@@ -178,7 +178,7 @@ TEST(HostMatrix, canCreateCommunicationPattern)
     EXPECT_EQ(target_sizes_exp[comm.rank()], target_size_res);
 }
 
-TEST(HostMatrix, canGenerateLocalSparsityPattern)
+TEST(HostMatrixL2D, canGenerateLocalSparsityPattern)
 {
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
@@ -239,7 +239,7 @@ TEST(HostMatrix, canGenerateLocalSparsityPattern)
     EXPECT_EQ(mapping_expected, mapping_res);
 }
 
-TEST(HostMatrix, canGenerateNonLocalSparsityPattern)
+TEST(HostMatrixL2D, canGenerateNonLocalSparsityPattern)
 {
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;

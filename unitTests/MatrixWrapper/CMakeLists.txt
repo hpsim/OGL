@@ -5,6 +5,7 @@
 ogl_unit_test_case(HostMatrix l2d)
 ogl_unit_test_case(HostMatrix p2d)
 ogl_unit_test_case(Distributed l2d)
+ogl_unit_test_case(Distributed p2d)
 
 # Copy the data files to the execution directory
 configure_file(data/A_sparse.mtx data/A_sparse.mtx COPYONLY)

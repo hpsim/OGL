@@ -260,6 +260,11 @@ public:
 
     label get_local_nrows() const { return nrows_; }
 
+    label get_local_matrix_wo_interface_nnz() const
+    {
+        return local_matrix_nnz_;
+    }
+    /* return the total nnz of local matrix including local interface */
     label get_local_matrix_nnz() const
     {
         return local_matrix_w_interfaces_nnz_;
