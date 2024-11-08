@@ -267,36 +267,50 @@ public:
     /*
      * The mesh has the following structure
      *         local ids
-     *        [24 25 26|33 34 35]
-     *        [21 22 23|30 31 32]
-     *        [18 19 20|27 28 29]
-     *        ---------+---------
-     *        [ 6  7  8|15 16 17]
-     *        [ 3  4  5|12 13 14]
-     *   0    [ 0  1  2| 9 10 11]  1
+     *   3    [ 0 1 2 3 4 5 6 7 ]
+     *   2    [ 0 1 2 3 4 5 6 7 ]
+     *   1    [ 0 1 2 3 4 5 6 7 ]
+     *   0    [ 0 1 2 3 4 5 6 7 ]
      *   */
-    vec local_row_1 = {0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
-                       4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8};
-    vec local_row_2 = {
-        0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,  4,
-        4,  5,  5,  5,  5,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9,
-        10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 13, 14, 14,
-        14, 14, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 9,  12, 15, 2,  5,  8};
-    vec local_row_2_f = {
+    vec local_row_1_nf = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
+                          4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 0, 7};
+    vec local_row_1_f = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3,
+                         4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+    /*
+     * The mesh has the following structure
+     *         local ids
+     *   3    [ 8  9 10 11 12 13 14 15 ]
+     *   2    [ 0  1  2  3  4  5  6  7 ]
+     *        --------------------------
+     *   1    [ 8  9 10 11 12 13 14 15 ]
+     *   0    [ 0  1  2  3  4  5  6  7 ]
+     *   */
+    vec local_row_2_f = {0,  0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  3,
+                         3,  3,  3,  4,  4,  4,  4,  5,  5,  5,  5,  6,  6,
+                         6,  6,  7,  7,  7,  7,  8,  8,  8,  8,  9,  9,  9,
+                         9,  10, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12,
+                         13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15};
+    vec local_row_2_nf = {0,  0,  1, 1,  1,  2,  2,  2,  3,  3,  3,  4,  4,
+                          4,  5,  5, 5,  6,  6,  6,  7,  7,  0,  7,  0,  8,
+                          8,  9,  9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14,
+                          15, 15, 1, 2,  3,  4,  5,  6,  7,  8,  15};
+    /*
+     * The mesh has the following structure
+     *         local ids
+     *   2    [ 24 25 26 27 28 29 30 31]
+     *   2    [ 16 17 18 19 20 21 22 23]
+     *   1    [  8  9 10 11 12 13 14 15]
+     *   0    [  0  1  2  3  4  5  6  7]
+     *   */
+    vec local_row_4_nf = {
         0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,
-        4,  4,  5,  5,  5,  5,  5,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  8,
-        9,  9,  9,  9,  10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 12, 12, 13, 13,
-        13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17};
-    vec local_row_4 = {
-        0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,  4,
-        4,  5,  5,  5,  5,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9,
-        10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 13, 14, 14,
-        14, 14, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19,
-        19, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 22, 23, 23, 23, 23, 24,
-        24, 24, 25, 25, 25, 25, 26, 26, 26, 27, 27, 27, 28, 28, 28, 28, 29, 29,
-        29, 30, 30, 30, 30, 31, 31, 31, 31, 31, 32, 32, 32, 32, 33, 33, 33, 34,
-        34, 34, 34, 35, 35, 35, 9,  12, 15, 18, 19, 20, 2,  5,  8,  27, 28, 29,
-        6,  7,  8,  27, 30, 33, 15, 16, 17, 20, 23, 26};
+        4,  5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  8,  8,  8,  8,  9,  9,
+        9,  9,  9,  10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12,
+        13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16,
+        17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 19, 19, 19, 19, 19, 20, 20, 20,
+        20, 20, 21, 21, 21, 21, 21, 22, 22, 22, 22, 22, 23, 23, 23, 23, 24, 24,
+        24, 25, 25, 25, 26, 26, 26, 27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30,
+        30, 31, 31, 31, 0,  7,  8,  15, 16, 23, 24, 31};
     vec local_row_4_f = {
         0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,
         4,  4,  5,  5,  5,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,  7,  8,  8,
@@ -309,13 +323,13 @@ public:
         32, 33, 33, 33, 33, 34, 34, 34, 34, 35, 35, 35};
     std::map<bool, std::map<label, vec_vec>> exp_local_rows{
         {true,
-         {{1, {local_row_1, local_row_1, local_row_1, local_row_1}},
+         {{1, {local_row_1_f, local_row_1_f, local_row_1_f, local_row_1_f}},
           {2, {local_row_2_f, {}, local_row_2_f, {}}},
           {4, {local_row_4_f, {}, {}, {}}}}},
         {false,
-         {{1, {local_row_1, local_row_1, local_row_1, local_row_1}},
-          {2, {local_row_2, {}, local_row_2, {}}},
-          {4, {local_row_4, {}, {}, {}}}}}};
+         {{1, {local_row_1_nf, local_row_1_nf, local_row_1_nf, local_row_1_nf}},
+          {2, {local_row_2_nf, {}, local_row_2_nf, {}}},
+          {4, {local_row_4_nf, {}, {}, {}}}}}};
 
     vec local_cols_1 = {0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0, 3, 4, 6, 1, 3, 4,
                         5, 7, 2, 4, 5, 8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8};
@@ -433,60 +447,59 @@ TEST_P(DistMatP2D, canCreateDistributedMatrix)
               exp_local_size[ranks_per_gpu][rank]);
 }
 
-// TEST_P(DistMatP2D, hasCorrectLocalMatrix)
-// {
-//     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-//     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
-//     auto mesh = ((Environment *)global_env)->mesh;
-//     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-//     auto repartitioner = std::make_shared<Repartitioner>(
-//         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+TEST_P(DistMatP2D, hasCorrectLocalMatrix)
+{
+    /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
+    auto [ranks_per_gpu, matrix_format, fused] = GetParam();
+    auto mesh = ((Environment *)global_env)->mesh;
+    auto hostMatrix = ((Environment *)global_env)->hostMatrix;
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
-//     gko::dim<2>
-//     global_vec_dim{repartitioner->get_orig_partition()->get_size(),
-//                                1};
-//     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
+    gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
+                               1};
+    gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
-//     auto distributed =
-//         create_distributed(exec, repartitioner, hostMatrix, matrix_format);
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, matrix_format);
 
-//     auto local =
-//         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
-//                       distributed->get_local_matrix())
-//                 : detail::convert_combination_to_coo(
-//                       exec.get_ref_exec(), distributed->get_local_matrix());
+    auto local =
+        (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
+                      distributed->get_local_matrix())
+                : detail::convert_combination_to_coo(
+                      exec.get_ref_exec(), distributed->get_local_matrix());
 
-//     ASSERT_EQ(distributed->get_local_matrix()->get_size()[1],
-//               exp_local_size[ranks_per_gpu][rank]);
+    ASSERT_EQ(distributed->get_local_matrix()->get_size()[1],
+              exp_local_size[ranks_per_gpu][rank]);
 
-//     auto res_local_coeffs = convert_to_vector(get_val(local));
-//     auto res_local_cols = convert_to_vector(get_col(local));
-//     auto res_local_rows = convert_to_vector(get_row(local));
+    auto res_local_coeffs = convert_to_vector(get_val(local));
+    auto res_local_cols = convert_to_vector(get_col(local));
+    auto res_local_rows = convert_to_vector(get_row(local));
 
-//     EXPECT_EQ(res_local_rows.size(),
-//               exp_local_rows[fused][ranks_per_gpu][rank].size());
-//     for (size_t i = 0; i < res_local_rows.size(); i++) {
-//         ASSERT_EQ(res_local_rows[i],
-//                   exp_local_rows[fused][ranks_per_gpu][rank][i])
-//             << " failed at index " << i << " on rank " << rank;
-//     }
+    EXPECT_EQ(res_local_rows.size(),
+              exp_local_rows[fused][ranks_per_gpu][rank].size());
+    for (size_t i = 0; i < res_local_rows.size(); i++) {
+        ASSERT_EQ(res_local_rows[i],
+                  exp_local_rows[fused][ranks_per_gpu][rank][i])
+            << " failed at index " << i << " on rank " << rank;
+    }
 
-//     EXPECT_EQ(res_local_cols.size(),
-//               exp_local_cols[fused][ranks_per_gpu][rank].size());
-//     for (size_t i = 0; i < res_local_rows.size(); i++) {
-//         ASSERT_EQ(res_local_cols[i],
-//                   exp_local_cols[fused][ranks_per_gpu][rank][i])
-//             << " failed at index " << i << " on rank " << rank;
-//     }
+    // EXPECT_EQ(res_local_cols.size(),
+    //           exp_local_cols[fused][ranks_per_gpu][rank].size());
+    // for (size_t i = 0; i < res_local_rows.size(); i++) {
+    //     ASSERT_EQ(res_local_cols[i],
+    //               exp_local_cols[fused][ranks_per_gpu][rank][i])
+    //         << " failed at index " << i << " on rank " << rank;
+    // }
 
-//     EXPECT_EQ(res_local_coeffs.size(),
-//               exp_local_coeffs[fused][ranks_per_gpu][rank].size());
-//     for (size_t i = 0; i < res_local_rows.size(); i++) {
-//         ASSERT_EQ(res_local_coeffs[i],
-//                   exp_local_coeffs[fused][ranks_per_gpu][rank][i])
-//             << " failed at index " << i << " on rank " << rank;
-//     }
-// }
+    // EXPECT_EQ(res_local_coeffs.size(),
+    //           exp_local_coeffs[fused][ranks_per_gpu][rank].size());
+    // for (size_t i = 0; i < res_local_rows.size(); i++) {
+    //     ASSERT_EQ(res_local_coeffs[i],
+    //               exp_local_coeffs[fused][ranks_per_gpu][rank][i])
+    //         << " failed at index " << i << " on rank " << rank;
+    // }
+}
 
 
 TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)

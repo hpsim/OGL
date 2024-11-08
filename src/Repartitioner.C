@@ -122,6 +122,7 @@ label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
 void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
                    std::vector<label> &mapping, std::vector<gko::span> &span)
 {
+    if (span.size() == 1) return;
     std::vector<label> permutation(rows.size());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::stable_sort(permutation.begin(), permutation.end(),
@@ -191,6 +192,7 @@ Repartitioner::repartition_sparsity(
         }
 
         std::shared_ptr<SparsityPattern> ret_non_local;
+        std::shared_ptr<SparsityPattern> ret_local;
         if (fuse) {
             auto non_local_rows =
                 convert_to_vector(src_non_local_pattern->row_idxs);
@@ -207,6 +209,20 @@ Repartitioner::repartition_sparsity(
                 src_non_local_pattern->dim, non_local_rows, non_local_cols,
                 non_local_map, src_non_local_pattern->spans);
 
+            auto local_rows =
+                convert_to_vector(src_local_pattern->row_idxs);
+            auto local_cols =
+                convert_to_vector(src_local_pattern->col_idxs);
+            auto local_map =
+                convert_to_vector(src_local_pattern->ldu_mapping);
+
+            fuse_sparsity(local_rows, local_cols, local_map,
+                          src_local_pattern->spans);
+
+            ret_local = std::make_shared<SparsityPattern>(
+                src_local_pattern->row_idxs.get_executor(),
+                src_local_pattern->dim, local_rows, local_cols,
+                local_map, src_local_pattern->spans);
         } else {
             auto non_local_rows =
                 convert_to_vector(src_non_local_pattern->row_idxs);
@@ -222,13 +238,13 @@ Repartitioner::repartition_sparsity(
                 src_non_local_pattern->row_idxs.get_executor(),
                 src_non_local_pattern->dim, non_local_rows, non_local_cols,
                 non_local_map, src_non_local_pattern->spans);
+
+            ret_local =
+            std::make_shared<SparsityPattern>(*src_local_pattern.get());
         }
 
-        auto copy_local_pattern =
-            std::make_shared<SparsityPattern>(*src_local_pattern.get());
-
         LOG_1(verbose_, "done repartition sparsity pattern")
-        return {copy_local_pattern, ret_non_local, std::vector(ret)};
+        return {ret_local, ret_non_local, std::vector(ret)};
     }
 
     // Step 1. gather all local sparsity pattern to owner rank
