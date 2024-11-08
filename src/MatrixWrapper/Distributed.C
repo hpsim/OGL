@@ -403,6 +403,7 @@ void update_impl(
         label tag = 0;
         scalar *recv_buffer_ptr;
         label remain_host_interfaces = host_A->get_num_interfaces();
+
         for (auto [is_local, orig_rank, size, ctr] : local_interfaces) {
             if (is_local) {
                 mtx = gko::as<LocalMatrixType>(
@@ -489,7 +490,6 @@ void update_impl(
             local_sparsity->ldu_mapping.get_executor(), local_elements,
             local_sparsity->ldu_mapping.get_data());
 
-
         auto dense_vec = gko::share(gko::matrix::Dense<scalar>::create(
             local->get_executor(),
             gko::dim<2>{static_cast<dim_type>(local_elements), 1}, local_view,
@@ -500,6 +500,7 @@ void update_impl(
         auto row_view =
             gko::array<scalar>::view(local->get_executor(), local_elements,
                                      row_collection->get_values());
+
         local_view = row_view;
 
         // TODO localized interfaces need to be reordered too.
@@ -619,12 +620,14 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto src_comm_pattern = host_A->create_communication_pattern();
     if (non_local_sparsity->spans.size() !=
         src_comm_pattern->target_ids.size()) {
+        for (auto [begin, end]: non_local_sparsity->spans) {
+        }
         FatalErrorInFunction
-            << " Inconsistency detected non_local_sparsity->spans.size() = "
+            << " Inconsistency detected non_local_sparsity->spans.size()="
             << non_local_sparsity->spans.size()
-            << "!=src_comm_pattern->target_ids.size()  = "
+            << " != src_comm_pattern->target_ids.size()="
             << src_comm_pattern->target_ids.size()
-            << " on rank "
+            << " on rank: "
             << rank
             << exit(FatalError);
     }

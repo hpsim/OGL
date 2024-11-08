@@ -160,6 +160,9 @@ HostMatrixWrapper::HostMatrixWrapper(
             continue;
         }
         const auto iface{interface_getter(interfaces, i)};
+        if (iface->interface().faceCells().size() == 0) {
+            continue;
+        }
         interface_length_.push_back(iface->interface().faceCells().size());
         interface_ptr_.push_back(interfaceBouCoeffs[i].begin());
     }
@@ -343,6 +346,12 @@ std::vector<interface_locality>> HostMatrixWrapper::collect_cells_on_interfaces(
         total_ctr += interface_size;
 
         if (isA<processorFvPatch>(iface->interface())) {
+
+            if (interface_size == 0 ) {
+                std::cout << __FILE__ << "empty proc_interface \n";
+                continue;
+            }
+
             const auto &patch =
                 refCast<const processorFvPatch>(iface->interface());
             const auto &face_cells{iface->interface().faceCells()};
@@ -367,6 +376,11 @@ std::vector<interface_locality>> HostMatrixWrapper::collect_cells_on_interfaces(
         }
 
         if (isA<cyclicFvPatch>(iface->interface())) {
+            if (interface_size == 0 ) {
+                std::cout << __FILE__ << "empty cyclic interface \n";
+                continue;
+            }
+
             const cyclicFvPatch &patch =
                 refCast<const cyclicFvPatch>(iface->interface());
             const auto &face_cells{iface->interface().faceCells()};
