@@ -620,8 +620,12 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     if (non_local_sparsity->spans.size() !=
         src_comm_pattern->target_ids.size()) {
         FatalErrorInFunction
-            << " Inconsistency detected non_local_sparsity->spans.size() "
-               "!=src_comm_pattern->target_ids.size() on rank"
+            << " Inconsistency detected non_local_sparsity->spans.size() = "
+            << non_local_sparsity->spans.size()
+            << "!=src_comm_pattern->target_ids.size()  = "
+            << src_comm_pattern->target_ids.size()
+            << " on rank "
+            << rank
             << exit(FatalError);
     }
 
