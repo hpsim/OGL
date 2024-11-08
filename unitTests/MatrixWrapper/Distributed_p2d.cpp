@@ -228,37 +228,40 @@ public:
     std::map<bool, std::map<label, vec_vec>> exp_non_local_rows{
         {true,
          {{1,
-           {{2, 5, 6, 7, 8, 8},
-            {0, 3, 6, 6, 7, 8},
-            {0, 1, 2, 2, 5, 8},
-            {0, 0, 1, 2, 3, 6}}},
-          {2, {{6, 7, 8, 15, 16, 17}, {}, {0, 1, 2, 9, 10, 11}, {}}},
+           {{0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
+            {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7}}},
+          {2,
+           {{8, 9, 10, 11, 12, 13, 14, 15}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}},
         {false,
          {{1,
-           {{2, 5, 8, 6, 7, 8},
-            {0, 3, 6, 6, 7, 8},
-            {0, 1, 2, 2, 5, 8},
-            {0, 1, 2, 0, 3, 6}}},
-          {2, {{6, 7, 8, 15, 16, 17}, {}, {0, 1, 2, 9, 10, 11}, {}}},
+           {{0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7}}},
+          {2,
+           {{8, 9, 10, 11, 12, 13, 14, 15}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}}};
 
+    // non local cols are compressed idx ie the index wrt the send/recv buffer
     std::map<bool, std::map<label, vec_vec>> exp_non_local_cols{
         {true,
          {{1,
-           {{0, 1, 3, 4, 2, 5},
-            {0, 1, 2, 3, 4, 5},
-            {0, 1, 2, 3, 4, 5},
-            {0, 3, 1, 2, 4, 5}}},
-          {2, {{0, 1, 2, 3, 4, 5}, {}, {0, 1, 2, 3, 4, 5}, {}}},
+           {{0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
+            {0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
+            {0, 1, 2, 3, 4, 5, 6, 7}}},
+          {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}},
         {false,
          {{1,
-           {{0, 1, 2, 3, 4, 5},
-            {0, 1, 2, 3, 4, 5},
-            {0, 1, 2, 3, 4, 5},
-            {0, 1, 2, 3, 4, 5}}},
-          {2, {{0, 1, 2, 3, 4, 5}, {}, {0, 1, 2, 3, 4, 5}, {}}},
+           {{0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+            {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+            {0, 1, 2, 3, 4, 5, 6, 7}}},
+          {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}}};
 
     /*
@@ -486,44 +489,43 @@ TEST_P(DistMatP2D, canCreateDistributedMatrix)
 // }
 
 
-// TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)
-// {
-//     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
-//     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
-//     auto mesh = ((Environment *)global_env)->mesh;
-//     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-//     auto repartitioner = std::make_shared<Repartitioner>(
-//         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)
+{
+    /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
+    auto [ranks_per_gpu, matrix_format, fused] = GetParam();
+    auto mesh = ((Environment *)global_env)->mesh;
+    auto hostMatrix = ((Environment *)global_env)->hostMatrix;
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
-//     std::map<label, vec> exp_non_local_size;
-//     exp_non_local_size.emplace(1, vec{6, 6, 6, 6});
-//     exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
-//     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
+    std::map<label, vec> exp_non_local_size;
+    exp_non_local_size.emplace(1, vec{8, 16, 16, 8});
+    exp_non_local_size.emplace(2, vec{8, 0, 8, 0});
+    exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
-//     auto distributed =
-//         create_distributed(exec, repartitioner, hostMatrix, matrix_format);
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, matrix_format);
 
-//     auto non_local =
-//         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
-//                       distributed->get_non_local_matrix())
-//                 : detail::convert_combination_to_coo(
-//                       exec.get_ref_exec(),
-//                       distributed->get_non_local_matrix());
+    auto non_local =
+        (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
+                      distributed->get_non_local_matrix())
+                : detail::convert_combination_to_coo(
+                      exec.get_ref_exec(), distributed->get_non_local_matrix());
 
-//     auto res_non_local_coeffs = convert_to_vector(get_val(non_local));
-//     auto res_non_local_cols = convert_to_vector(get_col(non_local));
-//     auto res_non_local_rows = convert_to_vector(get_row(non_local));
+    auto res_non_local_coeffs = convert_to_vector(get_val(non_local));
+    auto res_non_local_cols = convert_to_vector(get_col(non_local));
+    auto res_non_local_rows = convert_to_vector(get_row(non_local));
 
-//     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1],
-//               exp_non_local_size[ranks_per_gpu][rank]);
+    ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1],
+              exp_non_local_size[ranks_per_gpu][rank]);
 
-//     ASSERT_EQ(res_non_local_coeffs,
-//               exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
-//     ASSERT_EQ(res_non_local_rows,
-//               exp_non_local_rows[fused][ranks_per_gpu][rank]);
-//     ASSERT_EQ(res_non_local_cols,
-//               exp_non_local_cols[fused][ranks_per_gpu][rank]);
-// }
+    // ASSERT_EQ(res_non_local_coeffs,
+    //           exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_rows,
+              exp_non_local_rows[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_cols,
+              exp_non_local_cols[fused][ranks_per_gpu][rank]);
+}
 
 // TEST_P(DistMatP2D, canApplyCorrectly)
 // {
