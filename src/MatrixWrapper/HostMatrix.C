@@ -287,18 +287,15 @@ HostMatrixWrapper::create_communication_pattern() const
 
     // iterate all interfaces, count number of neighbour procs
     // and store rows to send to neighbour procs
-    gko::size_type n_procs = 0;
     interface_iterator<processorFvPatch>(
         interfaces_, [&](label, label, label, const processorFvPatch &patch,
                          const lduInterfaceField *iface) {
             const auto &face_cells{iface->interface().faceCells()};
             const label neighbProcNo = patch.neighbProcNo();
 
-            target_ids.push_back(neighbProcNo);
-
             auto search = interface_cell_map.find(neighbProcNo);
             if (search == interface_cell_map.end()) {
-                n_procs++;
+                target_ids.push_back(neighbProcNo);
                 interface_cell_map.insert(std::pair{
                     neighbProcNo,
                     std::vector<label>(face_cells.begin(), face_cells.end())});
