@@ -100,7 +100,7 @@ const testing::Environment *global_env =
 
 TEST(HostMatrixP2D, returnsCorrectSize)
 {
-    /* The test mesh is 6x6 grid decomposed into 4 4x2 subdomains */
+    /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
     auto fvMatrix = ((HostMatrixEnvironment *)global_env)->fvMatrix;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
@@ -108,12 +108,18 @@ TEST(HostMatrixP2D, returnsCorrectSize)
     auto rank = exec->get_rank();
 
     // first and last rank have a non interface boundary (upper and lower wall)
-    std::vector<label> exp_num_interfaces{3, 4, 4, 3};
+    std::vector<label> exp_num_interfaces{3, 3, 3, 3};
 
-    // the cyclic bc have a length of 1, proc bcs are 8 cells long
     std::vector<std::vector<label>> exp_interface_length{
-        {1, 1, 8}, {1, 1, 8, 8}, {1, 1, 8, 8}, {1, 1, 8}};
+        {2, 2, 4}, {2, 2, 4}, {4, 2, 2}, {4, 2, 2}};
 
+    // the local size is 4 * 2 = 8
+    // [ 4 5 6 7 | 4 5 6 7 ]
+    // [ 0 1 2 3 | 0 1 2 3 ]
+    // ----------+----------
+    // [ 4 5 6 7 | 4 5 6 7 ]
+    // [ 0 1 2 3 | 0 1 2 3 ]
+    // the local size is 2 * 4 = 8
     EXPECT_EQ(mesh->C().size(), 8);
     // which results in a 8x8 matrix
     EXPECT_EQ(hostMatrix->get_size()[0], 8);
@@ -122,8 +128,7 @@ TEST(HostMatrixP2D, returnsCorrectSize)
     EXPECT_EQ(hostMatrix->get_local_nrows(), 8);
 
     EXPECT_EQ(hostMatrix->get_num_interfaces(), exp_num_interfaces[rank]);
-    EXPECT_EQ(hostMatrix->get_local_matrix_nnz(), 24);
-
+    EXPECT_EQ(hostMatrix->get_local_matrix_nnz(), 28);
     EXPECT_EQ(hostMatrix->get_interface_length(), exp_interface_length[rank]);
 }
 
@@ -137,16 +142,20 @@ TEST(HostMatrixP2D, canCreateCommunicationPattern)
     auto rank = exec->get_rank();
 
     // number of neighbours
-    std::vector<label> exp_send_idx_size{1, 2, 2, 1};
+    // cyclic bc are empty and converted into
+    // processorCyclic and two regular processor bc
+    std::vector<label> exp_send_idx_size{2, 2, 2, 2};
     EXPECT_EQ(commPattern->send_idxs.size(), exp_send_idx_size[rank]);
 
-    std::vector<std::vector<label>> target_ids_exp{{1}, {0, 2}, {1, 3}, {2}};
+    std::vector<std::vector<label>> target_ids_exp{
+        {1, 2}, {0, 3}, {0, 3}, {1, 2}};
     std::vector<label> target_ids_res(
         commPattern->target_ids.data(),
         commPattern->target_ids.data() + exp_send_idx_size[rank]);
     EXPECT_EQ(target_ids_exp[comm.rank()], target_ids_res);
 
-    std::vector<std::vector<label>> target_sizes_exp{{8}, {8, 8}, {8, 8}, {8}};
+    std::vector<std::vector<label>> target_sizes_exp{
+        {4, 4}, {4, 4}, {4, 4}, {4, 4}};
     std::vector<label> target_size_res(
         commPattern->target_sizes.data(),
         commPattern->target_sizes.data() + exp_send_idx_size[rank]);
@@ -160,29 +169,27 @@ TEST(HostMatrixP2D, canGenerateLocalSparsityPattern)
 
     auto [localSparsity, nonLocalSparsity] =
         hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
-    std::vector<label> rows_expected({0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
-                                      4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 0, 7});
-    std::vector<label> cols_expected({0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3,
-                                      4, 5, 4, 5, 6, 5, 6, 7, 6, 7, 7, 0});
+    std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2,
+                                      2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
+                                      5, 6, 6, 6, 6, 7, 7, 7});
+    std::vector<label> cols_expected({0, 1, 4, 0, 1, 2, 5, 1, 2, 3,
+                                      6, 2, 3, 7, 0, 4, 5, 1, 4, 5,
+                                      6, 2, 5, 6, 7, 3, 6, 7});
 
-    std::vector<label> mapping_expected({14, 0,  7,  15, 1,  8,  16, 2,
-                                         9,  17, 3,  10, 18, 4,  11, 19,
-                                         5,  12, 20, 6,  13, 21, 22, 24});
+    std::vector<label> mapping_expected({20, 0,  1,  10, 21, 2,  3,  12, 22, 4,
+                                         5,  14, 23, 6,  11, 24, 7,  13, 17, 25,
+                                         8,  15, 18, 26, 9,  16, 19, 27});
 
     // we have 8x8 matrix with 26 nnz entries
     EXPECT_EQ(localSparsity->dim[0], 8);
     EXPECT_EQ(localSparsity->dim[1], 8);
-    EXPECT_EQ(localSparsity->num_nnz, 24);
+    EXPECT_EQ(localSparsity->num_nnz, 28);
 
-    // // since we don't have any processor interfaces we only have
-    // // a single interface span ranging from 0 to 33
-    EXPECT_EQ(localSparsity->spans.size(), 3);
+    // since we don't have any processor interfaces we only have
+    // a single interface span ranging from 0 to 33
+    EXPECT_EQ(localSparsity->spans.size(), 1);
     EXPECT_EQ(localSparsity->spans[0].begin, 0);
-    EXPECT_EQ(localSparsity->spans[0].end, 22);
-    EXPECT_EQ(localSparsity->spans[1].begin, 22);
-    EXPECT_EQ(localSparsity->spans[1].end, 23);
-    EXPECT_EQ(localSparsity->spans[2].begin, 23);
-    EXPECT_EQ(localSparsity->spans[2].end, 24);
+    EXPECT_EQ(localSparsity->spans[0].end, localSparsity->num_nnz);
 
     auto rows_res = convert_to_vector(localSparsity->row_idxs);
     EXPECT_EQ(rows_expected, rows_res);
@@ -205,30 +212,28 @@ TEST(HostMatrixP2D, canGenerateNonLocalSparsityPattern)
         hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
 
     // corresponds to cell ids
-    std::vector<std::vector<label>> rows_expected{
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7}};
-    // cols expected
-    std::vector<std::vector<label>> cols_expected(
-        {{0, 1, 2, 3, 4, 5, 6, 7},
-         {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-         {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-         {0, 1, 2, 3, 4, 5, 6, 7}});
+    std::vector<std::vector<label>> rows_expected{{3, 7, 0, 4, 4, 5, 6, 7},
+                                                  {0, 4, 3, 7, 4, 5, 6, 7},
+                                                  {0, 1, 2, 3, 3, 7, 0, 4},
+                                                  {0, 1, 2, 3, 0, 4, 3, 7}};
 
-    std::vector<std::vector<label>> mapping_expected{
-        {0, 1, 2, 3, 4, 5, 6, 7},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-        {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-        {0, 1, 2, 3, 4, 5, 6, 7}};
+    // cols expected
+    std::vector<std::vector<label>> cols_expected({{0, 4, 3, 7, 0, 1, 2, 3},
+                                                   {3, 7, 0, 4, 0, 1, 2, 3},
+                                                   {4, 5, 6, 7, 0, 4, 3, 7},
+                                                   {4, 5, 6, 7, 3, 7, 0, 4}});
+
+    std::vector<std::vector<label>> mapping_expected{{0, 1, 2, 3, 4, 5, 6, 7},
+                                                     {0, 1, 2, 3, 4, 5, 6, 7},
+                                                     {0, 1, 2, 3, 4, 5, 6, 7},
+                                                     {0, 1, 2, 3, 4, 5, 6, 7}};
 
     // we dont test the cols expected for now,
     // as they are in compressed format
-    std::vector<label> exp_send_idx_size{8, 16, 16, 8};
+    std::vector<label> exp_send_idx_size{8, 8, 8, 8};
     EXPECT_EQ(nonLocalSparsity->num_nnz, exp_send_idx_size[rank]);
     // number of interfaces
-    std::vector<label> exp_spans_size{1, 2, 2, 1};
+    std::vector<label> exp_spans_size{3, 3, 3, 3};
     EXPECT_EQ(nonLocalSparsity->spans.size(), exp_spans_size[rank]);
 
     // EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
@@ -240,7 +245,6 @@ TEST(HostMatrixP2D, canGenerateNonLocalSparsityPattern)
     EXPECT_EQ(rows_expected[rank], rows_res);
     auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
     EXPECT_EQ(mapping_expected[rank], mapping_res);
-
     auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
     EXPECT_EQ(cols_expected[comm->rank()], cols_res);
 }

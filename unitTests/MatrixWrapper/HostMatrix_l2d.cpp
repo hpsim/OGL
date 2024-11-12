@@ -253,7 +253,11 @@ TEST(HostMatrixL2D, canGenerateNonLocalSparsityPattern)
                                                    {0, 3, 6, 6, 7, 8},
                                                    {0, 1, 2, 2, 5, 8},
                                                    {0, 1, 2, 0, 3, 6}});
-    // cols expected
+    // cols expected = rows of the other side
+    // -------------
+    // 6 7 8 | 6 7 8
+    // 3 4 5 | 3 4 5
+    // 0 1 2 | 0 1 2
     std::vector<std::vector<label>> cols_expected({{0, 3, 6, 0, 1, 2},
                                                    {2, 5, 8, 0, 1, 2},
                                                    {6, 7, 8, 0, 3, 6},
