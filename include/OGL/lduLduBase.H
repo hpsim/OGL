@@ -208,7 +208,7 @@ public:
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
-            exec_handler_, fused);
+            exec_handler_);
 
         PersistentDistributedMatrix dist_A{db_,
                                            exec_handler_,

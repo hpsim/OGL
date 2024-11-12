@@ -45,7 +45,7 @@ struct DistributedMatrixInitFunctor {
         std::shared_ptr<RepartDistMatrix> persistent_device_matrix) const
     {
         update_distributed(
-            exec_, repartitioner_, host_A_, persistent_device_matrix,
+            exec_, host_A_, persistent_device_matrix,
             solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
     }
 
@@ -53,7 +53,8 @@ struct DistributedMatrixInitFunctor {
     {
         return create_distributed(
             exec_, repartitioner_, host_A_,
-            solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
+            solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"),
+            solver_controls_.lookupOrDefault<Switch>("fuse", true));
     }
 };
 

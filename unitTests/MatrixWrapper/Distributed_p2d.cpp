@@ -109,27 +109,24 @@ public:
         // }
         // set the interface value, we use get_interface_data here
         // because that is more comfortable.
-        int iface_ctr{0};
-        for (auto size : hostMatrix->get_interface_length()) {
-            std::cout << __FILE__ << " size " << size << "\n";
-            scalar *data =
-                const_cast<scalar *>(hostMatrix->get_interface_data(iface_ctr));
-            if (size == 8) {
-                std::cout << __FILE__ << " size == 8" << size << "\n";
-                data[0] = 1.0;
-                data[1] = 2.0;
-                data[2] = 3.0;
-                data[3] = 4.0;
-                data[4] = 5.0;
-                data[5] = 6.0;
-                data[6] = 7.0;
-                data[7] = 8.0;
-            }
+        for (int i = 3; i < 5; i++) {
+            auto interface_data = hostMatrix->get_interface_data(i);
+            scalar *data = const_cast<scalar *>(std::get<0>(interface_data));
+            // if (size == 8) {
+            //     data[0] = 1.0;
+            //     data[1] = 2.0;
+            //     data[2] = 3.0;
+            //     data[3] = 4.0;
+            //     data[4] = 5.0;
+            //     data[5] = 6.0;
+            //     data[6] = 7.0;
+            //     data[7] = 8.0;
+            // }
             // for (size_t i=0;i<size;i++){
             //     data[i] = -1.0;
             //     // std::cout << __FILE__<< " i " << i << "\n";
             // }
-            iface_ctr += 1;
+            // iface_ctr += 1;
         }
     }
 

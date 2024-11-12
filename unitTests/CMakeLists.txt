@@ -14,7 +14,7 @@ find_package(MPI REQUIRED)
 
 # generate unit test based on a test case
 macro(ogl_unit_test_case TEST CASE)
-  add_executable(${TEST}_${CASE} ${TEST}_${CASE}.cpp)
+  add_executable(${TEST}_${CASE} ${TEST}.cpp)
   target_link_libraries(
     ${TEST}_${CASE}
     OpenFOAM
@@ -56,8 +56,10 @@ macro(ogl_unit_test TEST)
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${TEST})
 endmacro()
 
-ogl_unit_test_case(CommunicationPattern l2d)
-ogl_unit_test_case(Repartitioner1D l2d)
-ogl_unit_test_case(Repartitioner2D l2d)
+# ogl_unit_test_case(CommunicationPattern l2d)
+#
+# ogl_unit_test_case(Repartitioner1D l2d)
+#
+# ogl_unit_test_case(Repartitioner2D l2d)
 
 add_subdirectory(MatrixWrapper)

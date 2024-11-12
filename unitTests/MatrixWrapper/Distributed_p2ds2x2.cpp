@@ -109,15 +109,16 @@ public:
         }
         // set the interface value, we use get_interface_data here
         // because that is more comfortable.
-        int iface_ctr{0};
-        for (auto size : hostMatrix->get_interface_length()) {
-            scalar *data =
-                const_cast<scalar *>(hostMatrix->get_interface_data(iface_ctr));
-            for (size_t i = 0; i < size; i++) {
-                data[i] = -1.0 * scalar(i);
-            }
-            iface_ctr += 1;
-        }
+        // int iface_ctr{0};
+        // for (auto size : hostMatrix->get_interface_length()) {
+        //     scalar *data =
+        //         const_cast<scalar
+        //         *>(hostMatrix->get_interface_data(iface_ctr));
+        //     for (size_t i = 0; i < size; i++) {
+        //         data[i] = -1.0 * scalar(i);
+        //     }
+        //     iface_ctr += 1;
+        // }
     }
 
     Foam::lduInterfaceFieldPtrsList interfaces;

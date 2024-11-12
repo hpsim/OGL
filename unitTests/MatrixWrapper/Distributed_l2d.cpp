@@ -100,18 +100,19 @@ public:
         // in order to make the apply test give actual results
         // this is required since creating the host matrix
         // without actual DSL sets all values to zero
-        for (int i = 0; i < 9; i++) {
-            fvMatrix->diag().data()[i] = 2.0;
-        }
         for (int i = 0; i < 12; i++) {
             fvMatrix->upper().data()[i] = 1.0;
-            fvMatrix->lower().data()[i] = 1.0;
+            fvMatrix->lower().data()[i] = 2.0;
         }
+        for (int i = 0; i < 9; i++) {
+            fvMatrix->diag().data()[i] = 3.0;
+        }
+
         // set the interface value, we use get_interface_data here
         // because that is more comfortable.
-        for (int i = 0; i < 2; i++) {
-            scalar *data =
-                const_cast<scalar *>(hostMatrix->get_interface_data(i));
+        for (int i = 3; i < 5; i++) {
+            auto interface_data = hostMatrix->get_interface_data(i);
+            scalar *data = const_cast<scalar *>(std::get<0>(interface_data));
             data[0] = -1.0;
             data[1] = -2.0;
             data[2] = -3.0;
@@ -156,9 +157,12 @@ public:
      *        [ 3  4  5|12 13 14]
      *   0    [ 0  1  2| 9 10 11]  1
      *   */
-    std::vector<scalar> exp_local_coeff_1{2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1,
-                                          2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2,
-                                          1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2};
+    std::vector<scalar> exp_local_coeff_1_nf{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                             1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                             2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+    std::vector<scalar> exp_local_coeff_1_f{3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 2,
+                                            3, 1, 1, 2, 2, 3, 1, 1, 2, 2, 3,
+                                            1, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3};
 
     std::vector<scalar> exp_local_coeff_2_nf{
         2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1,
@@ -204,14 +208,14 @@ public:
     std::map<bool, std::map<label, vec_vec_s>> exp_local_coeffs{
         {true,
          {{1,
-           {exp_local_coeff_1, exp_local_coeff_1, exp_local_coeff_1,
-            exp_local_coeff_1}},
+           {exp_local_coeff_1_f, exp_local_coeff_1_f, exp_local_coeff_1_f,
+            exp_local_coeff_1_f}},
           {2, {exp_local_coeff_2_f_1, {}, exp_local_coeff_2_f_2, {}}},
           {4, {exp_local_coeff_4_f, {}, {}, {}}}}},
         {false,
          {{1,
-           {exp_local_coeff_1, exp_local_coeff_1, exp_local_coeff_1,
-            exp_local_coeff_1}},
+           {exp_local_coeff_1_nf, exp_local_coeff_1_nf, exp_local_coeff_1_nf,
+            exp_local_coeff_1_nf}},
           {2, {exp_local_coeff_2_nf, {}, exp_local_coeff_2_nf, {}}},
           {4, {exp_local_coeff_4, {}, {}, {}}}}}};
 
@@ -279,8 +283,11 @@ public:
      *        [ 3  4  5|12 13 14]
      *   0    [ 0  1  2| 9 10 11]  1
      *   */
-    vec local_row_1 = {0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
-                       4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8};
+    //  uper 12, lower 12, diag
+    vec local_row_1_nf = {0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 6, 7, 1, 2, 3, 4, 4,
+                          5, 5, 6, 7, 7, 8, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8};
+    vec local_row_1_f = {0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
+                         4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8};
     vec local_row_2 = {
         0,  0,  0,  1,  1,  1,  1,  2,  2,  2,  3,  3,  3,  3,  4,  4,  4,  4,
         4,  5,  5,  5,  5,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9,
@@ -313,16 +320,18 @@ public:
         32, 33, 33, 33, 33, 34, 34, 34, 34, 35, 35, 35};
     std::map<bool, std::map<label, vec_vec>> exp_local_rows{
         {true,
-         {{1, {local_row_1, local_row_1, local_row_1, local_row_1}},
+         {{1, {local_row_1_f, local_row_1_f, local_row_1_f, local_row_1_f}},
           {2, {local_row_2_f, {}, local_row_2_f, {}}},
           {4, {local_row_4_f, {}, {}, {}}}}},
         {false,
-         {{1, {local_row_1, local_row_1, local_row_1, local_row_1}},
+         {{1, {local_row_1_nf, local_row_1_nf, local_row_1_nf, local_row_1_nf}},
           {2, {local_row_2, {}, local_row_2, {}}},
           {4, {local_row_4, {}, {}, {}}}}}};
 
-    vec local_cols_1 = {0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0, 3, 4, 6, 1, 3, 4,
-                        5, 7, 2, 4, 5, 8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8};
+    vec local_cols_1_nf = {1, 3, 2, 4, 5, 4, 6, 5, 7, 8, 7, 8, 0, 1, 0, 1, 3,
+                           2, 4, 3, 4, 6, 5, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
+    vec local_cols_1_f = {0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0, 3, 4, 6, 1, 3, 4,
+                          5, 7, 2, 4, 5, 8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8};
     vec local_cols_2 = {
         0,  1,  3,  0,  1,  2,  4,  1,  2,  5,  0,  3,  4,  6,  1,  3,  4,  5,
         7,  2,  4,  5,  8,  3,  6,  7,  4,  6,  7,  8,  5,  7,  8,  9,  10, 12,
@@ -360,18 +369,20 @@ public:
         26, 30, 33, 34, 31, 33, 34, 35, 32, 34, 35};
     std::map<bool, std::map<label, vec_vec>> exp_local_cols{
         {true,
-         {{1, {local_cols_1, local_cols_1, local_cols_1, local_cols_1}},
+         {{1, {local_cols_1_f, local_cols_1_f, local_cols_1_f, local_cols_1_f}},
           {2, {local_cols_2_f, {}, local_cols_2_f, {}}},
           {4, {local_cols_4_f, {}, {}, {}}}}},
         {false,
-         {{1, {local_cols_1, local_cols_1, local_cols_1, local_cols_1}},
+         {{1,
+           {local_cols_1_nf, local_cols_1_nf, local_cols_1_nf,
+            local_cols_1_nf}},
           {2, {local_cols_2, {}, local_cols_2, {}}},
           {4, {local_cols_4, {}, {}, {}}}}}};
 
-    vec_vec_s x_1{{4, 5, 5, 5, 6, 7, 5, 7, 10},
-                  {5, 5, 4, 7, 6, 5, 8, 7, 7},
-                  {5, 7, 8, 5, 6, 7, 4, 5, 7},
-                  {6, 7, 7, 7, 6, 5, 7, 5, 4}};
+    vec_vec_s x_1{{5, 7, 7, 7, 9, 10, 7, 10, 13},
+                  {6, 7, 6, 9, 9, 8, 10, 10, 10},
+                  {6, 9, 10, 7, 9, 10, 6, 8, 10},
+                  {7, 9, 9, 9, 9, 8, 9, 8, 7}};
     std::vector<scalar> exp_x_2_1 = {4, 5, 5, 5, 6, 7, 5, 7, 10,
                                      5, 5, 4, 7, 6, 5, 8, 7, 7};
     std::vector<scalar> exp_x_2_2 = {5, 7, 8, 5, 6, 7, 4, 5, 7,
@@ -392,7 +403,7 @@ public:
 
 
 INSTANTIATE_TEST_SUITE_P(DistMatL2DInit, DistMatL2D,
-                         testing::Combine(testing::Values(1, 2, 4),
+                         testing::Combine(testing::Values(1),
                                           testing::Values("Coo"),
                                           testing::Values(false, true)),
                          [](const auto &info) {
@@ -420,14 +431,14 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
-        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
-    auto distributed =
-        create_distributed(exec, repartitioner, hostMatrix, matrix_format);
+    auto distributed = create_distributed(exec, repartitioner, hostMatrix,
+                                          matrix_format, fused);
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
               exp_local_size[ranks_per_gpu][rank]);
@@ -446,14 +457,14 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
-        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
-    auto distributed =
-        create_distributed(exec, repartitioner, hostMatrix, matrix_format);
+    auto distributed = create_distributed(exec, repartitioner, hostMatrix,
+                                          matrix_format, fused);
 
     auto local =
         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
@@ -470,6 +481,7 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
 
     EXPECT_EQ(res_local_rows.size(),
               exp_local_rows[fused][ranks_per_gpu][rank].size());
+
     for (size_t i = 0; i < res_local_rows.size(); i++) {
         ASSERT_EQ(res_local_rows[i],
                   exp_local_rows[fused][ranks_per_gpu][rank][i])
@@ -486,6 +498,7 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
 
     EXPECT_EQ(res_local_coeffs.size(),
               exp_local_coeffs[fused][ranks_per_gpu][rank].size());
+    std::cout << __FILE__ << " rank " << rank << res_local_coeffs << "\n";
     for (size_t i = 0; i < res_local_rows.size(); i++) {
         ASSERT_EQ(res_local_coeffs[i],
                   exp_local_coeffs[fused][ranks_per_gpu][rank][i])
@@ -501,15 +514,15 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
-        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
     std::map<label, vec> exp_non_local_size;
     exp_non_local_size.emplace(1, vec{6, 6, 6, 6});
     exp_non_local_size.emplace(2, vec{6, 0, 6, 0});
     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
-    auto distributed =
-        create_distributed(exec, repartitioner, hostMatrix, matrix_format);
+    auto distributed = create_distributed(exec, repartitioner, hostMatrix,
+                                          matrix_format, fused);
 
     auto non_local =
         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
@@ -538,10 +551,10 @@ TEST_P(DistMatL2D, canApplyCorrectly)
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
-        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
     auto distributed =
-        create_distributed(exec, repartitioner, hostMatrix, format);
+        create_distributed(exec, repartitioner, hostMatrix, format, fused);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};

@@ -100,11 +100,6 @@ struct VectorInitFunctor {
 
         communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                            values.get_data());
-        // comm->all_to_all_v(ref_exec, host_view.get_const_data(),
-        // comm_pattern.send_counts.data(),
-        //                   comm_pattern.send_offsets.data(),
-        //                   values.get_data(), comm_pattern.recv_counts.data(),
-        //                   comm_pattern.recv_offsets.data());
 
         auto ret = gko::share(dist_vec::create(
             exec, *comm.get(),

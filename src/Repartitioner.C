@@ -6,37 +6,37 @@
 
 namespace detail {
 
-std::vector<label> convert_to_global(
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition,
-    const label *idx, const std::vector<gko::span> &spans,
-    const std::vector<label> &ranks)
-{
-    std::vector<label> ret;
-    ret.reserve(spans.back().end);
+// std::vector<label> convert_to_global(
+//     std::shared_ptr<
+//         const gko::experimental::distributed::Partition<label, label>>
+//         partition,
+//     const label *idx, const std::vector<gko::span> &spans,
+//     const std::vector<label> &ranks)
+// {
+//     std::vector<label> ret;
+//     ret.reserve(spans.back().end);
 
-    for (size_t i = 0; i < ranks.size(); i++) {
-        auto rank = ranks[i];
-        auto [begin, end] = spans[i];
-        label offset = partition->get_range_bounds()[rank];
-        for (size_t j = begin; j < end; j++) {
-            ret.push_back(idx[j] + offset);
-        }
-    }
-    return ret;
-}
+//     for (size_t i = 0; i < ranks.size(); i++) {
+//         auto rank = ranks[i];
+//         auto [begin, end] = spans[i];
+//         label offset = partition->get_range_bounds()[rank];
+//         for (size_t j = begin; j < end; j++) {
+//             ret.push_back(idx[j] + offset);
+//         }
+//     }
+//     return ret;
+// }
 
-void convert_to_local(
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition,
-    std::vector<label> &in, label rank)
-{
-    label offset = partition->get_range_bounds()[rank];
-    std::transform(in.begin(), in.end(), in.begin(),
-                   [&](label idx) { return idx - offset; });
-}
+// void convert_to_local(
+//     std::shared_ptr<
+//         const gko::experimental::distributed::Partition<label, label>>
+//         partition,
+//     std::vector<label> &in, label rank)
+// {
+//     label offset = partition->get_range_bounds()[rank];
+//     std::transform(in.begin(), in.end(), in.begin(),
+//                    [&](label idx) { return idx - offset; });
+// }
 
 std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
 exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
@@ -82,27 +82,6 @@ exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
     return {out_spans, origins, ranks};
 }
 
-template <typename T>
-std::vector<T> apply_permutation(const std::vector<T> vec,
-                                 const std::vector<label> &p)
-{
-    std::vector<T> sorted_vec(vec.size());
-    std::transform(p.begin(), p.end(), sorted_vec.begin(),
-                   [&](label i) { return vec[i]; });
-    return sorted_vec;
-}
-
-template <typename T, typename Compare>
-std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
-{
-    std::vector<label> p(vec.size());
-    std::iota(p.begin(), p.end(), 0);
-    std::stable_sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
-        return compare(vec[i], vec[j]);
-    });
-    return p;
-}
-
 }  // namespace detail
 
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
@@ -118,52 +97,12 @@ label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
     return all_to_all_pattern.recv_offsets.back();
 }
 
-/* reorders the sparsity pattern so that it is in row major order */
-void fuse_sparsity(std::vector<label> &rows, std::vector<label> &cols,
-                   std::vector<label> &mapping, std::vector<gko::span> &span)
-{
-    if (span.size() == 1) return;
-    std::vector<label> permutation(rows.size());
-    std::iota(permutation.begin(), permutation.end(), 0);
-    std::stable_sort(permutation.begin(), permutation.end(),
-                     [&](std::size_t i, std::size_t j) {
-                         return std::tie(rows[i], cols[i]) <
-                                std::tie(rows[j], cols[j]);
-                     });
-    rows = detail::apply_permutation(rows, permutation);
-    cols = detail::apply_permutation(cols, permutation);
-    mapping = detail::apply_permutation(mapping, permutation);
-
-    span.clear();
-    span.emplace_back(0, rows.size());
-}
-
-void sort_sparsity(std::vector<label> &rows, std::vector<label> &cols,
-                   std::vector<label> &mapping, std::vector<gko::span> &span)
-{
-    // add offset to mapping
-    // so interface mapping is not continuous
-    std::vector<label> permutation(rows.size());
-    std::iota(permutation.begin(), permutation.end(), 0);
-    for (auto [begin, end] : span) {
-        std::stable_sort(permutation.begin() + begin, permutation.begin() + end,
-                         [&](std::size_t i, std::size_t j) {
-                             return std::tie(rows[i], cols[i]) <
-                                    std::tie(rows[j], cols[j]);
-                         });
-    }
-    rows = detail::apply_permutation(rows, permutation);
-    cols = detail::apply_permutation(cols, permutation);
-    mapping = detail::apply_permutation(mapping, permutation);
-}
-
-std::tuple<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>,
-           std::vector<InterfaceLocality>>
+std::pair<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>>
 Repartitioner::repartition_sparsity(
     const ExecutorHandler &exec_handler,
-    std::shared_ptr<const SparsityPattern> src_local_pattern,
-    std::shared_ptr<const SparsityPattern> src_non_local_pattern,
-    std::vector<label> src_non_local_target_ids, bool fuse) const
+    std::shared_ptr<SparsityPattern> src_local_pattern,
+    std::shared_ptr<SparsityPattern> src_non_local_pattern
+    ) const
 {
     LOG_1(verbose_, "start repartition sparsity pattern")
 
@@ -171,7 +110,7 @@ Repartitioner::repartition_sparsity(
     auto gather_closure = [exec_handler](auto &comm_pattern, auto &data,
                                          label offset) {
         return gather_labels_to_owner(exec_handler, comm_pattern,
-                                      data.get_data(), data.get_size(), offset);
+                                      data.data(), data.size(), offset);
     };
 
     auto exec = exec_handler.get_ref_exec();
@@ -182,160 +121,102 @@ Repartitioner::repartition_sparsity(
 
     // early return if no repartitioning requested
     if (ranks_per_gpu == 1) {
-        // no interface gets repartitioned, thus all interfaces are available on
-        // local rank
-        std::vector<InterfaceLocality> ret;
-        label ctr = 0;
-        for (auto span : src_non_local_pattern->spans) {
-            ret.push_back(InterfaceLocality{false, rank, span.length(), ctr});
-            ctr++;
-        }
-
-        std::shared_ptr<SparsityPattern> ret_non_local;
-        std::shared_ptr<SparsityPattern> ret_local;
-        if (fuse) {
-            auto non_local_rows =
-                convert_to_vector(src_non_local_pattern->row_idxs);
-            auto non_local_cols =
-                convert_to_vector(src_non_local_pattern->col_idxs);
-            auto non_local_map =
-                convert_to_vector(src_non_local_pattern->ldu_mapping);
-
-            fuse_sparsity(non_local_rows, non_local_cols, non_local_map,
-                          src_non_local_pattern->spans);
-
-            ret_non_local = std::make_shared<SparsityPattern>(
-                src_non_local_pattern->row_idxs.get_executor(),
-                src_non_local_pattern->dim, non_local_rows, non_local_cols,
-                non_local_map, src_non_local_pattern->spans);
-
-            auto local_rows =
-                convert_to_vector(src_local_pattern->row_idxs);
-            auto local_cols =
-                convert_to_vector(src_local_pattern->col_idxs);
-            auto local_map =
-                convert_to_vector(src_local_pattern->ldu_mapping);
-
-            fuse_sparsity(local_rows, local_cols, local_map,
-                          src_local_pattern->spans);
-
-            ret_local = std::make_shared<SparsityPattern>(
-                src_local_pattern->row_idxs.get_executor(),
-                src_local_pattern->dim, local_rows, local_cols,
-                local_map, src_local_pattern->spans);
-        } else {
-            auto non_local_rows =
-                convert_to_vector(src_non_local_pattern->row_idxs);
-            auto non_local_cols =
-                convert_to_vector(src_non_local_pattern->col_idxs);
-            auto non_local_map =
-                convert_to_vector(src_non_local_pattern->ldu_mapping);
-
-            sort_sparsity(non_local_rows, non_local_cols, non_local_map,
-                          src_non_local_pattern->spans);
-
-            ret_non_local = std::make_shared<SparsityPattern>(
-                src_non_local_pattern->row_idxs.get_executor(),
-                src_non_local_pattern->dim, non_local_rows, non_local_cols,
-                non_local_map, src_non_local_pattern->spans);
-
-            ret_local =
-            std::make_shared<SparsityPattern>(*src_local_pattern.get());
-        }
-
         LOG_1(verbose_, "done repartition sparsity pattern")
-        return {ret_local, ret_non_local, std::vector(ret)};
+        return {src_local_pattern, src_non_local_pattern};
     }
 
     // Step 1. gather all local sparsity pattern to owner rank
-    // this is a all in collected into std::vectors, thus we can
-    // append all the interfaces which became local after repartitioning
-    auto local_comm_pattern = compute_gather_to_owner_counts(
-        exec_handler, ranks_per_gpu, src_local_pattern->num_nnz);
+    auto local_comm_pattern_upper = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, src_local_pattern->get_rows()[0].size());
+    auto local_comm_pattern_diag = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu, src_local_pattern->get_rows()[2].size());
 
     // row/column index offset relative to its owner rank
     auto offset = orig_partition_->get_range_bounds()[rank] -
                   orig_partition_->get_range_bounds()[owner_rank];
 
-    auto tmp_local_rows =
-        gather_closure(local_comm_pattern, src_local_pattern->row_idxs, offset);
-    auto tmp_local_cols =
-        gather_closure(local_comm_pattern, src_local_pattern->col_idxs, offset);
-    auto tmp_local_mapping =
-        gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping, 0);
+    auto tmp_local_rows_diag =
+        gather_closure(local_comm_pattern_diag, src_local_pattern->get_rows()[2], offset);
 
-    if (is_owner(exec_handler)) {
-        make_ldu_mapping_consecutive(local_comm_pattern, tmp_local_mapping,
-                                     rank, ranks_per_gpu);
-    }
-    std::vector<gko::span> tmp_local_span{gko::span{0, tmp_local_rows.size()}};
+    auto tmp_local_rows_upper =
+        gather_closure(local_comm_pattern_upper, src_local_pattern->get_rows()[0], offset);
 
-    gko::dim<2> tmp_local_dim = (is_owner(exec_handler))
-                                    ? compute_dimensions(tmp_local_rows)
-                                    : gko::dim<2>{0, 0};
+    auto tmp_local_rows_lower =
+        gather_closure(local_comm_pattern_upper, src_local_pattern->get_rows()[1], offset);
 
-    // Done with Step 1. Next we gather all non local sparsity. Again
-    // all of it is collected into temporary vectors first.
-    auto non_local_comm_pattern = compute_gather_to_owner_counts(
-        exec_handler, ranks_per_gpu, src_non_local_pattern->num_nnz);
+    // auto tmp_local_cols =
+    //     gather_closure(local_comm_pattern, src_local_pattern->col_idxs, offset);
+    // auto tmp_local_mapping =
+    //     gather_closure(local_comm_pattern, src_local_pattern->ldu_mapping, 0);
 
-    auto tmp_non_local_rows = gather_closure(
-        non_local_comm_pattern, src_non_local_pattern->row_idxs, offset);
+    // std::vector<gko::span> tmp_local_span{gko::span{0, tmp_local_rows.size()}};
 
-    auto [new_spans, tmp_non_local_origin, tmp_comm_ranks] =
-        detail::exchange_spans_ranks(exec_handler, ranks_per_gpu_,
-                                     src_non_local_pattern->spans,
-                                     src_non_local_target_ids);
+    // gko::dim<2> tmp_local_dim = (is_owner(exec_handler))
+    //                                 ? compute_dimensions(tmp_local_rows)
+    //                                 : gko::dim<2>{0, 0};
 
-    // comm ranks are based on non repartitioned ranks
-    auto tmp_non_local_cols =
-        gather_labels_to_owner(exec_handler, non_local_comm_pattern,
-                               src_non_local_pattern->col_idxs.get_data(),
-                               src_non_local_pattern->num_nnz, 0);
+    // // Done with Step 1. Next we gather all non local sparsity. Again
+    // // all of it is collected into temporary vectors first.
+    // auto non_local_comm_pattern = compute_gather_to_owner_counts(
+    //     exec_handler, ranks_per_gpu, src_non_local_pattern->num_nnz);
 
-    std::vector<label> tmp_non_local_mapping =
-        gather_labels_to_owner(exec_handler, non_local_comm_pattern,
-                               src_non_local_pattern->ldu_mapping.get_data(),
-                               src_non_local_pattern->num_nnz, 0);
+    // auto tmp_non_local_rows = gather_closure(
+    //     non_local_comm_pattern, src_non_local_pattern->row_idxs, offset);
 
-    auto is_local = build_non_local_interfaces(
-        exec_handler, orig_partition_, tmp_local_rows, tmp_local_cols,
-        tmp_local_mapping, tmp_local_span, tmp_non_local_rows,
-        tmp_non_local_cols, tmp_non_local_mapping, tmp_non_local_origin,
-        new_spans, tmp_comm_ranks);
+    // auto [new_spans, tmp_non_local_origin, tmp_comm_ranks] =
+    //     detail::exchange_spans_ranks(exec_handler, ranks_per_gpu_,
+    //                                  src_non_local_pattern->spans,
+    //                                  src_non_local_target_ids);
 
-    if (fuse_) {
-        if (is_owner(exec_handler)) {
-            fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
-                          tmp_local_span);
-            fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
-                          tmp_non_local_mapping, new_spans);
-        }
-    }
+    // // comm ranks are based on non repartitioned ranks
+    // auto tmp_non_local_cols =
+    //     gather_labels_to_owner(exec_handler, non_local_comm_pattern,
+    //                            src_non_local_pattern->col_idxs.get_data(),
+    //                            src_non_local_pattern->num_nnz, 0);
 
-    gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};
+    // std::vector<label> tmp_non_local_mapping =
+    //     gather_labels_to_owner(exec_handler, non_local_comm_pattern,
+    //                            src_non_local_pattern->ldu_mapping.get_data(),
+    //                            src_non_local_pattern->num_nnz, 0);
 
-    if (is_owner(exec_handler)) {
-        LOG_1(verbose_, "done repartition sparsity pattern")
-        auto ret = std::make_tuple<std::shared_ptr<SparsityPattern>,
-                                   std::shared_ptr<SparsityPattern>,
-                                   std::vector<InterfaceLocality>>(
-            std::make_shared<SparsityPattern>(
-                exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
-                tmp_local_mapping, tmp_local_span),
-            std::make_shared<SparsityPattern>(
-                exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
-                tmp_non_local_mapping, new_spans),
-            std::vector(is_local));
-        return ret;
-    } else {
-        LOG_1(verbose_, "done repartition sparsity pattern")
-        return std::make_tuple<std::shared_ptr<SparsityPattern>,
-                               std::shared_ptr<SparsityPattern>,
-                               std::vector<InterfaceLocality>>(
-            std::make_shared<SparsityPattern>(exec),
-            std::make_shared<SparsityPattern>(exec), std::move(is_local));
-    }
+    // auto is_local = build_non_local_interfaces(
+    //     exec_handler, orig_partition_, tmp_local_rows, tmp_local_cols,
+    //     tmp_local_mapping, tmp_local_span, tmp_non_local_rows,
+    //     tmp_non_local_cols, tmp_non_local_mapping, tmp_non_local_origin,
+    //     new_spans, tmp_comm_ranks);
+
+    // if (fuse_) {
+    //     if (is_owner(exec_handler)) {
+    //         fuse_sparsity(tmp_local_rows, tmp_local_cols, tmp_local_mapping,
+    //                       tmp_local_span);
+    //         fuse_sparsity(tmp_non_local_rows, tmp_non_local_cols,
+    //                       tmp_non_local_mapping, new_spans);
+    //     }
+    // }
+
+    // gko::dim<2> tmp_non_local_dim{tmp_local_dim[0], tmp_non_local_rows.size()};
+
+    // if (is_owner(exec_handler)) {
+    //     LOG_1(verbose_, "done repartition sparsity pattern")
+    //     auto ret = std::make_tuple<std::shared_ptr<SparsityPattern>,
+    //                                std::shared_ptr<SparsityPattern>,
+    //                                std::vector<InterfaceLocality>>(
+    //         std::make_shared<SparsityPattern>(
+    //             exec, tmp_local_dim, tmp_local_rows, tmp_local_cols,
+    //             tmp_local_mapping, tmp_local_span),
+    //         std::make_shared<SparsityPattern>(
+    //             exec, tmp_non_local_dim, tmp_non_local_rows, tmp_non_local_cols,
+    //             tmp_non_local_mapping, new_spans),
+    //         std::vector(is_local));
+    //     return ret;
+    // } else {
+    //     LOG_1(verbose_, "done repartition sparsity pattern")
+    //     return std::make_tuple<std::shared_ptr<SparsityPattern>,
+    //                            std::shared_ptr<SparsityPattern>,
+    //                            std::vector<InterfaceLocality>>(
+    //         std::make_shared<SparsityPattern>(exec),
+    //         std::make_shared<SparsityPattern>(exec), std::move(is_local));
+    // }
 }
 
 
@@ -352,107 +233,107 @@ std::vector<InterfaceLocality> Repartitioner::build_non_local_interfaces(
     std::vector<gko::span> &non_local_spans,
     std::vector<label> &comm_target_ids) const
 {
-    auto rank = exec_handler.get_rank();
-    std::vector<InterfaceLocality> is_local;
-    std::vector<label> mark_keep;
+    // auto rank = exec_handler.get_rank();
+    // std::vector<InterfaceLocality> is_local;
+    // std::vector<label> mark_keep;
 
-    if (non_local_spans.size() != non_local_rank_origin.size()) {
-        FatalErrorInFunction
-            << "non_local_spans and non_local_rank_origins sizes are different"
-            << exit(FatalError);
-    }
+    // if (non_local_spans.size() != non_local_rank_origin.size()) {
+    //     FatalErrorInFunction
+    //         << "non_local_spans and non_local_rank_origins sizes are different"
+    //         << exit(FatalError);
+    // }
 
-    // iterate in the order of the target ids
-    std::vector<label> iteration_order(comm_target_ids.size(), 0);
-    std::iota(iteration_order.begin(), iteration_order.end(), 0);
-    std::stable_sort(iteration_order.begin(), iteration_order.end(),
-                     [comm_target_ids](std::size_t i, std::size_t j) {
-                         return comm_target_ids[i] < comm_target_ids[j];
-                     });
+    // // iterate in the order of the target ids
+    // std::vector<label> iteration_order(comm_target_ids.size(), 0);
+    // std::iota(iteration_order.begin(), iteration_order.end(), 0);
+    // std::stable_sort(iteration_order.begin(), iteration_order.end(),
+    //                  [comm_target_ids](std::size_t i, std::size_t j) {
+    //                      return comm_target_ids[i] < comm_target_ids[j];
+    //                  });
 
-    label interface_offset = local_spans.back().end;
-    label ctr = 0;
-    label local_ctr = 0;
-    label non_local_ctr = 0;
-    for (auto i : iteration_order) {
-        auto [begin, end] = non_local_spans[i];
-        bool local = reparts_to_local(exec_handler, comm_target_ids[i]);
+    // label interface_offset = local_spans.back().end;
+    // label ctr = 0;
+    // label local_ctr = 0;
+    // label non_local_ctr = 0;
+    // for (auto i : iteration_order) {
+    //     auto [begin, end] = non_local_spans[i];
+    //     bool local = reparts_to_local(exec_handler, comm_target_ids[i]);
 
-        // TODO this seems to depend on same copying functionality like HostMatrix.C to
-        // copy local interfaces over.
-        if (local) {
-            local_ctr++;  // local interface starts counting at 1;
-            gko::size_type rows_start = local_rows.size();
-            local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
-                              non_local_rows.data() + end);
-            std::vector<label> tmp_rank_local_cols(
-                non_local_cols.data() + begin, non_local_cols.data() + end);
-            detail::convert_to_local(partition, tmp_rank_local_cols, rank);
-            local_cols.insert(local_cols.end(), tmp_rank_local_cols.begin(),
-                              tmp_rank_local_cols.end());
+    //     // TODO this seems to depend on same copying functionality like HostMatrix.C to
+    //     // copy local interfaces over.
+    //     if (local) {
+    //         local_ctr++;  // local interface starts counting at 1;
+    //         gko::size_type rows_start = local_rows.size();
+    //         local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
+    //                           non_local_rows.data() + end);
+    //         std::vector<label> tmp_rank_local_cols(
+    //             non_local_cols.data() + begin, non_local_cols.data() + end);
+    //         detail::convert_to_local(partition, tmp_rank_local_cols, rank);
+    //         local_cols.insert(local_cols.end(), tmp_rank_local_cols.begin(),
+    //                           tmp_rank_local_cols.end());
 
-            for (size_t j = 0; j < end - begin; j++) {
-                // local_mapping.push_back(non_local_mapping[begin + i] +
-                //                         interface_offset);
-                local_mapping.push_back(j + interface_offset);
-            }
-            interface_offset += end - begin;
-            local_spans.emplace_back(
-                rows_start,
-                rows_start + static_cast<gko::size_type>(end - begin));
-            ctr = local_ctr;
-        } else {
-            mark_keep.push_back(i);
-            ctr = non_local_ctr;
-            non_local_ctr++;
-        }
-        is_local.push_back(InterfaceLocality{local, non_local_rank_origin[i],
-                                             end - begin, ctr});
-    }
+    //         for (size_t j = 0; j < end - begin; j++) {
+    //             // local_mapping.push_back(non_local_mapping[begin + i] +
+    //             //                         interface_offset);
+    //             local_mapping.push_back(j + interface_offset);
+    //         }
+    //         interface_offset += end - begin;
+    //         local_spans.emplace_back(
+    //             rows_start,
+    //             rows_start + static_cast<gko::size_type>(end - begin));
+    //         ctr = local_ctr;
+    //     } else {
+    //         mark_keep.push_back(i);
+    //         ctr = non_local_ctr;
+    //         non_local_ctr++;
+    //     }
+    //     is_local.push_back(InterfaceLocality{local, non_local_rank_origin[i],
+    //                                          end - begin, ctr});
+    // }
 
-    // remove data from non_local vectors
-    if (mark_keep.size() == 0) {
-        non_local_rows.clear();
-        non_local_cols.clear();
-        non_local_mapping.clear();
-        non_local_spans.clear();
-    } else {
-        std::vector<label> copy_rows, copy_cols, copy_mapping, copy_ranks;
-        std::vector<gko::span> copy_spans;
-        label span_ctr{0};
-        interface_offset = 0;
-        for (label i : mark_keep) {
-            auto [begin, end] = non_local_spans[i];
-            copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
-                             non_local_rows.data() + end);
+    // // remove data from non_local vectors
+    // if (mark_keep.size() == 0) {
+    //     non_local_rows.clear();
+    //     non_local_cols.clear();
+    //     non_local_mapping.clear();
+    //     non_local_spans.clear();
+    // } else {
+    //     std::vector<label> copy_rows, copy_cols, copy_mapping, copy_ranks;
+    //     std::vector<gko::span> copy_spans;
+    //     label span_ctr{0};
+    //     interface_offset = 0;
+    //     for (label i : mark_keep) {
+    //         auto [begin, end] = non_local_spans[i];
+    //         copy_rows.insert(copy_rows.end(), non_local_rows.data() + begin,
+    //                          non_local_rows.data() + end);
 
-            std::vector<label> tmp_rank_local_cols(
-                non_local_cols.data() + begin, non_local_cols.data() + end);
+    //         std::vector<label> tmp_rank_local_cols(
+    //             non_local_cols.data() + begin, non_local_cols.data() + end);
 
-            copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
-                             tmp_rank_local_cols.end());
-            for (size_t j = 0; j < end - begin; j++) {
-                copy_mapping.push_back(j + interface_offset);
-            }
-            interface_offset += end - begin;
+    //         copy_cols.insert(copy_cols.end(), tmp_rank_local_cols.begin(),
+    //                          tmp_rank_local_cols.end());
+    //         for (size_t j = 0; j < end - begin; j++) {
+    //             copy_mapping.push_back(j + interface_offset);
+    //         }
+    //         interface_offset += end - begin;
 
-            // the spans are now consecutive based on all gathered spans,
-            // thus we need to make them consecutive based on kept interfaces
-            copy_spans.emplace_back(span_ctr,
-                                    span_ctr + non_local_spans[i].length());
-            span_ctr += non_local_spans[i].length();
-        }
-        non_local_rows = copy_rows;
-        non_local_cols = copy_cols;
-        non_local_mapping = copy_mapping;
-        // non_local_ranks = copy_ranks;
-        non_local_spans.clear();
-        for (auto &span : copy_spans) {
-            non_local_spans.emplace_back(span.begin, span.end);
-        }
-    }
+    //         // the spans are now consecutive based on all gathered spans,
+    //         // thus we need to make them consecutive based on kept interfaces
+    //         copy_spans.emplace_back(span_ctr,
+    //                                 span_ctr + non_local_spans[i].length());
+    //         span_ctr += non_local_spans[i].length();
+    //     }
+    //     non_local_rows = copy_rows;
+    //     non_local_cols = copy_cols;
+    //     non_local_mapping = copy_mapping;
+    //     // non_local_ranks = copy_ranks;
+    //     non_local_spans.clear();
+    //     for (auto &span : copy_spans) {
+    //         non_local_spans.emplace_back(span.begin, span.end);
+    //     }
+    // }
 
-    return is_local;
+    // return is_local;
 }
 
 

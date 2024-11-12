@@ -27,35 +27,6 @@ struct InterfaceLocality {
 
 namespace detail {
 
-/* Convert to global
-** Given an array of column indices local to the communication rank
-** this function offsets these array
-** @param idx pointer to gko::array holding the indices which need to be
-*converted from local to global ids
-** @param spans start and ends of the interfaces
-** @param ranks the rank to which the interface index is a local row index
-*/
-std::vector<label> convert_to_global(
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition,
-    const label *idx, const std::vector<gko::span> &spans,
-    const std::vector<label> &ranks);
-
-/* Convert to local
-** Given an array of column indices local to the communication rank
-** this function offsets these array
-** @param idx pointer to gko::array holding the indices which need to be
-*converted from local to global ids
-** @param spans start and ends of the interfaces
-** @param ranks the rank to which the interface index is a local row index
-*/
-void convert_to_local(
-    std::shared_ptr<
-        const gko::experimental::distributed::Partition<label, label>>
-        partition,
-    std::vector<label> &in, label rank);
-
 /* @brief exchange spans and rank between owner and non-owner ranks
 **
 ** returns a pair vector spans
@@ -64,16 +35,6 @@ std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
 exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
                      const std::vector<gko::span> &spans,
                      const std::vector<label> &src_ranks);
-
-template <typename T>
-std::vector<T> apply_permutation(const std::vector<T> vec,
-                                 const std::vector<label> &p);
-
-/* Sorts a vector and returns the permutation for reuse
- */
-template <typename T, typename Compare>
-std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare);
-
 }  // namespace detail
 
 /** @class Collects functions to repartition communication patterns
@@ -90,21 +51,17 @@ private:
 
     const label ranks_per_gpu_;
 
-    const bool fuse_;  //! Whether to merge all interfaces into a single
-                       //! local/non_local mtx
-
     const label verbose_;
 
     std::shared_ptr<const partition> orig_partition_;
 
 public:
     Repartitioner(label size, label ranks_per_gpu, label verbose,
-                  const ExecutorHandler &exec_handler, bool fuse)
+                  const ExecutorHandler &exec_handler)
         : size_(size),
           repart_size_(Repartitioner::compute_repart_size(size, ranks_per_gpu,
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
-          fuse_(fuse),
           verbose_(verbose),
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
@@ -141,8 +98,6 @@ public:
     };
 
     label get_ranks_per_gpu() const { return ranks_per_gpu_; }
-
-    bool get_fused() const { return fuse_; }
 
     /* @brief computes the size of the submatrix owned by a given rank after
      * repartitioning
@@ -210,13 +165,12 @@ public:
      * second entry (label) tracks the original rank of the interface
      * @param fuse whether to combine all submatrices
      */
-    std::tuple<std::shared_ptr<SparsityPattern>,
-               std::shared_ptr<SparsityPattern>, std::vector<InterfaceLocality>>
+    std::pair<std::shared_ptr<SparsityPattern>,
+              std::shared_ptr<SparsityPattern>>
     repartition_sparsity(
         const ExecutorHandler &exec_handler,
-        std::shared_ptr<const SparsityPattern> src_local_pattern,
-        std::shared_ptr<const SparsityPattern> src_non_local_pattern,
-        std::vector<label> src_non_local_target_ids, bool fuse) const;
+        std::shared_ptr<SparsityPattern> src_local_pattern,
+        std::shared_ptr<SparsityPattern> src_non_local_pattern) const;
 
     /* @brief repartition a communication pattern
      * function to repartition a communication pattern based on ranks_per_gpu

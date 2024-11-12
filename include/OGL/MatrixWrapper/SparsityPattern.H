@@ -9,7 +9,66 @@
 #include "OGL/CommunicationPattern.H"
 #include "OGL/common.H"
 
+
+namespace detail {
+
+// applies permutation vector s = v[p[i]]
+//                      e.g. s[0] = v[p[0] -> 4 ]
+template <typename T>
+std::vector<T> apply_permutation(const std::vector<T> vec,
+                                 const std::vector<label> &p)
+{
+    std::vector<T> sorted_vec(vec.size());
+    std::transform(p.begin(), p.end(), sorted_vec.begin(),
+                   [&](label i) { return vec[i]; });
+    return sorted_vec;
+}
+
+template <typename T, typename Compare>
+std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
+{
+    std::vector<label> p(vec.size());
+    std::iota(p.begin(), p.end(), 0);
+    std::stable_sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
+        return compare(vec[i], vec[j]);
+    });
+    return p;
+}
+
+std::vector<std::vector<label>> compress_cols(
+    std::vector<std::vector<label>> in, std::vector<label> ids);
+}  // namespace detail
+
 namespace Foam {
+
+/* Convert to global
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+std::vector<label> convert_to_global(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    const label *idx, const label size, const label rank);
+
+/* Convert to local
+** Given an array of column indices local to the communication rank
+** this function offsets these array
+** @param idx pointer to gko::array holding the indices which need to be
+*converted from local to global ids
+** @param spans start and ends of the interfaces
+** @param ranks the rank to which the interface index is a local row index
+*/
+void convert_to_local(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition,
+    std::vector<label> &in, label rank);
+
 
 /* @brief based on a comm_pattern consecutive ldu_mappings are computed
  *
@@ -39,79 +98,166 @@ gko::dim<2> compute_dimensions(const std::vector<label> &rows);
  * Additionally it keeps track which parts of the sparsity pattern belongs to
  * which interface.
  * */
-struct SparsityPattern {
-    /* constructor from vectors, assumes a single interface */
-    SparsityPattern(std::shared_ptr<const gko::Executor> exec, gko::dim<2> dim_,
-                    const std::vector<label> &rows,
-                    const std::vector<label> &cols,
-                    const std::vector<label> &mapping,
-                    const std::vector<gko::span> &spans_)
-        : num_nnz(rows.size()),
-          row_idxs(exec, rows.begin(), rows.end()),
-          col_idxs(exec, cols.begin(), cols.end()),
-          ldu_mapping(exec, mapping.begin(), mapping.end()),
-          dim(dim_),
-          spans(spans_)
+class SparsityPattern {
+public:
+    SparsityPattern()
+        : nnz_(), rows_(), cols_(), map_(), id_(), orig_rank_(), comm_rank_()
+    {}
+
+
+    /* @brief given rows and cols a new interface/submatrix is added and stored
+     *  in row major format
+     *  */
+    void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
+                          label orig_rank, label comm_rank, label start_id = 0,
+                          bool row_major_order = true)
     {
         OGL_ASSERT_EQ(rows.size(), cols.size());
-        OGL_ASSERT_EQ(rows.size(), mapping.size());
+
+        std::vector<label> map(rows.size());
+        std::iota(map.begin(), map.end(), 0);
+        if (!row_major_order) {
+            sort_sparsity(rows, cols, map);
+        }
+
+        nnz_ += rows.size();
+        rows_.push_back(rows);
+        cols_.push_back(cols);
+
+        label last_id = (id_.size() == 0) ? start_id : id_.back() + 1;
+        id_.push_back(last_id);
+
+        orig_rank_.push_back(orig_rank);
+        comm_rank_.push_back(comm_rank);
+
+        map_.push_back(map);
     }
 
-    SparsityPattern(std::shared_ptr<const gko::Executor> exec)
-        : num_nnz(0),
-          row_idxs{exec},
-          col_idxs{exec},
-          ldu_mapping{exec},
-          dim(gko::dim<2>{})
-    {}
-
-    SparsityPattern(const SparsityPattern &in)
-        : num_nnz(in.num_nnz),
-          row_idxs{in.row_idxs},
-          col_idxs{in.col_idxs},
-          ldu_mapping{in.ldu_mapping},
-          dim{in.dim},
-          spans{in.spans}
-    {}
-
-    SparsityPattern(std::shared_ptr<const gko::Executor> exec, const label size,
-                    gko::dim<2> dim, std::vector<label> &rows,
-                    std::vector<label> &cols, std::vector<label> &map,
-                    std::vector<label> &spans_begin,
-                    std::vector<label> &spans_end)
-        : num_nnz(size),
-          row_idxs{exec, static_cast<gko::size_type>(size)},
-          col_idxs{exec, static_cast<gko::size_type>(size)},
-          ldu_mapping{exec, static_cast<gko::size_type>(size)},
-          dim(dim)
+    std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
+               std::vector<std::vector<label>>>
+    get_vecs(bool compress_cols)
     {
-        OGL_ASSERT_EQ(static_cast<size_t>(size), rows.size());
-        std::copy(rows.begin(), rows.end(), row_idxs.get_data());
-
-        OGL_ASSERT_EQ(static_cast<size_t>(size), cols.size());
-        std::copy(cols.begin(), cols.end(), col_idxs.get_data());
-
-        OGL_ASSERT_EQ(static_cast<size_t>(size), map.size());
-        std::copy(map.begin(), map.end(), ldu_mapping.get_data());
-
-        OGL_ASSERT_EQ(spans_begin.size(), spans_end.size());
-        std::transform(spans_begin.begin(), spans_begin.end(),
-                       spans_end.begin(), std::back_inserter(spans),
-                       [](const auto begin, const auto end) {
-                           return gko::span{static_cast<gko::size_type>(begin),
-                                            static_cast<gko::size_type>(end)};
-                       });
+        return {rows_,
+                (compress_cols) ? detail::compress_cols(cols_, id_) : cols_,
+                map_};
     }
 
-    /* @brief sort row, col idx and mapping in row major order */
-    void sort_sparsity();
+    std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
+               std::vector<std::vector<label>>>
+    get_fused_vecs(bool compress_cols)
+    {
+        size_t reserve_size{0};
+        for (size_t i = 0; i < id_.size(); i++) {
+            reserve_size += rows_[i].size();
+        }
 
-    // TODO num_nnz makes no sense ->nnz;
-    const label num_nnz;
+        std::vector<label> rows;
+        rows.reserve(reserve_size);
+        std::vector<label> cols;
+        cols.reserve(reserve_size);
+        std::vector<label> map;
+        map.reserve(reserve_size);
 
-    mutable gko::array<label> row_idxs;
+        auto or_cols =
+            (compress_cols) ? detail::compress_cols(cols_, id_) : cols_;
 
-    mutable gko::array<label> col_idxs;
+        label map_offset = 0;
+        for (size_t i = 0; i < id_.size(); i++) {
+            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
+            size_t iface_length = rows_[i].size();
+            for (size_t j = 0; j < iface_length; j++) {
+                map.push_back(map_[i][j] + map_offset);
+            }
+            map_offset += iface_length;
+        }
+
+        sort_sparsity(rows, cols, map);
+
+        return {{rows}, {cols}, {map}};
+    }
+
+    /* @brief move all interfaces to this data structure that communicate to a
+     * given rank
+     *  */
+    template <typename Func>
+    void move_interface(std::shared_ptr<SparsityPattern> other, label comm_rank,
+                        Func convert_cols)
+    {
+        auto &other_rows = other->get_rows();
+        auto &other_map = other->get_map();
+        auto &other_cols = other->get_cols();
+        auto &other_id = other->get_id();
+        auto &other_orig_rank = other->get_orig_rank();
+        auto &other_comm_rank = other->get_comm_rank();
+        auto &other_nnz = other->get_nnz();
+
+        // move to own
+        std::vector<label> del_from_other{};
+        for (int i = 0; i < other->get_rows().size(); i++) {
+            if (other_comm_rank[i] == comm_rank) {
+                nnz_ += other_rows[i].size();
+                rows_.push_back(std::move(other_rows[i]));
+                cols_.push_back(convert_cols(std::move(other_cols[i])));
+                map_.push_back(std::move(other_map[i]));
+                comm_rank_.push_back(std::move(other_comm_rank[i]));
+                orig_rank_.push_back(std::move(other_orig_rank[i]));
+                id_.push_back(std::move(other_id[i]));
+                del_from_other.push_back(i);
+            }
+        }
+
+        // delete from other
+        label num_del = del_from_other.size();
+        for (int i = 0; i < num_del; i++) {
+            label del = num_del - i - 1;
+            other_nnz -= other_rows[del].size();
+            other_rows.erase(other_rows.begin() + del);
+            other_cols.erase(other_cols.begin() + del);
+            other_map.erase(other_map.begin() + del);
+            other_comm_rank.erase(other_comm_rank.begin() + del);
+            other_orig_rank.erase(other_orig_rank.begin() + del);
+            other_id.erase(other_id.begin() + del);
+        }
+
+        other->get_nnz() = 0;
+        for (auto &row : other_rows) {
+            other->get_nnz() += row.size();
+        }
+    }
+
+    // getter
+    std::vector<std::vector<label>> &get_rows() { return rows_; }
+
+    const std::vector<std::vector<label>> &get_rows() const { return rows_; }
+
+    std::vector<std::vector<label>> &get_map() { return map_; }
+
+    const std::vector<std::vector<label>> &get_map() const { return map_; }
+
+    std::vector<std::vector<label>> &get_cols() { return cols_; }
+
+    const std::vector<std::vector<label>> &get_cols() const { return cols_; }
+
+    std::vector<label> &get_id() { return id_; }
+
+    const std::vector<label> &get_id() const { return id_; }
+
+    std::vector<label> &get_orig_rank() { return orig_rank_; }
+
+    std::vector<label> &get_comm_rank() { return comm_rank_; }
+
+    label &get_nnz() { return nnz_; }
+
+    label get_nnz() const { return nnz_; }
+
+
+private:
+    label nnz_;
+
+    std::vector<std::vector<label>> rows_;
+
+    std::vector<std::vector<label>> cols_;
 
     // ldu_mapping is used to reorder copied matrix coefficients
     // to match the row major ordering of the sparsity pattern
@@ -119,20 +265,34 @@ struct SparsityPattern {
     // is reordered at once. thus all indices from [0, end) should be present.
     // ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
-    mutable gko::array<label> ldu_mapping;
+    std::vector<std::vector<label>> map_;
 
-    // dimensions of the resulting matrix
-    mutable gko::dim<2> dim;
+    // map to HostMatrix.get_interface(id)
+    std::vector<label> id_;
 
-    // A vector of spans indicating begin and end of each interface
-    // this is used to keep all col and row idx consecutive in memory
-    // TODO this can be refactored, since its original motivation
-    // was to support the distributed_read function, which is not
-    // needed anymore. However, removing would require row and col_idxs to
-    // be stored in a std::vector<gko::Array>
-    mutable std::vector<gko::span> spans;
+    std::vector<label> orig_rank_;
+
+    std::vector<label> comm_rank_;
+
+    /* @brief sort given rows, cols, and map to be in row major order
+     *
+     */
+    void sort_sparsity(std::vector<label> &rows, std::vector<label> &cols,
+                       std::vector<label> &map)
+    {
+        // add offset to mapping
+        // so interface mapping is not continuous
+        std::vector<label> permutation(rows.size());
+        std::iota(permutation.begin(), permutation.end(), 0);
+        std::stable_sort(permutation.begin(), permutation.end(),
+                         [&](std::size_t i, std::size_t j) {
+                             return std::tie(rows[i], cols[i]) <
+                                    std::tie(rows[j], cols[j]);
+                         });
+        rows = detail::apply_permutation(rows, permutation);
+        cols = detail::apply_permutation(cols, permutation);
+        map = detail::apply_permutation(map, permutation);
+    }
 };
-
-// convert_to_global(std::shared_ptr<const SparsityPattern> pattern, Partition)
 
 }  // namespace Foam

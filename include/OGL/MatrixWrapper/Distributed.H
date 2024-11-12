@@ -53,7 +53,7 @@ public:
 
     std::shared_ptr<const gko::LinOp> get_local() const
     {
-        if (repartitioner_->get_fused()) {
+        if (fuse_) {
             return dist_mtx_->get_local_matrix();
         } else {
             return gko::as<CombinationMatrix<gko::LinOp>>(
@@ -77,12 +77,11 @@ public:
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(other);
             this->dist_mtx_ = other.dist_mtx_;
-            this->local_sparsity_ = other.local_sparsity_;
-            this->non_local_sparsity_ = other.non_local_sparsity_;
-            this->src_comm_pattern_ = other.src_comm_pattern_;
+            this->fuse_ = other.fuse_;
             this->repart_comm_pattern_ = other.repart_comm_pattern_;
             this->repartitioner_ = other.repartitioner_;
-            this->local_interfaces_ = other.local_interfaces_;
+            this->update_data_ = other.update_data_;
+            this->reorder_maps_ = other.reorder_maps_;
         }
         return *this;
     }
@@ -98,20 +97,18 @@ public:
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
+            this->fuse_ = other.fuse_;
             this->dist_mtx_ = std::move(other.dist_mtx_);
-            this->local_sparsity_ = std::move(other.local_sparsity_);
-            this->non_local_sparsity_ = std::move(other.non_local_sparsity_);
-            this->src_comm_pattern_ = std::move(other.src_comm_pattern_);
             this->repart_comm_pattern_ = std::move(other.repart_comm_pattern_);
             this->repartitioner_ = std::move(other.repartitioner_);
-            this->local_interfaces_ = std::move(other.local_interfaces_);
+            this->update_data_ = std::move(other.update_data_);
+            this->reorder_maps_ = std::move(other.reorder_maps_);
         }
         return *this;
     }
 
     template <typename InnerType>
     void update(const ExecutorHandler &exec_handler,
-                std::shared_ptr<const Repartitioner> repartitioner,
                 std::shared_ptr<const HostMatrixWrapper> host_A);
 
     word get_matrix_format() const { return matrix_format_; }
@@ -121,22 +118,21 @@ public:
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
         word matrix_format, std::shared_ptr<dist_mtx> dist_mtx,
-        std::shared_ptr<const SparsityPattern> local_sparsity,
-        std::shared_ptr<const SparsityPattern> non_local_sparsity,
         std::shared_ptr<const CommunicationPattern> src_comm_pattern,
         std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
-        std::shared_ptr<const Repartitioner> repartitioner,
-        std::vector<InterfaceLocality> &local_interfaces)
+        std::shared_ptr<const Repartitioner> repartitioner, bool fuse,
+        std::vector<std::tuple<label, AllToAllPattern, scalar *>> update_data,
+        std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
+            reorder_maps)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
+          fuse_(fuse),
           matrix_format_(matrix_format),
           dist_mtx_(std::move(dist_mtx)),
-          local_sparsity_(local_sparsity),
-          non_local_sparsity_(non_local_sparsity),
-          src_comm_pattern_(src_comm_pattern),
           repart_comm_pattern_(repart_comm_pattern),
           repartitioner_(repartitioner),
-          local_interfaces_(local_interfaces)
+          update_data_(update_data),
+          reorder_maps_(reorder_maps)
     {
         this->set_size(dist_mtx_->get_size());
     }
@@ -155,11 +151,6 @@ public:
     std::shared_ptr<const CommunicationPattern> get_comm_pattern() const
     {
         return repart_comm_pattern_;
-    }
-
-    std::shared_ptr<const SparsityPattern> get_local_sparsity() const
-    {
-        return local_sparsity_;
     }
 
     std::shared_ptr<const Repartitioner> get_repartitioner() const
@@ -196,21 +187,23 @@ protected:
 
 
 private:
+    bool fuse_;
+
     const word matrix_format_;
 
     std::shared_ptr<dist_mtx> dist_mtx_;
 
-    std::shared_ptr<const SparsityPattern> local_sparsity_;
-
-    std::shared_ptr<const SparsityPattern> non_local_sparsity_;
-
-    std::shared_ptr<const CommunicationPattern> src_comm_pattern_;
+    // replace by std::vector<vector<label> non_local_cols;
+    // std::shared_ptr<const SparsityPattern> non_local_sparsity_;
 
     std::shared_ptr<const CommunicationPattern> repart_comm_pattern_;
 
     std::shared_ptr<const Repartitioner> repartitioner_;
 
-    std::vector<InterfaceLocality> local_interfaces_;
+    std::vector<std::tuple<label, AllToAllPattern, scalar *>> update_data_;
+
+    std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
+        reorder_maps_;
 };
 
 std::shared_ptr<const gko::LinOp> get_local(
@@ -222,7 +215,6 @@ void write_distributed(const ExecutorHandler &exec_handler, word field_name,
                        bool write_global);
 
 void update_distributed(const ExecutorHandler &exec_handler,
-                        std::shared_ptr<const Repartitioner> repartitioner,
                         std::shared_ptr<const HostMatrixWrapper> host_A,
                         std::shared_ptr<RepartDistMatrix> dist_A,
                         word matrix_format);
@@ -230,4 +222,5 @@ void update_distributed(const ExecutorHandler &exec_handler,
 std::shared_ptr<RepartDistMatrix> create_distributed(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
-    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format);
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format,
+    bool fuse);

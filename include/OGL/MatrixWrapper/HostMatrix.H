@@ -107,23 +107,12 @@ private:
 
     const bool symmetric_;
 
-    // number of local elements on interfaces
-    // ie number of interfaces which column_idx is < nrows_
-    // and have to be sorted into local matrix
-    const label local_interface_nnz_;
-
     // total number of local upper and lower elements
     // ie 2*upper_nnz_ since the sparsity pattern is symmetric
     const label non_diag_nnz_;
 
     // nnz of local matrix wo local interfaces
     const label local_matrix_nnz_;
-
-    // nnzs of local matrix including local interfaces
-    const label local_matrix_w_interfaces_nnz_;
-
-    // non-local indices
-    const label non_local_matrix_nnz_;
 
     const lduInterfaceFieldPtrsList &interfaces_;
 
@@ -133,7 +122,7 @@ private:
     mutable std::vector<label> interface_length_;
 
     /* Pointer to interface data*/
-    mutable std::vector<const scalar *> interface_ptr_;
+    mutable std::vector<std::pair<const scalar *, bool>> interface_ptr_;
 
     /* Iterates all interfaces and collects the coefficients into a vector
     **
@@ -184,9 +173,8 @@ private:
      ** contains coefficients that resides on the owning rank. The coefficient
      ** can include local interfaces.
      **/
-    [[nodiscard]] std::tuple<std::vector<label>, std::vector<label>,
-                             std::vector<label>, std::vector<gko::span>>
-    compute_local_sparsity(std::shared_ptr<const gko::Executor> exec) const;
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_local_sparsity()
+        const;
 
     /** Based on OpenFOAMs interfaces this function computes
      ** the interface sparsity pattern.
@@ -194,10 +182,10 @@ private:
      ** only contains all coefficient that reside on an interface (local and
      *non-local).
      **/
-    [[nodiscard]] std::tuple<std::vector<label>, std::vector<label>,
-                             std::vector<label>, std::vector<label>,
-                             std::vector<gko::span>>
-    compute_interface_sparsity(std::shared_ptr<const gko::Executor> exec) const;
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_interface_sparsity(
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition) const;
 
 
 public:
@@ -228,23 +216,10 @@ public:
      **/
     [[nodiscard]] std::pair<std::shared_ptr<SparsityPattern>,
                             std::shared_ptr<SparsityPattern>>
-    compute_sparsity_patterns(std::shared_ptr<const gko::Executor> exec) const;
-
-    /** Copies the LDU matrix coefficients to local_coeffs without changing or
-     ** reinstantiating the sparsity pattern.
-     ** This uses the local_sparsity_.ldu_mapping to permute the data already
-     ** on the host or device to be in row major order.
-     **/
-    void compute_local_coeffs(std::shared_ptr<const SparsityPattern> sparsity,
-                              gko::array<scalar> &target_coeffs) const;
-
-    /** Copies the interface matrix coefficients to non_local_coeffs without
-    ** changing or reinstantiating the sparsity pattern.
-    **/
-    void compute_non_local_coeffs(
-        std::shared_ptr<const SparsityPattern> sparsity,
-        gko::array<scalar> &target_coeffs) const;
-
+    compute_sparsity_patterns(
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition) const;
 
     /** Iterates all interfaces and counts the number of unique neighbour
      ** processors and number of interfaces in total for this processor
@@ -260,34 +235,29 @@ public:
 
     label get_local_nrows() const { return nrows_; }
 
-    label get_local_matrix_wo_interface_nnz() const
-    {
-        return local_matrix_nnz_;
-    }
-    /* return the total nnz of local matrix including local interface */
-    label get_local_matrix_nnz() const
-    {
-        return local_matrix_w_interfaces_nnz_;
-    }
-
-    label get_upper_nnz() const { return upper_nnz_; }
-
     const scalar *get_lower() const { return lower_; }
 
     const scalar *get_upper() const { return upper_; }
 
     const scalar *get_diag() const { return diag_; }
 
-    std::vector<label> get_interface_length() const
+    label get_interface_length(label id) const
     {
-        return interface_length_;
+        return interface_length_[id];
     };
 
     label get_num_interfaces() const { return interface_ptr_.size(); };
 
-    const scalar *get_interface_data(label i) const
+    /* returns access to interface data pointer via
+     * id:
+     * 0 - upper
+     * 1 - lower
+     * 2 - diag
+     * n - interfaces
+     * */
+    std::pair<const scalar *, bool> get_interface_data(label id) const
     {
-        return interface_ptr_[i];
+        return interface_ptr_[id];
     }
 
     bool get_symmetric() const { return symmetric_; }

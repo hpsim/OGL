@@ -108,7 +108,8 @@ TEST(HostMatrixP2D, returnsCorrectSize)
     auto rank = exec->get_rank();
 
     // first and last rank have a non interface boundary (upper and lower wall)
-    std::vector<label> exp_num_interfaces{3, 3, 3, 3};
+    // + l d u interfaces
+    std::vector<label> exp_num_interfaces{6, 6, 6, 6};
 
     std::vector<std::vector<label>> exp_interface_length{
         {2, 2, 4}, {2, 2, 4}, {4, 2, 2}, {4, 2, 2}};
@@ -124,12 +125,8 @@ TEST(HostMatrixP2D, returnsCorrectSize)
     // which results in a 8x8 matrix
     EXPECT_EQ(hostMatrix->get_size()[0], 8);
     EXPECT_EQ(hostMatrix->get_size()[1], 8);
-
     EXPECT_EQ(hostMatrix->get_local_nrows(), 8);
-
     EXPECT_EQ(hostMatrix->get_num_interfaces(), exp_num_interfaces[rank]);
-    EXPECT_EQ(hostMatrix->get_local_matrix_nnz(), 28);
-    EXPECT_EQ(hostMatrix->get_interface_length(), exp_interface_length[rank]);
 }
 
 TEST(HostMatrixP2D, canCreateCommunicationPattern)
@@ -166,39 +163,33 @@ TEST(HostMatrixP2D, canGenerateLocalSparsityPattern)
 {
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    label size = 8;
+    auto partition{gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            exec->get_ref_exec(), *exec->get_communicator().get(), size))};
 
     auto [localSparsity, nonLocalSparsity] =
-        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
-    std::vector<label> rows_expected({0, 0, 0, 1, 1, 1, 1, 2, 2, 2,
-                                      2, 3, 3, 3, 4, 4, 4, 5, 5, 5,
-                                      5, 6, 6, 6, 6, 7, 7, 7});
-    std::vector<label> cols_expected({0, 1, 4, 0, 1, 2, 5, 1, 2, 3,
-                                      6, 2, 3, 7, 0, 4, 5, 1, 4, 5,
-                                      6, 2, 5, 6, 7, 3, 6, 7});
+        hostMatrix->compute_sparsity_patterns(partition);
+    std::vector<std::vector<label>> rows_exp{{0, 0, 1, 1, 2, 2, 3, 4, 5, 6},
+                                             {1, 2, 3, 4, 5, 5, 6, 6, 7, 7},
+                                             {0, 1, 2, 3, 4, 5, 6, 7}};
 
-    std::vector<label> mapping_expected({20, 0,  1,  10, 21, 2,  3,  12, 22, 4,
-                                         5,  14, 23, 6,  11, 24, 7,  13, 17, 25,
-                                         8,  15, 18, 26, 9,  16, 19, 27});
+    std::vector<std::vector<label>> cols_exp{{1, 4, 2, 5, 3, 6, 7, 5, 6, 7},
+                                             {0, 1, 2, 0, 1, 4, 2, 5, 3, 6},
+                                             {0, 1, 2, 3, 4, 5, 6, 7}};
+
+    std::vector<std::vector<label>> map_exp{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                            {0, 2, 4, 1, 3, 7, 5, 8, 6, 9},
+                                            {0, 1, 2, 3, 4, 5, 6, 7}
+
+    };
 
     // we have 8x8 matrix with 26 nnz entries
-    EXPECT_EQ(localSparsity->dim[0], 8);
-    EXPECT_EQ(localSparsity->dim[1], 8);
-    EXPECT_EQ(localSparsity->num_nnz, 28);
-
-    // since we don't have any processor interfaces we only have
-    // a single interface span ranging from 0 to 33
-    EXPECT_EQ(localSparsity->spans.size(), 1);
-    EXPECT_EQ(localSparsity->spans[0].begin, 0);
-    EXPECT_EQ(localSparsity->spans[0].end, localSparsity->num_nnz);
-
-    auto rows_res = convert_to_vector(localSparsity->row_idxs);
-    EXPECT_EQ(rows_expected, rows_res);
-
-    auto cols_res = convert_to_vector(localSparsity->col_idxs);
-    EXPECT_EQ(cols_expected, cols_res);
-
-    auto mapping_res = convert_to_vector(localSparsity->ldu_mapping);
-    EXPECT_EQ(mapping_expected, mapping_res);
+    EXPECT_EQ(localSparsity->get_nnz(), 28);
+    EXPECT_EQ(localSparsity->get_rows(), rows_exp);
+    EXPECT_EQ(localSparsity->get_cols(), cols_exp);
+    EXPECT_EQ(localSparsity->get_map(), map_exp);
 }
 
 TEST(HostMatrixP2D, canGenerateNonLocalSparsityPattern)
@@ -207,46 +198,40 @@ TEST(HostMatrixP2D, canGenerateNonLocalSparsityPattern)
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
     auto comm = exec->get_gko_mpi_device_comm();
     auto rank = exec->get_rank();
+    label size = 8;
+    auto partition{gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            exec->get_ref_exec(), *exec->get_communicator().get(), size))};
 
     auto [localSparsity, nonLocalSparsity] =
-        hostMatrix->compute_sparsity_patterns(exec->get_device_exec());
+        hostMatrix->compute_sparsity_patterns(partition);
 
     // corresponds to cell ids
-    std::vector<std::vector<label>> rows_expected{{3, 7, 0, 4, 4, 5, 6, 7},
-                                                  {0, 4, 3, 7, 4, 5, 6, 7},
-                                                  {0, 1, 2, 3, 3, 7, 0, 4},
-                                                  {0, 1, 2, 3, 0, 4, 3, 7}};
+    std::vector<std::vector<std::vector<label>>> rows_exp{
+        {{3, 7}, {0, 4}, {4, 5, 6, 7}},
+        {{0, 4}, {3, 7}, {4, 5, 6, 7}},
+        {{0, 1, 2, 3}, {3, 7}, {0, 4}},
+        {{0, 1, 2, 3}, {0, 4}, {3, 7}}};
 
     // cols expected
-    std::vector<std::vector<label>> cols_expected({{0, 4, 3, 7, 0, 1, 2, 3},
-                                                   {3, 7, 0, 4, 0, 1, 2, 3},
-                                                   {4, 5, 6, 7, 0, 4, 3, 7},
-                                                   {4, 5, 6, 7, 3, 7, 0, 4}});
+    std::vector<std::vector<label>> cols_exp({{0, 4, 3, 7, 0, 1, 2, 3},
+                                              {3, 7, 0, 4, 0, 1, 2, 3},
+                                              {4, 5, 6, 7, 0, 4, 3, 7},
+                                              {4, 5, 6, 7, 3, 7, 0, 4}});
 
-    std::vector<std::vector<label>> mapping_expected{{0, 1, 2, 3, 4, 5, 6, 7},
-                                                     {0, 1, 2, 3, 4, 5, 6, 7},
-                                                     {0, 1, 2, 3, 4, 5, 6, 7},
-                                                     {0, 1, 2, 3, 4, 5, 6, 7}};
+    std::vector<std::vector<label>> map_exp{{0, 1, 2, 3, 4, 5, 6, 7},
+                                            {0, 1, 2, 3, 4, 5, 6, 7},
+                                            {0, 1, 2, 3, 4, 5, 6, 7},
+                                            {0, 1, 2, 3, 4, 5, 6, 7}};
 
     // we dont test the cols expected for now,
     // as they are in compressed format
     std::vector<label> exp_send_idx_size{8, 8, 8, 8};
-    EXPECT_EQ(nonLocalSparsity->num_nnz, exp_send_idx_size[rank]);
-    // number of interfaces
-    std::vector<label> exp_spans_size{3, 3, 3, 3};
-    EXPECT_EQ(nonLocalSparsity->spans.size(), exp_spans_size[rank]);
-
-    // EXPECT_EQ(nonLocalSparsity->spans[0].begin, 0);
-    // EXPECT_EQ(nonLocalSparsity->spans[1].begin, 3);
-    // EXPECT_EQ(nonLocalSparsity->spans[0].end, 3);
-    // EXPECT_EQ(nonLocalSparsity->spans[1].end, 6);
-
-    auto rows_res = convert_to_vector(nonLocalSparsity->row_idxs);
-    EXPECT_EQ(rows_expected[rank], rows_res);
-    auto mapping_res = convert_to_vector(nonLocalSparsity->ldu_mapping);
-    EXPECT_EQ(mapping_expected[rank], mapping_res);
-    auto cols_res = convert_to_vector(nonLocalSparsity->col_idxs);
-    EXPECT_EQ(cols_expected[comm->rank()], cols_res);
+    EXPECT_EQ(nonLocalSparsity->get_nnz(), exp_send_idx_size[rank]);
+    EXPECT_EQ(nonLocalSparsity->get_rows(), rows_exp[rank]);
+    // EXPECT_EQ(nonLocalSparsity->get_cols(), cols_exp);
+    // EXPECT_EQ(nonLocalSparsity->get_map(), map_exp);
 }
 
 

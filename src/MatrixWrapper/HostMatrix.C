@@ -22,108 +22,6 @@ const lduInterfaceField *interface_getter(
 #endif
 }
 
-void init_local_sparsity(const label nrows, const label upper_nnz,
-                         // const bool is_symmetric,
-                         const label *upper, const label *lower, label *rows,
-                         label *cols, label *permute)
-{
-    // for OpenFOAMs addressing see
-    // https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOAM
-    // Note that the face order in the wiki seems to be wrong. Entries are
-    // stored such that upper rows are monotonic ascending
-    // upper - rows of lower triangular matrix
-    // lower - columns of lower triangular matrix
-    // TODO FIXME
-    // if symmetric we can reuse already copied data
-    // see also note in Distributed.C
-    label after_neighbours = 2 * upper_nnz;
-
-    // first pass order elements row wise
-    // scan through all faces
-    std::vector<std::tuple<label, label, label>> tmp_upper;
-    tmp_upper.reserve(upper_nnz);
-    for (label faceI = 0; faceI < upper_nnz; faceI++) {
-        const label col = upper[faceI];
-        const label row = lower[faceI];
-        tmp_upper.emplace_back(row, col, faceI);
-    }
-
-    std::sort(tmp_upper.begin(), tmp_upper.end(),
-              [&](const auto &a, const auto &b) {
-                  auto [row_a, col_a, faceI_a] = a;
-                  auto [row_b, col_b, faceI_b] = b;
-                  return std::tie(row_a, col_a) < std::tie(row_b, col_b);
-              });
-
-    std::vector<std::tuple<label, label, label>> tmp_lower;
-    tmp_lower.reserve(upper_nnz);
-    for (label faceI = 0; faceI < upper_nnz; faceI++) {
-        const label col = lower[faceI];
-        const label row = upper[faceI];
-        tmp_lower.emplace_back(row, col, faceI);
-    }
-
-    std::sort(tmp_lower.begin(), tmp_lower.end(),
-              [&](const auto &a, const auto &b) {
-                  auto [row_a, col_a, faceI_a] = a;
-                  auto [row_b, col_b, faceI_b] = b;
-                  return std::tie(row_a, col_a) < std::tie(row_b, col_b);
-              });
-
-    // now we have tmp_upper and tmp_lower in row order
-    label element_ctr = 0;
-    label upper_ctr = 0;
-    label lower_ctr = 0;
-    label lower_size = tmp_lower.size();
-    label upper_size = tmp_upper.size();
-    auto [row_lower, col_lower, faceI_lower] = tmp_lower[0];
-    auto [row_upper, col_upper, faceI_upper] = tmp_upper[0];
-    for (label row = 0; row < nrows; row++) {
-        // check if we have any lower elements to insert
-        while (row_lower == row) {
-            rows[element_ctr] = row_lower;
-            cols[element_ctr] = col_lower;
-            permute[element_ctr] = upper_nnz + faceI_lower;
-            // TODO we copy the full vector to GPU thus this is not
-            // required at the moment
-            // permute[element_ctr] =
-            //     (is_symmetric) ? faceI_lower : upper_nnz + faceI_lower;
-            element_ctr++;
-            lower_ctr++;
-            if (lower_ctr >= lower_size) {
-                break;
-            }
-            auto [tmp_row_lower, tmp_col_lower, tmp_faceI_lower] =
-                tmp_lower[lower_ctr];
-            row_lower = tmp_row_lower;
-            col_lower = tmp_col_lower;
-            faceI_lower = tmp_faceI_lower;
-        }
-
-        // add diagonal elements
-        rows[element_ctr] = row;
-        cols[element_ctr] = row;
-        permute[element_ctr] = after_neighbours + row;
-        element_ctr++;
-
-        // check if we have any upper elements to insert
-        while (row_upper == row) {
-            rows[element_ctr] = row_upper;
-            cols[element_ctr] = col_upper;
-            permute[element_ctr] = faceI_upper;
-            element_ctr++;
-            upper_ctr++;
-            if (upper_ctr >= upper_size) {
-                break;
-            }
-            auto [tmp_row_upper, tmp_col_upper, tmp_faceI_upper] =
-                tmp_upper[upper_ctr];
-            row_upper = tmp_row_upper;
-            col_upper = tmp_col_upper;
-            faceI_upper = tmp_faceI_upper;
-        }
-    }
-}
 
 HostMatrixWrapper::HostMatrixWrapper(
     const ExecutorHandler &exec, const objectRegistry &db, label nrows,
@@ -147,14 +45,21 @@ HostMatrixWrapper::HostMatrixWrapper(
       nrows_(nrows),
       upper_nnz_(upper_nnz),
       symmetric_(symmetric),
-      local_interface_nnz_{count_interface_nnz(interfaces, false)},
       non_diag_nnz_(2 * upper_nnz_),
       local_matrix_nnz_(nrows_ + 2 * upper_nnz_),
-      local_matrix_w_interfaces_nnz_(local_matrix_nnz_ + local_interface_nnz_),
-      non_local_matrix_nnz_{count_interface_nnz(interfaces, true)},
       interfaces_(interfaces),
       interfaceBouCoeffs_(interfaceBouCoeffs)
 {
+    // upper
+    interface_length_.push_back(upper_nnz_);
+    interface_ptr_.emplace_back(upper_, false);
+    // lower
+    interface_length_.push_back(upper_nnz_);
+    interface_ptr_.emplace_back(lower_, false);
+    // diag
+    interface_length_.push_back(nrows_);
+    interface_ptr_.emplace_back(diag, false);
+
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
@@ -164,7 +69,7 @@ HostMatrixWrapper::HostMatrixWrapper(
             continue;
         }
         interface_length_.push_back(iface->interface().faceCells().size());
-        interface_ptr_.push_back(interfaceBouCoeffs[i].begin());
+        interface_ptr_.emplace_back(interfaceBouCoeffs[i].begin(), true);
     }
 }
 
@@ -180,56 +85,7 @@ HostMatrixWrapper::HostMatrixWrapper(
           exec, db, addr.size(), addr.lowerAddr().size(), symmetric, diag,
           upper, lower, addr, interfaceBouCoeffs, interfaceIntCoeffs,
           interfaces, solverControls, fieldName, verbose)
-{}
-
-
-label HostMatrixWrapper::count_interface_nnz(
-    const lduInterfaceFieldPtrsList &interfaces, bool proc_interfaces) const
 {
-    label ctr{0};
-    for (label i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-        const auto iface{interface_getter(interfaces, i)};
-
-        bool count = (proc_interfaces)
-                         ? !!isA<processorLduInterface>(iface->interface())
-                         : !isA<processorLduInterface>(iface->interface());
-        if (count) {
-            ctr += iface->interface().faceCells().size();
-        }
-    }
-
-    return ctr;
-}
-
-std::vector<scalar> HostMatrixWrapper::collect_interface_coeffs(
-    const lduInterfaceFieldPtrsList &interfaces,
-    const FieldField<Field, scalar> &interfaceBouCoeffs, const bool local) const
-{
-    std::vector<scalar> ret{};
-    ret.reserve((local) ? local_interface_nnz_ : non_local_matrix_nnz_);
-
-    for (label i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-        const auto iface{interface_getter(interfaces, i)};
-
-        bool collect = (local)
-                           ? !isA<processorLduInterface>(iface->interface())
-                           : !!isA<processorLduInterface>(iface->interface());
-
-        if (collect) {
-            ret.insert(ret.end(), interfaceBouCoeffs[i].begin(),
-                       interfaceBouCoeffs[i].end());
-        }
-    }
-
-    std::for_each(ret.begin(), ret.end(), [](scalar &c) { c = c * -1.0; });
-
-    return ret;
 }
 
 template <class Sel, class Func>
@@ -253,29 +109,6 @@ void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)
         }
     }
 }
-
-
-/** Same as interface_iterator but checks if is *NOT* Sel
- */
-template <class Sel, class Func>
-void neg_interface_iterator(const lduInterfaceFieldPtrsList &interfaces,
-                            Func func)
-{
-    label element_ctr = 0;
-    for (label i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
-            continue;
-        }
-        const auto iface{interface_getter(interfaces, i)};
-        const auto &face_cells{iface->interface().faceCells()};
-        const label interface_size = face_cells.size();
-
-        if (!isA<Sel>(iface->interface())) {
-            func(element_ctr, interface_size, iface);
-        }
-    }
-}
-
 
 std::shared_ptr<CommunicationPattern>
 HostMatrixWrapper::create_communication_pattern() const
@@ -317,236 +150,118 @@ HostMatrixWrapper::create_communication_pattern() const
                                                   target_ids, send_idxs);
 }
 
-
-std::pair<label,
-std::vector<interface_locality>> HostMatrixWrapper::collect_cells_on_interfaces(
-    const lduInterfaceFieldPtrsList &interfaces) const
+std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition) const
 {
     // vector of neighbour cell idx connected to interface
-    std::vector<interface_locality> interface_idxs{};
-    label interface_nnz = non_local_matrix_nnz_ + local_interface_nnz_;
-    interface_idxs.reserve(interface_nnz);
     auto rank = get_exec_handler().get_rank();
+    auto pattern = std::make_shared<SparsityPattern>();
 
-    label local_ctr = 0; // count local interface element
-    label interface_ctr = 0; // count non_local interface elment
-    label interface_id = 0; // count number of interfaces
-    label total_ctr = 0;
-
-    for (label i = 0; i < interfaces.size(); i++) {
-        if (interface_getter(interfaces, i) == nullptr) {
+    for (label i = 0; i < interfaces_.size(); i++) {
+        if (interface_getter(interfaces_, i) == nullptr) {
             continue;
         }
-        const auto iface{interface_getter(interfaces, i)};
+        const auto iface{interface_getter(interfaces_, i)};
         const auto &face_cells{iface->interface().faceCells()};
         const label interface_size = face_cells.size();
-        total_ctr += interface_size;
 
         if (isA<processorFvPatch>(iface->interface())) {
-
-            if (interface_size == 0 ) {
-                std::cout << __FILE__ << "empty proc_interface \n";
+            if (interface_size == 0) {
                 continue;
             }
 
             const auto &patch =
                 refCast<const processorFvPatch>(iface->interface());
-            const auto &face_cells{iface->interface().faceCells()};
 
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
             const label neighbProcNo = pldui.neighbProcNo();
             pldui.send(Pstream::commsTypes::blocking, face_cells);
 
-            auto otherSide_tmp = pldui.receive<label>(
+            auto other_side_tmp = pldui.receive<label>(
                 Pstream::commsTypes::blocking, interface_size);
+            auto cols =
+                std::vector<label>(other_side_tmp->cdata(),
+                                   other_side_tmp->cdata() + interface_size);
 
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                auto local_row = face_cells[cellI];
-                auto col = otherSide_tmp()[cellI];
-                interface_idxs.emplace_back(interface_id, col, local_row,
-                                            neighbProcNo, local_ctr,
-                                            interface_ctr);
-
-                interface_ctr++;
-            }
+            pattern->insert_interface(
+                std::vector<label>(face_cells.cdata(),
+                                   face_cells.cdata() + interface_size),
+                convert_to_global(partition, cols.data(), interface_size,
+                                  neighbProcNo),
+                rank, neighbProcNo, 3);
         }
 
         if (isA<cyclicFvPatch>(iface->interface())) {
-            if (interface_size == 0 ) {
-                std::cout << __FILE__ << "empty cyclic interface \n";
+            if (interface_size == 0) {
                 continue;
             }
 
             const cyclicFvPatch &patch =
                 refCast<const cyclicFvPatch>(iface->interface());
-            const auto &face_cells{iface->interface().faceCells()};
-            const label interface_size = face_cells.size();
 #ifdef WITH_ESI_VERSION
             const label neighbPatchId = patch.neighbPatchID();
 #else
             const label neighbPatchId = patch.nbrPatchID();
 #endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
-            for (label cellI = 0; cellI < interface_size; cellI++) {
-                interface_idxs.emplace_back(interface_id, cols[cellI],
-                                            face_cells[cellI], rank, local_ctr,
-                                            interface_ctr);
-            }
-            local_ctr++;
+
+            pattern->insert_interface(
+                std::vector<label>(face_cells.cdata(),
+                                   face_cells.cdata() + interface_size),
+                std::vector<label>(cols.cdata(), cols.cdata() + interface_size),
+                rank, rank, 3);
         }
-        interface_id++;
     }
-
-    word msg = "done collecting neighbouring processor cell id";
-    LOG_2(verbose_, msg)
-    return {total_ctr, interface_idxs};
-}
-
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<label>, std::vector<gko::span>>
-HostMatrixWrapper::compute_interface_sparsity(
-    std::shared_ptr<const gko::Executor> exec) const
-{
-    auto [total_interface_nnz, interface_loc_vec] = collect_cells_on_interfaces(interfaces_);
-    std::vector<label> rows_vec(total_interface_nnz);
-    std::vector<label> cols_vec(total_interface_nnz);
-    std::vector<label> mapping_vec(total_interface_nnz);
-    std::vector<label> ranks{};
-    std::vector<gko::span> spans{};
-
-    auto rows = rows_vec.data();
-    auto cols = cols_vec.data();
-    auto permute = mapping_vec.data();
-    label prev_interface_ctr{0};
-    label end{0};
-    label start{0};
-    label rank_;
-
-    size_t element_ctr = 0;
-
-    for (auto [interface_idx, col, row, rank, local_nnz_ctr,
-               non_local_nnz_ctr] : interface_loc_vec) {
-        rows[element_ctr] = row;
-        cols[element_ctr] = col;
-        permute[element_ctr] = element_ctr;
-
-        // a new interface start has been reached
-        if (interface_idx > prev_interface_ctr) {
-            ranks.push_back(rank_);
-            end = element_ctr;
-            spans.emplace_back(start, element_ctr);
-            start = end;
-            prev_interface_ctr = interface_idx;
-        }
-        rank_ = rank;
-        element_ctr++;
-    }
-    spans.emplace_back(start, element_ctr);
-    ranks.push_back(rank_);
-    return {rows_vec, cols_vec, mapping_vec, ranks, spans};
+    return pattern;
 }
 
 
 std::pair<std::shared_ptr<SparsityPattern>, std::shared_ptr<SparsityPattern>>
 HostMatrixWrapper::compute_sparsity_patterns(
-    std::shared_ptr<const gko::Executor> exec) const
+    std::shared_ptr<
+        const gko::experimental::distributed::Partition<label, label>>
+        partition) const
 {
+    auto local_sparsity = compute_local_sparsity();
+    auto non_local_sparsity = compute_interface_sparsity(partition);
     auto rank = get_exec_handler().get_rank();
-    auto [local_rows, local_cols, local_mapping, local_spans] =
-        compute_local_sparsity(exec);
-    auto [non_local_rows, non_local_cols, non_local_mapping, non_local_ranks,
-          non_local_spans] = compute_interface_sparsity(exec);
-
-    // move all local interfaces to local rows and cols
-    // std::vector<size_t> erase_non_local{};
-    std::vector<size_t> keep_non_local{};
-    for (int interface_ctr = 0; interface_ctr < non_local_spans.size();
-         interface_ctr++) {
-        if (non_local_ranks[interface_ctr] == rank) {
-            auto [begin, end] = non_local_spans[interface_ctr];
-            label interface_offs = local_cols.size();
-            local_rows.insert(local_rows.end(), non_local_rows.data() + begin,
-                              non_local_rows.data() + end);
-            local_cols.insert(local_cols.end(), non_local_cols.data() + begin,
-                              non_local_cols.data() + end);
-            // TODO FIXME
-            for (size_t map_el = begin; map_el < end; map_el++) {
-                local_mapping.push_back(map_el + interface_offs);
-            }
-            local_spans.emplace_back(interface_offs, local_rows.size());
-        } else {
-            keep_non_local.push_back(interface_ctr);
-        }
-    }
-
-    std::vector<label> non_local_rows_copy, non_local_cols_copy,
-        non_local_mapping_copy;
-    std::vector<gko::span> non_local_spans_copy{};
-    size_t begin = 0;
-    label interface_offset = 0;
-    for (auto keep : keep_non_local) {
-        auto span = non_local_spans[keep];
-        size_t length{span.end - span.begin};
-        non_local_spans_copy.emplace_back(begin, begin + length);
-        non_local_rows_copy.insert(non_local_rows_copy.end(),
-                                   non_local_rows.data() + span.begin,
-                                   non_local_rows.data() + span.end);
-        non_local_cols_copy.insert(non_local_cols_copy.end(),
-                                   non_local_cols.data() + span.begin,
-                                   non_local_cols.data() + span.end);
-
-        // mapping will be made consecutive in separate step
-        for (size_t j = 0; j < span.end - span.begin; j++) {
-            non_local_mapping_copy.push_back(j + interface_offset);
-        }
-        interface_offset += span.end - span.begin;
-        // non_local_mapping_copy.insert(non_local_mapping_copy.end(),
-        //                               non_local_mapping.data() + span.begin,
-        //                               non_local_mapping.data() + span.end);
-
-        begin += length;
-    }
-
-    auto local_sparsity = std::make_shared<SparsityPattern>(
-        exec->get_master(), get_size(), local_rows, local_cols, local_mapping,
-        local_spans);
-    auto non_local_sparsity = std::make_shared<SparsityPattern>(
-        exec->get_master(), gko::dim<2>{nrows_, non_local_rows_copy.size()},
-        non_local_rows_copy, non_local_cols_copy, non_local_mapping_copy,
-        non_local_spans_copy);
+    local_sparsity->move_interface(non_local_sparsity, rank,
+                                   [](auto in) { return in; });
     return {local_sparsity, non_local_sparsity};
 }
 
-
-std::tuple<std::vector<label>, std::vector<label>, std::vector<label>,
-           std::vector<gko::span>>
-HostMatrixWrapper::compute_local_sparsity(
-    std::shared_ptr<const gko::Executor> exec) const
+std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity()
+    const
 {
     LOG_1(verbose_, "start init host sparsity pattern")
 
-    std::vector<label> rows_vec(local_matrix_nnz_);
-    std::vector<label> cols_vec(local_matrix_nnz_);
-    std::vector<label> mapping_vec(local_matrix_nnz_);
-    std::vector<gko::span> spans{
-        gko::span{0, static_cast<gko::size_type>(local_matrix_nnz_)}};
-
-    auto rows = rows_vec.data();
-    auto cols = cols_vec.data();
-    auto permute = mapping_vec.data();
-
-    auto lower_local = idx_array::view(
-        exec, upper_nnz_, const_cast<label *>(addr_.lowerAddr().begin()));
-
-    // TODO const_view ?
-    auto upper_local = idx_array::view(
-        exec, upper_nnz_, const_cast<label *>(addr_.upperAddr().begin()));
-
     // row of upper, col of lower
-    const auto lower = lower_local.get_const_data();
+    const auto lower = addr_.lowerAddr().begin();
     // col of upper, row of lower
-    const auto upper = upper_local.get_const_data();
+    const auto upper = addr_.upperAddr().begin();
+
+    auto pattern = std::make_shared<SparsityPattern>();
+
+    label rank = Pstream::myProcNo();
+
+    // insert upper
+    pattern->insert_interface(std::vector(lower, lower + upper_nnz_),
+                              std::vector(upper, upper + upper_nnz_), rank,
+                              rank);
+    // insert lower
+    pattern->insert_interface(std::vector(upper, upper + upper_nnz_),
+                              std::vector(lower, lower + upper_nnz_), rank,
+                              rank, pattern->get_rows().size(), false);
+    // insert diag
+    std::vector<label> drows(nrows_);
+    std::iota(drows.begin(), drows.end(), 0);
+    std::vector<label> dcols(nrows_);
+    std::iota(dcols.begin(), dcols.end(), 0);
+
+    pattern->insert_interface(std::move(drows), std::move(dcols), rank, rank);
 
     // Scan through given rows and insert row and column indices into array
     //
@@ -556,7 +271,8 @@ HostMatrixWrapper::compute_local_sparsity(
     // TODO in order to simplify when local interfaces exists set
     // local_sparsity to size of nrows_w_interfaces, if interfaces exist
     // local_sparsity is only valid till nrows_
-    init_local_sparsity(nrows_, upper_nnz_, upper, lower, rows, cols, permute);
+    // init_local_sparsity(nrows_, upper_nnz_, upper, lower, rows, cols,
+    // permute);
 
     // if no local interfaces are present we are done here
     // otherwise we need to add local interfaces to local_sparsity in order
@@ -565,10 +281,7 @@ HostMatrixWrapper::compute_local_sparsity(
     // i_j,k j=interface index and k cell index on the interface
 
     LOG_1(verbose_, "done init host sparsity pattern")
-    // return std::make_shared<SparsityPattern>(
-    //     exec->get_master(), get_size(), rows_vec, cols_vec, mapping_vec,
-    //     spans);
-    return {rows_vec, cols_vec, mapping_vec, spans};
+    return pattern;
 }
 
 }  // namespace Foam
