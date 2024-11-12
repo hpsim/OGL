@@ -100,35 +100,22 @@ public:
         // in order to make the apply test give actual results
         // this is required since creating the host matrix
         // without actual DSL sets all values to zero
-        // for (int i = 0; i < 8; i++) {
-        //     fvMatrix->diag().data()[i] = 2.0;
-        // }
-        // for (int i = 0; i < 12; i++) {
-        //     fvMatrix->upper().data()[i] = 1.0;
-        //     fvMatrix->lower().data()[i] = 1.0;
-        // }
+        for (int i = 0; i < 8; i++) {
+            fvMatrix->diag().data()[i] = 2.0;
+        }
+        for (int i = 0; i < 12; i++) {
+            fvMatrix->upper().data()[i] = 1.0;
+            fvMatrix->lower().data()[i] = 1.0;
+        }
         // set the interface value, we use get_interface_data here
         // because that is more comfortable.
         int iface_ctr{0};
         for (auto size : hostMatrix->get_interface_length()) {
-            std::cout << __FILE__ << " size " << size << "\n";
             scalar *data =
                 const_cast<scalar *>(hostMatrix->get_interface_data(iface_ctr));
-            if (size == 8) {
-                std::cout << __FILE__ << " size == 8" << size << "\n";
-                data[0] = 1.0;
-                data[1] = 2.0;
-                data[2] = 3.0;
-                data[3] = 4.0;
-                data[4] = 5.0;
-                data[5] = 6.0;
-                data[6] = 7.0;
-                data[7] = 8.0;
+            for (size_t i = 0; i < size; i++) {
+                data[i] = -1.0 * scalar(i);
             }
-            // for (size_t i=0;i<size;i++){
-            //     data[i] = -1.0;
-            //     // std::cout << __FILE__<< " i " << i << "\n";
-            // }
             iface_ctr += 1;
         }
     }
@@ -149,7 +136,7 @@ public:
 const testing::Environment *global_env =
     AddGlobalTestEnvironment(new Environment);
 
-class DistMatP2D
+class DistMatP2DS2x2
     : public testing::TestWithParam<std::tuple<int, string, bool>> {
 public:
     ExecutorHandler exec = *((Environment *)global_env)->exec.get();
@@ -164,9 +151,9 @@ public:
      * The mesh has the following structure
      *         global ids
      *   */
-    std::vector<scalar> exp_local_coeff_1{2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1,
-                                          2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2,
-                                          1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2};
+    std::vector<scalar> exp_local_coeff_1{2, 1, 1, 1, 2, 1, 1, 1, 2, 1,
+                                          1, 1, 2, 1, 1, 2, 1, 1, 1, 2,
+                                          1, 1, 1, 2, 1, 1, 1, 2};
 
     std::vector<scalar> exp_local_coeff_2_nf{
         2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1,
@@ -223,40 +210,41 @@ public:
           {2, {exp_local_coeff_2_nf, {}, exp_local_coeff_2_nf, {}}},
           {4, {exp_local_coeff_4, {}, {}, {}}}}}};
 
+    //
     std::map<bool, std::map<label, vec_vec_s>> exp_non_local_coeffs{
         {true,
          {{1,
-           {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7}}},
+           {{0, 0, 0, 1, 1, 2, 3, 1},
+            {0, 0, 0, 1, 1, 2, 3, 1},
+            {0, 0, 1, 2, 3, 0, 1, 1},
+            {0, 0, 1, 2, 0, 3, 1, 1}}},
           {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}},
         {false,
          {{1,
-           {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7}}},
+           {{0, 1, 0, 1, 0, 1, 2, 3},
+            {0, 1, 0, 1, 0, 1, 2, 3},
+            {0, 1, 2, 3, 0, 1, 0, 1},
+            {0, 1, 2, 3, 0, 1, 0, 1}}},
           {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}}};
 
     std::map<bool, std::map<label, vec_vec>> exp_non_local_rows{
         {true,
          {{1,
-           {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
-            {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7}}},
+           {{0, 3, 4, 4, 5, 6, 7, 7},
+            {0, 3, 4, 4, 5, 6, 7, 7},
+            {0, 0, 1, 2, 3, 3, 4, 7},
+            {0, 0, 1, 2, 3, 3, 4, 7}}},
           {2,
            {{8, 9, 10, 11, 12, 13, 14, 15}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}},
         {false,
          {{1,
-           {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7}}},
+           {{3, 7, 0, 4, 4, 5, 6, 7},
+            {0, 4, 3, 7, 4, 5, 6, 7},
+            {0, 1, 2, 3, 3, 7, 0, 4},
+            {0, 1, 2, 3, 0, 4, 3, 7}}},
           {2,
            {{8, 9, 10, 11, 12, 13, 14, 15}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}}};
@@ -265,17 +253,17 @@ public:
     std::map<bool, std::map<label, vec_vec>> exp_non_local_cols{
         {true,
          {{1,
-           {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
-            {0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
-            {0, 1, 2, 3, 4, 5, 6, 7}}},
+           {{2, 0, 4, 3, 5, 6, 7, 1},
+            {0, 2, 4, 1, 5, 6, 7, 3},
+            {6, 0, 1, 2, 3, 4, 7, 5},
+            {0, 4, 1, 2, 6, 3, 5, 7}}},
           {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}},
         {false,
          {{1,
            {{0, 1, 2, 3, 4, 5, 6, 7},
-            {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-            {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+            {0, 1, 2, 3, 4, 5, 6, 7},
+            {0, 1, 2, 3, 4, 5, 6, 7},
             {0, 1, 2, 3, 4, 5, 6, 7}}},
           {2, {{0, 1, 2, 3, 4, 5, 6, 7}, {}, {0, 1, 2, 3, 4, 5, 6, 7}, {}}},
           {4, {{}, {}, {}, {}}}}}};
@@ -283,15 +271,15 @@ public:
     /*
      * The mesh has the following structure
      *         local ids
-     *   3    [ 0 1 2 3 4 5 6 7 ]
-     *   2    [ 0 1 2 3 4 5 6 7 ]
-     *   1    [ 0 1 2 3 4 5 6 7 ]
-     *   0    [ 0 1 2 3 4 5 6 7 ]
+     *  [ 4 5 6 7 | 4 5 6 7 ]
+     *  [ 0 1 2 3 | 0 1 2 3 ]
+     *  ----------+----------
+     *  [ 4 5 6 7 | 4 5 6 7 ]
+     *  [ 0 1 2 3 | 0 1 2 3 ]
      *   */
-    vec local_row_1_nf = {0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4,
-                          4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 0, 7};
-    vec local_row_1_f = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3,
-                         4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+    vec local_row_1_nf = {0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3,
+                          4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7};
+    vec local_row_1_f = local_row_1_nf;
     /*
      * The mesh has the following structure
      *         local ids
@@ -349,8 +337,8 @@ public:
           {2, {local_row_2_nf, {}, local_row_2_nf, {}}},
           {4, {local_row_4_nf, {}, {}, {}}}}}};
 
-    vec local_cols_1 = {0, 1, 3, 0, 1, 2, 4, 1, 2, 5, 0, 3, 4, 6, 1, 3, 4,
-                        5, 7, 2, 4, 5, 8, 3, 6, 7, 4, 6, 7, 8, 5, 7, 8};
+    vec local_cols_1 = {0, 1, 4, 0, 1, 2, 5, 1, 2, 3, 6, 2, 3, 7,
+                        0, 4, 5, 1, 4, 5, 6, 2, 5, 6, 7, 3, 6, 7};
     vec local_cols_2 = {
         0,  1,  3,  0,  1,  2,  4,  1,  2,  5,  0,  3,  4,  6,  1,  3,  4,  5,
         7,  2,  4,  5,  8,  3,  6,  7,  4,  6,  7,  8,  5,  7,  8,  9,  10, 12,
@@ -396,11 +384,10 @@ public:
           {2, {local_cols_2, {}, local_cols_2, {}}},
           {4, {local_cols_4, {}, {}, {}}}}}};
 
-    //
-    vec_vec_s x_1{{7, 10, 12, 14, 8, 9, 10, 10},
-                  {5, 5, 4, 7, 6, 5, 8, 7, 7},
-                  {5, 7, 8, 5, 6, 7, 4, 5, 7},
-                  {6, 7, 7, 7, 6, 5, 7, 5, 4}};
+    vec_vec_s x_1{{4, 5, 5, 4, 5, 6, 7, 8},
+                  {4, 5, 5, 4, 5, 6, 7, 8},
+                  {4, 6, 7, 7, 5, 5, 5, 5},
+                  {4, 6, 7, 7, 5, 5, 5, 5}};
     std::vector<scalar> exp_x_2_1 = {4, 5, 5, 5, 6, 7, 5, 7, 10,
                                      5, 5, 4, 7, 6, 5, 8, 7, 7};
     std::vector<scalar> exp_x_2_2 = {5, 7, 8, 5, 6, 7, 4, 5, 7,
@@ -420,8 +407,8 @@ public:
 };
 
 
-INSTANTIATE_TEST_SUITE_P(DistMatP2DInit, DistMatP2D,
-                         testing::Combine(testing::Values(1, 2, 4),
+INSTANTIATE_TEST_SUITE_P(DistMatP2DS2x2Init, DistMatP2DS2x2,
+                         testing::Combine(testing::Values(1),
                                           testing::Values("Coo"),
                                           testing::Values(false, true)),
                          [](const auto &info) {
@@ -441,7 +428,7 @@ INSTANTIATE_TEST_SUITE_P(DistMatP2DInit, DistMatP2D,
                          });
 
 
-TEST_P(DistMatP2D, canCreateDistributedMatrix)
+TEST_P(DistMatP2DS2x2, canCreateDistributedMatrix)
 {
     /* The test mesh is a 8x4 grid decomposed into 4 8x1 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
@@ -466,7 +453,7 @@ TEST_P(DistMatP2D, canCreateDistributedMatrix)
               exp_local_size[ranks_per_gpu][rank]);
 }
 
-TEST_P(DistMatP2D, hasCorrectLocalMatrix)
+TEST_P(DistMatP2DS2x2, hasCorrectLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
@@ -503,25 +490,25 @@ TEST_P(DistMatP2D, hasCorrectLocalMatrix)
             << " failed at index " << i << " on rank " << rank;
     }
 
-    // EXPECT_EQ(res_local_cols.size(),
-    //           exp_local_cols[fused][ranks_per_gpu][rank].size());
-    // for (size_t i = 0; i < res_local_rows.size(); i++) {
-    //     ASSERT_EQ(res_local_cols[i],
-    //               exp_local_cols[fused][ranks_per_gpu][rank][i])
-    //         << " failed at index " << i << " on rank " << rank;
-    // }
+    EXPECT_EQ(res_local_cols.size(),
+              exp_local_cols[fused][ranks_per_gpu][rank].size());
+    for (size_t i = 0; i < res_local_rows.size(); i++) {
+        ASSERT_EQ(res_local_cols[i],
+                  exp_local_cols[fused][ranks_per_gpu][rank][i])
+            << " failed at index " << i << " on rank " << rank;
+    }
 
-    // EXPECT_EQ(res_local_coeffs.size(),
-    //           exp_local_coeffs[fused][ranks_per_gpu][rank].size());
-    // for (size_t i = 0; i < res_local_rows.size(); i++) {
-    //     ASSERT_EQ(res_local_coeffs[i],
-    //               exp_local_coeffs[fused][ranks_per_gpu][rank][i])
-    //         << " failed at index " << i << " on rank " << rank;
-    // }
+    EXPECT_EQ(res_local_coeffs.size(),
+              exp_local_coeffs[fused][ranks_per_gpu][rank].size());
+    for (size_t i = 0; i < res_local_rows.size(); i++) {
+        ASSERT_EQ(res_local_coeffs[i],
+                  exp_local_coeffs[fused][ranks_per_gpu][rank][i])
+            << " failed at index " << i << " on rank " << rank;
+    }
 }
 
 
-TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)
+TEST_P(DistMatP2DS2x2, hasCorrectNonLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
@@ -531,7 +518,7 @@ TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec, fused);
 
     std::map<label, vec> exp_non_local_size;
-    exp_non_local_size.emplace(1, vec{8, 16, 16, 8});
+    exp_non_local_size.emplace(1, vec{8, 8, 8, 8});
     exp_non_local_size.emplace(2, vec{8, 0, 8, 0});
     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
@@ -551,15 +538,15 @@ TEST_P(DistMatP2D, hasCorrectNonLocalMatrix)
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1],
               exp_non_local_size[ranks_per_gpu][rank]);
 
-    // ASSERT_EQ(res_non_local_coeffs,
-    //           exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_coeffs,
+              exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
     ASSERT_EQ(res_non_local_rows,
               exp_non_local_rows[fused][ranks_per_gpu][rank]);
     ASSERT_EQ(res_non_local_cols,
               exp_non_local_cols[fused][ranks_per_gpu][rank]);
 }
 
-TEST_P(DistMatP2D, canApplyCorrectly)
+TEST_P(DistMatP2DS2x2, canApplyCorrectly)
 {
     auto [ranks_per_gpu, format, fused] = GetParam();
     auto mesh = ((Environment *)global_env)->mesh;
@@ -588,7 +575,7 @@ TEST_P(DistMatP2D, canApplyCorrectly)
         x->get_local_vector()->get_const_values(),
         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
 
-    // ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
 }
 
 int main(int argc, char *argv[])
