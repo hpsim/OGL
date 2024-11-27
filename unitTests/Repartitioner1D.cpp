@@ -6,14 +6,9 @@
 
 /* @brief Test fixture class for 1D mesh
  *
- * The mesh has the following structure
- * ranks:    0     1     2     3
- * cells: [ 0 1 | 2 3 | 4 5 | 6 7 ] <- global row ids
- * cells: [ 0 1 | 0 1 | 0 1 | 0 1 ] <- local row ids
  */
-class RepartitionerFixture1D
-    : public RepartitionerFixture,
-      public testing::WithParamInterface<std::tuple<bool, int>> {
+class RepartitionerFixture1D : public RepartitionerFixture,
+                               public testing::WithParamInterface<int> {
 public:
     label local_size = 2;  // matrix rows, same for all ranks
 
@@ -60,23 +55,21 @@ public:
     // repartitioned 4 [ 0 1 , 2 3 , 4 5 , 6 7 ] | new  boundary , old boundary
     // the last two elements are now local interfaces, they are in in order
     // of target_ids
-    vec_vec nf_rows_2 = {{0, 0, 1, 1, 2, 2, 3, 3, 2, 1}};
-    vec_vec nf_rows_4 = {
-        {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 2, 1, 4, 3, 6, 5}};
-    std::map<label, vec_vec_vec> exp_local_rows{
-        {1, {rows, rows, rows, rows}},
-        {2, {nf_rows_2, {}, nf_rows_2, {}}},
-        {4, {nf_rows_4, {}, {}, {}}}};
+    vec_vec rows_2 = {{0}, {1}, {0, 1}, {2}, {3}, {2, 3}, {1}, {2}};
+    vec_vec rows_4 = {{0}, {1}, {0, 1}, {2}, {3}, {2, 3}, {4}, {5}, {4, 5},
+                      {6}, {7}, {6, 7}, {1}, {2}, {3},    {4}, {5}, {6}};
+    std::map<label, vec_vec_vec> exp_local_rows{{1, {rows, rows, rows, rows}},
+                                                {2, {rows_2, {}, rows_2, {}}},
+                                                {4, {rows_4, {}, {}, {}}}};
 
-    vec_vec nf_cols_2 = {{0, 1, 0, 1, 2, 3, 2, 3, 1, 2}};
-    vec_vec nf_cols_4 = {
-        {0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 1, 2, 3, 4, 5, 6}};
+    vec_vec cols_2 = {{1}, {0}, {0, 1}, {3}, {2}, {2, 3}, {2}, {1}};
+    vec_vec cols_4 = {{1}, {0}, {0, 1}, {3}, {2}, {2, 3}, {5}, {4}, {4, 5},
+                      {7}, {6}, {6, 7}, {2}, {1}, {4},    {3}, {6}, {5}};
     // first map fused true/false
     // expected local col indices in local indices
-    std::map<label, vec_vec_vec> exp_local_cols{
-        {{1, {cols, cols, cols, cols}},
-         {2, {nf_cols_2, {}, nf_cols_2, {}}},
-         {4, {nf_cols_4, {}, {}, {}}}}};
+    std::map<label, vec_vec_vec> exp_local_cols{{{1, {cols, cols, cols, cols}},
+                                                 {2, {cols_2, {}, cols_2, {}}},
+                                                 {4, {cols_4, {}, {}, {}}}}};
 
     vec nf_map_2{2, 0, 1, 3, 6, 4, 5, 7,  // here the interface values start
                  8, 9};                   // <- they are currently unused
@@ -98,24 +91,17 @@ public:
           {2, {f_map_2, {}, f_map_2, {}}},
           {4, {f_map_4, {}, {}, {}}}}}};
 
-    // number of rows of local matrix
-    std::map<label, vec> exp_local_dim{
-        {1, {local_size, local_size, local_size, local_size}},
-        {2, {2 * local_size, 0, 2 * local_size, 0}},
-        {4, {4 * local_size, 0, 0, 0}},
-    };
-
     // non local data
     std::map<label, vec_vec_vec> exp_non_local_rows{
         {1, {{{1}}, {{0}, {1}}, {{0}, {1}}, {{0}}}},
-        {2, {{{}}, {{}}, {{}}, {{}}}},
-        {4, {{{}}, {{}}, {{}}, {}}}};
+        {2, {{{3}}, {}, {{0}}, {}}},
+        {4, {{}, {}, {}, {}}}};
 
     // non local cols are in global indices
     std::map<label, vec_vec_vec> exp_non_local_cols{
         {1, {{{2}}, {{1}, {4}}, {{3}, {6}}, {{5}}}},
-        {2, {{{}}, {{}}, {{}}, {{}}}},
-        {4, {{{}}, {{}}, {{}}, {}}}};
+        {2, {{{4}}, {}, {{3}}, {}}},
+        {4, {{}, {}, {}, {}}}};
 
     std::map<bool, std::map<label, vec_vec>> exp_non_local_mapping{
         {false,
@@ -130,26 +116,21 @@ public:
 
 
 INSTANTIATE_TEST_SUITE_P(RepartitionerFixture1DInstantiation,
-                         RepartitionerFixture1D,
-                         testing::Combine(testing::Values(false),
-                                          testing::Values(1, 2, 4)),
+                         RepartitionerFixture1D, testing::Values(1, 2, 4),
                          [](const auto &info) {
                              // Can use info.param here to generate the test
                              // suffix
                              std::vector<std::string> names;
-                             names.emplace_back("fuse");
                              names.emplace_back("ranks");
-                             std::string name = "fused_";
-                             name += std::to_string(std::get<0>(info.param));
-                             name += "_ranks_";
-                             name += std::to_string(std::get<1>(info.param));
+                             std::string name = "ranks_";
+                             name += std::to_string(info.param);
                              return name;
                          });
 
 TEST_P(RepartitionerFixture1D, can_create_repartitioner)
 {
     // Arrange
-    auto [fused, ranks_per_gpu] = GetParam();
+    auto ranks_per_gpu = GetParam();
     // Act
     auto repartitioner = Repartitioner(10, ranks_per_gpu, 0, exec);
     // Assert
@@ -159,7 +140,7 @@ TEST_P(RepartitionerFixture1D, can_create_repartitioner)
 TEST_P(RepartitionerFixture1D, has_correct_properties_for_n_rank)
 {
     // Arrange
-    auto [fused, ranks_per_gpu] = GetParam();
+    auto ranks_per_gpu = GetParam();
     // Act
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
 
@@ -176,7 +157,7 @@ TEST_P(RepartitionerFixture1D, has_correct_properties_for_n_rank)
 TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
 {
     // Arrange
-    auto [fused, ranks_per_gpu] = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
@@ -229,7 +210,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
 TEST_P(RepartitionerFixture1D, can_repartition_comm_pattern)
 {
     // Arrange
-    auto [fused, ranks_per_gpu] = GetParam();
+    auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 

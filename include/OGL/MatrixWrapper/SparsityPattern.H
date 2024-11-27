@@ -133,6 +133,21 @@ public:
         map_.push_back(map);
     }
 
+    void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
+                          std::vector<label> &&map, label id, label orig_rank,
+                          label comm_rank)
+    {
+        OGL_ASSERT_EQ(rows.size(), cols.size());
+
+        nnz_ += rows.size();
+        rows_.push_back(rows);
+        cols_.push_back(cols);
+        map_.push_back(map);
+        id_.push_back(id);
+        orig_rank_.push_back(orig_rank);
+        comm_rank_.push_back(comm_rank);
+    }
+
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>>
     get_vecs(bool compress_cols)
@@ -210,8 +225,8 @@ public:
         // delete from other
         label num_del = del_from_other.size();
         for (int i = 0; i < num_del; i++) {
-            label del = num_del - i - 1;
-            other_nnz -= other_rows[del].size();
+            label del = del_from_other[num_del - i - 1];
+            // other_nnz -= other_rows[del].size();
             other_rows.erase(other_rows.begin() + del);
             other_cols.erase(other_cols.begin() + del);
             other_map.erase(other_map.begin() + del);
@@ -242,6 +257,15 @@ public:
     std::vector<label> &get_id() { return id_; }
 
     const std::vector<label> &get_id() const { return id_; }
+
+    std::vector<int> get_lengths()
+    {
+        std::vector<label> ret{};
+        for (auto &row : rows_) {
+            ret.push_back(row.size());
+        }
+        return ret;
+    }
 
     std::vector<label> &get_orig_rank() { return orig_rank_; }
 
