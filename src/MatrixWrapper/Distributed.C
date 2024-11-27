@@ -56,7 +56,8 @@ void generate_update_data(
             in->get_id()[i],
             compute_gather_to_owner_counts(exec_handler, ranks_per_owner,
                                            interface_size),
-            gko::as<MatrixType>(linops[linop_idx])->get_values() + linop_offset);
+            gko::as<MatrixType>(linops[linop_idx])->get_values() +
+                linop_offset);
         linop_offset_store += interface_size;
     }
 }

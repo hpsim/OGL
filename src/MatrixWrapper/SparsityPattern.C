@@ -7,38 +7,40 @@
 namespace detail {
 
 std::vector<std::vector<label>> compress_cols(
-  std::vector<std::vector<label>> in, std::vector<label> ids ) {
-  auto id_permutation = sort_permutation(ids, [](label a, label b){return a < b;});
-  std::map<label, label> col_map;
+    std::vector<std::vector<label>> in, std::vector<label> ids)
+{
+    auto id_permutation =
+        sort_permutation(ids, [](label a, label b) { return a < b; });
+    std::map<label, label> col_map;
 
-  label ctr = 0;
-  for (auto id: id_permutation){
-    auto & cols = in[id];
-    for (auto col: cols) {
-      // new element found
-      if (col_map.find(col) == col_map.end()){
-        col_map[col] = ctr;
-        ctr++;
-      }
+    label ctr = 0;
+    for (auto id : id_permutation) {
+        auto &cols = in[id];
+        for (auto col : cols) {
+            // new element found
+            if (col_map.find(col) == col_map.end()) {
+                col_map[col] = ctr;
+                ctr++;
+            }
+        }
     }
-  }
 
-  std::vector<std::vector<label>> ret;
-  for (auto id: id_permutation){
-    // TODO std::transform would be better
-    std::vector<label> uncompressed(in[id]);
-    std::vector<label> compressed;
-    compressed.reserve(uncompressed.size());
-    for (auto& val: uncompressed) {
-      compressed.push_back(col_map[val]);
+    std::vector<std::vector<label>> ret;
+    for (auto id : id_permutation) {
+        // TODO std::transform would be better
+        std::vector<label> uncompressed(in[id]);
+        std::vector<label> compressed;
+        compressed.reserve(uncompressed.size());
+        for (auto &val : uncompressed) {
+            compressed.push_back(col_map[val]);
+        }
+        ret.push_back(compressed);
     }
-    ret.push_back(compressed);
-  }
 
-  return ret;
+    return ret;
 }
 
-}
+}  // namespace detail
 
 namespace Foam {
 
@@ -47,7 +49,6 @@ gko::dim<2> compute_dimensions(const std::vector<label> &rows)
     gko::size_type num_rows = rows.back() + 1;
     return gko::dim<2>{num_rows, num_rows};
 }
-
 
 
 std::vector<label> convert_to_global(

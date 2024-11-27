@@ -85,8 +85,7 @@ HostMatrixWrapper::HostMatrixWrapper(
           exec, db, addr.size(), addr.lowerAddr().size(), symmetric, diag,
           upper, lower, addr, interfaceBouCoeffs, interfaceIntCoeffs,
           interfaces, solverControls, fieldName, verbose)
-{
-}
+{}
 
 template <class Sel, class Func>
 void interface_iterator(const lduInterfaceFieldPtrsList &interfaces, Func func)

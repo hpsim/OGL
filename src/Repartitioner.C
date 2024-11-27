@@ -204,7 +204,7 @@ Repartitioner::repartition_sparsity(
     auto global_to_local_offset = orig_partition_->get_range_bounds()[rank];
     auto convert_to_local = [global_to_local_offset](std::vector<label> &&in) {
         std::vector<label> out(in);
-        for (auto & val: out) {
+        for (auto &val : out) {
             val = val - global_to_local_offset;
         }
         return out;
