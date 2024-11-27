@@ -57,7 +57,8 @@ macro(ogl_unit_test TEST)
 endmacro()
 
 ogl_unit_test_case(Repartitioner1D l2d)
-# ogl_unit_test_case(Repartitioner2D l2d) ogl_unit_test_case(CommunicationPattern l2d)
+ogl_unit_test_case(Repartitioner2D l2d)
+ogl_unit_test_case(CommunicationPattern l2d)
 #
 
 add_subdirectory(MatrixWrapper)

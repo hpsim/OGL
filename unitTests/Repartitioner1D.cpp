@@ -26,13 +26,6 @@ public:
     // communication partners (ranks)
     vec_vec ids{{1}, {0, 2}, {1, 3}, {2}};
 
-    vec_vec non_local_ranks{
-        {1},     // rank 0
-        {0, 2},  // rank 1
-        {1, 3},  // rank 2
-        {2},     // rank 3
-    };
-
     // Expected results
     // number of non-zeros of each sparsity pattern
     std::map<label, std::vector<label>> exp_local_nnz{
@@ -71,25 +64,14 @@ public:
                                                  {2, {cols_2, {}, cols_2, {}}},
                                                  {4, {cols_4, {}, {}, {}}}}};
 
-    vec nf_map_2{2, 0, 1, 3, 6, 4, 5, 7,  // here the interface values start
-                 8, 9};                   // <- they are currently unused
-    vec nf_map_4{2,  0,  1,  3,  6,  4,  5,  7,
-                 10, 8,  9,  11, 14, 12, 13, 15,  // here the interface start
-                 16, 17, 18, 19, 20, 21};         // <- unused values because we
-                                                  // dont permute atm
     // [u l d | u l d ], [ i | i ]
-    vec f_map_2{2, 0, 1, 3, 9, 8, 6, 4, 5, 7};
-    vec f_map_4{2,  0,  1, 3, 17, 16, 6,  4,  5,  7,  19,
-                18, 10, 8, 9, 11, 21, 20, 14, 12, 13, 15};
-    std::map<bool, std::map<label, vec_vec>> exp_local_mapping{
-        {false,
-         {{1, {mapping, mapping, mapping, mapping}},
-          {2, {nf_map_2, {}, nf_map_2, {}}},
-          {4, {nf_map_4, {}, {}, {}}}}},
-        {true,
-         {{1, {mapping, mapping, mapping, mapping}},
-          {2, {f_map_2, {}, f_map_2, {}}},
-          {4, {f_map_4, {}, {}, {}}}}}};
+    vec map_2{2, 0, 1, 3, 9, 8, 6, 4, 5, 7};
+    vec map_4{2,  0,  1, 3, 17, 16, 6,  4,  5,  7,  19,
+              18, 10, 8, 9, 11, 21, 20, 14, 12, 13, 15};
+    std::map<label, vec_vec> exp_local_mapping{
+        {1, {mapping, mapping, mapping, mapping}},
+        {2, {map_2, {}, map_2, {}}},
+        {4, {map_4, {}, {}, {}}}};
 
     // non local data
     std::map<label, vec_vec_vec> exp_non_local_rows{
@@ -103,15 +85,10 @@ public:
         {2, {{{4}}, {}, {{3}}, {}}},
         {4, {{}, {}, {}, {}}}};
 
-    std::map<bool, std::map<label, vec_vec>> exp_non_local_mapping{
-        {false,
-         {{1, {{0}, {0, 1}, {0, 1}, {0}}},
-          {2, {{0}, {}, {0}, {}}},
-          {4, {{}, {}, {}, {}}}}},
-        {true,
-         {{1, {{0}, {0, 1}, {0, 1}, {0}}},
-          {2, {{0}, {}, {0}, {}}},
-          {4, {{}, {}, {}, {}}}}}};
+    std::map<label, vec_vec> exp_non_local_mapping{
+        {1, {{0}, {0, 1}, {0, 1}, {0}}},
+        {2, {{0}, {}, {0}, {}}},
+        {4, {{}, {}, {}, {}}}};
 };
 
 
