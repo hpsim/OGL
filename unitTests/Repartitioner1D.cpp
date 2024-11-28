@@ -16,7 +16,7 @@ public:
     vec_vec rows{{0}, {1}, {0, 1}};
     vec_vec cols{{1}, {0}, {0, 1}};
     // mapping is [u, l, d]
-    std::vector<label> mapping{2, 0, 1, 3};
+    vec_vec mapping{{0}, {0}, {0, 1}};
     std::vector<gko::span> spans{gko::span{0, 5}};
 
     // Setup data
@@ -65,10 +65,10 @@ public:
                                                  {4, {cols_4, {}, {}, {}}}}};
 
     // [u l d | u l d ], [ i | i ]
-    vec map_2{2, 0, 1, 3, 9, 8, 6, 4, 5, 7};
-    vec map_4{2,  0,  1, 3, 17, 16, 6,  4,  5,  7,  19,
-              18, 10, 8, 9, 11, 21, 20, 14, 12, 13, 15};
-    std::map<label, vec_vec> exp_local_mapping{
+    vec_vec map_2{{0}, {0}, {0, 1}, {0}, {0}, {0, 1}, {0}, {0}};
+    vec_vec map_4{{0}, {0}, {0, 1}, {0}, {0}, {0, 1}, {0}, {0}, {0, 1},
+                  {0}, {0}, {0, 1}, {0}, {0}, {0},    {0}, {0}, {0}};
+    std::map<label, vec_vec_vec> exp_local_mapping{
         {1, {mapping, mapping, mapping, mapping}},
         {2, {map_2, {}, map_2, {}}},
         {4, {map_4, {}, {}, {}}}};
@@ -85,9 +85,9 @@ public:
         {2, {{{4}}, {}, {{3}}, {}}},
         {4, {{}, {}, {}, {}}}};
 
-    std::map<label, vec_vec> exp_non_local_mapping{
-        {1, {{0}, {0, 1}, {0, 1}, {0}}},
-        {2, {{0}, {}, {0}, {}}},
+    std::map<label, vec_vec_vec> exp_non_local_map{
+        {1, {{{0}}, {{0}, {0}}, {{0}, {0}}, {{0}}}},
+        {2, {{{0}}, {}, {{0}}, {}}},
         {4, {{}, {}, {}, {}}}};
 };
 
@@ -136,7 +136,6 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
     // Arrange
     auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
-    auto ref_exec = exec.get_ref_exec();
 
     // std::vector<label> ranks{rank};
     auto local_sparsity = std::make_shared<SparsityPattern>();
@@ -172,8 +171,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
     ASSERT_EQ(repart_local->get_nnz(), exp_local_nnz[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_local->get_rows(), exp_local_rows[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_local->get_cols(), exp_local_cols[ranks_per_gpu][rank]);
-    // ASSERT_EQ(repart_local->get_map(),
-    // exp_local_mapping[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_local->get_map(), exp_local_mapping[ranks_per_gpu][rank]);
 
     // non local properties
     ASSERT_EQ(repart_non_local->get_nnz(),
@@ -182,6 +180,8 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
               exp_non_local_rows[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_non_local->get_cols(),
               exp_non_local_cols[ranks_per_gpu][rank]);
+    ASSERT_EQ(repart_non_local->get_map(),
+              exp_non_local_map[ranks_per_gpu][rank]);
 }
 
 TEST_P(RepartitionerFixture1D, can_repartition_comm_pattern)
@@ -189,7 +189,6 @@ TEST_P(RepartitionerFixture1D, can_repartition_comm_pattern)
     // Arrange
     auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
-    auto ref_exec = exec.get_ref_exec();
 
     // expected communication ranks
     std::map<label, vec_vec> exp_res_ids{};
