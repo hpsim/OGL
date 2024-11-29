@@ -29,14 +29,24 @@ class RepartDistMatrix
     friend class gko::EnableCreateMethod<RepartDistMatrix>;
     friend class gko::EnablePolymorphicObject<RepartDistMatrix, gko::LinOp>;
 
+public:
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
     using part_type = gko::experimental::distributed::Partition<label, label>;
     using vec = gko::matrix::Dense<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
+    // id, comm_pattern, data_ptr
+    using all_to_all_data = std::tuple<label, AllToAllPattern, scalar *>;
+    struct pairwise_data {
+        label id;         // original interface id on orig rank
+        label send;       // 0 - send, 1, receive, 2 same_rank
+        label comm_rank;  // other side of communication
+        label length;
+        const scalar *send_ptr;
+        scalar *recv_ptr;
+    };
 
-public:
     using gko::experimental::EnableDistributedLinOp<
         RepartDistMatrix>::convert_to;
     using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
@@ -200,7 +210,7 @@ private:
 
     std::shared_ptr<const Repartitioner> repartitioner_;
 
-    std::vector<std::tuple<label, AllToAllPattern, scalar *>> update_data_;
+    std::vector<all_to_all_data> update_data_;
 
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
         reorder_maps_;

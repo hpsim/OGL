@@ -4,86 +4,6 @@
 
 #include "OGL/Repartitioner.H"
 
-namespace detail {
-
-// std::vector<label> convert_to_global(
-//     std::shared_ptr<
-//         const gko::experimental::distributed::Partition<label, label>>
-//         partition,
-//     const label *idx, const std::vector<gko::span> &spans,
-//     const std::vector<label> &ranks)
-// {
-//     std::vector<label> ret;
-//     ret.reserve(spans.back().end);
-
-//     for (size_t i = 0; i < ranks.size(); i++) {
-//         auto rank = ranks[i];
-//         auto [begin, end] = spans[i];
-//         label offset = partition->get_range_bounds()[rank];
-//         for (size_t j = begin; j < end; j++) {
-//             ret.push_back(idx[j] + offset);
-//         }
-//     }
-//     return ret;
-// }
-
-// void convert_to_local(
-//     std::shared_ptr<
-//         const gko::experimental::distributed::Partition<label, label>>
-//         partition,
-//     std::vector<label> &in, label rank)
-// {
-//     label offset = partition->get_range_bounds()[rank];
-//     std::transform(in.begin(), in.end(), in.begin(),
-//                    [&](label idx) { return idx - offset; });
-// }
-
-std::tuple<std::vector<gko::span>, std::vector<label>, std::vector<label>>
-exchange_spans_ranks(const ExecutorHandler &exec_handler, label ranks_per_gpu,
-                     const std::vector<gko::span> &spans,
-                     const std::vector<label> &src_ranks)
-{
-    auto comm_pattern = compute_gather_to_owner_counts(
-        exec_handler, ranks_per_gpu, spans.size());
-
-    std::vector<label> size{};
-
-    for (auto &elem : spans) {
-        size.push_back(elem.length());
-    }
-
-    auto gathered_size = gather_labels_to_owner(exec_handler, comm_pattern,
-                                                size.data(), size.size());
-
-    std::vector<gko::span> out_spans{};
-    int count = 0;
-    for (auto length : gathered_size) {
-        out_spans.emplace_back(count, count + length);
-        count += length;
-    }
-
-    // it starts with span.size interfaces with this rank
-    auto rank = exec_handler.get_rank();
-    std::vector<label> origins{};
-    if (gathered_size.size() > 0) {
-        for (int i = 0; i < comm_pattern.recv_counts.size(); i++) {
-            label num_interfaces = comm_pattern.recv_counts[i];
-            if (num_interfaces > 0) {
-                for (int j = 0; j < num_interfaces; j++) {
-                    origins.push_back(i);
-                }
-            }
-        }
-    }
-
-    auto ranks = gather_labels_to_owner(exec_handler, comm_pattern,
-                                        src_ranks.data(), src_ranks.size());
-
-    return {out_spans, origins, ranks};
-}
-
-}  // namespace detail
-
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
                                          const ExecutorHandler &exec_handler)
 {
@@ -141,12 +61,13 @@ Repartitioner::repartition_sparsity(
                 tmp.push_back(j);
             }
         }
+
         return gather_closure(comm_pattern, tmp, offset);
     };
 
 
     auto create_sparsity = [&](const auto &in_sparsity, auto &rows, auto &cols,
-                               auto &map) {
+                               auto &map, bool fuse) {
         auto lengths_tmp = in_sparsity->get_lengths();
         auto size_comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_gpu, lengths_tmp.size());
@@ -184,7 +105,7 @@ Repartitioner::repartition_sparsity(
     auto loc_row =
         gather_vector(loc_nnz, offset, src_local_pattern->get_rows());
     auto ret_local_sparsity =
-        create_sparsity(src_local_pattern, loc_row, loc_col, loc_map);
+        create_sparsity(src_local_pattern, loc_row, loc_col, loc_map, true);
 
     size_t non_loc_nnz = src_non_local_pattern->get_nnz();
     auto non_loc_map =
@@ -195,7 +116,7 @@ Repartitioner::repartition_sparsity(
     auto non_loc_col =
         gather_vector(non_loc_nnz, 0, src_non_local_pattern->get_cols());
     auto ret_non_local_sparsity = create_sparsity(
-        src_non_local_pattern, non_loc_row, non_loc_col, non_loc_map);
+        src_non_local_pattern, non_loc_row, non_loc_col, non_loc_map, false);
 
     for (auto &comm_rank : ret_non_local_sparsity->get_comm_rank()) {
         comm_rank = compute_owner_rank(comm_rank, ranks_per_gpu);

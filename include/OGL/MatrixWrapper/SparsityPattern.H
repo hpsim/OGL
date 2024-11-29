@@ -148,13 +148,77 @@ public:
         comm_rank_.push_back(comm_rank);
     }
 
+    // make this a free function
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>>
-    get_vecs(bool compress_cols)
+    get_vecs(bool compress_cols, bool repartioned)
     {
-        return {rows_,
-                (compress_cols) ? detail::compress_cols(cols_, id_) : cols_,
-                map_};
+        // early return
+        // if not repartitioned no ldu interfaces to fuse
+        if (!repartioned) {
+            return {rows_,
+                    (compress_cols) ? detail::compress_cols(cols_, id_) : cols_,
+                    map_};
+        }
+
+        std::cout << __FILE__ << ":" << __LINE__ << "\n";
+
+        // TODO fuse vecs with same id_ 0-2 since they are LDU interfaces
+        // and can be updated with alltoallv call
+        label size_upper;  // nnz on interface 0
+        label size_diag;   // nnz on interface 2
+
+        for (size_t i = 0; i < id_.size(); i++) {
+            if (id_[i] == 0) {
+                size_upper += rows_[i].size();
+            }
+            if (id_[i] == 2) {
+                size_diag += rows_[i].size();
+            }
+        }
+
+        auto fuse_ldu = [size_upper, size_diag](auto &vec, auto &id,
+                                                bool offset) {
+            auto transform_if = [offset](auto &vec, auto pred, auto &out) {
+                size_t ctr{0};
+                for (size_t i = 0; i < vec.size(); i++) {
+                    if (pred(i)) {
+                        auto &v = vec[i];
+                        for (size_t j = 0; j < v.size(); j++) {
+                            out.push_back(v[j] + ctr);
+                        }
+                        ctr += (offset) ? v.size() : 0;
+                    }
+                }
+            };
+
+            std::vector<label> upper;
+            // upper.reserve(size_upper);
+            std::vector<label> lower;
+            // lower.reserve(size_upper);
+            std::vector<label> diag;
+            // diag.reserve(size_diag);
+
+            transform_if(
+                vec, [id](size_t i) { return id[i] == 0; }, upper);
+            transform_if(
+                vec, [id](size_t i) { return id[i] == 1; }, lower);
+            transform_if(
+                vec, [id](size_t i) { return id[i] == 2; }, diag);
+
+            std::vector<std::vector<label>> ret{upper, lower, diag};
+
+            for (size_t i = 0; i < vec.size(); i++) {
+                if (id[i] > 2) {
+                    ret.push_back(vec[i]);
+                }
+            }
+
+            return ret;
+        };
+
+        return {fuse_ldu(rows_, id_, false), fuse_ldu(cols_, id_, false),
+                fuse_ldu(map_, id_, false)};
     }
 
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,

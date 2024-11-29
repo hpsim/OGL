@@ -277,9 +277,9 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern)
     //         ASSERT_EQ(repart_local->get_map(),
     //                   exp_local_mapping[fused][ranks_per_gpu][rank]);
     //
-    //     // non local properties
-    //     ASSERT_EQ(repart_non_local->get_nnz(),
-    //               exp_non_local_nnz[ranks_per_gpu][rank]);
+    // non local properties
+    ASSERT_EQ(repart_non_local->get_nnz(),
+              exp_non_local_nnz[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_non_local->get_rows(),
               exp_non_local_rows[ranks_per_gpu][rank]);
     ASSERT_EQ(repart_non_local->get_cols(),

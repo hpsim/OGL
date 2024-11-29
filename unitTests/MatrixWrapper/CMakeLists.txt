@@ -7,7 +7,7 @@ ogl_unit_test_case(HostMatrix p2d)
 ogl_unit_test_case(HostMatrix channels1x2x2)
 ogl_unit_test_case(HostMatrix p2ds2x2)
 
-# ogl_unit_test_case(Distributed l2d)
+ogl_unit_test_case(Distributed l2d)
 #
 # ogl_unit_test_case(Distributed p2d)
 #
