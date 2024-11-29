@@ -118,11 +118,9 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
-    /* number of elements on each interfach */
-    mutable std::vector<label> interface_length_;
-
     /* Pointer to interface data*/
-    mutable std::vector<std::pair<const scalar *, bool>> interface_ptr_;
+    mutable std::map<label, std::pair<const label, const scalar *>>
+        interface_ptr_;
 
     /* Iterates all interfaces and collects the coefficients into a vector
     **
@@ -255,7 +253,7 @@ public:
      * 2 - diag
      * n - interfaces
      * */
-    std::pair<const scalar *, bool> get_interface_data(label id) const
+    std::pair<label, const scalar *> get_interface_data(label id) const
     {
         return interface_ptr_[id];
     }

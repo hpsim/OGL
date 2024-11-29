@@ -50,17 +50,16 @@ HostMatrixWrapper::HostMatrixWrapper(
       interfaces_(interfaces),
       interfaceBouCoeffs_(interfaceBouCoeffs)
 {
+    label rank = Pstream::myProcNo();
     // upper
-    interface_length_.push_back(upper_nnz_);
-    interface_ptr_.emplace_back(upper_, false);
+    interface_ptr_.emplace(rank * 3, {upper_nnz_, upper_});
     // lower
-    interface_length_.push_back(upper_nnz_);
-    interface_ptr_.emplace_back(lower_, false);
+    interface_ptr_.emplace(rank * 3 + 1, {upper_nnz_, lower_});
     // diag
-    interface_length_.push_back(nrows_);
-    interface_ptr_.emplace_back(diag, false);
+    interface_ptr_.emplace(rank * 3 + 2,{ nrows_, diag});
 
     for (label i = 0; i < interfaces.size(); i++) {
+        std::cout << __FILE__ << __LINE__ << " interfaces.size()" << interfaces.size() << "\n";
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
@@ -68,8 +67,7 @@ HostMatrixWrapper::HostMatrixWrapper(
         if (iface->interface().faceCells().size() == 0) {
             continue;
         }
-        interface_length_.push_back(iface->interface().faceCells().size());
-        interface_ptr_.emplace_back(interfaceBouCoeffs[i].begin(), true);
+        interface_ptr_.emplace(i * -1, {interfcae_length, interfaceBouCoeffs[i].begin()});
     }
 }
 
