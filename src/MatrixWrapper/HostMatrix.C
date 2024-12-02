@@ -54,40 +54,46 @@ HostMatrixWrapper::HostMatrixWrapper(
     auto comm = *exec.get_communicator().get();
     label rank = exec.get_rank();
 
-    using pair_dtype = std::pair<label, const scalar*>;
+    using pair_dtype = std::pair<label, const scalar *>;
     // TODO this needs to be consistent with how sparsity are generated
     // so this should merged with sparsity generation
     // upper
-    interface_ptr_.emplace(std::make_pair<label, pair_dtype>(0, {upper_nnz_, upper_}));
+    interface_ptr_.emplace(
+        std::make_pair<label, pair_dtype>(0, {upper_nnz_, upper_}));
     // lower
-    interface_ptr_.emplace(std::make_pair<label, pair_dtype>(1, {upper_nnz_, lower_}));
+    interface_ptr_.emplace(
+        std::make_pair<label, pair_dtype>(1, {upper_nnz_, lower_}));
     // diag
-    interface_ptr_.emplace(std::make_pair<label, pair_dtype>(2, {nrows_, diag}));
+    interface_ptr_.emplace(
+        std::make_pair<label, pair_dtype>(2, {nrows_, diag}));
 
     // compute global interface idx
     label local_interface_cnt = interfaces.size();
     auto global_interfaces_recv = std::vector<label>(comm.size());
 
-    comm.all_gather(
-        ref_exec, &local_interface_cnt, 1, global_interfaces_recv.data(), 1
-        );
+    comm.all_gather(ref_exec, &local_interface_cnt, 1,
+                    global_interfaces_recv.data(), 1);
 
-     std::partial_sum(global_interfaces_recv.begin(), global_interfaces_recv.end(),
-                 global_interfaces_recv.begin() + 1);
-     global_interfaces_recv[0]  = 0;
-     local_to_global_interface_idx_ = global_interfaces_recv;
+    std::partial_sum(global_interfaces_recv.begin(),
+                     global_interfaces_recv.end(),
+                     global_interfaces_recv.begin() + 1);
+    global_interfaces_recv[0] = 0;
+    local_to_global_interface_idx_ = global_interfaces_recv;
 
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
             continue;
         }
         const auto iface{interface_getter(interfaces, i)};
-        auto interface_length {iface->interface().faceCells().size()};
-        if ( interface_length == 0) {
+        auto interface_length{iface->interface().faceCells().size()};
+        if (interface_length == 0) {
             continue;
         }
-        label global_interface_id = (local_to_global_interface_idx_[rank] + i) * -1;
-        interface_ptr_.emplace<label, pair_dtype>(std::move(global_interface_id), {interface_length, interfaceBouCoeffs[i].begin()});
+        label global_interface_id =
+            (local_to_global_interface_idx_[rank] + i) * -1;
+        interface_ptr_.emplace<label, pair_dtype>(
+            std::move(global_interface_id),
+            {interface_length, interfaceBouCoeffs[i].begin()});
     }
 }
 
@@ -208,7 +214,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                                    face_cells.cdata() + interface_size),
                 convert_to_global(partition, cols.data(), interface_size,
                                   neighbProcNo),
-                rank, neighbProcNo, (local_to_global_interface_idx_[rank] + i ) * -1);
+                rank, neighbProcNo,
+                (local_to_global_interface_idx_[rank] + i) * -1);
         }
 
         if (isA<cyclicFvPatch>(iface->interface())) {
@@ -229,7 +236,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                 std::vector<label>(face_cells.cdata(),
                                    face_cells.cdata() + interface_size),
                 std::vector<label>(cols.cdata(), cols.cdata() + interface_size),
-                rank, rank, (i+ 1) * -1);
+                rank, rank, (i + 1) * -1);
         }
     }
     return pattern;
@@ -278,7 +285,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity()
     std::vector<label> dcols(nrows_);
     std::iota(dcols.begin(), dcols.end(), 0);
 
-    pattern->insert_interface(std::move(drows), std::move(dcols), rank, rank, 2);
+    pattern->insert_interface(std::move(drows), std::move(dcols), rank, rank,
+                              2);
 
     // Scan through given rows and insert row and column indices into array
     //
