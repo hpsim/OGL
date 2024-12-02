@@ -254,7 +254,49 @@ public:
             (compress_cols) ? detail::compress_cols(cols_, id_) : cols_;
 
         label map_offset = 0;
+
         for (size_t i = 0; i < id_.size(); i++) {
+            if (id_[i] != 0) {
+                continue;
+            }
+            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
+            size_t iface_length = rows_[i].size();
+            for (size_t j = 0; j < iface_length; j++) {
+                map.push_back(map_[i][j] + map_offset);
+            }
+            map_offset += iface_length;
+        }
+        for (size_t i = 0; i < id_.size(); i++) {
+            if (id_[i] != 1) {
+                continue;
+            }
+            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
+            size_t iface_length = rows_[i].size();
+            for (size_t j = 0; j < iface_length; j++) {
+                map.push_back(map_[i][j] + map_offset);
+            }
+            map_offset += iface_length;
+        }
+        for (size_t i = 0; i < id_.size(); i++) {
+            if (id_[i] != 2) {
+                continue;
+            }
+            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
+            size_t iface_length = rows_[i].size();
+            for (size_t j = 0; j < iface_length; j++) {
+                map.push_back(map_[i][j] + map_offset);
+            }
+            map_offset += iface_length;
+        }
+
+
+        for (size_t i = 0; i < id_.size(); i++) {
+            if (id_[i] >= 0) {
+                continue;
+            }
             rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
             cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
             size_t iface_length = rows_[i].size();

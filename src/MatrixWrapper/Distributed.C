@@ -42,6 +42,8 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     return lin_ops;
 }
 
+// TODO let this function just dispatch
+// to fused/unfused or owner/non_owner
 template <typename MatrixType>
 void generate_pairwise_update_data(
     const ExecutorHandler &exec_handler,
@@ -57,42 +59,72 @@ void generate_pairwise_update_data(
     bool owner = repartitioner->is_owner(exec_handler);
     label rank = exec_handler.get_rank();
 
+    label linop_offset  = 0;
+    label linop_local_offset = 0;
+    label linop_non_local_offset = 0;
+    // compute local offsets for fused case
     for (size_t i = 0; i < in->get_id().size(); i++) {
         auto id = in->get_id()[i];
+        if (id >= 0) {
+            linop_local_offset += in->get_rows()[i].size();
+        }
+    }
+
+    for (size_t i = 0; i < in->get_id().size(); i++) {
+        auto id = in->get_id()[i];
+        label length = in->get_rows()[i].size();
+        label linop_id = -1; //(fuse)? -1 : id;
         if (id >= 0) {
             continue;
         }  // skip id since id < 3 is ldu and never needs pairwise communication
         label mode = -1;
         label comm_rank = -1;
+
+        bool local = repartitioner->get_owner_rank(in->get_comm_rank()[i]) == rank;
+
         if (!owner) {
             mode = 0;  // send
             comm_rank = repartitioner->get_owner_rank(in->get_orig_rank()[i]);
-
+            linop_id = id;
         } else {
             // if already on rank mark as local otherwise always receive
             comm_rank = in->get_orig_rank()[i];
             bool relocated = comm_rank != rank;
             mode = (relocated) ? 1 : 2;
+
+            // this can be either local or non local
+            // if it is moved to local it would be 0 otherwise -1
+            linop_id = id;
+            if (fuse && local) {
+                linop_id = 0;
+                linop_offset = linop_local_offset;
+                linop_local_offset +=  length;
+            }
+            if (fuse && !local) {
+                linop_id = -1;
+                linop_offset = linop_non_local_offset;
+                linop_non_local_offset += length;
+            }
         }
+        // if fused we only have a single dest linop with id -1
         // this is only valid if the rank owns the interface
         auto [interface_length, send_data] = host_A->get_interface_data(id);
         const scalar *send_data_ptr = (owner && mode == 1) ? nullptr : send_data;
         scalar *recv_data_ptr =
-            (owner) ? gko::as<MatrixType>(linops[id])->get_values() : nullptr;
+            (owner) ? gko::as<MatrixType>(linops[linop_id])->get_values() + linop_offset : nullptr;
         // std::cout << __FILE__ << __LINE__ << " set update_data rank " << rank
         //           << " comm_rank " << comm_rank << " id " << id << " length "
         //           << interface_length << " owner " << owner << " send data "
         //           << send_data_ptr << " recv_data_ptr " << recv_data_ptr
         //           << "\n";
         update_data.push_back(RepartDistMatrix::pairwise_data{
-            id, mode, comm_rank, in->get_rows()[i].size(), send_data_ptr,
+            linop_id, mode, comm_rank, length, send_data_ptr,
             recv_data_ptr});
     }
 }
 
 template <typename MatrixType>
 void generate_alltoall_update_data(
-    // in needs to be not repartitioned sparsity pattern
     const ExecutorHandler &exec_handler, std::shared_ptr<SparsityPattern> in,
     std::map<label, std::shared_ptr<MatrixType>> linops, bool fuse, bool owner,
     label ranks_per_owner,
@@ -127,6 +159,7 @@ void generate_reorder_map(
         &reorder_maps)
 {
     // NOTE early return if rank is empty
+    label rank = exec_handler.get_rank();
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
     for (size_t i = 0; i < linops.size(); i++) {
@@ -291,6 +324,9 @@ template <typename LocalMatrixType>
 void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
                               std::shared_ptr<const HostMatrixWrapper> host_A)
 {
+            FatalErrorInFunction
+            << " Not implemented "
+            << exit(FatalError);
     // update_impl<LocalMatrixType>(exec_handler, host_A, update_data_,
     //                              reorder_maps_);
 }
@@ -344,7 +380,6 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
         (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
-
     auto non_local_linops = generate_inner_linops<LocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops);
@@ -356,13 +391,13 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         update_data);
 
     std::vector<RepartDistMatrix::pairwise_data> pairwise_update_data;
-    generate_pairwise_update_data<LocalMatrixType>(
-        exec_handler, host_A, (!owner) ? local_sparsity : repart_loc_sparsity,
-        linops, fuse, repartitioner, pairwise_update_data);
-    generate_pairwise_update_data<LocalMatrixType>(
-        exec_handler, host_A,
-        (!owner) ? non_local_sparsity : repart_non_loc_sparsity, linops, fuse,
-        repartitioner, pairwise_update_data);
+        generate_pairwise_update_data<LocalMatrixType>(
+            exec_handler, host_A, (!owner) ? local_sparsity : repart_loc_sparsity,
+            linops, fuse, repartitioner, pairwise_update_data);
+        generate_pairwise_update_data<LocalMatrixType>(
+            exec_handler, host_A,
+            (!owner) ? non_local_sparsity : repart_non_loc_sparsity, linops, fuse,
+            repartitioner, pairwise_update_data);
 
     std::shared_ptr<dist_mtx> dist_A;
     // recv_gather_idxs are send upon creation to ginkgo distributed matrix
