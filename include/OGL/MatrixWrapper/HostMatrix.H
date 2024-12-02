@@ -118,6 +118,8 @@ private:
 
     const FieldField<Field, scalar> &interfaceBouCoeffs_;
 
+    mutable std::vector<label> local_to_global_interface_idx_;
+
     /* Pointer to interface data*/
     mutable std::map<label, std::pair<const label, const scalar *>>
         interface_ptr_;
@@ -239,19 +241,20 @@ public:
 
     const scalar *get_diag() const { return diag_; }
 
-    label get_interface_length(label id) const
-    {
-        return interface_length_[id];
-    };
-
     label get_num_interfaces() const { return interface_ptr_.size(); };
+
+    std::map<label, std::pair<const label, const scalar *>> get_interfaces()
+        const
+    {
+        return interface_ptr_;
+    };
 
     /* returns access to interface data pointer via
      * id:
      * 0 - upper
      * 1 - lower
      * 2 - diag
-     * n - interfaces
+     * - n - interfaces
      * */
     std::pair<label, const scalar *> get_interface_data(label id) const
     {

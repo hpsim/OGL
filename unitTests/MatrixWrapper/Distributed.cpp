@@ -110,9 +110,12 @@ public:
 
         // set the interface value, we use get_interface_data here
         // because that is more comfortable.
-        for (int i = 3; i < 5; i++) {
-            auto interface_data = hostMatrix->get_interface_data(i);
-            scalar *data = const_cast<scalar *>(std::get<0>(interface_data));
+        for (auto const &[id, value] : hostMatrix->get_interfaces()) {
+            if (id >= 0) {
+                continue;
+            }
+            auto [length, const_ptr] = value;
+            scalar *data = const_cast<scalar *>(const_ptr);
             data[0] = -1.0;
             data[1] = -2.0;
             data[2] = -3.0;
@@ -499,11 +502,6 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
 
     EXPECT_EQ(res_local_coeffs.size(),
               exp_local_coeffs[fused][ranks_per_gpu][rank].size());
-    Foam::sleep(static_cast<unsigned int>(rank));
-    if (rank == 0) {
-        std::cout << __FILE__ << " rank " << rank << " local coeffs "
-                  << res_local_coeffs << "\n";
-    }
     for (size_t i = 0; i < res_local_rows.size(); i++) {
         ASSERT_EQ(res_local_coeffs[i],
                   exp_local_coeffs[fused][ranks_per_gpu][rank][i])
@@ -542,8 +540,8 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[1],
               exp_non_local_size[ranks_per_gpu][rank]);
 
-    // ASSERT_EQ(res_non_local_coeffs,
-    //           exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
+    ASSERT_EQ(res_non_local_coeffs,
+              exp_non_local_coeffs[fused][ranks_per_gpu][rank]);
     ASSERT_EQ(res_non_local_rows,
               exp_non_local_rows[fused][ranks_per_gpu][rank]);
     ASSERT_EQ(res_non_local_cols,

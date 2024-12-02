@@ -140,27 +140,27 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
     // std::vector<label> ranks{rank};
     auto local_sparsity = std::make_shared<SparsityPattern>();
     // upper
-    local_sparsity->insert_interface({0}, {1}, rank, rank);
+    local_sparsity->insert_interface({0}, {1}, rank, rank, 0);
     // lower
-    local_sparsity->insert_interface({1}, {0}, rank, rank);
+    local_sparsity->insert_interface({1}, {0}, rank, rank, 1);
     // diag
-    local_sparsity->insert_interface({0, 1}, {0, 1}, rank, rank);
+    local_sparsity->insert_interface({0, 1}, {0, 1}, rank, rank, 2);
 
     auto non_local_sparsity = std::make_shared<SparsityPattern>();
 
     if (rank == 0) {
-        non_local_sparsity->insert_interface({1}, {2}, 0, 1);
+        non_local_sparsity->insert_interface({1}, {2}, 0, 1, -1);
     }
     if (rank == 1) {
-        non_local_sparsity->insert_interface({0}, {1}, 1, 0);
-        non_local_sparsity->insert_interface({1}, {4}, 1, 2);
+        non_local_sparsity->insert_interface({0}, {1}, 1, 0, -1);
+        non_local_sparsity->insert_interface({1}, {4}, 1, 2, -2);
     }
     if (rank == 2) {
-        non_local_sparsity->insert_interface({0}, {3}, 2, 1);
-        non_local_sparsity->insert_interface({1}, {6}, 2, 3);
+        non_local_sparsity->insert_interface({0}, {3}, 2, 1, -1);
+        non_local_sparsity->insert_interface({1}, {6}, 2, 3, -2);
     }
     if (rank == 3) {
-        non_local_sparsity->insert_interface({0}, {5}, 3, 2);
+        non_local_sparsity->insert_interface({0}, {5}, 3, 2, -1);
     }
 
     // Act

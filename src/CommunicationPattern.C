@@ -135,17 +135,17 @@ void communicate_values(const ExecutorHandler &exec_handler,
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_communicator().get();
+    label rank = exec_handler.get_rank();
 
-    // TODO add some sanity checks for comm pattern
-    // 1. length needs to be same as mpi ranks
-    // 2. recv_buffer length should match ie at least length of recv_counts
-
-    // std:::cout
+    // Foam::sleep(rank);
+    // std::cout
     //     << __FILE__ << ":" << __LINE__
-    //     << " send_counts " <<   send_counts
-    //     << " recv_counts " << recv_counts
-    //     << " send_offsets " << send_offsets
-    //     << " recv_offsets " << recv_offsets
+    //     << " rank " << rank
+    //     << " send_ptr " << send_buffer
+    //     << "\nsend_counts " <<   comm_pattern.send_counts
+    //     << "\nrecv_counts " << comm_pattern.recv_counts
+    //     << "\nsend_offsets " << comm_pattern.send_offsets
+    //     << "\nrecv_offsets " << comm_pattern.recv_offsets
     //     << "\n";
 
     comm.all_to_all_v(exec, send_buffer, comm_pattern.send_counts.data(),

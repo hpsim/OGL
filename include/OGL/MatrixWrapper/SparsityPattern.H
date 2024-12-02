@@ -12,8 +12,9 @@
 
 namespace detail {
 
-// applies permutation vector s = v[p[i]]
-//                      e.g. s[0] = v[p[0] -> 4 ]
+/* @brief applies permutation vector s = v[p[i]]
+ *                 e.g. s[0] = v[p[0] -> 4 ]
+ */
 template <typename T>
 std::vector<T> apply_permutation(const std::vector<T> vec,
                                  const std::vector<label> &p)
@@ -109,7 +110,7 @@ public:
      *  in row major format
      *  */
     void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
-                          label orig_rank, label comm_rank, label start_id = 0,
+                          label orig_rank, label comm_rank, label id,
                           bool row_major_order = true)
     {
         OGL_ASSERT_EQ(rows.size(), cols.size());
@@ -124,8 +125,7 @@ public:
         rows_.push_back(rows);
         cols_.push_back(cols);
 
-        label last_id = (id_.size() == 0) ? start_id : id_.back() + 1;
-        id_.push_back(last_id);
+        id_.push_back(id);
 
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
@@ -150,7 +150,7 @@ public:
 
     // make this a free function
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
-               std::vector<std::vector<label>>>
+               std::vector<std::vector<label>>, std::vector<label>>
     get_vecs(bool compress_cols, bool repartioned)
     {
         // early return
@@ -158,10 +158,8 @@ public:
         if (!repartioned) {
             return {rows_,
                     (compress_cols) ? detail::compress_cols(cols_, id_) : cols_,
-                    map_};
+                    map_, id_};
         }
-
-        std::cout << __FILE__ << ":" << __LINE__ << "\n";
 
         // TODO fuse vecs with same id_ 0-2 since they are LDU interfaces
         // and can be updated with alltoallv call
@@ -169,10 +167,14 @@ public:
         label size_diag;   // nnz on interface 2
 
         for (size_t i = 0; i < id_.size(); i++) {
-            if (id_[i] == 0) {
+            auto id = id_[i];
+            // count only ldu interfaces
+            if (id < 0) continue;
+
+            if (id % 3 == 0) {
                 size_upper += rows_[i].size();
             }
-            if (id_[i] == 2) {
+            if (id_[i] % 3 == 2) {
                 size_diag += rows_[i].size();
             }
         }
@@ -200,16 +202,19 @@ public:
             // diag.reserve(size_diag);
 
             transform_if(
-                vec, [id](size_t i) { return id[i] == 0; }, upper);
+                vec, [id](size_t i) { return id[i] >= 0 && id[i] % 3 == 0; },
+                upper);
             transform_if(
-                vec, [id](size_t i) { return id[i] == 1; }, lower);
+                vec, [id](size_t i) { return id[i] >= 0 && id[i] % 3 == 1; },
+                lower);
             transform_if(
-                vec, [id](size_t i) { return id[i] == 2; }, diag);
+                vec, [id](size_t i) { return id[i] >= 0 && id[i] % 3 == 2; },
+                diag);
 
             std::vector<std::vector<label>> ret{upper, lower, diag};
 
             for (size_t i = 0; i < vec.size(); i++) {
-                if (id[i] > 2) {
+                if (id[i] < 0) {
                     ret.push_back(vec[i]);
                 }
             }
@@ -217,12 +222,20 @@ public:
             return ret;
         };
 
+        std::vector<label> ret_id{0, 1, 2};
+
+        for (auto id : id_) {
+            if (id < 0) {
+                ret_id.push_back(id);
+            }
+        }
+
         return {fuse_ldu(rows_, id_, false), fuse_ldu(cols_, id_, false),
-                fuse_ldu(map_, id_, false)};
+                fuse_ldu(map_, id_, false), ret_id};
     }
 
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
-               std::vector<std::vector<label>>>
+               std::vector<std::vector<label>>, std::vector<label>>
     get_fused_vecs(bool compress_cols)
     {
         size_t reserve_size{0};
@@ -253,11 +266,11 @@ public:
 
         sort_sparsity(rows, cols, map);
 
-        return {{rows}, {cols}, {map}};
+        return {{rows}, {cols}, {map}, {(compress_cols) ? -1 : 0}};
     }
 
-    /* @brief move all interfaces to this data structure that communicate to a
-     * given rank
+    /* @brief move all interfaces to this data structure that communicate to
+     * a given rank
      *  */
     template <typename Func>
     void move_interface(std::shared_ptr<SparsityPattern> other, label comm_rank,
@@ -349,9 +362,9 @@ private:
 
     // ldu_mapping is used to reorder copied matrix coefficients
     // to match the row major ordering of the sparsity pattern
-    // in both cases (local and non local sparsity) the full list of interfaces
-    // is reordered at once. thus all indices from [0, end) should be present.
-    // ldu_mapping[sorted_(csr)_position] =
+    // in both cases (local and non local sparsity) the full list of
+    // interfaces is reordered at once. thus all indices from [0, end)
+    // should be present. ldu_mapping[sorted_(csr)_position] =
     // unsorted_(consecutive_ldu_)_position
     std::vector<std::vector<label>> map_;
 
