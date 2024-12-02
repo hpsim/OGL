@@ -43,7 +43,7 @@ public:
         label send;       // 0 - send, 1, receive, 2 same_rank
         label comm_rank;  // other side of communication
         label length;
-        const scalar *send_ptr;
+        label send_id;
         scalar *recv_ptr;
     };
 
@@ -88,9 +88,10 @@ public:
                 RepartDistMatrix>::operator=(other);
             this->dist_mtx_ = other.dist_mtx_;
             this->fuse_ = other.fuse_;
-            this->repart_comm_pattern_ = other.repart_comm_pattern_;
+            this->matrix_format_ = other.matrix_format_;
             this->repartitioner_ = other.repartitioner_;
-            this->update_data_ = other.update_data_;
+            this->all_to_all_update_data_ = other.all_to_all_update_data_;
+            this->pairwise_update_data_ = other.pairwise_update_data_;
             this->reorder_maps_ = other.reorder_maps_;
         }
         return *this;
@@ -108,10 +109,13 @@ public:
             gko::experimental::EnableDistributedLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->fuse_ = other.fuse_;
+            this->matrix_format_ = other.matrix_format_;
             this->dist_mtx_ = std::move(other.dist_mtx_);
-            this->repart_comm_pattern_ = std::move(other.repart_comm_pattern_);
             this->repartitioner_ = std::move(other.repartitioner_);
-            this->update_data_ = std::move(other.update_data_);
+            this->all_to_all_update_data_ =
+                std::move(other.all_to_all_update_data_);
+            this->pairwise_update_data_ =
+                std::move(other.pairwise_update_data_);
             this->reorder_maps_ = std::move(other.reorder_maps_);
         }
         return *this;
@@ -128,10 +132,9 @@ public:
     RepartDistMatrix(
         std::shared_ptr<const gko::Executor> exec, communicator comm,
         word matrix_format, std::shared_ptr<dist_mtx> dist_mtx,
-        std::shared_ptr<const CommunicationPattern> src_comm_pattern,
-        std::shared_ptr<const CommunicationPattern> repart_comm_pattern,
         std::shared_ptr<const Repartitioner> repartitioner, bool fuse,
-        std::vector<std::tuple<label, AllToAllPattern, scalar *>> update_data,
+        std::vector<all_to_all_data> all_to_all_update_data,
+        std::vector<pairwise_data> pairwise_update_data,
         std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
             reorder_maps)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
@@ -139,9 +142,9 @@ public:
           fuse_(fuse),
           matrix_format_(matrix_format),
           dist_mtx_(std::move(dist_mtx)),
-          repart_comm_pattern_(repart_comm_pattern),
+          all_to_all_update_data_(all_to_all_update_data),
+          pairwise_update_data_(pairwise_update_data),
           repartitioner_(repartitioner),
-          update_data_(update_data),
           reorder_maps_(reorder_maps)
     {
         this->set_size(dist_mtx_->get_size());
@@ -157,11 +160,6 @@ public:
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase{comm}
     {}
-
-    std::shared_ptr<const CommunicationPattern> get_comm_pattern() const
-    {
-        return repart_comm_pattern_;
-    }
 
     std::shared_ptr<const Repartitioner> get_repartitioner() const
     {
@@ -199,18 +197,15 @@ protected:
 private:
     bool fuse_;
 
-    const word matrix_format_;
+    word matrix_format_;
 
     std::shared_ptr<dist_mtx> dist_mtx_;
 
-    // replace by std::vector<vector<label> non_local_cols;
-    // std::shared_ptr<const SparsityPattern> non_local_sparsity_;
+    std::vector<all_to_all_data> all_to_all_update_data_;
 
-    std::shared_ptr<const CommunicationPattern> repart_comm_pattern_;
+    std::vector<pairwise_data> pairwise_update_data_;
 
     std::shared_ptr<const Repartitioner> repartitioner_;
-
-    std::vector<all_to_all_data> update_data_;
 
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
         reorder_maps_;

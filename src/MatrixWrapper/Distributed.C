@@ -79,6 +79,7 @@ void generate_pairwise_update_data(
         }  // skip id since id < 3 is ldu and never needs pairwise communication
         label mode = -1;
         label comm_rank = -1;
+        label send_id = id;
 
         bool local =
             repartitioner->get_owner_rank(in->get_comm_rank()[i]) == rank;
@@ -92,6 +93,7 @@ void generate_pairwise_update_data(
             comm_rank = in->get_orig_rank()[i];
             bool relocated = comm_rank != rank;
             mode = (relocated) ? 1 : 2;
+            send_id = (relocated) ? 0 : id;
 
             // this can be either local or non local
             // if it is moved to local it would be 0 otherwise -1
@@ -109,9 +111,7 @@ void generate_pairwise_update_data(
         }
         // if fused we only have a single dest linop with id -1
         // this is only valid if the rank owns the interface
-        auto [interface_length, send_data] = host_A->get_interface_data(id);
-        const scalar *send_data_ptr =
-            (owner && mode == 1) ? nullptr : send_data;
+        // auto [interface_length, send_data] = host_A->get_interface_data(id);
         scalar *recv_data_ptr =
             (owner) ? gko::as<MatrixType>(linops[linop_id])->get_values() +
                           linop_offset
@@ -122,7 +122,7 @@ void generate_pairwise_update_data(
         //           << send_data_ptr << " recv_data_ptr " << recv_data_ptr
         //           << "\n";
         update_data.push_back(RepartDistMatrix::pairwise_data{
-            linop_id, mode, comm_rank, length, send_data_ptr, recv_data_ptr});
+            linop_id, mode, comm_rank, length, send_id, recv_data_ptr});
     }
 }
 
@@ -283,10 +283,22 @@ void update_impl(
     auto comm = exec_handler.get_communicator();
     auto ref_exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
-    for (auto [id, send, comm_rank, length, send_ptr, recv_ptr] :
+    for (auto [id, send, comm_rank, length, send_id, recv_ptr] :
          pairwise_update_data) {
         std::vector<scalar> send_buffer;
         send_buffer.reserve(length);
+
+        auto get_send_ptr = [&](){
+            if (send_id < 0 ) {
+                auto [interface_length_, send_ptr_] = host_A->get_interface_data(send_id);
+                return send_ptr_;
+            } else {
+                const scalar * ret = nullptr;
+                return ret;
+            }
+        };
+
+        const scalar * send_ptr = get_send_ptr();
 
         // std::cout << __FILE__ << __LINE__ << " on rank "
         //           << exec_handler.get_rank() << " mode " << send
@@ -327,9 +339,8 @@ template <typename LocalMatrixType>
 void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
                               std::shared_ptr<const HostMatrixWrapper> host_A)
 {
-    FatalErrorInFunction << " Not implemented " << exit(FatalError);
-    // update_impl<LocalMatrixType>(exec_handler, host_A, update_data_,
-    //                              reorder_maps_);
+    update_impl<LocalMatrixType>(exec_handler, host_A, all_to_all_update_data_,
+                                 pairwise_update_data_, reorder_maps_);
 }
 
 
@@ -386,10 +397,10 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         non_loc_ids, linops);
 
     // stores original id, comm_patttern, target data ptr
-    std::vector<RepartDistMatrix::all_to_all_data> update_data;
+    std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
     generate_alltoall_update_data<LocalMatrixType>(
         exec_handler, local_sparsity, linops, fuse, owner, ranks_per_owner,
-        update_data);
+        all_to_all_update_data);
 
     std::vector<RepartDistMatrix::pairwise_data> pairwise_update_data;
     generate_pairwise_update_data<LocalMatrixType>(
@@ -432,12 +443,15 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     generate_reorder_map<LocalMatrixType>(exec_handler, non_local_linops,
                                           non_loc_map, reorder_maps);
 
-    update_impl<LocalMatrixType>(exec_handler, host_A, update_data,
+    update_impl<LocalMatrixType>(exec_handler, host_A, all_to_all_update_data,
                                  pairwise_update_data, reorder_maps);
 
     return std::make_shared<RepartDistMatrix>(
-        device_exec, comm, matrix_format, dist_A, src_comm_pattern,
-        repart_comm_pattern, repartitioner, fuse, update_data, reorder_maps);
+        device_exec, comm, matrix_format, dist_A,
+        repartitioner, fuse,
+        all_to_all_update_data,
+        pairwise_update_data, reorder_maps
+        );
 }
 
 void write_distributed(const ExecutorHandler &exec_handler, word field_name,
