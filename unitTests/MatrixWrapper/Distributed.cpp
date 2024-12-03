@@ -540,40 +540,37 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
               exp_non_local_cols[fused][ranks_per_gpu][rank]);
 }
 
-// TEST_P(DistMatL2D, canApplyCorrectly)
-// {
-//     auto [ranks_per_gpu, format, fused] = GetParam();
-//     auto mesh = ((Environment *)global_env)->mesh;
-//     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
-//     auto repartitioner = std::make_shared<Repartitioner>(
-//         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
-//
-//     auto distributed =
-//         create_distributed(exec, repartitioner, hostMatrix, format, fused);
-//
-//     gko::dim<2>
-//     global_vec_dim{repartitioner->get_orig_partition()->get_size(),
-//                                1};
-//     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
-//
-//     auto b =
-//     gko::share(gko::experimental::distributed::Vector<scalar>::create(
-//         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
-//     b->fill(1);
-//
-//     auto x =
-//     gko::share(gko::experimental::distributed::Vector<scalar>::create(
-//         exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
-//     x->fill(0);
-//
-//     // Act
-//     distributed->apply(b, x);
-//     auto res_x = std::vector<scalar>(
-//         x->get_local_vector()->get_const_values(),
-//         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
-//
-//     ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
-// }
+TEST_P(DistMatL2D, canApplyCorrectly)
+{
+    auto [ranks_per_gpu, format, fused] = GetParam();
+    auto mesh = ((Environment *)global_env)->mesh;
+    auto hostMatrix = ((Environment *)global_env)->hostMatrix;
+    auto repartitioner = std::make_shared<Repartitioner>(
+        hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+
+    auto distributed =
+        create_distributed(exec, repartitioner, hostMatrix, format, fused);
+
+    gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
+                               1};
+    gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
+
+    auto b = gko::share(gko::experimental::distributed::Vector<scalar>::create(
+        exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
+    b->fill(1);
+
+    auto x = gko::share(gko::experimental::distributed::Vector<scalar>::create(
+        exec.get_ref_exec(), comm, global_vec_dim, local_vec_dim, 1));
+    x->fill(0);
+
+    // Act
+    distributed->apply(b, x);
+    auto res_x = std::vector<scalar>(
+        x->get_local_vector()->get_const_values(),
+        x->get_local_vector()->get_const_values() + local_vec_dim[0]);
+
+    ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
+}
 
 int main(int argc, char *argv[])
 {

@@ -93,6 +93,7 @@ public:
             this->all_to_all_update_data_ = other.all_to_all_update_data_;
             this->pairwise_update_data_ = other.pairwise_update_data_;
             this->reorder_maps_ = other.reorder_maps_;
+            this->compress_to_global_ = other.compress_to_global_;
         }
         return *this;
     }
@@ -117,6 +118,7 @@ public:
             this->pairwise_update_data_ =
                 std::move(other.pairwise_update_data_);
             this->reorder_maps_ = std::move(other.reorder_maps_);
+            this->compress_to_global_ = std::move(other.compress_to_global_);
         }
         return *this;
     }
@@ -136,7 +138,8 @@ public:
         std::vector<all_to_all_data> all_to_all_update_data,
         std::vector<pairwise_data> pairwise_update_data,
         std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-            reorder_maps)
+            reorder_maps,
+        std::vector<label> compress_to_global)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
@@ -145,7 +148,8 @@ public:
           all_to_all_update_data_(all_to_all_update_data),
           pairwise_update_data_(pairwise_update_data),
           repartitioner_(repartitioner),
-          reorder_maps_(reorder_maps)
+          reorder_maps_(reorder_maps),
+          compress_to_global_(compress_to_global)
     {
         this->set_size(dist_mtx_->get_size());
     }
@@ -166,6 +170,10 @@ public:
         return repartitioner_;
     }
 
+    const std::vector<label> &compress_to_global() const
+    {
+        return compress_to_global_;
+    }
 
 protected:
     // Here we implement the application of the linear operator, x = A * b.
@@ -209,6 +217,8 @@ private:
 
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
         reorder_maps_;
+
+    std::vector<label> compress_to_global_;
 };
 
 std::shared_ptr<const gko::LinOp> get_local(

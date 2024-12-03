@@ -6,12 +6,13 @@
 
 namespace detail {
 
-std::vector<std::vector<label>> compress_cols(
+std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> ids)
 {
     auto id_permutation =
         sort_permutation(ids, [](label a, label b) { return a < b; });
     std::map<label, label> col_map;
+
 
     label ctr = 0;
     for (auto id : id_permutation) {
@@ -19,10 +20,16 @@ std::vector<std::vector<label>> compress_cols(
         for (auto col : cols) {
             // new element found
             if (col_map.find(col) == col_map.end()) {
+                // global_idx -> compressed
                 col_map[col] = ctr;
                 ctr++;
             }
         }
+    }
+
+    std::vector<label> map (col_map.size(), 0);
+    for (auto [key, value] : col_map) {
+        map[value] = key;
     }
 
     std::vector<std::vector<label>> ret;
@@ -37,7 +44,8 @@ std::vector<std::vector<label>> compress_cols(
         ret.push_back(compressed);
     }
 
-    return ret;
+
+    return {ret, map};
 }
 
 }  // namespace detail

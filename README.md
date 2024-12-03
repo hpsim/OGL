@@ -80,7 +80,7 @@ relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 scaling | 1.0 | Scale the complete system by the scaling factor
 forceHostBuffer  | false | whether to copy to host before MPI calls
 export | false | write the complete system (matrix and rhs) to disk as .mtx file using controlDict/writeControl
-writeGlobal | false | convert all indices to global indices
+writeGlobal | false | convert all indices to global indices when exporting .mtx files
 
 ### Supported Solver
 Currently, the following solver are supported

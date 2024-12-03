@@ -124,27 +124,6 @@ public:
         return orig_partition_;
     }
 
-    /* @brief given gathered sparsity information copy local interfaces
-     *
-     * After gathering local and non-local rows, cols, and mapping
-     * we have interfaces that are now local in the non-local rows, cols and
-     * mapping. Thus this function copies the rows, cols and mapping, spans etc
-     * to the corresponding local vectors.
-     * returns a vector of locality information.
-     * @param non_local_cols vector in global local indices
-     */
-    std::vector<InterfaceLocality> build_non_local_interfaces(
-        const ExecutorHandler &exec_handler,
-        std::shared_ptr<
-            const gko::experimental::distributed::Partition<label, label>>
-            partition,
-        std::vector<label> &local_rows, std::vector<label> &local_cols,
-        std::vector<label> &local_mapping, std::vector<gko::span> &local_spans,
-        std::vector<label> &non_local_rows, std::vector<label> &non_local_cols,
-        std::vector<label> &non_local_mapping,
-        std::vector<label> &non_local_rank_origin,
-        std::vector<gko::span> &non_local_spans,
-        std::vector<label> &src_non_local_target_ids) const;
 
     /* @brief function to repartition a sparsity pattern
      *

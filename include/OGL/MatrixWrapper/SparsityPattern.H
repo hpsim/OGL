@@ -36,7 +36,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
-std::vector<std::vector<label>> compress_cols(
+std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> ids);
 }  // namespace detail
 
@@ -148,6 +148,11 @@ public:
         comm_rank_.push_back(comm_rank);
     }
 
+    std::vector<label> compute_to_global_map(bool fuse) const
+    {
+        return std::get<1>(detail::compress_cols(cols_, id_));
+    }
+
     // make this a free function
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
@@ -157,7 +162,9 @@ public:
         // if not repartitioned no ldu interfaces to fuse
         if (!repartioned) {
             return {rows_,
-                    (compress_cols) ? detail::compress_cols(cols_, id_) : cols_,
+                    (compress_cols)
+                        ? std::get<0>(detail::compress_cols(cols_, id_))
+                        : cols_,
                     map_, id_};
         }
 
@@ -250,8 +257,9 @@ public:
         std::vector<label> map;
         map.reserve(reserve_size);
 
-        auto or_cols =
-            (compress_cols) ? detail::compress_cols(cols_, id_) : cols_;
+        auto or_cols = (compress_cols)
+                           ? std::get<0>(detail::compress_cols(cols_, id_))
+                           : cols_;
 
         label map_offset = 0;
 

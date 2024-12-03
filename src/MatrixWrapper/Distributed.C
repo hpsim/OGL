@@ -200,38 +200,38 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
     }
 
     if (write_global) {
-        FatalErrorInFunction << "Not implemented" << abort(FatalError);
+        size_t rows = dist_mtx_->get_local_matrix()->get_size()[0];
+        auto ref_exec = exec_handler.get_ref_exec();
+        auto comm = exec_handler.get_gko_mpi_host_comm();
+
+        auto partition = gko::share(
+            gko::experimental::distributed::build_partition_from_local_size<
+                label, label>(ref_exec, *comm.get(), rows));
+
         // overwrite non_local column indices with global indices
-        // std::copy(non_local_sparsity_->col_idxs.get_const_data(),
-        //           non_local_sparsity_->col_idxs.get_const_data() +
-        //               non_local_sparsity_->num_nnz,
-        //           non_local->get_col_idxs());
 
-        // auto ref_exec = exec_handler.get_ref_exec();
-        // auto comm = exec_handler.get_gko_mpi_host_comm();
-        // label rank{exec_handler.get_rank()};
-        // auto partition = gko::share(
-        //     gko::experimental::distributed::build_partition_from_local_size<
-        //         label, label>(ref_exec, *comm.get(),
-        //         local_sparsity_->dim[0]));
+        label rank{exec_handler.get_rank()};
+        label offset = partition->get_range_bounds()[rank];
+        label local_nnz = local->get_num_stored_elements();
 
-        // label offset = partition->get_range_bounds()[rank];
-        // label local_nnz = local_sparsity_->num_nnz;
+        std::transform(local->get_row_idxs(), local->get_row_idxs() + local_nnz,
+                       local->get_row_idxs(),
+                       [&](label idx) { return idx + offset; });
 
-        // std::transform(local->get_row_idxs(), local->get_row_idxs() +
-        // local_nnz,
-        //                local->get_row_idxs(),
-        //                [&](label idx) { return idx + offset; });
-        // std::transform(local->get_col_idxs(), local->get_col_idxs() +
-        // local_nnz,
-        //                local->get_col_idxs(),
-        //                [&](label idx) { return idx + offset; });
+        std::transform(local->get_col_idxs(), local->get_col_idxs() + local_nnz,
+                       local->get_col_idxs(),
+                       [&](label idx) { return idx + offset; });
 
-        // label non_local_nnz = non_local_sparsity_->num_nnz;
-        // std::transform(non_local->get_row_idxs(),
-        //                non_local->get_row_idxs() + non_local_nnz,
-        //                non_local->get_row_idxs(),
-        //                [&](label idx) { return idx + offset; });
+        label non_local_nnz = non_local->get_num_stored_elements();
+        std::transform(non_local->get_col_idxs(),
+                       non_local->get_col_idxs() + non_local_nnz,
+                       non_local->get_col_idxs(),
+                       [this](label idx) { return this->compress_to_global()[idx]; });
+
+        std::transform(non_local->get_row_idxs(),
+                       non_local->get_row_idxs() + non_local_nnz,
+                       non_local->get_row_idxs(),
+                       [&](label idx) { return idx + offset; });
     }
 
     export_mtx(field_name + "_local", local, db);
@@ -288,17 +288,18 @@ void update_impl(
         std::vector<scalar> send_buffer;
         send_buffer.reserve(length);
 
-        auto get_send_ptr = [&](){
-            if (send_id < 0 ) {
-                auto [interface_length_, send_ptr_] = host_A->get_interface_data(send_id);
+        auto get_send_ptr = [&]() {
+            if (send_id < 0) {
+                auto [interface_length_, send_ptr_] =
+                    host_A->get_interface_data(send_id);
                 return send_ptr_;
             } else {
-                const scalar * ret = nullptr;
+                const scalar *ret = nullptr;
                 return ret;
             }
         };
 
-        const scalar * send_ptr = get_send_ptr();
+        const scalar *send_ptr = get_send_ptr();
 
         // std::cout << __FILE__ << __LINE__ << " on rank "
         //           << exec_handler.get_rank() << " mode " << send
@@ -396,6 +397,8 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops);
 
+    auto compress_to_global = repart_non_loc_sparsity->compute_to_global_map(fuse);
+
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
     generate_alltoall_update_data<LocalMatrixType>(
@@ -447,10 +450,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                                  pairwise_update_data, reorder_maps);
 
     return std::make_shared<RepartDistMatrix>(
-        device_exec, comm, matrix_format, dist_A,
-        repartitioner, fuse,
-        all_to_all_update_data,
-        pairwise_update_data, reorder_maps
+        device_exec, comm, matrix_format, dist_A, repartitioner, fuse,
+        all_to_all_update_data, pairwise_update_data, reorder_maps,
+        compress_to_global
         );
 }
 
