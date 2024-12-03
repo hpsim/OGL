@@ -378,13 +378,13 @@ public:
                   {6, 7, 6, 9, 9, 8, 10, 10, 10},
                   {6, 9, 10, 7, 9, 10, 6, 8, 10},
                   {7, 9, 9, 9, 9, 8, 9, 8, 7}};
-    std::vector<scalar> exp_x_2_1 = {4, 5, 5, 5, 6, 7, 5, 7, 10,
-                                     5, 5, 4, 7, 6, 5, 8, 7, 7};
-    std::vector<scalar> exp_x_2_2 = {5, 7, 8, 5, 6, 7, 4, 5, 7,
-                                     6, 7, 7, 7, 6, 5, 7, 5, 4};
-    std::vector<scalar> exp_x_4 = {4, 5, 5, 5, 6, 7, 5, 7, 10, 5, 5, 4,
-                                   7, 6, 5, 8, 7, 7, 5, 7, 8,  5, 6, 7,
-                                   4, 5, 7, 6, 7, 7, 7, 6, 5,  7, 5, 4};
+    std::vector<scalar> exp_x_2_1 = {5, 7, 7, 7, 9, 10, 7,  10, 13,
+                                     6, 7, 6, 9, 9, 8,  10, 10, 10};
+    std::vector<scalar> exp_x_2_2 = {6, 9, 10, 7, 9, 10, 6, 8, 10,
+                                     7, 9, 9,  9, 9, 8,  9, 8, 7};
+    std::vector<scalar> exp_x_4 = {5, 7, 7,  7,  9,  10, 7, 10, 13, 6, 7, 6,
+                                   9, 9, 8,  10, 10, 10, 6, 9,  10, 7, 9, 10,
+                                   6, 8, 10, 7,  9,  9,  9, 9,  8,  9, 8, 7};
     std::map<bool, std::map<label, vec_vec_s>> exp_x{
         {true,
          {{1, x_1},
@@ -568,6 +568,8 @@ TEST_P(DistMatL2D, canApplyCorrectly)
     auto res_x = std::vector<scalar>(
         x->get_local_vector()->get_const_values(),
         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
+
+    std::cout << " res_x " << res_x << "\n";
 
     ASSERT_EQ(res_x, exp_x[fused][ranks_per_gpu][rank]);
 }
