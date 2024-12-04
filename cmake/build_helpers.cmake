@@ -8,8 +8,7 @@ function(ginkgo_default_includes name)
     "${name}"
     PUBLIC $<BUILD_INTERFACE:${NLA4HPC_BINARY_DIR}/include>
            $<BUILD_INTERFACE:${NLA4HPC_SOURCE_DIR}/include>
-           $<BUILD_INTERFACE:${NLA4HPC_SOURCE_DIR}>
-           $<INSTALL_INTERFACE:include>)
+           $<BUILD_INTERFACE:${NLA4HPC_SOURCE_DIR}> $<INSTALL_INTERFACE:include>)
 endfunction()
 
 function(ginkgo_compile_features name)
@@ -30,12 +29,10 @@ function(ginkgo_extract_clang_version CLANG_COMPILER GINKGO_CLANG_VERSION)
       "#include <cstdio>\n"
       "int main() {printf(\"%d.%d.%d\", __clang_major__, __clang_minor__, __clang_patchlevel__)\;"
       "return 0\;}")
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver.cpp"
-       ${CLANG_VERSION_PROG})
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver.cpp" ${CLANG_VERSION_PROG})
   execute_process(
-    COMMAND ${CLANG_COMPILER} ${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver.cpp
-            -o ${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver
-    ERROR_VARIABLE CLANG_EXTRACT_VER_ERROR)
+    COMMAND ${CLANG_COMPILER} ${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver.cpp -o
+            ${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver ERROR_VARIABLE CLANG_EXTRACT_VER_ERROR)
   execute_process(
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/extract_clang_ver
     OUTPUT_VARIABLE FOUND_CLANG_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE
