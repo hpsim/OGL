@@ -410,11 +410,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 		    );
 
     std::vector<RepartDistMatrix::pairwise_data> pairwise_update_data;
-    SIMPLE_TIME(verbose, generate_local_pairwise_data,  
+    SIMPLE_TIME(verbose, generate_local_pairwise_data,
     generate_pairwise_update_data<LocalMatrixType>(
         exec_handler, host_A, (!owner) ? local_sparsity : repart_loc_sparsity,
         linops, fuse, repartitioner, pairwise_update_data););
-    SIMPLE_TIME(verbose, generate_non_local_pairwise_data,  
+    SIMPLE_TIME(verbose, generate_non_local_pairwise_data,
     generate_pairwise_update_data<LocalMatrixType>(
         exec_handler, host_A,
         (!owner) ? non_local_sparsity : repart_non_loc_sparsity, linops, fuse,
@@ -447,11 +447,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // compute reorder maps
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
         reorder_maps;
-    SIMPLE_TIME(verbose, generate_local_reorder_map,  
+    SIMPLE_TIME(verbose, generate_local_reorder_map,
     generate_reorder_map<LocalMatrixType>(exec_handler, local_linops, loc_map,
                                           reorder_maps);
     );
-    SIMPLE_TIME(verbose, generate_non_local_reorder_map,  
+    SIMPLE_TIME(verbose, generate_non_local_reorder_map,
     generate_reorder_map<LocalMatrixType>(exec_handler, non_local_linops,
                                           non_loc_map, reorder_maps);
     );
