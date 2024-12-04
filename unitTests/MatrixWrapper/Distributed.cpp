@@ -433,7 +433,7 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
     auto distributed = create_distributed(exec, repartitioner, hostMatrix,
-                                          matrix_format, fused);
+                                          matrix_format, fused, 0);
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
               exp_local_size[ranks_per_gpu][rank]);
@@ -459,7 +459,7 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
 
     auto distributed = create_distributed(exec, repartitioner, hostMatrix,
-                                          matrix_format, fused);
+                                          matrix_format, fused, 0);
 
     auto local =
         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
@@ -517,7 +517,7 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
     exp_non_local_size.emplace(4, vec{0, 0, 0, 0});
 
     auto distributed = create_distributed(exec, repartitioner, hostMatrix,
-                                          matrix_format, fused);
+                                          matrix_format, fused, 0);
 
     auto non_local =
         (fused) ? gko::as<gko::matrix::Coo<scalar, label>>(
@@ -549,7 +549,7 @@ TEST_P(DistMatL2D, canApplyCorrectly)
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
 
     auto distributed =
-        create_distributed(exec, repartitioner, hostMatrix, format, fused);
+        create_distributed(exec, repartitioner, hostMatrix, format, fused, 0);
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};

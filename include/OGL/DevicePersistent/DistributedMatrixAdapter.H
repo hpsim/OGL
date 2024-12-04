@@ -44,9 +44,17 @@ struct DistributedMatrixInitFunctor {
     void update(
         std::shared_ptr<RepartDistMatrix> persistent_device_matrix) const
     {
+	    // TODO needs regenration option here
+	 bool regen = solver_controls_.lookupOrDefault<Switch>("regenerate", false);
+	 if (!regen) {
         update_distributed(
             exec_, host_A_, persistent_device_matrix,
-            solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"));
+            solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"), verbose_);
+	return;
+	 }
+
+	 auto new_mtx = init();
+	 persistent_device_matrix.swap(new_mtx);
     }
 
     std::shared_ptr<RepartDistMatrix> init() const
@@ -54,7 +62,8 @@ struct DistributedMatrixInitFunctor {
         return create_distributed(
             exec_, repartitioner_, host_A_,
             solver_controls_.lookupOrDefault<word>("matrixFormat", "Coo"),
-            solver_controls_.lookupOrDefault<Switch>("fuse", true));
+            solver_controls_.lookupOrDefault<Switch>("fuse", true),
+	    verbose_);
     }
 };
 

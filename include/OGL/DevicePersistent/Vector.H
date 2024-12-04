@@ -59,6 +59,8 @@ struct VectorInitFunctor {
                  std::to_string(repart_size)};
         LOG_1(verbose_, msg)
 
+	std::cout << __FILE__ << __LINE__ << " call update \n";
+
         auto ref_exec = exec_.get_ref_exec();
         auto host_view = gko::array<T>::const_view(ref_exec, host_size, other_);
 
@@ -67,12 +69,13 @@ struct VectorInitFunctor {
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
         bool host_buffer = exec_.get_gko_force_host_buffer();
 
-        if (host_buffer) {
-            persistent_vector = init();
-        } else {
+//       if (host_buffer) {
+//           auto new_vec = init();
+//           persistent_vector.swap(new_vec);;
+//       } else {
             communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                                persistent_vector->get_local_values());
-        }
+ //       }
     }
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
@@ -181,29 +184,14 @@ public:
 
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
+        label repart_size = repartitioner->get_repart_size();
 
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        std::vector<scalar> host_send_buffer;
-        label repart_size = repartitioner->get_repart_size();
-        if (host_buffer) {
-            host_send_buffer.resize(repart_size);
-            auto host_send_view = gko::array<scalar>::view(
-                ref_exec, repart_size, host_send_buffer.data());
-            auto target_send_view = gko::array<scalar>::view(
-                exec, repart_size, get_vector()->get_local_values());
-
-            host_send_view = target_send_view;
-            communicate_values(ref_exec, ref_exec, comm, comm_pattern,
-                               (host_buffer) ? host_send_buffer.data()
-                                             : get_vector()->get_local_values(),
-                               const_cast<T *>(memory_), false, repart_size);
-        } else {
-            communicate_values(exec_, comm_pattern,
-                               get_vector()->get_local_values(),
-                               const_cast<T *>(memory_));
-        }
+        communicate_values(exec, ref_exec, comm, comm_pattern,
+	       get_vector()->get_local_values(),
+                 const_cast<T *>(memory_), host_buffer);
     }
 
     /** Writes the content of the distributed vector to disk

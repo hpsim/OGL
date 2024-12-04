@@ -270,19 +270,25 @@ void update_impl(
     std::vector<RepartDistMatrix::all_to_all_data> &all_to_all_update_data,
     std::vector<RepartDistMatrix::pairwise_data> &pairwise_update_data,
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-        &reorder_maps)
+        &reorder_maps,
+   label verbose)
 {
-    // perform all-to-all updates first
-    for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
-        auto [length, send_data_ptr] = host_A->get_interface_data(id);
-        communicate_values(exec_handler, comm_pattern, send_data_ptr, data_ptr);
-    }
-
-    // perform pairwise communications
-    // this update interface data which needs communication
     auto comm = exec_handler.get_communicator();
     auto ref_exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
+
+    // perform all-to-all updates first
+    auto all_to_all_update = [comm, ref_exec, device_exec, all_to_all_update_data, host_A](){ for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
+        auto [length, send_data_ptr] = host_A->get_interface_data(id);
+        communicate_values(ref_exec, device_exec, comm, comm_pattern, send_data_ptr, data_ptr, true);
+    }
+    };
+
+     SIMPLE_TIME(verbose, perform_all_to_all_update, all_to_all_update(););
+
+    // perform pairwise communications
+    // this update interface data which needs communication
+    auto pairwise_communicate = [comm, ref_exec, device_exec, pairwise_update_data,host_A](){
     for (auto [id, send, comm_rank, length, send_id, recv_ptr] :
          pairwise_update_data) {
         std::vector<scalar> send_buffer;
@@ -300,12 +306,6 @@ void update_impl(
         };
 
         const scalar *send_ptr = get_send_ptr();
-
-        // std::cout << __FILE__ << __LINE__ << " on rank "
-        //           << exec_handler.get_rank() << " mode " << send
-        //           << " communicate with rank " << comm_rank << " id " << id
-        //           << " send_ptr " << send_ptr << " recv_ptr " << recv_ptr
-        //           << " length " << length << std::endl;
 
         if (send == 0) {
             for (size_t i = 0; i < length; i++) {
@@ -328,6 +328,9 @@ void update_impl(
             dst_view = src_view;
         }
     }
+    };
+
+    SIMPLE_TIME(verbose, perform_pairwise_update, pairwise_communicate(););
 
     for (auto [reorder_map, data_ptr] : reorder_maps) {
         reorder_interface_impl<LocalMatrixType>(exec_handler, reorder_map,
@@ -338,10 +341,10 @@ void update_impl(
 
 template <typename LocalMatrixType>
 void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
-                              std::shared_ptr<const HostMatrixWrapper> host_A)
+                              std::shared_ptr<const HostMatrixWrapper> host_A, label verbose)
 {
     update_impl<LocalMatrixType>(exec_handler, host_A, all_to_all_update_data_,
-                                 pairwise_update_data_, reorder_maps_);
+                                 pairwise_update_data_, reorder_maps_, verbose);
 }
 
 
@@ -350,7 +353,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> host_A, word matrix_format,
-    bool fuse)
+    bool fuse, label verbose)
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
@@ -401,18 +404,21 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
-    generate_alltoall_update_data<LocalMatrixType>(
+    SIMPLE_TIME(verbose, generate_all_to_all_update_data, generate_alltoall_update_data<LocalMatrixType>(
         exec_handler, local_sparsity, linops, fuse, owner, ranks_per_owner,
         all_to_all_update_data);
+		    );
 
     std::vector<RepartDistMatrix::pairwise_data> pairwise_update_data;
+    SIMPLE_TIME(verbose, generate_local_pairwise_data,  
     generate_pairwise_update_data<LocalMatrixType>(
         exec_handler, host_A, (!owner) ? local_sparsity : repart_loc_sparsity,
-        linops, fuse, repartitioner, pairwise_update_data);
+        linops, fuse, repartitioner, pairwise_update_data););
+    SIMPLE_TIME(verbose, generate_non_local_pairwise_data,  
     generate_pairwise_update_data<LocalMatrixType>(
         exec_handler, host_A,
         (!owner) ? non_local_sparsity : repart_non_loc_sparsity, linops, fuse,
-        repartitioner, pairwise_update_data);
+        repartitioner, pairwise_update_data););
 
     std::shared_ptr<dist_mtx> dist_A;
     // recv_gather_idxs are send upon creation to ginkgo distributed matrix
@@ -441,13 +447,20 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // compute reorder maps
     std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
         reorder_maps;
+    SIMPLE_TIME(verbose, generate_local_reorder_map,  
     generate_reorder_map<LocalMatrixType>(exec_handler, local_linops, loc_map,
                                           reorder_maps);
+    );
+    SIMPLE_TIME(verbose, generate_non_local_reorder_map,  
     generate_reorder_map<LocalMatrixType>(exec_handler, non_local_linops,
                                           non_loc_map, reorder_maps);
+    );
 
+    SIMPLE_TIME(verbose, perform_matrix_update,
     update_impl<LocalMatrixType>(exec_handler, host_A, all_to_all_update_data,
-                                 pairwise_update_data, reorder_maps);
+                                 pairwise_update_data, reorder_maps, verbose);
+    );
+
 
     return std::make_shared<RepartDistMatrix>(
         device_exec, comm, matrix_format, dist_A, repartitioner, fuse,
@@ -475,7 +488,7 @@ void write_distributed(const ExecutorHandler &exec_handler, word field_name,
 void update_distributed(const ExecutorHandler &exec_handler,
                         std::shared_ptr<const HostMatrixWrapper> host_A,
                         std::shared_ptr<RepartDistMatrix> dist_A,
-                        word matrix_format)
+                        word matrix_format, label verbose)
 {
     if (matrix_format == "Ell") {
         FatalErrorInFunction
@@ -484,11 +497,11 @@ void update_distributed(const ExecutorHandler &exec_handler,
     }
     if (matrix_format == "Coo") {
         return dist_A->update<gko::matrix::Coo<scalar, label>>(exec_handler,
-                                                               host_A);
+                                                               host_A, verbose);
     }
     if (matrix_format == "Csr") {
         return dist_A->update<gko::matrix::Csr<scalar, label>>(exec_handler,
-                                                               host_A);
+                                                               host_A, verbose);
     }
 }
 
@@ -496,19 +509,19 @@ std::shared_ptr<RepartDistMatrix> create_distributed(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format,
-    bool fuse)
+    bool fuse, label verbose)
 {
     if (matrix_format == "Ell") {
         return create_impl<gko::matrix::Ell<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix, matrix_format, fuse);
+            exec_handler, repartitioner, hostMatrix, matrix_format, fuse, verbose);
     }
     if (matrix_format == "Coo") {
         return create_impl<gko::matrix::Coo<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix, matrix_format, fuse);
+            exec_handler, repartitioner, hostMatrix, matrix_format, fuse, verbose);
     }
     if (matrix_format == "Csr") {
         return create_impl<gko::matrix::Csr<scalar, label>>(
-            exec_handler, repartitioner, hostMatrix, matrix_format, fuse);
+            exec_handler, repartitioner, hostMatrix, matrix_format, fuse, verbose);
     }
 
     FatalErrorInFunction

@@ -125,7 +125,7 @@ public:
 
     template <typename InnerType>
     void update(const ExecutorHandler &exec_handler,
-                std::shared_ptr<const HostMatrixWrapper> host_A);
+                std::shared_ptr<const HostMatrixWrapper> host_A, label verbose);
 
     word get_matrix_format() const { return matrix_format_; }
 
@@ -232,10 +232,10 @@ void write_distributed(const ExecutorHandler &exec_handler, word field_name,
 void update_distributed(const ExecutorHandler &exec_handler,
                         std::shared_ptr<const HostMatrixWrapper> host_A,
                         std::shared_ptr<RepartDistMatrix> dist_A,
-                        word matrix_format);
+                        word matrix_format, label verbose);
 
 std::shared_ptr<RepartDistMatrix> create_distributed(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
     std::shared_ptr<const HostMatrixWrapper> hostMatrix, word matrix_format,
-    bool fuse);
+    bool fuse, label verbose);

@@ -159,9 +159,13 @@ void communicate_values(
     std::shared_ptr<const gko::Executor> target_exec,
     std::shared_ptr<const gko::experimental::mpi::communicator> comm,
     const AllToAllPattern &comm_pattern, const scalar *send_buffer,
-    scalar *recv_buffer, bool force_host_buffer, label recv_buffer_size)
+    scalar *recv_buffer, bool force_host_buffer)
 {
     if (force_host_buffer && src_exec != target_exec) {
+    // target_exec is not host
+    // gather on host first and then offload
+    if (target_exec != target_exec->get_master()) {
+	label recv_buffer_size  = comm_pattern.recv_offsets.back();
         auto tmp = gko::array<scalar>(src_exec, recv_buffer_size);
 
         comm->all_to_all_v(
@@ -171,8 +175,24 @@ void communicate_values(
 
         auto recv_view = gko::array<scalar>::view(target_exec, recv_buffer_size,
                                                   recv_buffer);
-
         recv_view = tmp;
+	   }
+ // src_exec is not host
+ // copy to host first then communicate
+   if (src_exec != src_exec->get_master()) {
+	label send_size  = comm_pattern.send_offsets.back();
+        auto send_view = gko::array<scalar>::const_view(src_exec, send_size,
+                                                  send_buffer);
+        auto tmp = gko::array<scalar>(src_exec->get_master(), send_size);
+
+	tmp = send_view;
+
+        comm->all_to_all_v(
+            src_exec, tmp.get_const_data(), comm_pattern.send_counts.data(),
+            comm_pattern.send_offsets.data(), recv_buffer,
+            comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
+
+	   }
     } else {
         comm->all_to_all_v(
             target_exec, send_buffer, comm_pattern.send_counts.data(),
