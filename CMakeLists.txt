@@ -217,7 +217,10 @@ target_sources(
           src/MatrixWrapper/Combination.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
-  # src/Solver/BiCGStab/GKOBiCGStab.C src/Solver/GMRES/GKOGMRES.C
+          src/Solver/BiCGStab.cpp
+          src/Solver/GMRES.cpp
+          # src/Solver/Multigrid.cpp
+          # src/Solver/IR.cpp
 )
 
 enable_sanitizers(

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "BaseWrapper/lduBase/GKOlduBase.H"
-#include "StoppingCriterion/StoppingCriterion.H"
+#include "OGL/GKOlduBase.hpp"
+#include "OGL/StoppingCriterion.hpp"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "GKOGMRES.H"
+#include "OGL/Solver/GMRES.hpp"
+
 #include <ginkgo/ginkgo.hpp>
-#include <map>
-#include <type_traits>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 

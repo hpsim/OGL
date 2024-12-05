@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <ginkgo/ginkgo.hpp>
-#include <map>
-#include <type_traits>
-#include "GKOBiCGStab.H"
+
+#include "OGL/Solver/BiCGStab.hpp"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 

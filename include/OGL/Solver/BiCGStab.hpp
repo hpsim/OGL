@@ -4,18 +4,20 @@
 
 #pragma once
 
-#include "OGL/GKOlduBase.H"
+#include "OGL/GKOlduBase.hpp"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam {
 
-class GKOGMRESFactory {
+/*---------------------------------------------------------------------------*\
+                           Class GKOBiCGStab Declaration
+\*---------------------------------------------------------------------------*/
+class GKOBiCGStabFactory {
 private:
     using mtx = gko::matrix::Csr<scalar>;
     using vec = gko::matrix::Dense<scalar>;
-    using gmres = gko::solver::Gmres<scalar>;
-    using val_array = gko::array<scalar>;
+    using bicgstab = gko::solver::Bicgstab<scalar>;
 
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using dist_mtx =
@@ -32,34 +34,36 @@ private:
     mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
         stoppingCriterionVec_;
 
+
 public:
-    GKOGMRESFactory(const dictionary &solverControls, const objectRegistry &db,
-                    word sysMatrixName)
+    GKOBiCGStabFactory(const dictionary &solverControls,
+                       const objectRegistry &db, word sysMatrixName)
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
           stoppingCriterion_(solverControls)
     {}
 
-    CREATE_SOLVER_METHODS(gmres)
+    CREATE_SOLVER_METHODS(bicgstab)
 
-    std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
+    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_default(std::shared_ptr<gko::Executor> exec) const
     {
-        auto gmres =
-            gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
-        return gmres;
+        auto bicgstab = gko::solver::Bicgstab<scalar>::build()
+                            .with_criteria(stoppingCriterionVec_)
+                            .on(exec);
+        return bicgstab;
     }
 
-    std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
+    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
     create_precond(std::shared_ptr<gko::Executor> exec,
                    std::shared_ptr<gko::LinOp> precond) const
     {
-        auto gmres = gmres::build()
-                         .with_criteria(stoppingCriterionVec_)
-                         .with_generated_preconditioner(precond)
-                         .on(exec);
-        return gmres;
+        auto bicgstab = bicgstab::build()
+                            .with_criteria(stoppingCriterionVec_)
+                            .with_generated_preconditioner(precond)
+                            .on(exec);
+        return bicgstab;
     }
 
     scalar get_init_res_norm() const
@@ -74,6 +78,11 @@ public:
         return stoppingCriterion_.get_res_norm_time();
     }
 
+    std::shared_ptr<vec> get_res_norms() const
+    {
+        return stoppingCriterion_.get_res_norms();
+    }
+
     scalar get_solve_prev_rel_res_cost() const
     {
         return ::Foam::get_solve_prev_rel_res_cost(sysMatrixName_, db_);
@@ -85,11 +94,6 @@ public:
                                                    prev_rel_res_cost);
     }
 
-
-    std::shared_ptr<vec> get_res_norms() const
-    {
-        return stoppingCriterion_.get_res_norms();
-    }
 
     void store_number_of_iterations() const
     {
@@ -107,42 +111,37 @@ public:
 
     label get_number_of_iterations() const
     {
-        return stoppingCriterion_.get_num_iters();
+        return stoppingCriterion_.get_num_iters() / 2;
     }
 };
 
-/*---------------------------------------------------------------------------*\
-                           Class GKOGMRES Declaration
-\*---------------------------------------------------------------------------*/
 
-
-class GKOGMRES : public GKOlduBaseSolver<GKOGMRESFactory> {
+class GKOBiCGStab : public GKOlduBaseSolver<GKOBiCGStabFactory> {
     // Private Member Functions
 
 public:
-    TypeName("GKOGMRES");
+    TypeName("GKOBiCGStab");
 
     //- Disallow default bitwise copy construct
-    GKOGMRES(const GKOGMRES &);
+    GKOBiCGStab(const GKOBiCGStab &);
 
     //- Disallow default bitwise assignment
-    void operator=(const GKOGMRES &);
+    void operator=(const GKOBiCGStab &);
 
 
     // Constructors
 
     //- Construct from matrix components and solver controls
-    GKOGMRES(const word &fieldName, const lduMatrix &matrix,
-             const FieldField<Field, scalar> &interfaceBouCoeffs,
-             const FieldField<Field, scalar> &interfaceIntCoeffs,
-             const lduInterfaceFieldPtrsList &interfaces,
-             const dictionary &solverControls)
+    GKOBiCGStab(const word &fieldName, const lduMatrix &matrix,
+                const FieldField<Field, scalar> &interfaceBouCoeffs,
+                const FieldField<Field, scalar> &interfaceIntCoeffs,
+                const lduInterfaceFieldPtrsList &interfaces,
+                const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
-                           interfaceIntCoeffs, interfaces, solverControls)
-    {}
+                           interfaceIntCoeffs, interfaces, solverControls){};
 
     //- Destructor
-    virtual ~GKOGMRES() {}
+    virtual ~GKOBiCGStab() {}
 
 
     // Member Functions
