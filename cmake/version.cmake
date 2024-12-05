@@ -37,12 +37,12 @@ const char* GIT_REV=\"${GIT_REV}${GIT_DIFF}\";
 const char* GIT_TAG=\"${GIT_TAG}\";
 const char* GIT_BRANCH=\"${GIT_BRANCH}\";")
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/version.C)
-  file(READ ${CMAKE_CURRENT_SOURCE_DIR}/version.C VERSION_)
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/version.cpp)
+  file(READ ${CMAKE_CURRENT_SOURCE_DIR}/version.cpp VERSION_)
 else()
   set(VERSION_ "")
 endif()
 
 if(NOT "${VERSION}" STREQUAL "${VERSION_}")
-  file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/version.C "${VERSION}")
+  file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/version.cpp "${VERSION}")
 endif()

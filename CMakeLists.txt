@@ -7,8 +7,7 @@ cmake_minimum_required(VERSION 3.13.0)
 project(
   OGL
   LANGUAGES C CXX
-  DESCRIPTION
-    "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
+  DESCRIPTION "A wrapper for Ginkgo solver to provide GPGPU capabilities to OpenFOAM")
 
 if(NOT DEFINED ENV{FOAM_SRC})
   message(FATAL_ERROR "You must source OpenFOAM before building OGL")
@@ -25,13 +24,11 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules/")
 include(CheckIncludeFileCXX)
 option(OGL_USE_EXTERNAL_GINKGO "Use external ginkgo" FALSE)
 option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
-option(OGL_USE_FOAM_FOUNDATION_VERSION
-       "Build OGL for the OpenFOAM Foundation version" FALSE)
+option(OGL_USE_FOAM_FOUNDATION_VERSION "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-option(OGL_ALLOW_REFERENCE_ONLY
-       "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
 option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
@@ -39,8 +36,7 @@ option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
 option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
-option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension"
-       FALSE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
@@ -102,17 +98,13 @@ if(OGL_DEVEL_TOOLS)
     ERROR_VARIABLE pre-commit-error)
   if(pre-commit-result)
     message(
-      FATAL_ERROR
-        "Failed to install the git hooks via pre-commit."
-        "Please check the error message:\n"
-        "${pre-commit-output}\n${pre-commit-error}")
+      FATAL_ERROR "Failed to install the git hooks via pre-commit."
+                  "Please check the error message:\n" "${pre-commit-output}\n${pre-commit-error}")
   endif()
   if(pre-commit-output MATCHES "^Running in migration mode with existing hooks")
-    message(
-      WARNING
-        "An existing git hook was encountered during `pre-commit install`."
-        "The old git hook will also be executed."
-        "Consider removing it with `pre-commit install -f`")
+    message(WARNING "An existing git hook was encountered during `pre-commit install`."
+                    "The old git hook will also be executed."
+                    "Consider removing it with `pre-commit install -f`")
   elseif(NOT pre-commit-output MATCHES "^pre-commit installed at")
     message(WARNING "`pre-commit install` did not exit normally."
                     "Please check the output message:\n" "${pre-commit-output}")
@@ -194,12 +186,10 @@ else()
   target_link_libraries(OGL PRIVATE stdc++fs)
 endif()
 
-# Add a custom command that produces version.cpp, plus a dummy output that's not
-# actually produced, in order to always force re-run version.cmake before the
-# build
+# Add a custom command that produces version.cpp, plus a dummy output that's not actually produced,
+# in order to always force re-run version.cmake before the build
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.C
-         ${CMAKE_CURRENT_BINARY_DIR}/_version.C
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cpp ${CMAKE_CURRENT_BINARY_DIR}/_version.cpp
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake
           ${GINKGO_CHECKOUT_VERSION}
   COMMENT "Create a version file")
@@ -208,32 +198,31 @@ add_subdirectory(include)
 
 target_sources(
   OGL
-  PRIVATE src/common.C
-          src/CommunicationPattern.C
-          src/Preconditioner.C
-          src/lduLduBase.C
-          src/StoppingCriterion.C
-          src/BaseWrapper/lduBase/GKOlduBase.C
-          src/BaseWrapper/CoupledLduBase/GKOCoupledLduBase.C
-          ${CMAKE_CURRENT_BINARY_DIR}/version.C
-          src/DevicePersistent/Base/Base.C
-          src/DevicePersistent/Vector/Vector.C
-          src/DevicePersistent/DeviceIdGuard/DeviceIdGuard.C
-          src/DevicePersistent/DistributedMatrixAdapter.C
-          src/DevicePersistent/ExecutorHandler/ExecutorHandler.C
-          src/MatrixWrapper/HostMatrix.C
-          src/MatrixWrapper/SparsityPattern.C
-          src/MatrixWrapper/Distributed.C
-          src/MatrixWrapper/Combination.C
-          src/Repartitioner.C
-          src/Solver/CG/GKOCG.C
+  PRIVATE src/common.cpp
+          src/CommunicationPattern.cpp
+          src/Preconditioner.cpp
+          src/lduLduBase.cpp
+          src/StoppingCriterion.cpp
+          src/BaseWrapper/lduBase.cpp
+          src/BaseWrapper/CoupledLduBase.cpp
+          ${CMAKE_CURRENT_BINARY_DIR}/version.cpp
+          src/DevicePersistent/Base.cpp
+          src/DevicePersistent/Vector.cpp
+          src/DevicePersistent/DeviceIdGuard.cpp
+          src/DevicePersistent/DistributedMatrixAdapter.cpp
+          src/DevicePersistent/ExecutorHandler.cpp
+          src/MatrixWrapper/HostMatrix.cpp
+          src/MatrixWrapper/SparsityPattern.cpp
+          src/MatrixWrapper/Distributed.cpp
+          src/MatrixWrapper/Combination.cpp
+          src/Repartitioner.cpp
+          src/Solver/CG.cpp
   # src/Solver/BiCGStab/GKOBiCGStab.C src/Solver/GMRES/GKOGMRES.C
 )
 
 enable_sanitizers(
-  OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK}
-  ${OGL_ENABLE_SANITIZE_UB} ${OGL_ENABLE_SANITIZE_THREAD}
-  ${OGL_ENABLE_SANITIZE_MEMORY})
+  OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK} ${OGL_ENABLE_SANITIZE_UB}
+  ${OGL_ENABLE_SANITIZE_THREAD} ${OGL_ENABLE_SANITIZE_MEMORY})
 
 target_link_libraries(
   OGL

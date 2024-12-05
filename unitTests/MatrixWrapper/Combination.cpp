@@ -2,17 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <fstream>
+#include <string>
+
 #include <gtest/gtest.h>
-
-#include "OGL/MatrixWrapper/Combination.H"
-
-#include "fvCFD.H"
 
 #include <ginkgo/ginkgo.hpp>
 
-#include <fstream>
+#include "fvCFD.H"
 
-#include <string>
+#include "OGL/MatrixWrapper/Combination.hpp"
 
 TEST(Combination, CanCreateEmptyCombination)
 {

@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "OGL/Repartitioner.H"
-#include "OGL/common.H"
+#include "OGL/Repartitioner.hpp"
+#include "OGL/common.hpp"
 
 #include "gtest/gtest.h"
 

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "OGL/CommunicationPattern.H"
+#include "OGL/CommunicationPattern.hpp"
 
 #include "gtest/gtest.h"
 

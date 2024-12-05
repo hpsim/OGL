@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 
-#include "OGL/MatrixWrapper/Distributed.H"
-#include "OGL/MatrixWrapper/HostMatrix.H"
-#include "OGL/Repartitioner.H"
+#include "OGL/MatrixWrapper/Distributed.hpp"
+#include "OGL/MatrixWrapper/HostMatrix.hpp"
+#include "OGL/Repartitioner.hpp"
 
 #include "gtest/gtest.h"
 
