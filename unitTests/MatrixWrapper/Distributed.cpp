@@ -42,6 +42,7 @@ public:
     void SetUp()
     {
         dict.add("executor", "reference");
+        name_ = args_->globalCaseName();
 
         args_ = std::make_shared<Foam::argList>(my_argc, my_argv);
         if (args_->size() != 1) {
@@ -122,6 +123,7 @@ public:
         }
     }
 
+    std::string name_;
     Foam::lduInterfaceFieldPtrsList interfaces;
     Foam::PtrList<Foam::lduInterfaceField> newInterfaces;
     std::shared_ptr<Foam::argList> args_;
@@ -146,20 +148,6 @@ public:
     const gko::experimental::mpi::communicator comm =
         *(exec.get_communicator().get());
 
-    std::map<label, vec> exp_local_size{
-        {1, {9, 9, 9, 9}}, {2, {18, 0, 18, 0}}, {4, {36, 0, 0, 0}}};
-
-    /*
-     * The mesh has the following structure
-     *         global ids
-     *        [24 25 26|33 34 35]
-     *        [21 22 23|30 31 32]
-     *   2    [18 19 20|27 28 29]  3
-     *        ---------+---------
-     *        [ 6  7  8|15 16 17]
-     *        [ 3  4  5|12 13 14]
-     *   0    [ 0  1  2| 9 10 11]  1
-     *   */
     std::vector<scalar> exp_local_coeff_1_nf{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                                              1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                                              2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3};
@@ -427,6 +415,7 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto name = ((HostMatrixEnvironment *)global_env)->name_;
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
@@ -436,13 +425,13 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
                                           matrix_format, fused, 0);
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
-              exp_local_size[ranks_per_gpu][rank]);
+              exp_local_size[name][ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[1],
-              exp_local_size[ranks_per_gpu][rank]);
+              exp_local_size[name][ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_non_local_matrix()->get_size()[0],
-              exp_local_size[ranks_per_gpu][rank]);
+              exp_local_size[name][ranks_per_gpu][rank]);
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[0],
-              exp_local_size[ranks_per_gpu][rank]);
+              exp_local_size[name][ranks_per_gpu][rank]);
 }
 
 TEST_P(DistMatL2D, hasCorrectLocalMatrix)
