@@ -4,6 +4,7 @@
 
 
 #include "OGL/MatrixWrapper/Distributed.hpp"
+#include "DistributedData.hpp"
 #include "OGL/MatrixWrapper/HostMatrix.hpp"
 #include "OGL/Repartitioner.hpp"
 
@@ -20,12 +21,6 @@ extern char **my_argv;
 // main.cpp
 int my_argc;
 char **my_argv;
-
-using vec = std::vector<label>;
-using vec_vec = std::vector<std::vector<label>>;
-using vec_vec_vec = std::vector<vec_vec>;
-
-using vec_vec_s = std::vector<std::vector<scalar>>;
 
 
 template <typename ValueType, typename IndexType>
@@ -415,7 +410,7 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
-    auto name = ((HostMatrixEnvironment *)global_env)->name_;
+    auto name = ((Environment *)global_env)->name_;
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
@@ -442,6 +437,7 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
         hostMatrix->get_local_nrows(), ranks_per_gpu, 0, exec);
+    auto name = ((Environment *)global_env)->name_;
 
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
@@ -457,7 +453,7 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
                       exec.get_ref_exec(), distributed->get_local_matrix());
 
     ASSERT_EQ(distributed->get_local_matrix()->get_size()[1],
-              exp_local_size[ranks_per_gpu][rank]);
+              exp_local_size[name][ranks_per_gpu][rank]);
 
     auto res_local_coeffs = convert_to_vector(get_val(local));
     auto res_local_cols = convert_to_vector(get_col(local));

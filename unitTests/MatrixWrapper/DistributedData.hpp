@@ -6,6 +6,13 @@
 #include <map>
 #include <vector>
 
+#include "fvCFD.H"
+
+using vec = std::vector<label>;
+using vec_vec = std::vector<std::vector<label>>;
+using vec_vec_vec = std::vector<vec_vec>;
+using vec_vec_s = std::vector<std::vector<scalar>>;
+
 /*
  * The mesh has the following structure
  *         global ids
@@ -17,6 +24,5 @@
  *        [ 3  4  5|12 13 14]
  *   0    [ 0  1  2| 9 10 11]  1
  *   */
-std::map < std::string,
-    std::map<label, vec> exp_local_size{
-        {"l2d", {1, {9, 9, 9, 9}}, {2, {18, 0, 18, 0}}, {4, {36, 0, 0, 0}}}};
+std::map<std::string, std::map<label, vec>> exp_local_size{
+    {"l2d", {{1, {9, 9, 9, 9}}, {2, {18, 0, 18, 0}}, {4, {36, 0, 0, 0}}}}};
