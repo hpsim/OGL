@@ -321,8 +321,6 @@ TEST_P(DistMatL2D, canApplyCorrectly)
         x->get_local_vector()->get_const_values(),
         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
 
-    std::cout << " res_x " << res_x << "\n";
-
     ASSERT_EQ(res_x, exp_x[name][fused][ranks_per_gpu][rank]);
 }
 
