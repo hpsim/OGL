@@ -7,19 +7,11 @@ Files: .github/workflows/test_matrix.json
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
-Files: test/validate.py
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
 Files: common/.common.H.swo
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
-Files: test/validation.json
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: test/channel_validation.json
+Files: test/**
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
@@ -40,27 +32,6 @@ Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
 Files: .pre-commit-config.yaml
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: unitTests/l2d/**
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: unitTests/p2d/**
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: unitTests/p2ds2x2/**
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: unitTests/channels1x2x2/**
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-
-Files: unitTests/MatrixWrapper/data/*mtx
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 

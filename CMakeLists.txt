@@ -219,8 +219,7 @@ target_sources(
           src/Solver/CG.cpp
           src/Solver/BiCGStab.cpp
           src/Solver/GMRES.cpp
-          # src/Solver/Multigrid.cpp
-          # src/Solver/IR.cpp
+          # src/Solver/Multigrid.cpp src/Solver/IR.cpp
 )
 
 enable_sanitizers(
@@ -254,7 +253,7 @@ endif()
 
 if(${OGL_BUILD_UNITTEST})
   enable_testing()
-  add_subdirectory(unitTests)
+  add_subdirectory(test/unit)
 endif()
 
 add_custom_target(
