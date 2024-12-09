@@ -33,8 +33,7 @@ endfunction()
 
 function(ginkgo_install)
   # pkg-config file
-  install(FILES "${Ginkgo_BINARY_DIR}/ginkgo.pc"
-          DESTINATION "${GINKGO_INSTALL_PKGCONFIG_DIR}")
+  install(FILES "${Ginkgo_BINARY_DIR}/ginkgo.pc" DESTINATION "${GINKGO_INSTALL_PKGCONFIG_DIR}")
 
   # install the public header files
   install(
@@ -60,12 +59,10 @@ function(ginkgo_install)
     VERSION "${PROJECT_VERSION}"
     COMPATIBILITY AnyNewerVersion)
   configure_package_config_file(
-    "${Ginkgo_SOURCE_DIR}/cmake/GinkgoConfig.cmake.in"
-    "${Ginkgo_BINARY_DIR}/GinkgoConfig.cmake"
+    "${Ginkgo_SOURCE_DIR}/cmake/GinkgoConfig.cmake.in" "${Ginkgo_BINARY_DIR}/GinkgoConfig.cmake"
     INSTALL_DESTINATION "${GINKGO_INSTALL_CONFIG_DIR}")
   install(
-    FILES "${Ginkgo_BINARY_DIR}/GinkgoConfig.cmake"
-          "${Ginkgo_BINARY_DIR}/GinkgoConfigVersion.cmake"
+    FILES "${Ginkgo_BINARY_DIR}/GinkgoConfig.cmake" "${Ginkgo_BINARY_DIR}/GinkgoConfigVersion.cmake"
           "${Ginkgo_SOURCE_DIR}/cmake/hip_helpers.cmake"
           "${Ginkgo_SOURCE_DIR}/cmake/windows_helpers.cmake"
     DESTINATION "${GINKGO_INSTALL_CONFIG_DIR}")

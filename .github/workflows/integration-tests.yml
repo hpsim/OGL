@@ -89,7 +89,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init -g --config /__w/OGL/OGL/test/integration.yaml
+        obr init -g --config /__w/OGL/OGL/test/integration/lidDrivenCavity.yaml
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -220,7 +220,7 @@ jobs:
     - name: Validation of exported mtx files
       working-directory: /github/home/${{matrix.Case}}
       run: |
-        python3 /__w/OGL/OGL/test/data_validation.py workspace
+        python3 /__w/OGL/OGL/test/integration/data_validation.py workspace
 
     - name: Run obr status
       working-directory: /github/home/${{matrix.Case}}
@@ -236,14 +236,14 @@ jobs:
           --filter preconditioner==none \
           --filter matrixFormat==Coo \
           --filter global==completed \
-          --validate_against=/__w/OGL/OGL/test/validation.json
+          --validate_against=/__w/OGL/OGL/test/integration/validation.json
 
     - name: Validate preconditioned state
       working-directory: /github/home/${{matrix.Case}}
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
-          --validate_against=/__w/OGL/OGL/test/validation.json \
+          --validate_against=/__w/OGL/OGL/test/integration/validation.json \
           --filter preconditioner!=none \
           --filter global==completed \
           --filter case==${{matrix.Case}}
@@ -253,7 +253,7 @@ jobs:
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
-          --validate_against=/__w/OGL/OGL/test/validation.json \
+          --validate_against=/__w/OGL/OGL/test/integration/validation.json \
           --filter matrixFormat!=Coo \
           --filter global==completed \
           --filter case==${{matrix.Case}}

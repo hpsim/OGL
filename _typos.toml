@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [files]
-extend-exclude = ["third_party/*", "Doxyfile"]
+extend-exclude = ["third_party/*", "Doxyfile", "unitTests/channels1x2x2"]
 
 [default.extend-words]
 nd = "nd"
+Tilda = "Tilda"

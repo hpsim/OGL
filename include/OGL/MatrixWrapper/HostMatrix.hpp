@@ -1,0 +1,272 @@
+// SPDX-FileCopyrightText: 2024 OGL authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#pragma once
+
+#include <vector>
+
+#include <ginkgo/ginkgo.hpp>
+
+#include "fvCFD.H"
+#include "processorLduInterface.H"
+
+#include "OGL/CommunicationPattern.hpp"
+#include "OGL/DevicePersistent/DeviceIdGuard.hpp"
+#include "OGL/MatrixWrapper/SparsityPattern.hpp"
+#include "OGL/common.hpp"
+
+
+namespace Foam {
+
+struct interface_locality {
+    interface_locality(label interface_id_, label col_, label row_, label rank_,
+                       label local_nnz_ctr_, label non_local_nnz_ctr_)
+        : interface_id(interface_id_),
+          col(col_),
+          row(row_),
+          rank(rank_),
+          local_nnz_ctr(local_nnz_ctr_),
+          non_local_nnz_ctr(non_local_nnz_ctr_)
+    {}
+
+    label interface_id;       //! patchid
+    label col;                //! col in other side local idx
+    label row;                //! row in local idx
+    label rank;               //! target rank, ie rank on which col is local row
+    label local_nnz_ctr;      //!
+    label non_local_nnz_ctr;  //!
+};
+
+// Free functions
+const lduInterfaceField *interface_getter(
+    const lduInterfaceFieldPtrsList &interfaces, const label i);
+
+/** Write contiguous row and col indices from OpenFOAM lower and upper indices
+ ** For details on the lower triangular based indexing see
+ ** https://openfoamwiki.net/index.php/OpenFOAM_guide/Matrices_in_OpenFOA
+ ** Note that the order of the indices are depicted wrong on the wiki
+ ** In general the upper triangular matrix is traversed in row major
+ ** and the lower triangular matrix in column major order.
+ **
+ ** @param nrows number of rows
+ ** @param upper_nnz number of non zeros in the upper triangular matrix
+ ** @param is_symmetric whether matrix is symmetric, in the symmetric case
+ ** the lower elements indices in the permute array are computed differently
+ ** @param upper pointer to OFs rows array
+ ** @param lower pointer to OFs cols array
+ ** @param rows pointer to rows array
+ ** @param cols pointer to columns array
+ ** @param permute pointer to permuter array
+ */
+void init_local_sparsity(const label nrows, const label upper_nnz,
+                         const bool is_symmetric, const label *upper,
+                         const label *lower, label *rows, label *cols,
+                         label *permute);
+
+
+/* The HostMatrixWrapper class is a thin wrapper to simplify access
+ * to OpenFOAM LDU matrix
+ * */
+class HostMatrixWrapper {
+private:
+    using vec = gko::matrix::Dense<scalar>;
+    using idx_array = gko::array<label>;
+
+    const ExecutorHandler &exec_;
+
+    const DeviceIdGuardHandler device_id_guard_;
+
+    const label verbose_;
+
+    const word field_name_;
+
+    // Whether the matrix coefficients should be reordered
+    // during copy or on device
+    const bool reorder_on_copy_;
+
+    const lduAddressing &addr_;
+
+    const scalar *diag_;
+
+    const scalar *upper_;
+
+    const scalar *lower_;
+
+    // multiply the complete system by this factor, ie sAx=sb
+    // NOTE this needed to avoid negative diagonal matrix entries, but
+    // this could be also achieved by just fliping the sign
+    const scalar scaling_;
+
+    // number of local matrix rows
+    const label nrows_;
+
+    // number of local upper elements
+    // ie coefficients which column_idx < nrows_
+    const label upper_nnz_;
+
+    const bool symmetric_;
+
+    // total number of local upper and lower elements
+    // ie 2*upper_nnz_ since the sparsity pattern is symmetric
+    const label non_diag_nnz_;
+
+    // nnz of local matrix wo local interfaces
+    const label local_matrix_nnz_;
+
+    const lduInterfaceFieldPtrsList &interfaces_;
+
+    const FieldField<Field, scalar> &interfaceBouCoeffs_;
+
+    mutable std::vector<label> local_to_global_interface_idx_;
+
+    /* Pointer to interface data*/
+    mutable std::map<label, std::pair<const label, const scalar *>>
+        interface_ptr_;
+
+    /* Iterates all interfaces and collects the coefficients into a vector
+    **
+    ** @param local whether local or non local coefficients should be collected
+    */
+    [[nodiscard]] std::vector<scalar> collect_interface_coeffs(
+        const lduInterfaceFieldPtrsList &interfaces_,
+        const FieldField<Field, scalar> &interfaceBouCoeffs,
+        const bool local) const;
+
+    /* Iterates all interfaces and counts the number of elements
+    **
+    ** @param interfaces The list of interfaces for the search
+    ** @param proc_interfaces Count only elements on (true)
+    *processorLduInterfaces or exclude processorLduInterfaces (false)
+    * @return number of elements on interfaces
+    */
+    [[nodiscard]] label count_interface_nnz(
+        const lduInterfaceFieldPtrsList &interfaces,
+        bool proc_interfaces) const;
+
+    /** Iterates all local interfaces and returns the relative order and
+    **corresponding row and column indices
+    **
+    ** @return vector of tuples containing the interface number, the local row,
+    *the local column
+    **/
+    std::vector<std::tuple<label, label, label>>
+    collect_local_interface_indices(
+        const lduInterfaceFieldPtrsList &interfaces_) const;
+
+
+    /** Iterates all interfaces and collect the corresponding cell id (row)
+    ** and a unique counter
+    **
+    ** @return a vector of size interface nnz, with a running index, row
+    ** index, the column index, and the corresponding target rank
+    ** sections for each interface
+    ** ret = [(1,2,1),(2,20, 2), (3, 20, 2) ...]
+    **         i0   i1,   i...
+    */
+    [[nodiscard]] std::pair<label, std::vector<interface_locality>>
+    collect_cells_on_interfaces(
+        const lduInterfaceFieldPtrsList &interfaces) const;
+
+    /** Based on OpenFOAMs ldu matrix and interfaces this function computes
+     ** the local sparsity pattern. Here, the sparsity pattern
+     ** contains coefficients that resides on the owning rank. The coefficient
+     ** can include local interfaces.
+     **/
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_local_sparsity()
+        const;
+
+    /** Based on OpenFOAMs interfaces this function computes
+     ** the interface sparsity pattern.
+     ** Here, the sparsity pattern
+     ** only contains all coefficient that reside on an interface (local and
+     *non-local).
+     **/
+    [[nodiscard]] std::shared_ptr<SparsityPattern> compute_interface_sparsity(
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition) const;
+
+
+public:
+    // segregated matrix wrapper constructor
+    HostMatrixWrapper(const ExecutorHandler &exec, const objectRegistry &db,
+                      label nrows, label upper_nnz, bool symmetric,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower, const lduAddressing &addr,
+                      const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      const lduInterfaceFieldPtrsList &interfaces,
+                      const dictionary &solverControls, const word &fieldName,
+                      label verbose);
+
+    // segregated matrix wrapper constructor
+    HostMatrixWrapper(const ExecutorHandler &exec, const objectRegistry &db,
+                      const lduAddressing &addr, bool symmetric,
+                      const scalar *diag, const scalar *upper,
+                      const scalar *lower,
+                      const FieldField<Field, scalar> &interfaceBouCoeffs,
+                      const FieldField<Field, scalar> &interfaceIntCoeffs,
+                      const lduInterfaceFieldPtrsList &interfaces,
+                      const dictionary &solverControls, const word &fieldName,
+                      label verbose);
+
+    /** Based on OpenFOAMs ldu matrix and interfaces this function computes
+     ** the local and non-local sparsity pattern.
+     **/
+    [[nodiscard]] std::pair<std::shared_ptr<SparsityPattern>,
+                            std::shared_ptr<SparsityPattern>>
+    compute_sparsity_patterns(
+        std::shared_ptr<
+            const gko::experimental::distributed::Partition<label, label>>
+            partition) const;
+
+    /** Iterates all interfaces and counts the number of unique neighbour
+     ** processors and number of interfaces in total for this processor
+     ** and collects the unique interface cells (send_idxs) of this rank.
+     **
+     ** @param interfaces The list of interfaces for the search
+     ** @return the CommunicationPattern
+     */
+    [[nodiscard]] std::shared_ptr<CommunicationPattern>
+    create_communication_pattern() const;
+
+    bool get_verbose() const { return verbose_; }
+
+    label get_local_nrows() const { return nrows_; }
+
+    const scalar *get_lower() const { return lower_; }
+
+    const scalar *get_upper() const { return upper_; }
+
+    const scalar *get_diag() const { return diag_; }
+
+    label get_num_interfaces() const { return interface_ptr_.size(); };
+
+    std::map<label, std::pair<const label, const scalar *>> get_interfaces()
+        const
+    {
+        return interface_ptr_;
+    };
+
+    /* returns access to interface data pointer via
+     * id:
+     * 0 - upper
+     * 1 - lower
+     * 2 - diag
+     * - n - interfaces
+     * */
+    std::pair<label, const scalar *> get_interface_data(label id) const
+    {
+        return interface_ptr_[id];
+    }
+
+    bool get_symmetric() const { return symmetric_; }
+
+    gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
+
+    const ExecutorHandler &get_exec_handler() const { return exec_; }
+};
+
+
+}  // namespace Foam

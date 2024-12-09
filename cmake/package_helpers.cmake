@@ -2,8 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-set(PACKAGE_DOWNLOADER_SCRIPT
-    "${CMAKE_CURRENT_LIST_DIR}/DownloadCMakeLists.txt.in")
+set(PACKAGE_DOWNLOADER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/DownloadCMakeLists.txt.in")
 
 function(ginkgo_load_git_package package_name package_url package_tag)
   set(GINKGO_GIT_REV "Debug")
@@ -17,29 +16,24 @@ function(ginkgo_load_git_package package_name package_url package_tag)
     RESULT_VARIABLE result
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
   if(result)
-    message(
-      FATAL_ERROR "CMake step for ${package_name}/download failed: ${result}")
+    message(FATAL_ERROR "CMake step for ${package_name}/download failed: ${result}")
   endif()
   if(MSVC)
-    # MSVC decides the build_type in build step not cmake step, so Ginkgo builds
-    # Debug and Release type.
+    # MSVC decides the build_type in build step not cmake step, so Ginkgo builds Debug and Release
+    # type.
     execute_process(
       COMMAND ${CMAKE_COMMAND} --build . --config Debug
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR
-          "Build Debug step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build Debug step for ${package_name}/download failed: ${result}")
     endif()
     execute_process(
       COMMAND ${CMAKE_COMMAND} --build . --config Release
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR
-          "Build Release step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build Release step for ${package_name}/download failed: ${result}")
     endif()
   else()
     execute_process(
@@ -47,8 +41,7 @@ function(ginkgo_load_git_package package_name package_url package_tag)
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR "Build step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build step for ${package_name}/download failed: ${result}")
     endif()
   endif()
 endfunction()
@@ -56,42 +49,35 @@ endfunction()
 set(PACKAGE_DOWNLOADER_SCRIPT_NO_INSTALL
     "${CMAKE_CURRENT_LIST_DIR}/NoInstallDownloadCMakeLists.txt.in")
 
-function(ginkgo_load_git_package_no_install package_name package_url
-         package_tag)
+function(ginkgo_load_git_package_no_install package_name package_url package_tag)
   set(GINKGO_THIRD_PARTY_BUILD_TYPE "Debug")
   if(CMAKE_BUILD_TYPE MATCHES "[Rr][Ee][Ll][Ee][Aa][Ss][Ee]")
     set(GINKGO_THIRD_PARTY_BUILD_TYPE "Release")
   endif()
-  configure_file(${PACKAGE_DOWNLOADER_SCRIPT_NO_INSTALL}
-                 download/CMakeLists.txt)
+  configure_file(${PACKAGE_DOWNLOADER_SCRIPT_NO_INSTALL} download/CMakeLists.txt)
   execute_process(
     COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
     RESULT_VARIABLE result
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
   if(result)
-    message(
-      FATAL_ERROR "CMake step for ${package_name}/download failed: ${result}")
+    message(FATAL_ERROR "CMake step for ${package_name}/download failed: ${result}")
   endif()
   if(MSVC)
-    # MSVC decides the build_type in build step not cmake step, so Ginkgo builds
-    # Debug and Release type.
+    # MSVC decides the build_type in build step not cmake step, so Ginkgo builds Debug and Release
+    # type.
     execute_process(
       COMMAND ${CMAKE_COMMAND} --build . --config Debug
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR
-          "Build Debug step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build Debug step for ${package_name}/download failed: ${result}")
     endif()
     execute_process(
       COMMAND ${CMAKE_COMMAND} --build . --config Release
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR
-          "Build Release step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build Release step for ${package_name}/download failed: ${result}")
     endif()
   else()
     execute_process(
@@ -99,22 +85,20 @@ function(ginkgo_load_git_package_no_install package_name package_url
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/download)
     if(result)
-      message(
-        FATAL_ERROR "Build step for ${package_name}/download failed: ${result}")
+      message(FATAL_ERROR "Build step for ${package_name}/download failed: ${result}")
     endif()
   endif()
 endfunction()
 
-# Add external target to external project. Create a new target and declare it as
-# `IMPORTED` for libraries or `INTERFACE` for header only projects.
+# Add external target to external project. Create a new target and declare it as `IMPORTED` for
+# libraries or `INTERFACE` for header only projects.
 #
-# \param new_target       New target for the external project \param
-# external_name    Name of the external project \param includedir       Path to
-# include directory \param libdir           Path to library directory \param
-# header_only      Boolean indicating if this should be a header only target
+# \param new_target       New target for the external project \param external_name    Name of the
+# external project \param includedir       Path to include directory \param libdir           Path to
+# library directory \param header_only      Boolean indicating if this should be a header only
+# target
 #
-macro(ginkgo_add_tpl_target new_target external_name includedir libdir
-      header_only)
+macro(ginkgo_add_tpl_target new_target external_name includedir libdir header_only)
   # Declare include directories and library files
   set(${external_name}_INCLUDE_DIR "${includedir}")
   set(${external_name}_LIBRARY "${libdir}")
@@ -133,21 +117,18 @@ macro(ginkgo_add_tpl_target new_target external_name includedir libdir
     endforeach()
   endif()
   foreach(inc in LISTS ${${external_name}_INCLUDE_DIR})
-    set_target_properties(${new_target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                                                   ${inc})
+    set_target_properties(${new_target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${inc})
   endforeach()
 endmacro(ginkgo_add_tpl_target)
 
-# Add external target to external project. Create a new target and declare it as
-# `IMPORTED` for libraries or `INTERFACE` for header only projects.
+# Add external target to external project. Create a new target and declare it as `IMPORTED` for
+# libraries or `INTERFACE` for header only projects.
 #
-# \param new_target       New target for the external project \param
-# external_name    Name of the external project \param includedir       Path to
-# include directory \param libdir           Path to library directory \param
-# build_type       Build type {STATIC, SHARED} \param debug_postfix    The debug
-# postfix to use when building in debug mode \param external         Name of the
-# external target \param header_only      Boolean indicating if this should be a
-# header only target
+# \param new_target       New target for the external project \param external_name    Name of the
+# external project \param includedir       Path to include directory \param libdir           Path to
+# library directory \param build_type       Build type {STATIC, SHARED} \param debug_postfix    The
+# debug postfix to use when building in debug mode \param external         Name of the external
+# target \param header_only      Boolean indicating if this should be a header only target
 #
 macro(
   ginkgo_add_external_target
@@ -163,8 +144,7 @@ macro(
   set(${external_name}_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${libdir})
   set(${external_name}_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${includedir}")
   if(MSVC)
-    # Ginkgo only builds Debug and Release, so set the path without
-    # CMAKE_CFG_INTDIR.
+    # Ginkgo only builds Debug and Release, so set the path without CMAKE_CFG_INTDIR.
     set(${external_name}_LIBRARY_RELEASE
         "${${external_name}_BINARY_DIR}/Release/${CMAKE_${build_type}_LIBRARY_PREFIX}${external_name}${CMAKE_${build_type}_LIBRARY_SUFFIX}"
     )
@@ -186,46 +166,38 @@ macro(
     add_library(${new_target} ${build_type} IMPORTED GLOBAL)
   endif()
 
-  # Set a dependency to the external target (ExternalProject fetcher and
-  # builder)
+  # Set a dependency to the external target (ExternalProject fetcher and builder)
   add_dependencies(${new_target} ${external})
 
   # Set the target's properties, namely library file and include directory
   if(NOT ${header_only})
-    set_target_properties(
-      ${new_target} PROPERTIES IMPORTED_LOCATION_RELEASE
-                               ${${external_name}_LIBRARY_RELEASE})
-    set_target_properties(
-      ${new_target} PROPERTIES IMPORTED_LOCATION_DEBUG
-                               ${${external_name}_LIBRARY_DEBUG})
-    # Since we do not really manage other build types, let's globally use the
-    # DEBUG symbols
+    set_target_properties(${new_target} PROPERTIES IMPORTED_LOCATION_RELEASE
+                                                   ${${external_name}_LIBRARY_RELEASE})
+    set_target_properties(${new_target} PROPERTIES IMPORTED_LOCATION_DEBUG
+                                                   ${${external_name}_LIBRARY_DEBUG})
+    # Since we do not really manage other build types, let's globally use the DEBUG symbols
     if(MSVC)
-      # Only Debug build uses MDd or MTd, and others use MD or MT. MSVC would
-      # like to use same runtime library, so we use Debug third-party in Debug
-      # and Release third-party in others.
-      set_target_properties(
-        ${new_target} PROPERTIES IMPORTED_LOCATION
-                                 ${${external_name}_LIBRARY_RELEASE})
+      # Only Debug build uses MDd or MTd, and others use MD or MT. MSVC would like to use same
+      # runtime library, so we use Debug third-party in Debug and Release third-party in others.
+      set_target_properties(${new_target} PROPERTIES IMPORTED_LOCATION
+                                                     ${${external_name}_LIBRARY_RELEASE})
     else()
       if(NOT CMAKE_BUILD_TYPE MATCHES "[Rr][Ee][Ll][Ee][Aa][Ss][Ee]"
          AND NOT CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg]")
-        set_target_properties(
-          ${new_target} PROPERTIES IMPORTED_LOCATION
-                                   ${${external_name}_LIBRARY_DEBUG})
+        set_target_properties(${new_target} PROPERTIES IMPORTED_LOCATION
+                                                       ${${external_name}_LIBRARY_DEBUG})
       endif()
     endif()
   endif()
-  set_target_properties(
-    ${new_target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
-                             ${${external_name}_INCLUDE_DIR})
+  set_target_properties(${new_target} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+                                                 ${${external_name}_INCLUDE_DIR})
 endmacro(ginkgo_add_external_target)
 
-# Ginkgo specific add_subdirectory helper macro. If the package was not found or
-# if requested by the user, use the internal version of the package.
+# Ginkgo specific add_subdirectory helper macro. If the package was not found or if requested by the
+# user, use the internal version of the package.
 #
-# \param package_name     Name of package to be found \param dir_name Name of
-# the subdirectory for the package
+# \param package_name     Name of package to be found \param dir_name Name of the subdirectory for
+# the package
 #
 macro(ginkgo_add_subdirectory package_name dir_name)
   if(NOT ${package_name}_FOUND)
@@ -233,34 +205,28 @@ macro(ginkgo_add_subdirectory package_name dir_name)
   endif()
 endmacro(ginkgo_add_subdirectory)
 
-# Ginkgo specific find_package helper macro. Use this macro for third party
-# libraries. If the user does not specify otherwise, try to find the package.
+# Ginkgo specific find_package helper macro. Use this macro for third party libraries. If the user
+# does not specify otherwise, try to find the package.
 #
-# \param package_name     Name of package to be found \param target_list For TPL
-# packages, declare a new target for each library \param header_only For TPL
-# packages, declare the tpl package as header only \param ARGN Extra
-# specifications for the package finder
+# \param package_name     Name of package to be found \param target_list For TPL packages, declare a
+# new target for each library \param header_only For TPL packages, declare the tpl package as header
+# only \param ARGN Extra specifications for the package finder
 #
 macro(ginkgo_find_package package_name target_list header_only)
   string(TOUPPER ${package_name} _UPACKAGE_NAME)
   if(OGL_USE_EXTERNAL_${_UPACKAGE_NAME} OR TPL_ENABLE_${_UPACKAGE_NAME})
     if(TPL_${_UPACKAGE_NAME}_LIBRARIES AND TPL_${_UPACKAGE_NAME}_INCLUDE_DIRS)
       set(${package_name}_FOUND
-          "${TPL_${_UPACKAGE_NAME}_LIBRARIES};${TPL_${_UPACKAGE_NAME}_INCLUDE_DIRS}"
-      )
-      set(_target_list ${target_list}) # CMake weirdness: target_list is not a
-                                       # list anymore
-      # Count the number of elements in the list. Subtract by one to iterate
-      # from 0 to the end.
+          "${TPL_${_UPACKAGE_NAME}_LIBRARIES};${TPL_${_UPACKAGE_NAME}_INCLUDE_DIRS}")
+      set(_target_list ${target_list}) # CMake weirdness: target_list is not a list anymore
+      # Count the number of elements in the list. Subtract by one to iterate from 0 to the end.
       list(LENGTH _target_list _GKO_len1)
       math(EXPR _GKO_len2 "${_GKO_len1} - 1")
       foreach(val RANGE ${_GKO_len2})
-        list(GET _target_list ${val} target) # access element number "val" in
-                                             # _target_list
+        list(GET _target_list ${val} target) # access element number "val" in _target_list
         list(GET TPL_${_UPACKAGE_NAME}_LIBRARIES ${val} lib)
-        ginkgo_add_tpl_target(
-          "${target}" "${_UPACKAGE_NAME}"
-          "${TPL_${_UPACKAGE_NAME}_INCLUDE_DIRS}" "${lib}" ${header_only})
+        ginkgo_add_tpl_target("${target}" "${_UPACKAGE_NAME}"
+                              "${TPL_${_UPACKAGE_NAME}_INCLUDE_DIRS}" "${lib}" ${header_only})
       endforeach()
     else()
       find_package(${package_name} QUIET ${ARGN})
