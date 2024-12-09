@@ -7,3 +7,4 @@ extend-exclude = ["third_party/*", "Doxyfile", "unitTests/channels1x2x2"]
 
 [default.extend-words]
 nd = "nd"
+Tilda = "Tilda"
