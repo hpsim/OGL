@@ -295,7 +295,7 @@ public:
                          6,  6,  7,  7,  7,  7,  8,  8,  8,  8,  9,  9,  9,
                          9,  10, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12,
                          13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15};
-    // [ row_0, cylic row_0, row_1, cyclic_row_1, interface_row_1,
+    // [ row_0, cyclic row_0, row_1, cyclic_row_1, interface_row_1,
     // interface_row_2  ]
     vec local_row_2_nf = {0,  0,  1,  1,  1,  2,  2,  2,  3,  3,  3,  4,  4,
                           4,  5,  5,  5,  6,  6,  6,  7,  7,  0,  7,  8,  8,
