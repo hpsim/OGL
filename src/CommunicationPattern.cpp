@@ -138,15 +138,23 @@ void communicate_values(const ExecutorHandler &exec_handler,
     label rank = exec_handler.get_rank();
 
     // Foam::sleep(rank);
+    // size_t send_size = comm_pattern.send_offsets.back();
+    // std::vector<scalar> send_vec;;
+    // for (size_t i=0;i<send_size;i++){
+    //     send_vec.push_back(send_buffer[i]);
+    // }
+    //
     // std::cout
     //     << __FILE__ << ":" << __LINE__
     //     << " rank " << rank
     //     << " send_ptr " << send_buffer
-    //     << "\nsend_counts " <<   comm_pattern.send_counts
+    //     << " send_values " << send_vec
+    //     << "\nsend_counts " << comm_pattern.send_counts
     //     << "\nrecv_counts " << comm_pattern.recv_counts
     //     << "\nsend_offsets " << comm_pattern.send_offsets
     //     << "\nrecv_offsets " << comm_pattern.recv_offsets
     //     << "\n";
+
 
     comm.all_to_all_v(exec, send_buffer, comm_pattern.send_counts.data(),
                       comm_pattern.send_offsets.data(), recv_buffer,
@@ -195,6 +203,25 @@ void communicate_values(
                                comm_pattern.recv_offsets.data());
         }
     } else {
+        // label rank = comm->rank();
+        // Foam::sleep(rank);
+        // size_t send_size = comm_pattern.send_offsets.back();
+        // std::vector<scalar> send_vec;;
+        // for (size_t i=0;i<send_size;i++){
+        //     send_vec.push_back(send_buffer[i]);
+        // }
+        //
+        // std::cout
+        //     << __FILE__ << ":" << __LINE__
+        //     << " rank " << rank
+        //     << " send_ptr " << send_buffer
+        //     << " send_values " << send_vec
+        //     << "\nsend_counts " << comm_pattern.send_counts
+        //     << "\nrecv_counts " << comm_pattern.recv_counts
+        //     << "\nsend_offsets " << comm_pattern.send_offsets
+        //     << "\nrecv_offsets " << comm_pattern.recv_offsets
+        //     << "\n";
+
         comm->all_to_all_v(
             target_exec, send_buffer, comm_pattern.send_counts.data(),
             comm_pattern.send_offsets.data(), recv_buffer,

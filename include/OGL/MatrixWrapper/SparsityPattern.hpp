@@ -168,8 +168,6 @@ public:
                     map_, id_};
         }
 
-        // TODO fuse vecs with same id_ 0-2 since they are LDU interfaces
-        // and can be updated with alltoallv call
         label size_upper;  // nnz on interface 0
         label size_diag;   // nnz on interface 2
 
@@ -188,8 +186,11 @@ public:
 
         auto fuse_ldu = [size_upper, size_diag](auto &vec, auto &id,
                                                 bool offset) {
+            /* given a vec and a predicate function this function pushes to out
+             * if pred is true */
             auto transform_if = [offset](auto &vec, auto pred, auto &out) {
                 size_t ctr{0};
+                // vec is vec<vec>
                 for (size_t i = 0; i < vec.size(); i++) {
                     if (pred(i)) {
                         auto &v = vec[i];
@@ -238,7 +239,7 @@ public:
         }
 
         return {fuse_ldu(rows_, id_, false), fuse_ldu(cols_, id_, false),
-                fuse_ldu(map_, id_, false), ret_id};
+                fuse_ldu(map_, id_, true), ret_id};
     }
 
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,

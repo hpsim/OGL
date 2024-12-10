@@ -59,8 +59,6 @@ struct VectorInitFunctor {
                  std::to_string(repart_size)};
         LOG_1(verbose_, msg)
 
-        std::cout << __FILE__ << __LINE__ << " call update \n";
-
         auto ref_exec = exec_.get_ref_exec();
         auto host_view = gko::array<T>::const_view(ref_exec, host_size, other_);
 
@@ -69,13 +67,8 @@ struct VectorInitFunctor {
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
         bool host_buffer = exec_.get_gko_force_host_buffer();
 
-        //       if (host_buffer) {
-        //           auto new_vec = init();
-        //           persistent_vector.swap(new_vec);;
-        //       } else {
         communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                            persistent_vector->get_local_values());
-        //       }
     }
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const

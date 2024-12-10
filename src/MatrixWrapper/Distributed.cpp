@@ -165,6 +165,7 @@ void generate_reorder_map(
     label rank = exec_handler.get_rank();
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
+    sleep(rank);
     for (size_t i = 0; i < linops.size(); i++) {
         auto &m = maps[i];
         auto map = std::make_shared<gko::array<label>>(
@@ -277,14 +278,16 @@ void update_impl(
     auto comm = exec_handler.get_communicator();
     auto ref_exec = exec_handler.get_ref_exec();
     auto device_exec = exec_handler.get_device_exec();
+    bool force_host_buffer = exec_handler.get_gko_force_host_buffer();
 
     // perform all-to-all updates first
     auto all_to_all_update = [comm, ref_exec, device_exec,
-                              all_to_all_update_data, host_A]() {
+                              all_to_all_update_data, host_A,
+                              force_host_buffer]() {
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
             communicate_values(ref_exec, device_exec, comm, comm_pattern,
-                               send_data_ptr, data_ptr, true);
+                               send_data_ptr, data_ptr, force_host_buffer);
         }
     };
 

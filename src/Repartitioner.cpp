@@ -261,7 +261,6 @@ Repartitioner::repartition_comm_pattern(
     merged_target_sizes.push_back(target_sizes[0]);
     merged_send_idxs.emplace_back(std::vector<label>(send_idxs[0]));
 
-
     for (size_t i = 1; i < target_ids.size(); i++) {
         // communicates with same target rank
         // thus we have only have to adapt the number
