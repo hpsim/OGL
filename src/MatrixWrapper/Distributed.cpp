@@ -165,7 +165,6 @@ void generate_reorder_map(
     label rank = exec_handler.get_rank();
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
-    sleep(rank);
     for (size_t i = 0; i < linops.size(); i++) {
         auto &m = maps[i];
         auto map = std::make_shared<gko::array<label>>(

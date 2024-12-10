@@ -22,8 +22,10 @@ extern char **my_argv;
 int my_argc;
 char **my_argv;
 
+straneoioen
 
-class CommunicationPatternEnvironment : public testing::Environment {
+
+    class CommunicationPatternEnvironment : public testing::Environment {
 public:
     void SetUp()
     {
