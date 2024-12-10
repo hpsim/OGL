@@ -51,24 +51,28 @@ struct VectorInitFunctor {
     void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
                     persistent_vector) const
     {
-        auto repartitioner = dist_matrix_->get_repartitioner();
-        auto host_size = repartitioner->get_orig_size();
-        auto repart_size = repartitioner->get_repart_size();
-        word msg{"updating array " + name_ + " of host size " +
-                 std::to_string(host_size) + " repartitioned size " +
-                 std::to_string(repart_size)};
-        LOG_1(verbose_, msg)
+       auto re_init_vec = init();
+       persistent_vector.swap(re_init_vec);
 
-        auto ref_exec = exec_.get_ref_exec();
-        auto host_view = gko::array<T>::const_view(ref_exec, host_size, other_);
 
-        // TODO store
-        auto comm_pattern = compute_gather_to_owner_counts(
-            exec_, repartitioner->get_ranks_per_gpu(), host_size);
-        bool host_buffer = exec_.get_gko_force_host_buffer();
+       //auto repartitioner = dist_matrix_->get_repartitioner();
+       //auto host_size = repartitioner->get_orig_size();
+       //auto repart_size = repartitioner->get_repart_size();
+       //word msg{"updating array " + name_ + " of host size " +
+       //         std::to_string(host_size) + " repartitioned size " +
+       //         std::to_string(repart_size)};
+       //LOG_1(verbose_, msg)
 
-        communicate_values(exec_, comm_pattern, host_view.get_const_data(),
-                           persistent_vector->get_local_values());
+       //auto ref_exec = exec_.get_ref_exec();
+       //auto host_view = gko::array<T>::const_view(ref_exec, host_size, other_);
+
+       //// TODO store
+       //auto comm_pattern = compute_gather_to_owner_counts(
+       //    exec_, repartitioner->get_ranks_per_gpu(), host_size);
+       //bool host_buffer = exec_.get_gko_force_host_buffer();
+
+       //communicate_values(exec_, comm_pattern, host_view.get_const_data(),
+       //                   persistent_vector->get_local_values());
     }
 
     std::shared_ptr<gko::experimental::distributed::Vector<T>> init() const
@@ -171,6 +175,7 @@ public:
     void copy_back()
     {
         auto exec = exec_.get_device_exec();
+        auto rank = exec_.get_rank();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_communicator();
         bool host_buffer = exec_.get_gko_force_host_buffer();

@@ -186,15 +186,16 @@ void communicate_values(
                 target_exec, recv_buffer_size, recv_buffer);
             recv_view = tmp;
         }
-        // src_exec is not host
+        // src_exec is device
         // copy to host first then communicate
         if (src_exec != src_exec->get_master()) {
             label send_size = comm_pattern.send_offsets.back();
             auto send_view = gko::array<scalar>::const_view(src_exec, send_size,
                                                             send_buffer);
-            auto tmp = gko::array<scalar>(src_exec->get_master(), send_size);
+            auto tmp = gko::array<scalar>(src_exec, send_size);
 
             tmp = send_view;
+	    tmp.set_executor(target_exec);
 
             comm->all_to_all_v(src_exec, tmp.get_const_data(),
                                comm_pattern.send_counts.data(),
