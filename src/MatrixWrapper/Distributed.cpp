@@ -76,7 +76,8 @@ void generate_pairwise_update_data(
         label linop_id = -1;  //(fuse)? -1 : id;
         if (id >= 0) {
             continue;
-        }  // skip id since id < 3 is ldu and never needs pairwise communication
+        }  // skip id since id >= 0 are ldu and never needs pairwise
+           // communication
         label mode = -1;
         label comm_rank = -1;
         label send_id = id;
@@ -84,10 +85,10 @@ void generate_pairwise_update_data(
         bool local =
             repartitioner->get_owner_rank(in->get_comm_rank()[i]) == rank;
 
+        linop_id = id;
         if (!owner) {
             mode = 0;  // send
             comm_rank = repartitioner->get_owner_rank(in->get_orig_rank()[i]);
-            linop_id = id;
         } else {
             // if already on rank mark as local otherwise always receive
             comm_rank = in->get_orig_rank()[i];
@@ -97,16 +98,16 @@ void generate_pairwise_update_data(
 
             // this can be either local or non local
             // if it is moved to local it would be 0 otherwise -1
-            linop_id = id;
-            if (fuse && local) {
-                linop_id = 0;
-                linop_offset = linop_local_offset;
-                linop_local_offset += length;
-            }
-            if (fuse && !local) {
-                linop_id = -1;
-                linop_offset = linop_non_local_offset;
-                linop_non_local_offset += length;
+            if (fuse) {
+                if (local) {
+                    linop_id = 0;
+                    linop_offset = linop_local_offset;
+                    linop_local_offset += length;
+                } else {
+                    linop_id = -1;
+                    linop_offset = linop_non_local_offset;
+                    linop_non_local_offset += length;
+                }
             }
         }
         // if fused we only have a single dest linop with id -1
@@ -276,6 +277,7 @@ void update_impl(
 {
     auto comm = exec_handler.get_communicator();
     auto ref_exec = exec_handler.get_ref_exec();
+    auto rank = exec_handler.get_rank();
     auto device_exec = exec_handler.get_device_exec();
     bool force_host_buffer = exec_handler.get_gko_force_host_buffer();
 
@@ -295,7 +297,7 @@ void update_impl(
     // perform pairwise communications
     // this update interface data which needs communication
     auto pairwise_communicate = [comm, ref_exec, device_exec,
-                                 pairwise_update_data, host_A]() {
+                                 pairwise_update_data, host_A, rank]() {
         for (auto [id, send, comm_rank, length, send_id, recv_ptr] :
              pairwise_update_data) {
             std::vector<scalar> send_buffer;
@@ -313,19 +315,21 @@ void update_impl(
             };
 
             const scalar *send_ptr = get_send_ptr();
+            sleep(rank);
 
             if (send == 0) {
                 for (size_t i = 0; i < length; i++) {
-                    send_buffer.push_back(send_ptr[i] * -1.0);
+                    send_buffer.push_back(-send_ptr[i]);
                 }
                 comm->send(ref_exec, send_buffer.data(), length, comm_rank, 0);
             }
             if (send == 1) {
+                // TODO check if received is correct
                 comm->recv(device_exec, recv_ptr, length, comm_rank, 0);
             }
             if (send == 2) {
                 for (size_t i = 0; i < length; i++) {
-                    send_buffer.push_back(send_ptr[i] * -1.0);
+                    send_buffer.push_back(-send_ptr[i]);
                 }
                 // create view into src and dst
                 auto src_view = gko::array<scalar>::const_view(
@@ -429,6 +433,10 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                     exec_handler, host_A,
                     (!owner) ? non_local_sparsity : repart_non_loc_sparsity,
                     linops, fuse, repartitioner, pairwise_update_data););
+
+    std::stable_sort(pairwise_update_data.begin(), pairwise_update_data.end(),
+                     [&](auto &a, auto &b) { return a.id < b.id; });
+
 
     std::shared_ptr<dist_mtx> dist_A;
     // recv_gather_idxs are send upon creation to ginkgo distributed matrix
