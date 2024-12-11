@@ -7,23 +7,28 @@
 namespace detail {
 
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in, std::vector<label> ids)
+    std::vector<std::vector<label>> in)
 {
-    auto id_permutation =
-        sort_permutation(ids, [](label a, label b) { return a < b; });
     std::map<label, label> col_map;
+    std::vector<label> global_cols;
 
+    for (auto &col : in) {
+        for (auto val : col) {
+            global_cols.push_back(val);
+        }
+    }
+
+    auto id_permutation =
+        sort_permutation(global_cols, [](label a, label b) { return a < b; });
+
+    global_cols = apply_permutation(global_cols, id_permutation);
 
     label ctr = 0;
-    for (auto id : id_permutation) {
-        auto &cols = in[id];
-        for (auto col : cols) {
-            // new element found
-            if (col_map.find(col) == col_map.end()) {
-                // global_idx -> compressed
-                col_map[col] = ctr;
-                ctr++;
-            }
+    for (auto col : global_cols) {
+        // new element found
+        if (col_map.find(col) == col_map.end()) {
+            col_map[col] = ctr;
+            ctr++;
         }
     }
 
@@ -33,17 +38,14 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     }
 
     std::vector<std::vector<label>> ret;
-    for (auto id : id_permutation) {
-        // TODO std::transform would be better
-        std::vector<label> uncompressed(in[id]);
+    for (auto &col : in) {
         std::vector<label> compressed;
-        compressed.reserve(uncompressed.size());
-        for (auto &val : uncompressed) {
+        compressed.reserve(col.size());
+        for (auto val : col) {
             compressed.push_back(col_map[val]);
         }
         ret.push_back(compressed);
     }
-
 
     return {ret, map};
 }
