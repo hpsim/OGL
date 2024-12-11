@@ -36,6 +36,12 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
+/* @brief compute compress column indices
+**
+**@param in - vector of vectors of column indices per interface/sub-matrix
+**@param ids - vector of corresponding rank idxs on which the sub-matrix was
+*originally created
+*/
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> ids);
 }  // namespace detail
@@ -150,7 +156,7 @@ public:
 
     std::vector<label> compute_to_global_map(bool fuse) const
     {
-        return std::get<1>(detail::compress_cols(cols_, id_));
+        return std::get<1>(detail::compress_cols(cols_, orig_rank_));
     }
 
     // make this a free function
@@ -163,7 +169,7 @@ public:
         if (!repartioned) {
             return {rows_,
                     (compress_cols)
-                        ? std::get<0>(detail::compress_cols(cols_, id_))
+                        ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
                         : cols_,
                     map_, id_};
         }
@@ -258,9 +264,10 @@ public:
         std::vector<label> map;
         map.reserve(reserve_size);
 
-        auto or_cols = (compress_cols)
-                           ? std::get<0>(detail::compress_cols(cols_, id_))
-                           : cols_;
+        auto or_cols =
+            (compress_cols)
+                ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
+                : cols_;
 
         label map_offset = 0;
 

@@ -66,8 +66,11 @@ Repartitioner::repartition_sparsity(
     };
 
 
+    /* Helper function, create and return gathered sparsity pattern based on
+     * in_sparsity
+     *  */
     auto create_sparsity = [&](const auto &in_sparsity, auto &rows, auto &cols,
-                               auto &map, bool fuse) {
+                               auto &map) {
         auto lengths_tmp = in_sparsity->get_lengths();
         auto size_comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_gpu, lengths_tmp.size());
@@ -105,7 +108,7 @@ Repartitioner::repartition_sparsity(
     auto loc_row =
         gather_vector(loc_nnz, offset, src_local_pattern->get_rows());
     auto ret_local_sparsity =
-        create_sparsity(src_local_pattern, loc_row, loc_col, loc_map, true);
+        create_sparsity(src_local_pattern, loc_row, loc_col, loc_map);
 
     size_t non_loc_nnz = src_non_local_pattern->get_nnz();
     auto non_loc_map =
@@ -116,7 +119,7 @@ Repartitioner::repartition_sparsity(
     auto non_loc_col =
         gather_vector(non_loc_nnz, 0, src_non_local_pattern->get_cols());
     auto ret_non_local_sparsity = create_sparsity(
-        src_non_local_pattern, non_loc_row, non_loc_col, non_loc_map, false);
+        src_non_local_pattern, non_loc_row, non_loc_col, non_loc_map);
 
     for (auto &comm_rank : ret_non_local_sparsity->get_comm_rank()) {
         comm_rank = compute_owner_rank(comm_rank, ranks_per_gpu);
@@ -131,7 +134,6 @@ Repartitioner::repartition_sparsity(
         return out;
     };
 
-    // non owning ranks seems to have wrong non-local size
     if (ret_local_sparsity->get_nnz() != 0) {
         ret_local_sparsity->move_interface(ret_non_local_sparsity, rank,
                                            convert_to_local);
