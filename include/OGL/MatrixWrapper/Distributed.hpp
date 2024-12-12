@@ -42,9 +42,9 @@ public:
         label id;         // original interface id on orig rank
         label send;       // 0 - send, 1, receive, 2 same_rank
         label comm_rank;  // other side of communication
-        label length;
-        label send_id;
-        scalar *recv_ptr;
+        label length;     // length of the interface to communicate
+        label send_id;    //
+        bool local;       //
     };
 
     using gko::experimental::EnableDistributedLinOp<
@@ -94,6 +94,8 @@ public:
             this->pairwise_update_data_ = other.pairwise_update_data_;
             this->reorder_maps_ = other.reorder_maps_;
             this->compress_to_global_ = other.compress_to_global_;
+            this->local_offset_ = other.local_offset_;
+            this->linops_ = other.linops_;
         }
         return *this;
     }
@@ -119,6 +121,8 @@ public:
                 std::move(other.pairwise_update_data_);
             this->reorder_maps_ = std::move(other.reorder_maps_);
             this->compress_to_global_ = std::move(other.compress_to_global_);
+            this->local_offset_ = other.local_offset_;
+            this->linops_ = std::move(other.linops_);
         }
         return *this;
     }
@@ -139,7 +143,8 @@ public:
         std::vector<pairwise_data> pairwise_update_data,
         std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
             reorder_maps,
-        std::vector<label> compress_to_global)
+        std::vector<label> compress_to_global, size_t local_offset,
+        std::map<label, std::shared_ptr<gko::LinOp>> linops)
         : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
@@ -149,7 +154,9 @@ public:
           pairwise_update_data_(pairwise_update_data),
           repartitioner_(repartitioner),
           reorder_maps_(reorder_maps),
-          compress_to_global_(compress_to_global)
+          compress_to_global_(compress_to_global),
+          local_offset_(local_offset),
+          linops_(linops)
     {
         this->set_size(dist_mtx_->get_size());
     }
@@ -219,6 +226,12 @@ private:
         reorder_maps_;
 
     std::vector<label> compress_to_global_;
+
+    size_t local_offset_;  // number of local ldu elements - maybe we can get
+                           // this from repartitioner
+
+    std::map<label, std::shared_ptr<gko::LinOp>>
+        linops_;  // map between linop id and shared ptr to linop
 };
 
 std::shared_ptr<const gko::LinOp> get_local(
