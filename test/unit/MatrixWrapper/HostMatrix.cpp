@@ -83,11 +83,13 @@ public:
             fvMatrix->boundaryCoeffs(), fvMatrix->internalCoeffs(), interfaces,
             dict, "fieldName", 0);
 
+        std::cout << __FILE__ << __LINE__ << " done hostmatrixwrapper \n";
         partition_ = gko::share(
             gko::experimental::distributed::build_partition_from_local_size<
                 label, label>(exec->get_ref_exec(),
                               *exec->get_communicator().get(),
                               exp_size[name_]));
+        std::cout << __FILE__ << __LINE__ << " done partition \n";
     }
 
     std::string name_;
@@ -114,68 +116,66 @@ TEST(HostMatrixTest, returnsCorrectSize)
 {
     auto mesh = ((HostMatrixEnvironment *)global_env)->mesh;
     auto fvMatrix = ((HostMatrixEnvironment *)global_env)->fvMatrix;
-    // auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
-    // auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-    // auto rank = exec->get_rank();
-    // auto name = ((HostMatrixEnvironment *)global_env)->name_;
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto rank = exec->get_rank();
+    auto name = ((HostMatrixEnvironment *)global_env)->name_;
 
-    // EXPECT_EQ(mesh->C().size(), exp_size[name]);
-    // EXPECT_EQ(hostMatrix->get_size()[0], exp_size[name]);
-    // EXPECT_EQ(hostMatrix->get_size()[1], exp_size[name]);
-    // EXPECT_EQ(hostMatrix->get_local_nrows(), exp_size[name]);
-    // EXPECT_EQ(hostMatrix->get_num_interfaces(),
-    // exp_num_interface[name][rank]);
+    EXPECT_EQ(mesh->C().size(), exp_size[name]);
+    EXPECT_EQ(hostMatrix->get_size()[0], exp_size[name]);
+    EXPECT_EQ(hostMatrix->get_size()[1], exp_size[name]);
+    EXPECT_EQ(hostMatrix->get_local_nrows(), exp_size[name]);
+    EXPECT_EQ(hostMatrix->get_num_interfaces(), exp_num_interface[name][rank]);
 }
 
-// TEST(HostMatrixTest, canCreateCommunicationPattern)
-// {
-//     std::shared_ptr<const HostMatrixWrapper> hostMatrix =
-//         ((HostMatrixEnvironment *)global_env)->hostMatrix;
-//     auto commPattern = hostMatrix->create_communication_pattern();
-//     auto comm = commPattern->get_comm();
-//     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-//     auto rank = exec->get_rank();
-//     auto name = ((HostMatrixEnvironment *)global_env)->name_;
+TEST(HostMatrixTest, canCreateCommunicationPattern)
+{
+    std::shared_ptr<const HostMatrixWrapper> hostMatrix =
+        ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto commPattern = hostMatrix->create_communication_pattern();
+    auto comm = commPattern->get_comm();
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto rank = exec->get_rank();
+    auto name = ((HostMatrixEnvironment *)global_env)->name_;
 
-//     EXPECT_EQ(commPattern->send_idxs.size(), exp_send_idx_size[name][rank]);
-//     EXPECT_EQ(commPattern->target_ids, exp_target_ids[name][comm.rank()]);
-//     EXPECT_EQ(commPattern->target_sizes,
-//     exp_target_sizes[name][comm.rank()]);
-// }
+    EXPECT_EQ(commPattern->send_idxs.size(), exp_send_idx_size[name][rank]);
+    EXPECT_EQ(commPattern->target_ids, exp_target_ids[name][comm.rank()]);
+    EXPECT_EQ(commPattern->target_sizes, exp_target_sizes[name][comm.rank()]);
+}
 
-// TEST(HostMatrixTest, canGenerateLocalSparsityPattern)
-// {
-//     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
-//     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-//     auto name = ((HostMatrixEnvironment *)global_env)->name_;
-//     auto partition = ((HostMatrixEnvironment *)global_env)->partition_;
+TEST(HostMatrixTest, canGenerateLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto name = ((HostMatrixEnvironment *)global_env)->name_;
+    auto partition = ((HostMatrixEnvironment *)global_env)->partition_;
 
-//     auto [localSparsity, nonLocalSparsity] =
-//         hostMatrix->compute_sparsity_patterns(partition);
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(partition);
 
-//     EXPECT_EQ(localSparsity->get_rows(), exp_local_rows[name]);
-//     EXPECT_EQ(localSparsity->get_cols(), exp_local_cols[name]);
-//     EXPECT_EQ(localSparsity->get_map(), exp_local_map[name]);
-// }
+    EXPECT_EQ(localSparsity->get_rows(), exp_local_rows[name]);
+    EXPECT_EQ(localSparsity->get_cols(), exp_local_cols[name]);
+    EXPECT_EQ(localSparsity->get_map(), exp_local_map[name]);
+}
 
-// TEST(HostMatrixTest, canGenerateNonLocalSparsityPattern)
-// {
-//     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
-//     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-//     auto comm = exec->get_gko_mpi_device_comm();
-//     auto rank = exec->get_rank();
-//     auto name = ((HostMatrixEnvironment *)global_env)->name_;
-//     auto partition = ((HostMatrixEnvironment *)global_env)->partition_;
+TEST(HostMatrixTest, canGenerateNonLocalSparsityPattern)
+{
+    auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
+    auto exec = ((HostMatrixEnvironment *)global_env)->exec;
+    auto comm = exec->get_gko_mpi_device_comm();
+    auto rank = exec->get_rank();
+    auto name = ((HostMatrixEnvironment *)global_env)->name_;
+    auto partition = ((HostMatrixEnvironment *)global_env)->partition_;
 
-//     auto [localSparsity, nonLocalSparsity] =
-//         hostMatrix->compute_sparsity_patterns(partition);
+    auto [localSparsity, nonLocalSparsity] =
+        hostMatrix->compute_sparsity_patterns(partition);
 
-//     // we dont test the cols expected for now,
-//     // as they are in compressed format
-//     EXPECT_EQ(nonLocalSparsity->get_rows(), exp_non_local_rows[name][rank]);
-//     EXPECT_EQ(nonLocalSparsity->get_cols(), exp_non_local_cols[name][rank]);
-//     EXPECT_EQ(nonLocalSparsity->get_map(), exp_non_local_map[name][rank]);
-// }
+    // we dont test the cols expected for now,
+    // as they are in compressed format
+    EXPECT_EQ(nonLocalSparsity->get_rows(), exp_non_local_rows[name][rank]);
+    EXPECT_EQ(nonLocalSparsity->get_cols(), exp_non_local_cols[name][rank]);
+    EXPECT_EQ(nonLocalSparsity->get_map(), exp_non_local_map[name][rank]);
+}
 
 
 int main(int argc, char *argv[])
