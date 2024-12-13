@@ -324,6 +324,8 @@ public:
 
     /* @brief move all interfaces to this data structure that communicate to
      * a given rank
+     *
+     * @param comm_rank move if other.comm_rank == comm_rank
      *  */
     template <typename Func>
     void move_interface(std::shared_ptr<SparsityPattern> other, label comm_rank,
@@ -337,9 +339,9 @@ public:
         auto &other_comm_rank = other->get_comm_rank();
         auto &other_nnz = other->get_nnz();
 
-        // move to own
+        // move to own ie local sparsity
         std::vector<label> del_from_other{};
-        for (int i = 0; i < other->get_rows().size(); i++) {
+        for (int i = 0; i < other_rows.size(); i++) {
             if (other_comm_rank[i] == comm_rank) {
                 nnz_ += other_rows[i].size();
                 rows_.push_back(std::move(other_rows[i]));
