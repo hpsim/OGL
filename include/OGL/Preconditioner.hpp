@@ -402,17 +402,20 @@ public:
                     MLOG_1(verbose_, msg)
                     word type =
                         controls.lookupOrDefault("type", word("Schwarz"));
-                    if (type == "Schwarz") {
-                        auto local_solver = std::const_pointer_cast<gko::LinOp>(
-                            gko::as<ras>(ret)->get_local_solver());
-                        gko::as<gko::UpdateMatrixValue>(local_solver)
-                            ->update_matrix_value(
-                                gko::as<RepartDistMatrix>(gkomatrix)
-                                    ->get_local_matrix());
-                    } else {
-                        gko::as<gko::UpdateMatrixValue>(ret)
-                            ->update_matrix_value(gkomatrix);
-                    }
+                    FatalErrorInFunction << "Not Implemented"
+                                         << abort(FatalError);
+                    //                    if (type == "Schwarz") {
+                    //                       auto local_solver =
+                    //                       std::const_pointer_cast<gko::LinOp>(
+                    //                           gko::as<ras>(ret)->get_local_solver());
+                    //                       gko::as<gko::UpdateMatrixValue>(local_solver)
+                    //                           ->update_matrix_value(
+                    //                               gko::as<RepartDistMatrix>(gkomatrix)
+                    //                                   ->get_local_matrix());
+                    //                   } else {
+                    //                        gko::as<gko::UpdateMatrixValue>(ret)
+                    //                           ->update_matrix_value(gkomatrix);
+                    //                   }
                 }
 
                 return ret;
