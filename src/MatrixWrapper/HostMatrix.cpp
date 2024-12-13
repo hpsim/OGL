@@ -74,11 +74,13 @@ HostMatrixWrapper::HostMatrixWrapper(
     comm.all_gather(ref_exec, &local_interface_cnt, 1,
                     global_interfaces_recv.data(), 1);
 
-    std::partial_sum(global_interfaces_recv.begin(),
-                     global_interfaces_recv.end(),
-                     global_interfaces_recv.begin() + 1);
-    global_interfaces_recv[0] = 0;
-    local_to_global_interface_idx_ = global_interfaces_recv;
+
+    size_t counter{0};
+    local_to_global_interface_idx_.resize(global_interfaces_recv.size());
+    for (size_t i = 0; i < global_interfaces_recv.size(); i++) {
+        local_to_global_interface_idx_[i] = counter;
+        counter += global_interfaces_recv[i];
+    }
 
     for (label i = 0; i < interfaces.size(); i++) {
         if (interface_getter(interfaces, i) == nullptr) {
