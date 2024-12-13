@@ -75,13 +75,13 @@ public:
         // }
 
         word fieldName{"p"};
-        dimensionSet ds{0, 0, 0, 0, 0};
         field = std::make_shared<
             GeometricField<scalar, Foam::fvPatchField, Foam::volMesh>>(
             Foam::IOobject(fieldName, runTime_->timeName(), runTime_->thisDb(),
                            Foam::IOobject::MUST_READ),
-            *mesh.get(), ds);
+            *mesh.get());
 
+        dimensionSet ds{0, 0, 0, 0, 0};
         fvMatrix = std::make_shared<Foam::fvMatrix<scalar>>(*field.get(), ds);
 
         interfaces = field->boundaryField().scalarInterfaces();
