@@ -44,7 +44,4 @@ timePrecision   6;
 
 runTimeModifiable true;
 
-libs ("libOGL.so");
-
-
 // ************************************************************************* //
