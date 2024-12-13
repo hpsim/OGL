@@ -23,7 +23,7 @@ int my_argc;
 char **my_argv;
 
 
-    class CommunicationPatternEnvironment : public testing::Environment {
+class CommunicationPatternEnvironment : public testing::Environment {
 public:
     void SetUp()
     {
