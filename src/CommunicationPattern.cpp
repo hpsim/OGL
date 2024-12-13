@@ -195,7 +195,7 @@ void communicate_values(
             auto tmp = gko::array<scalar>(src_exec, send_size);
 
             tmp = send_view;
-	    tmp.set_executor(target_exec);
+            tmp.set_executor(target_exec);
 
             comm->all_to_all_v(src_exec, tmp.get_const_data(),
                                comm_pattern.send_counts.data(),

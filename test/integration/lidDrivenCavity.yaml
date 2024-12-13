@@ -7,8 +7,8 @@ case:
     application: icoFoam/cavity
     domain: incompressible
     case: cavity
-    uses:
-      - initialConditions: 0.orig
+    # uses:
+    #   - initialConditions: 0.orig
     post_build:
       - controlDict:
            writeFormat: binary
@@ -21,12 +21,14 @@ case:
             numberOfSubdomains: 4
 variation:
   - operation: decomposePar
-    schema: "decompose/{method}"
+    schema: "decompose/{method}-{numberOfSubdomains}"
     values:
       - method: simple
         numberOfSubdomains: 4
       - method: scotch
         numberOfSubdomains: 4
+      - method: scotch
+        numberOfSubdomains: 3
     variation:
     - operation: fvSolution
       schema: "fuse={fuse}"
