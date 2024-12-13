@@ -51,9 +51,6 @@ struct VectorInitFunctor {
     void update(std::shared_ptr<gko::experimental::distributed::Vector<T>>
                     persistent_vector) const
     {
-        // auto re_init_vec = init();
-        // persistent_vector.swap(re_init_vec);
-
         auto ref_exec = exec_.get_ref_exec();
         auto exec = exec_.get_device_exec();
         auto comm = exec_.get_communicator();
@@ -94,7 +91,7 @@ struct VectorInitFunctor {
         auto host_view =
             gko::array<T>::const_view(exec_.get_ref_exec(), host_size, other_);
 
-        // TODO store
+        // TODO store, this could be stored in dist_matrix_
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
