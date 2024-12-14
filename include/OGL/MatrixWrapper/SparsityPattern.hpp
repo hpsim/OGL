@@ -41,7 +41,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
 **@param in - vector of vectors of column indices per interface/sub-matrix
 */
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in);
+    std::vector<std::vector<label>> in, std::vector<label> orig_rank);
 }  // namespace detail
 
 namespace Foam {
@@ -154,7 +154,7 @@ public:
 
     std::vector<label> compute_to_global_map(bool fuse) const
     {
-        return std::get<1>(detail::compress_cols(cols_));
+        return std::get<1>(detail::compress_cols(cols_, orig_rank_));
     }
 
     // make this a free function
@@ -166,8 +166,9 @@ public:
         // if not repartitioned no ldu interfaces to fuse
         if (!repartioned) {
             return {rows_,
-                    (compress_cols) ? std::get<0>(detail::compress_cols(cols_))
-                                    : cols_,
+                    (compress_cols)
+                        ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
+                        : cols_,
                     map_, id_};
         }
 
@@ -262,7 +263,9 @@ public:
         map.reserve(reserve_size);
 
         auto or_cols =
-            (compress_cols) ? std::get<0>(detail::compress_cols(cols_)) : cols_;
+            (compress_cols)
+                ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
+                : cols_;
 
         label map_offset = 0;
 

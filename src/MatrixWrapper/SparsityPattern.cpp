@@ -6,42 +6,46 @@
 
 namespace detail {
 
-std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in)
-{
-    std::map<label, label> col_map;
-    std::vector<label> global_cols;
 
+std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
+    std::vector<std::vector<label>> in, std::vector<label> ids)
+{
+    auto id_permutation =
+        sort_permutation(ids, [](label a, label b) { return a < b; });
+    std::map<label, label> col_map;
+
+    std::vector<label> global_cols;
     for (auto &col : in) {
         for (auto val : col) {
             global_cols.push_back(val);
         }
     }
 
-    auto id_permutation =
-        sort_permutation(global_cols, [](label a, label b) { return a < b; });
-
-    global_cols = apply_permutation(global_cols, id_permutation);
-
     label ctr = 0;
-    for (auto col : global_cols) {
-        // new element found
-        if (col_map.find(col) == col_map.end()) {
-            col_map[col] = ctr;
+    for (auto id : id_permutation) {
+        auto &cols = in[id];
+        for (auto col : cols) {
+            // new element found
+            if (col_map.find(col) == col_map.end()) {
+                // global_idx -> compressed
+                col_map[col] = ctr;
+            }
             ctr++;
         }
     }
 
-    std::vector<label> map(col_map.size(), 0);
-    for (auto [key, value] : col_map) {
-        map[value] = key;
+    std::vector<label> map(ctr, 0);
+    for (size_t i = 0; i < ctr; i++) {
+        size_t index = col_map[global_cols[i]];
+        map[index] = global_cols[i];
     }
 
     std::vector<std::vector<label>> ret;
-    for (auto &col : in) {
+    for (auto id : id_permutation) {
+        std::vector<label> uncompressed(in[id]);
         std::vector<label> compressed;
-        compressed.reserve(col.size());
-        for (auto val : col) {
+        compressed.reserve(uncompressed.size());
+        for (auto &val : uncompressed) {
             compressed.push_back(col_map[val]);
         }
         ret.push_back(compressed);
@@ -49,6 +53,63 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
 
     return {ret, map};
 }
+
+
+// std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
+//     std::vector<std::vector<label>> in, std::vector<label> orig_ids)
+// {
+//     std::map<label, label> col_map;
+//     std::vector<label> global_cols;
+//
+//     for (auto &col : in) {
+//         for (auto val : col) {
+//             global_cols.push_back(val);
+//         }
+//     }
+//
+//     // it does not need to ordered by global cols, because it does not send
+//     ordered
+//     // it only sends ordered based on ranks
+//     auto id_permutation =
+//         sort_permutation(global_cols, [](label a, label b) { return a < b;
+//         });
+//
+//     global_cols = apply_permutation(global_cols, id_permutation);
+//
+//     label ctr = 0;
+//     for (auto col : global_cols) {
+//         // new element found
+//         if (col_map.find(col) == col_map.end()) {
+//             col_map[col] = ctr;
+//             // ctr++
+//         }
+//         // TODO
+//         // NOTE the counter is increased in any case
+//         // since we send all rows even if they are send multiple times
+//         // we could send rows only once, by adapting Communication pattern
+//         // but i guess this won't change much performance wise
+//         ctr++;
+//     }
+//
+//     std::vector<label> map(global_cols.size(), 0);
+//     for (size_t i=0;i < global_cols.size();i++) {
+//         size_t index = col_map[global_cols[i]];
+//         map[index] = global_cols[i];
+//     }
+//
+//
+//     std::vector<std::vector<label>> ret;
+//     for (auto &col : in) {
+//         std::vector<label> compressed;
+//         compressed.reserve(col.size());
+//         for (auto val : col) {
+//             compressed.push_back(col_map[val]);
+//         }
+//         ret.push_back(compressed);
+//     }
+//
+//     return {ret, map};
+// }
 
 }  // namespace detail
 
