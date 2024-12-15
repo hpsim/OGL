@@ -79,6 +79,8 @@ Repartitioner::repartition_sparsity(
 
         auto orig_ids =
             gather_closure(size_comm_pattern, in_sparsity->get_id(), 0);
+        auto orig_comm_ids =
+            gather_closure(size_comm_pattern, in_sparsity->get_comm_id(), 0);
         auto orig_ranks =
             gather_closure(size_comm_pattern, in_sparsity->get_orig_rank(), 0);
         auto comm_ranks =
@@ -94,7 +96,7 @@ Repartitioner::repartition_sparsity(
                 std::vector<label>(cols.data() + ctr,
                                    cols.data() + ctr + length),
                 std::vector<label>(map.data() + ctr, map.data() + ctr + length),
-                orig_ids[i], orig_ranks[i], comm_ranks[i]);
+                orig_ids[i], orig_comm_ids[i], orig_ranks[i], comm_ranks[i]);
             ctr += length;
         }
         return sparsity;

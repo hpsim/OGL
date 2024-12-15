@@ -197,8 +197,12 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                 continue;
             }
 
+
+            const auto &coupledPatch =
+                refCast<const coupledFvPatch>(iface->interface());
             const auto &patch =
                 refCast<const processorFvPatch>(iface->interface());
+
 
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
@@ -216,8 +220,8 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                                    face_cells.cdata() + interface_size),
                 convert_to_global(partition, cols.data(), interface_size,
                                   neighbProcNo),
-                rank, neighbProcNo,
-                (local_to_global_interface_idx_[rank] + i) * -1);
+                rank, neighbProcNo, -(local_to_global_interface_idx_[rank] + i),
+                -(local_to_global_interface_idx_[neighbProcNo] + i));
         }
 
         if (isA<cyclicFvPatch>(iface->interface())) {
@@ -234,11 +238,12 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
 #endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
 
+            // FIXME the other comm_id is wrong
             pattern->insert_interface(
                 std::vector<label>(face_cells.cdata(),
                                    face_cells.cdata() + interface_size),
                 std::vector<label>(cols.cdata(), cols.cdata() + interface_size),
-                rank, rank, (i + 1) * -1);
+                rank, rank, (i + 1) * -1, (i + 1) * -1);
         }
     }
     return pattern;
@@ -276,18 +281,18 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_local_sparsity()
     // insert upper
     pattern->insert_interface(std::vector(lower, lower + upper_nnz_),
                               std::vector(upper, upper + upper_nnz_), rank,
-                              rank, 0);
+                              rank, 0, 0);
     // insert lower
     pattern->insert_interface(std::vector(upper, upper + upper_nnz_),
                               std::vector(lower, lower + upper_nnz_), rank,
-                              rank, 1, false);
+                              rank, 1, 1, false);
     // insert diag
     std::vector<label> drows(nrows_);
     std::iota(drows.begin(), drows.end(), 0);
     std::vector<label> dcols(nrows_);
     std::iota(dcols.begin(), dcols.end(), 0);
 
-    pattern->insert_interface(std::move(drows), std::move(dcols), rank, rank,
+    pattern->insert_interface(std::move(drows), std::move(dcols), rank, rank, 2,
                               2);
 
     // Scan through given rows and insert row and column indices into array

@@ -65,6 +65,7 @@ void generate_pairwise_update_data(
 
     for (size_t i = 0; i < in->get_id().size(); i++) {
         auto id = in->get_id()[i];
+        auto orig_rank = in->get_orig_rank()[i];
         label length = in->get_rows()[i].size();
         label linop_id = -1;  //(fuse)? -1 : id;
                               //

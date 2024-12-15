@@ -41,7 +41,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
 **@param in - vector of vectors of column indices per interface/sub-matrix
 */
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in, std::vector<label> orig_rank);
+    std::vector<std::vector<label>> in, std::vector<label> comm_id);
 }  // namespace detail
 
 namespace Foam {
@@ -115,7 +115,7 @@ public:
      *  */
     void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
                           label orig_rank, label comm_rank, label id,
-                          bool row_major_order = true)
+                          label comm_id, bool row_major_order = true)
     {
         OGL_ASSERT_EQ(rows.size(), cols.size());
 
@@ -130,7 +130,7 @@ public:
         cols_.push_back(cols);
 
         id_.push_back(id);
-
+        comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
 
@@ -138,8 +138,8 @@ public:
     }
 
     void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
-                          std::vector<label> &&map, label id, label orig_rank,
-                          label comm_rank)
+                          std::vector<label> &&map, label id, label comm_id,
+                          label orig_rank, label comm_rank)
     {
         OGL_ASSERT_EQ(rows.size(), cols.size());
 
@@ -148,16 +148,21 @@ public:
         cols_.push_back(cols);
         map_.push_back(map);
         id_.push_back(id);
+        comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
     }
 
     std::vector<label> compute_to_global_map(bool fuse) const
     {
-        return std::get<1>(detail::compress_cols(cols_, orig_rank_));
+        return std::get<1>(detail::compress_cols(cols_, comm_id_));
     }
 
-    // make this a free function
+    // TODO could make this a free function
+    /* @brief returns rows, columns and mapping and id for consumption on create
+     * distributed
+     *
+     */
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
     get_vecs(bool compress_cols, bool repartioned)
@@ -167,7 +172,7 @@ public:
         if (!repartioned) {
             return {rows_,
                     (compress_cols)
-                        ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
+                        ? std::get<0>(detail::compress_cols(cols_, comm_id_))
                         : cols_,
                     map_, id_};
         }
@@ -262,10 +267,9 @@ public:
         std::vector<label> map;
         map.reserve(reserve_size);
 
-        auto or_cols =
-            (compress_cols)
-                ? std::get<0>(detail::compress_cols(cols_, orig_rank_))
-                : cols_;
+        auto or_cols = (compress_cols)
+                           ? std::get<0>(detail::compress_cols(cols_, comm_id_))
+                           : cols_;
 
         label map_offset = 0;
 
@@ -338,6 +342,7 @@ public:
         auto &other_map = other->get_map();
         auto &other_cols = other->get_cols();
         auto &other_id = other->get_id();
+        auto &other_comm_id = other->get_comm_id();
         auto &other_orig_rank = other->get_orig_rank();
         auto &other_comm_rank = other->get_comm_rank();
         auto &other_nnz = other->get_nnz();
@@ -353,6 +358,7 @@ public:
                 comm_rank_.push_back(std::move(other_comm_rank[i]));
                 orig_rank_.push_back(std::move(other_orig_rank[i]));
                 id_.push_back(std::move(other_id[i]));
+                comm_id_.push_back(std::move(other_comm_id[i]));
                 del_from_other.push_back(i);
             }
         }
@@ -368,6 +374,7 @@ public:
             other_comm_rank.erase(other_comm_rank.begin() + del);
             other_orig_rank.erase(other_orig_rank.begin() + del);
             other_id.erase(other_id.begin() + del);
+            other_comm_id.erase(other_comm_id.begin() + del);
         }
 
         other->get_nnz() = 0;
@@ -406,6 +413,8 @@ public:
 
     std::vector<label> &get_comm_rank() { return comm_rank_; }
 
+    std::vector<label> &get_comm_id() { return comm_id_; }
+
     label &get_nnz() { return nnz_; }
 
     label get_nnz() const { return nnz_; }
@@ -428,6 +437,9 @@ private:
 
     // map to HostMatrix.get_interface(id)
     std::vector<label> id_;
+
+    // the id of the interface with which this interface communicates
+    std::vector<label> comm_id_;
 
     std::vector<label> orig_rank_;
 

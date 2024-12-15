@@ -8,10 +8,10 @@ namespace detail {
 
 
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in, std::vector<label> ids)
+    std::vector<std::vector<label>> in, std::vector<label> comm_id)
 {
     auto id_permutation =
-        sort_permutation(ids, [](label a, label b) { return a < b; });
+        sort_permutation(comm_id, [](label a, label b) { return a > b; });
     std::map<label, label> col_map;
 
     std::vector<label> global_cols;
@@ -41,8 +41,8 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     }
 
     std::vector<std::vector<label>> ret;
-    for (auto id : id_permutation) {
-        std::vector<label> uncompressed(in[id]);
+    for (size_t i = 0; i < in.size(); i++) {
+        std::vector<label> uncompressed(in[i]);
         std::vector<label> compressed;
         compressed.reserve(uncompressed.size());
         for (auto &val : uncompressed) {
