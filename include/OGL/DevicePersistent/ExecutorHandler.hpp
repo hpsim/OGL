@@ -54,8 +54,11 @@ struct ExecutorInitFunctor {
                        "with CUDA backend enabled."
                     << abort(FatalError);
             }
-            return gko::share(gko::CudaExecutor::create(
-                device_id_ % gko::CudaExecutor::get_num_devices(), host_exec));
+            label id = device_id_ % gko::CudaExecutor::get_num_devices();
+            word msg = "Create CUDA executor on device " + std::to_string(id) +
+                       " on rank " + std::to_string(comm_->rank());
+            LOG_0(verbose_, msg)
+            return gko::share(gko::CudaExecutor::create(id, host_exec));
         }
         if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
@@ -87,8 +90,11 @@ struct ExecutorInitFunctor {
                        "with HIP backend enabled."
                     << abort(FatalError);
             }
-            auto ret = gko::share(gko::HipExecutor::create(
-                device_id_ % gko::HipExecutor::get_num_devices(), host_exec));
+            label id = device_id_ % gko::HipExecutor::get_num_devices();
+            word msg = "Create HIP executor on device " + std::to_string(id) +
+                       " on rank " + std::to_string(comm_->rank());
+            LOG_0(verbose_, msg)
+            auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
         if (executor_name_ == "omp") {
