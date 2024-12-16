@@ -240,28 +240,31 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern)
     std::vector<label> ranks{rank};
     auto local_sparsity = std::make_shared<SparsityPattern>();
     // upper
-    local_sparsity->insert_interface({0, 0, 1, 2}, {1, 2, 3, 3}, rank, rank, 0);
+    local_sparsity->insert_interface({0, 0, 1, 2}, {1, 2, 3, 3}, rank, rank, 0,
+                                     0);
     // lower
-    local_sparsity->insert_interface({1, 2, 3, 3}, {0, 0, 1, 2}, rank, rank, 1);
+    local_sparsity->insert_interface({1, 2, 3, 3}, {0, 0, 1, 2}, rank, rank, 1,
+                                     1);
     // diag
-    local_sparsity->insert_interface({0, 1, 2, 3}, {0, 1, 2, 3}, rank, rank, 2);
+    local_sparsity->insert_interface({0, 1, 2, 3}, {0, 1, 2, 3}, rank, rank, 2,
+                                     2);
 
     auto non_local_sparsity = std::make_shared<SparsityPattern>();
     if (rank == 0) {
-        non_local_sparsity->insert_interface({1, 3}, {4, 6}, 0, 1, -1);
-        non_local_sparsity->insert_interface({2, 3}, {8, 9}, 0, 2, -2);
+        non_local_sparsity->insert_interface({1, 3}, {4, 6}, 0, 1, -1, -1);
+        non_local_sparsity->insert_interface({2, 3}, {8, 9}, 0, 2, -2, -1);
     }
     if (rank == 1) {
-        non_local_sparsity->insert_interface({0, 2}, {1, 3}, 1, 0, -1);
-        non_local_sparsity->insert_interface({2, 3}, {12, 13}, 1, 3, -2);
+        non_local_sparsity->insert_interface({0, 2}, {1, 3}, 1, 0, -1, -1);
+        non_local_sparsity->insert_interface({2, 3}, {12, 13}, 1, 3, -2, -1);
     }
     if (rank == 2) {
-        non_local_sparsity->insert_interface({0, 1}, {2, 3}, 2, 0, -1);
-        non_local_sparsity->insert_interface({1, 3}, {12, 14}, 2, 3, -2);
+        non_local_sparsity->insert_interface({0, 1}, {2, 3}, 2, 0, -1, -1);
+        non_local_sparsity->insert_interface({1, 3}, {12, 14}, 2, 3, -2, -2);
     }
     if (rank == 3) {
-        non_local_sparsity->insert_interface({0, 1}, {6, 7}, 3, 1, -1);
-        non_local_sparsity->insert_interface({0, 2}, {9, 11}, 2, 2, -2);
+        non_local_sparsity->insert_interface({0, 1}, {6, 7}, 3, 1, -1, -1);
+        non_local_sparsity->insert_interface({0, 2}, {9, 11}, 2, 2, -2, -2);
     }
 
     // Act
