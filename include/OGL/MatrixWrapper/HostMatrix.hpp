@@ -266,6 +266,8 @@ public:
     gko::dim<2> get_size() const { return gko::dim<2>(nrows_, nrows_); }
 
     const ExecutorHandler &get_exec_handler() const { return exec_; }
+
+    const word get_field_name() const { return field_name_; }
 };
 
 

@@ -264,6 +264,7 @@ void update_impl(
     auto rank = exec_handler.get_rank();
     auto device_exec = exec_handler.get_device_exec();
     bool force_host_buffer = exec_handler.get_gko_force_host_buffer();
+    word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
     auto all_to_all_update = [comm, ref_exec, device_exec,
@@ -276,7 +277,8 @@ void update_impl(
         }
     };
 
-    SIMPLE_TIME(verbose, perform_all_to_all_update, all_to_all_update(););
+    TIME_WITH_FIELDNAME(verbose, perform_all_to_all_update, fieldname,
+                        all_to_all_update(););
 
     auto get_send_ptr = [&](label send_id, label id) {
         if (send_id < 0) {
@@ -322,12 +324,19 @@ void update_impl(
         }
     };
 
-    SIMPLE_TIME(verbose, perform_pairwise_update, pairwise_communicate(););
+    TIME_WITH_FIELDNAME(verbose, perform_pairwise_update, fieldname,
+                        pairwise_communicate(););
 
-    for (auto [reorder_map, data_ptr] : reorder_maps) {
-        reorder_interface_impl<LocalMatrixType>(exec_handler, reorder_map,
-                                                data_ptr);
-    }
+    auto reorder_data =
+        [reorder_maps, exec_handler]() {
+            for (auto [reorder_map, data_ptr] : reorder_maps) {
+                reorder_interface_impl<LocalMatrixType>(exec_handler,
+                                                        reorder_map, data_ptr);
+            }
+        }
+
+    TIME_WITH_FIELDNAME(verbose, reorder_matrix_data, fieldname,
+                        reorder_data(););
 }
 
 

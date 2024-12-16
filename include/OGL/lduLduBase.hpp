@@ -302,12 +302,11 @@ public:
         exec_handler_.get_gko_mpi_host_comm()->broadcast(
             exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
-        auto time_per_iter_and_dof =
-            time_per_iter * 1000.0 /
-            repartitioner->get_orig_partition()->get_size();
+        size_t dofs = repartitioner->get_orig_partition()->get_size();
+        auto time_per_iter_and_dof = time_per_iter * 1000.0 / dofs;
         word msg =
-            "\nStatistics:\n\tTime per iteration: " +
-            std::to_string(time_per_iter) +
+            "\nStatistics:\n\tNumber DOFs: " + std::to_string(dofs) +
+            " [#]\n\tTime per iteration: " + std::to_string(time_per_iter) +
             std::string(" [mu s]\n\tTime per residual norm calculation: ") +
             std::to_string(time_for_res_norm_eval) +
             std::string(" [mu s]\n\tTime per iteration and DOF: ") +
