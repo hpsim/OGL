@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <OGL/common.hpp>
+
 #include <ginkgo/ginkgo.hpp>
 
 #include "fvCFD.H"
@@ -200,6 +202,7 @@ protected:
     void apply_impl(const gko::LinOp *b, gko::LinOp *x) const override
     {
         if (this->get_size()[0] > 0 && this->get_size()[1] > 0) {
+            // SIMPLE_TIME(1, combination_apply, this->comb_->apply(b, x););
             this->comb_->apply(b, x);
         }
     }
@@ -211,6 +214,9 @@ protected:
                     const gko::LinOp *beta, gko::LinOp *x) const override
     {
         if (this->get_size()[0] > 0 && this->get_size()[1] > 0) {
+            // SIMPLE_TIME(1,
+            // combination_advanced_apply,this->comb_->apply(alpha, b, beta,
+            // x););
             this->comb_->apply(alpha, b, beta, x);
         }
     }
@@ -223,23 +229,4 @@ namespace detail {
 std::shared_ptr<gko::matrix::Coo<scalar, label>> convert_combination_to_coo(
     std::shared_ptr<const gko::Executor> exec,
     std::shared_ptr<const gko::LinOp> in);
-
-template <typename InnerMatrixType>
-void export_mtx(const word fieldName,
-                std::shared_ptr<CombinationMatrix<InnerMatrixType>> out,
-                const word local, const objectRegistry &db,
-                const word matrixFormat)
-{
-    // std::string folder{db.time().timePath()};
-    // std::filesystem::create_directories(folder);
-    // std::string fn{folder + "/" + fieldName + "_A_" + local + ".mtx"};
-    // std::cout << "exporting " << fn << std::endl;
-    // std::ofstream stream{fn};
-    // stream << std::setprecision(15);
-    //
-    // auto coo = gko::share(
-    //     gko::matrix::Coo<scalar, label>::create(out->get_executor()));
-    // out->convert_to(coo);
-}
-
 }  // namespace detail
