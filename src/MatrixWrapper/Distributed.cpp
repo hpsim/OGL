@@ -293,7 +293,8 @@ void update_impl(
     // this update interface data which needs communication
     auto pairwise_communicate = [comm, ref_exec, device_exec,
                                  pairwise_update_data, host_A, rank,
-                                 &get_send_ptr, &linops, fuse, force_host_buffer]() {
+                                 &get_send_ptr, &linops, fuse,
+                                 force_host_buffer]() {
         for (auto [id, mode, comm_rank, length, send_id, recv_ptr] :
              pairwise_update_data) {
             std::vector<scalar> send_buffer;
@@ -307,17 +308,15 @@ void update_impl(
                 comm->send(ref_exec, send_buffer.data(), length, comm_rank, 0);
             }
             if (mode == 1) {
-		    if (force_host_buffer){
-			 auto tmp = gko::array<scalar>(ref_exec, length);
-			 comm->recv(ref_exec, tmp.get_data() , length, comm_rank, 0);
-		         auto recv_view = gko::array<scalar>::view(
-				device_exec, length, recv_ptr);
-			 recv_view = tmp;
-		    } else {
-                comm->recv(device_exec,  recv_ptr, length, comm_rank, 0);
-
-		    }
-
+                if (force_host_buffer) {
+                    auto tmp = gko::array<scalar>(ref_exec, length);
+                    comm->recv(ref_exec, tmp.get_data(), length, comm_rank, 0);
+                    auto recv_view =
+                        gko::array<scalar>::view(device_exec, length, recv_ptr);
+                    recv_view = tmp;
+                } else {
+                    comm->recv(device_exec, recv_ptr, length, comm_rank, 0);
+                }
             }
             if (mode == 2) {
                 const scalar *send_ptr = get_send_ptr(send_id, id);
