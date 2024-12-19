@@ -343,10 +343,10 @@ void update_impl(
                 reorder_interface_impl<LocalMatrixType>(exec_handler,
                                                         reorder_map, data_ptr);
             }
-        }
+        };
 
     TIME_WITH_FIELDNAME(verbose, reorder_matrix_data, fieldname,
-                        reorder_data(););
+                        reorder_data();)
 }
 
 
