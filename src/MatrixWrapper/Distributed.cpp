@@ -263,7 +263,7 @@ void update_impl(
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_rank();
     auto device_exec = exec_handler.get_device_exec();
-    bool force_host_buffer = exec_handler.get_gko_force_host_buffer();
+    bool force_host_buffer = !exec_handler.get_non_orig_device_comm();
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
@@ -288,6 +288,7 @@ void update_impl(
             return ret;
         }
     };
+
 
     // perform pairwise communications
     // this update interface data which needs communication

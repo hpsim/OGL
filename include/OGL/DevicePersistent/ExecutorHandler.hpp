@@ -123,6 +123,8 @@ class ExecutorHandler
 private:
     const bool gko_force_host_buffer_;
 
+    const bool non_orig_device_comm_;
+
     const bool par_run_;
 
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
@@ -146,6 +148,8 @@ public:
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
+          non_orig_device_comm_(
+              solverControls.lookupOrDefault("MPIxRankOffload", false)),
           par_run_(par_run),
           device_comm_(
               (par_run_)
@@ -161,6 +165,13 @@ public:
         return this->gko_force_host_buffer_;
     }
 
+    /* whether the mpi allows to send data directly to a remote rank
+     * via pair-wise communication
+     * */
+    bool get_non_orig_device_comm() const
+    {
+        return non_orig_device_comm_;
+    }
 
     const std::shared_ptr<gko::Executor> get_device_exec() const
     {

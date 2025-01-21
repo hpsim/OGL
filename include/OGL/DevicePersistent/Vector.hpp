@@ -67,7 +67,7 @@ struct VectorInitFunctor {
         //// TODO store
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
-        bool host_buffer = exec_.get_gko_force_host_buffer();
+        bool host_buffer = !exec_.get_non_orig_device_comm();
 
         communicate_values(ref_exec, exec, comm, comm_pattern,
                            host_view.get_const_data(),
@@ -177,7 +177,7 @@ public:
         auto rank = exec_.get_rank();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_communicator();
-        bool host_buffer = exec_.get_gko_force_host_buffer();
+        bool host_buffer = !exec_.get_non_orig_device_comm();
 
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
