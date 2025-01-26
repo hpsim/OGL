@@ -117,6 +117,9 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
                                           const label *send_buffer,
                                           label send_size, label offset = 0);
 
+/* @class Struct to store communication related data
+**
+*/
 struct CommunicationPattern {
     using comm_size_type = label;
 
@@ -149,10 +152,10 @@ struct CommunicationPattern {
         }
     }
 
-    const gko::experimental::mpi::communicator &get_comm() const
-    {
-        return *exec_handler.get_communicator().get();
-    }
+    // const gko::experimental::mpi::communicator &get_comm() const
+    // {
+    //     return *exec_handler.get_communicator().get();
+    // }
 
 
     /* @brief concatenate all separate send idxs arrays into one contiguous

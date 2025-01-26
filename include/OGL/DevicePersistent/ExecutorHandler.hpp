@@ -13,10 +13,70 @@
 
 namespace Foam {
 
-struct ExecutorInitFunctor {
-    mutable std::shared_ptr<gko::experimental::mpi::communicator> comm_;
 
-    const label device_id_;
+struct DeviceIdHandler {
+    // ratio of inactive to active ranks on the GPU
+    label ranks_per_gpu;
+
+    /*
+     * @param gpus_per_rank ratio between active host ranks and active ranks
+     * gpus on the node i.e. if gpus_per_rank == 1 all host ranks are active on
+     * the gpu, which might lead to oversubscription gpus_per_rank == 2 only
+     * every second rank will be active ...
+     */
+    DeviceIdHandler(label ranks_per_gpu_in) : ranks_per_gpu(ranks_per_gpu_in)
+    {
+        bool par_run = Pstream::parRun();
+        if (!par_run) {
+            FatalErrorInFunction << "Only parallel runs are supported for OGL"
+                                 << exit(FatalError);
+        }
+    }
+
+    /* @brief compute the local device id
+     *
+     * @param num_devices_per_node number of devices per node
+     * @returns
+     */
+    label compute_device_id(label num_devices_per_node) const
+    {
+        // if zero devices present device id is always zero
+        if (num_devices_per_node == 0) {
+            return 0;
+        }
+        label global_rank = Pstream::myProcNo();
+        // clang-format off
+        /* example: machine with 4 cpu cores per node 2 accelerators per node, on node 2
+        * global ranks [0, 1, 2, 3 | 4, 5, 6, 7]
+        * global device id w/o repart  [0, 0, 1, 1 | 2, 2, 3, 3]
+        * global device id w repart  [0, x, 1, x | 2, x, 3, x] x-inactive
+        * local device_id w/o repart  [0, 1, 0, 1 | 0, 1, 0, 1]
+        * local device_id w repart  [0, x, 1, x | 0, x, 1, x] x-inactive
+        */
+        // clang-format on
+
+        // global_id rpg = 1: [0, 1, 2, 3 | 4, 5, 6, 7]
+        // global_id rpg = 2: [0, 0, 1, 1 | 2, 2, 3, 3]
+        label device_global_id = global_rank / ranks_per_gpu;
+
+        // compute local round robin id
+        // mod of global_id / num_devices_per_node
+        return device_global_id % num_devices_per_node;
+    }
+
+    /* @brief compute the group id for the split communicator
+     */
+    label compute_group() const
+    {
+        label rank = Pstream::myProcNo();
+        label owner_rank = rank - (rank % ranks_per_gpu);
+        bool is_owner = owner_rank == rank;
+        return (is_owner) ? 0 : 1;
+    }
+};
+
+struct ExecutorInitFunctor {
+    const DeviceIdHandler device_id_handler_;
 
     const word executor_name_;
 
@@ -24,15 +84,10 @@ struct ExecutorInitFunctor {
 
     const label verbose_;
 
-    ExecutorInitFunctor(bool par_run, const word executor_name,
-                        const word field_name, const label verbose,
-                        const label gpus_per_rank,
-                        const bool force_host_buffer = false)
-        : comm_((par_run)  // TODO make this DRY
-                    ? std::make_shared<gko::experimental::mpi::communicator>(
-                          MPI_COMM_WORLD, force_host_buffer)
-                    : NULL),
-          device_id_((par_run) ? comm_->rank() / gpus_per_rank : 0),
+    ExecutorInitFunctor(const word executor_name, const word field_name,
+                        const label verbose,
+                        const DeviceIdHandler device_id_handler)
+        : device_id_handler_(device_id_handler),
           executor_name_(executor_name),
           field_name_(field_name),
           verbose_(verbose)
@@ -47,6 +102,14 @@ struct ExecutorInitFunctor {
     {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
+        auto msg = [](auto exec, auto id) {
+            std::string s;
+            s += std::string("Create") + std::string(exec) +
+                 std::string(" executor on device ") + std::to_string(id) +
+                 std::string(" on rank ") + std::to_string(Pstream::myProcNo());
+            return s;
+        };
+
         if (executor_name_ == "cuda") {
             if (version.cuda_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
@@ -54,10 +117,9 @@ struct ExecutorInitFunctor {
                        "with CUDA backend enabled."
                     << abort(FatalError);
             }
-            label id = device_id_ % gko::CudaExecutor::get_num_devices();
-            word msg = "Create CUDA executor on device " + std::to_string(id) +
-                       " on rank " + std::to_string(comm_->rank());
-            LOG_0(verbose_, msg)
+            label id = device_id_handler_.compute_device_id(
+                gko::CudaExecutor::get_num_devices());
+            LOG_0(verbose_, msg(executor_name_, id))
             return gko::share(gko::CudaExecutor::create(id, host_exec));
         }
         if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
@@ -67,21 +129,10 @@ struct ExecutorInitFunctor {
                        "with SYCL backend enabled."
                     << abort(FatalError);
             }
-
-            if (executor_name_ == "dpcpp") {
-                Info << "Warning: the executor name dpcpp is deprecated.\n"
-                     << "Use sycl as the executor name for the same executor "
-                        "instead."
-                     << endl;
-            }
-
-            auto devices = gko::DpcppExecutor::get_num_devices("gpu");
-            if (devices == 0) {
-                return gko::share(gko::DpcppExecutor::create(0, host_exec));
-            } else {
-                return gko::share(gko::DpcppExecutor::create(
-                    device_id_ % devices, host_exec));
-            }
+            label id = device_id_handler_.compute_device_id(
+                gko::DpcppExecutor::get_num_devices("gpu"));
+            LOG_0(verbose_, msg(executor_name_, id))
+            return gko::share(gko::DpcppExecutor::create(id, host_exec));
         }
         if (executor_name_ == "hip") {
             if (version.hip_version.tag == not_compiled_tag) {
@@ -90,10 +141,9 @@ struct ExecutorInitFunctor {
                        "with HIP backend enabled."
                     << abort(FatalError);
             }
-            label id = device_id_ % gko::HipExecutor::get_num_devices();
-            word msg = "Create HIP executor on device " + std::to_string(id) +
-                       " on rank " + std::to_string(comm_->rank());
-            LOG_0(verbose_, msg)
+            label id = device_id_handler_.compute_device_id(
+                gko::HipExecutor::get_num_devices());
+            LOG_0(verbose_, msg(executor_name_, id))
             auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
@@ -125,7 +175,11 @@ private:
 
     const bool non_orig_device_comm_;
 
-    const bool par_run_;
+    const bool split_comm_;
+
+    mutable std::shared_ptr<gko::experimental::mpi::communicator> host_comm_;
+
+    const bool host_rank_;
 
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
 
@@ -133,29 +187,40 @@ private:
 
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
-                    const word field_name, bool par_run = Pstream::parRun())
+                    const word field_name, DeviceIdHandler device_id_handler
+		    )
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
               db,
               ExecutorInitFunctor(
-                  par_run,
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
-                  solverControls.lookupOrDefault("ranksPerGPU", label(1)),
-                  solverControls.lookupOrDefault("forceHostBuffer", false)),
+                  device_id_handler
+                  ),
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
           non_orig_device_comm_(
               solverControls.lookupOrDefault("MPIxRankOffload", false)),
-          par_run_(par_run),
+          split_comm_(
+              solverControls.lookupOrDefault("splitComm", false)),
+          host_comm_(std::make_shared<gko::experimental::mpi::communicator>(
+                        MPI_COMM_WORLD, gko_force_host_buffer_)),
+	  host_rank_(host_comm_->rank()),
           device_comm_(
-              (par_run_)
-                  ? std::make_shared<gko::experimental::mpi::communicator>(
-                        MPI_COMM_WORLD, gko_force_host_buffer_)
-                  : NULL),
+              (split_comm_)
+                  ? [this, device_id_handler](){
+		    label group = device_id_handler.compute_group();
+		    MPI_Comm gko_comm;
+            label host_rank =0;
+		    MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
+
+		    return std::make_shared<gko::experimental::mpi::communicator>(
+			gko_comm, gko_force_host_buffer_);
+		  }()
+                  : host_comm_),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
@@ -168,10 +233,7 @@ public:
     /* whether the mpi allows to send data directly to a remote rank
      * via pair-wise communication
      * */
-    bool get_non_orig_device_comm() const
-    {
-        return non_orig_device_comm_;
-    }
+    bool get_non_orig_device_comm() const { return non_orig_device_comm_; }
 
     const std::shared_ptr<gko::Executor> get_device_exec() const
     {
@@ -185,26 +247,23 @@ public:
 
     word get_exec_name() const { return device_executor_name_; }
 
-    std::shared_ptr<gko::experimental::mpi::communicator>
-    get_gko_mpi_host_comm() const
-    {
-        return std::make_shared<gko::experimental::mpi::communicator>(
-            MPI_COMM_WORLD, gko_force_host_buffer_);
-    }
-
     std::shared_ptr<const gko::experimental::mpi::communicator>
-    get_gko_mpi_device_comm() const
+    get_device_comm() const
     {
         return this->device_comm_;
     }
 
-    std::shared_ptr<const gko::experimental::mpi::communicator>
-    get_communicator() const
+    std::shared_ptr<const gko::experimental::mpi::communicator> get_host_comm()
+        const
     {
-        return this->device_comm_;
+        return this->host_comm_;
     }
 
-    label get_rank() const { return get_communicator()->rank(); };
+    bool get_split_comm() const { return split_comm_; };
+
+    label get_host_rank() const { return get_host_comm()->rank(); };
+
+    label get_device_rank() const { return get_device_comm()->rank(); };
 };
 
 using PersistentExecutor = ExecutorHandler;

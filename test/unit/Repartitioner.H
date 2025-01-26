@@ -39,7 +39,7 @@ public:
         exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy",
                                                  true);
 
-        if (exec->get_communicator()->size() < 2) {
+        if (exec->get_host_comm()->size() < 2) {
             std::cout << "At least 2 CPU processes should be used!"
                       << std::endl;
             std::abort();
@@ -66,9 +66,9 @@ class RepartitionerFixture : public testing::Test {
 public:
     ExecutorHandler exec =
         *((RepartitionerEnvironment *)global_env)->exec.get();
-    label rank = exec.get_rank();
+    label rank = exec.get_host_rank();
     const gko::experimental::mpi::communicator comm =
-        *(exec.get_communicator().get());
+        *(exec.get_host_comm().get());
 };
 
 int main(int argc, char *argv[])

@@ -59,7 +59,7 @@ public:
         exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
                                                  "dummy", true);
 
-        auto comm = exec->get_gko_mpi_host_comm();
+        auto comm = exec->get_host_comm();
         if (comm->size() != 4 || Pstream::nProcs() != 4) {
             std::cout << "This unit test expects to be run on 4 ranks"
                       << std::endl;
@@ -140,12 +140,9 @@ class DistMatL2D
     : public testing::TestWithParam<std::tuple<int, string, bool>> {
 public:
     ExecutorHandler exec = *((Environment *)global_env)->exec.get();
-    label rank = exec.get_rank();
+    label rank = exec.get_host_rank();
     const gko::experimental::mpi::communicator comm =
-        *(exec.get_communicator().get());
-
-    //
-    //
+        *(exec.get_host_comm().get());
 };
 
 

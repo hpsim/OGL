@@ -53,7 +53,7 @@ struct VectorInitFunctor {
     {
         auto ref_exec = exec_.get_ref_exec();
         auto exec = exec_.get_device_exec();
-        auto comm = exec_.get_communicator();
+        auto comm = exec_.get_host_comm();
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
         auto repart_size = repartitioner->get_repart_size();
@@ -78,7 +78,6 @@ struct VectorInitFunctor {
     {
         auto exec = exec_.get_device_exec();
         auto ref_exec = exec_.get_ref_exec();
-        auto comm = exec_.get_communicator();
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
         auto repart_size = repartitioner->get_repart_size();
@@ -100,8 +99,9 @@ struct VectorInitFunctor {
         communicate_values(exec_, comm_pattern, host_view.get_const_data(),
                            values.get_data());
 
+        auto device_comm = exec_.get_device_comm();
         auto ret = gko::share(dist_vec::create(
-            exec, *comm.get(),
+            exec, *device_comm.get(),
             vec::create(
                 exec, gko::dim<2>{static_cast<gko::size_type>(repart_size), 1},
                 values, 1)));
@@ -174,9 +174,9 @@ public:
     void copy_back()
     {
         auto exec = exec_.get_device_exec();
-        auto rank = exec_.get_rank();
+        auto rank = exec_.get_host_rank();
         auto ref_exec = exec_.get_ref_exec();
-        auto comm = exec_.get_communicator();
+        auto comm = exec_.get_host_comm();
         bool host_buffer = !exec_.get_non_orig_device_comm();
 
         auto repartitioner = dist_matrix_->get_repartitioner();

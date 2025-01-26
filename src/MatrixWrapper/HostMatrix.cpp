@@ -51,8 +51,8 @@ HostMatrixWrapper::HostMatrixWrapper(
       interfaceBouCoeffs_(interfaceBouCoeffs)
 {
     auto ref_exec = exec.get_ref_exec();
-    auto comm = *exec.get_communicator().get();
-    label rank = exec.get_rank();
+    auto comm = *exec.get_host_comm().get();
+    label rank = comm.rank();
 
     using pair_dtype = std::pair<label, const scalar *>;
     // TODO this needs to be consistent with how sparsity are generated
@@ -181,7 +181,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
         partition) const
 {
     // vector of neighbour cell idx connected to interface
-    auto rank = get_exec_handler().get_rank();
+    auto rank = get_exec_handler().get_host_rank();
     auto pattern = std::make_shared<SparsityPattern>();
 
     for (label i = 0; i < interfaces_.size(); i++) {
@@ -258,7 +258,7 @@ HostMatrixWrapper::compute_sparsity_patterns(
 {
     auto local_sparsity = compute_local_sparsity();
     auto non_local_sparsity = compute_interface_sparsity(partition);
-    auto rank = get_exec_handler().get_rank();
+    auto rank = get_exec_handler().get_host_rank();
     local_sparsity->move_interface(non_local_sparsity, rank,
                                    [](auto in) { return in; });
     return {local_sparsity, non_local_sparsity};

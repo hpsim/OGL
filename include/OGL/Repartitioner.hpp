@@ -63,11 +63,12 @@ public:
                                                           exec_handler)),
           ranks_per_gpu_(ranks_per_gpu),
           verbose_(verbose),
+          // TODO we build the partition from the local size before
+          // repartitioning thus we need the host comm to compute correct sizes
           orig_partition_(gko::share(
               gko::experimental::distributed::build_partition_from_local_size<
                   label, label>(exec_handler.get_ref_exec(),
-                                *exec_handler.get_communicator().get(),
-                                size))){};
+                                *exec_handler.get_host_comm().get(), size))){};
 
     /* returns the owner rank for a given rank */
     label get_owner_rank(label rank) const
@@ -78,14 +79,14 @@ public:
     /* returns the owner rank for a given rank */
     label get_owner_rank(const ExecutorHandler &exec_handler) const
     {
-        return get_owner_rank(exec_handler.get_rank());
+        return get_owner_rank(exec_handler.get_host_rank());
     };
 
     /* returns if current rank is an owner  */
     bool is_owner(const ExecutorHandler &exec_handler) const
     {
-        return exec_handler.get_rank() ==
-               get_owner_rank(exec_handler.get_rank());
+        return exec_handler.get_host_rank() ==
+               get_owner_rank(exec_handler.get_host_rank());
     };
 
     /* @brief check if the given rank gets local after repartitioning

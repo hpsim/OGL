@@ -22,7 +22,7 @@ AllToAllPattern compute_scatter_from_owner_counts(
     const ExecutorHandler &exec_handler, label ranks_per_owner, label size)
 {
     auto exec = exec_handler.get_device_exec();
-    auto comm = *exec_handler.get_communicator().get();
+    auto comm = *exec_handler.get_host_comm().get();
 
     label total_ranks{comm.size()};
     label rank{comm.rank()};
@@ -68,7 +68,7 @@ AllToAllPattern compute_gather_to_owner_counts(
     label total_size, label padding_before, label padding_after)
 {
     auto exec = exec_handler.get_device_exec();
-    auto comm = *exec_handler.get_communicator().get();
+    auto comm = *exec_handler.get_host_comm().get();
 
     OGL_ASSERT_EQ(total_size, size + padding_before + padding_after);
     label total_ranks{comm.size()};
@@ -134,9 +134,9 @@ void communicate_values(const ExecutorHandler &exec_handler,
                         const scalar *send_buffer, scalar *recv_buffer)
 {
     auto exec = exec_handler.get_device_exec();
-    auto comm = *exec_handler.get_communicator().get();
-    label rank = exec_handler.get_rank();
+    auto comm = *exec_handler.get_host_comm().get();
 
+    // label rank = exec_handler.get_rank();
     // Foam::sleep(rank);
     // size_t send_size = comm_pattern.send_offsets.back();
     // std::vector<scalar> send_vec;;
@@ -236,7 +236,7 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
                                           label send_size, label offset)
 {
     auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
+    auto comm = *exec_handler.get_host_comm().get();
 
     std::vector<label> send_buffer_copy;
     // create a copy if offset is needed
@@ -263,7 +263,7 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     // TODO add implementation
-    out << "CommunicationPattern: for rank: " << e.exec_handler.get_rank();
+    out << "CommunicationPattern: for rank: " << e.exec_handler.get_host_rank();
     // out << " {";
     // out << "\ntarget_ids: " << e.target_ids;
     // out << "\ntarget_sizes: " << e.target_sizes;
@@ -288,7 +288,7 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
     const ExecutorHandler &exec_handler) const
 {
     auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
+    auto comm = *exec_handler.get_host_comm().get();
     auto rs_idx = total_rank_send_idx();
     auto pattern = send_recv_pattern();
     auto recv_buffer =
@@ -304,7 +304,7 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
 
 AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
-    auto comm = *exec_handler.get_communicator().get();
+    auto comm = *exec_handler.get_device_comm().get();
 
     std::vector<int> send_counts(comm.size());
     std::vector<int> send_offsets(comm.size() + 1);
@@ -313,6 +313,7 @@ AllToAllPattern CommunicationPattern::send_recv_pattern() const
 
     label comm_ranks = target_ids.size();
     int tot_comm_size = 0;
+    // FIXME inactive ranks need to be skipped
     for (label i = 0; i < comm_ranks; i++) {
         auto comm_rank = target_ids.data()[i];
         auto comm_size = target_sizes.data()[i];
@@ -322,10 +323,12 @@ AllToAllPattern CommunicationPattern::send_recv_pattern() const
     }
 
     recv_offsets[comm.size()] = tot_comm_size;
+    // FIXME inactive ranks need to be skipped
     std::partial_sum(recv_counts.begin(), recv_counts.end(),
                      recv_offsets.begin() + 1);
     recv_offsets[0] = 0;
 
+    // FIXME inactive ranks need to be skipped
     std::partial_sum(send_counts.begin(), send_counts.end(),
                      send_offsets.begin() + 1);
     send_offsets[0] = 0;
