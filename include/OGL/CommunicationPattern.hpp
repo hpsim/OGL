@@ -152,12 +152,6 @@ struct CommunicationPattern {
         }
     }
 
-    // const gko::experimental::mpi::communicator &get_comm() const
-    // {
-    //     return *exec_handler.get_communicator().get();
-    // }
-
-
     /* @brief concatenate all separate send idxs arrays into one contiguous
      * array
      */

@@ -36,6 +36,7 @@ public:
         db = std::make_shared<Foam::objectRegistry>(*time.get());
         Foam::dictionary dict;
         dict.add("executor", "reference");
+        dict.add("splitComm", 1);
         exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy",
                                                  true);
 

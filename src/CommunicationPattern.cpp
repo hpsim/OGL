@@ -288,15 +288,17 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
     const ExecutorHandler &exec_handler) const
 {
     auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_host_comm().get();
+    auto host_comm = *exec_handler.get_host_comm().get();
+    auto device_comm = *exec_handler.get_device_comm().get();
     auto rs_idx = total_rank_send_idx();
     auto pattern = send_recv_pattern();
     auto recv_buffer =
         gko::array<label>(exec_handler.get_ref_exec(), rs_idx.size());
 
-    comm.all_to_all_v(exec, rs_idx.data(), pattern.send_counts.data(),
-                      pattern.send_offsets.data(), recv_buffer.get_data(),
-                      pattern.recv_counts.data(), pattern.recv_offsets.data());
+    device_comm.all_to_all_v(exec, rs_idx.data(), pattern.send_counts.data(),
+                             pattern.send_offsets.data(),
+                             recv_buffer.get_data(), pattern.recv_counts.data(),
+                             pattern.recv_offsets.data());
 
     return recv_buffer;
 }
@@ -304,31 +306,35 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
 
 AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
-    auto comm = *exec_handler.get_device_comm().get();
+    auto device_comm = *exec_handler.get_device_comm().get();
+    auto host_comm = *exec_handler.get_host_comm().get();
 
-    std::vector<int> send_counts(comm.size());
-    std::vector<int> send_offsets(comm.size() + 1);
-    std::vector<int> recv_counts(comm.size());
-    std::vector<int> recv_offsets(comm.size() + 1);
+    label device_ranks = device_comm.size();
+    label host_ranks = host_comm.size();
+    auto ratio = host_ranks / device_ranks;
 
-    label comm_ranks = target_ids.size();
+    std::vector<int> send_counts(device_ranks, 0);
+    std::vector<int> send_offsets(device_ranks + 1, 0);
+    std::vector<int> recv_counts(device_ranks, 0);
+    std::vector<int> recv_offsets(device_ranks + 1, 0);
+
     int tot_comm_size = 0;
-    // FIXME inactive ranks need to be skipped
-    for (label i = 0; i < comm_ranks; i++) {
-        auto comm_rank = target_ids.data()[i];
-        auto comm_size = target_sizes.data()[i];
+    for (label r = 0; r < target_ids.size(); r++) {
+        auto comm_rank = target_ids.data()[r];
+        auto comm_size = target_sizes.data()[r];
         tot_comm_size += comm_size;
-        send_counts[comm_rank] = comm_size;
-        recv_counts[comm_rank] = comm_size;
+
+        auto device_rank = label(comm_rank / ratio);
+        send_counts[device_rank] = comm_size;
+        recv_counts[device_rank] = comm_size;
     }
 
-    recv_offsets[comm.size()] = tot_comm_size;
-    // FIXME inactive ranks need to be skipped
+    recv_offsets[device_ranks] = tot_comm_size;
+
     std::partial_sum(recv_counts.begin(), recv_counts.end(),
                      recv_offsets.begin() + 1);
     recv_offsets[0] = 0;
 
-    // FIXME inactive ranks need to be skipped
     std::partial_sum(send_counts.begin(), send_counts.end(),
                      send_offsets.begin() + 1);
     send_offsets[0] = 0;
