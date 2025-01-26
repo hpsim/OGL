@@ -287,8 +287,12 @@ public:
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "done create solver")
 
-        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
-                            solver->apply(dist_b_v, dist_x_v);)
+        // solve only on active rank
+        bool active = repartitioner->get_repart_size() != 0;
+        if (active) {
+            TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+                                solver->apply(dist_b_v, dist_x_v);)
+        }
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
