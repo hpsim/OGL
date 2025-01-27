@@ -289,9 +289,11 @@ public:
 
         // solve only on active rank
         bool active = repartitioner->get_repart_size() != 0;
+	label delta_t_solve_ = 0;
         if (active) {
             TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                                 solver->apply(dist_b_v, dist_x_v);)
+	   delta_t_solve_ = delta_t_solve;
         }
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
@@ -304,9 +306,9 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
-        auto time_for_res_norm_eval = this->get_res_norm_time();
+        auto time_for_res_norm_eval = this->get_res_norm_time() + SMALL;
         auto time_per_iter =
-            delta_t_solve / max(this->get_number_of_iterations(), 1);
+            delta_t_solve_ / max(this->get_number_of_iterations(), 1);
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
         exec_handler_.get_host_comm()->broadcast(exec_handler_.get_ref_exec(),
                                                  &prev_rel_res_cost, 1, 0);
