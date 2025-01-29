@@ -197,12 +197,10 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                 continue;
             }
 
-
             const auto &coupledPatch =
                 refCast<const coupledFvPatch>(iface->interface());
             const auto &patch =
                 refCast<const processorFvPatch>(iface->interface());
-
 
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
@@ -238,12 +236,13 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
 #endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
 
-            // FIXME the other comm_id is wrong
+            // TODO: check if the patch ids are correct
             pattern->insert_interface(
                 std::vector<label>(face_cells.cdata(),
                                    face_cells.cdata() + interface_size),
                 std::vector<label>(cols.cdata(), cols.cdata() + interface_size),
-                rank, rank, (i + 1) * -1, (i + 1) * -1);
+                rank, rank, -(local_to_global_interface_idx_[rank] + i),
+                -(local_to_global_interface_idx_[rank] + neighbPatchId));
         }
     }
     return pattern;
