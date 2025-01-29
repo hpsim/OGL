@@ -289,11 +289,11 @@ public:
 
         // solve only on active rank
         bool active = repartitioner->get_repart_size() != 0;
-	label delta_t_solve_ = 0;
+        label delta_t_solve_ = 0;
         if (active) {
             TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                                 solver->apply(dist_b_v, dist_x_v);)
-	   delta_t_solve_ = delta_t_solve;
+            delta_t_solve_ = delta_t_solve;
         }
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
