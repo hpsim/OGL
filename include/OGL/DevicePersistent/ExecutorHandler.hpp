@@ -104,7 +104,7 @@ struct ExecutorInitFunctor {
 
         auto msg = [](auto exec, auto id) {
             std::string s;
-            s += std::string("Create") + std::string(exec) +
+            s += std::string("Create ") + std::string(exec) +
                  std::string(" executor on device ") + std::to_string(id) +
                  std::string(" on rank ") + std::to_string(Pstream::myProcNo());
             return s;
