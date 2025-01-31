@@ -38,6 +38,8 @@ private:
 
     const bool force_host_buffer_;
 
+    const bool split_mpi_comm_;
+
     const bool fused_;
 
     const label ranks_per_gpu_;
@@ -53,6 +55,8 @@ public:
           force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
           fused_(solverControls.lookupOrDefault<Switch>("fuse", true)),
+          split_mpi_comm_(
+              solverControls.lookupOrDefault<Switch>("splitMPIComm", true)),
           ranks_per_gpu_(
               solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
@@ -93,6 +97,8 @@ public:
             std::to_string(fused_) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
+            std::string("\n\tSplits MTI communicator: ") +
+            std::to_string(split_mpi_comm_) +
             std::string("\n\tCPU ranks per GPU: ") +
             std::to_string(ranks_per_gpu_) +
             std::string("\n\tMatrix format: ") + matrix_format_ +
@@ -290,7 +296,11 @@ public:
         // solve only on active rank
         bool active = repartitioner->get_repart_size() != 0;
         label delta_t_solve_ = 0;
-        if (active) {
+        bool split_mpi_comm =
+            solver_controls_.lookupOrDefault<Switch>("splitMPIComm", true);
+
+        if (!active && split_mpi_comm) {
+        } else {
             TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
                                 solver->apply(dist_b_v, dist_x_v);)
             delta_t_solve_ = delta_t_solve;

@@ -205,7 +205,7 @@ public:
           non_orig_device_comm_(
               solverControls.lookupOrDefault("MPIxRankOffload", false)),
           split_comm_(
-              solverControls.lookupOrDefault("splitComm", true)),
+              solverControls.lookupOrDefault("splitMPIComm", true)),
           host_comm_(std::make_shared<gko::experimental::mpi::communicator>(
                         MPI_COMM_WORLD, gko_force_host_buffer_)),
 	  host_rank_(host_comm_->rank()),
