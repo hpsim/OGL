@@ -49,7 +49,7 @@ public:
         exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
                                                  "dummy", true);
 
-        auto comm = exec->get_gko_mpi_host_comm();
+        auto comm = exec->get_host_comm();
         if (comm->size() != 4 || Pstream::nProcs() != 4) {
             std::cout << "This unit test expects to be run on 4 ranks"
                       << std::endl;
@@ -87,8 +87,7 @@ public:
         partition_ = gko::share(
             gko::experimental::distributed::build_partition_from_local_size<
                 label, label>(exec->get_ref_exec(),
-                              *exec->get_communicator().get(),
-                              exp_size[name_]));
+                              *exec->get_host_comm().get(), exp_size[name_]));
         std::cout << __FILE__ << __LINE__ << " done partition \n";
     }
 
@@ -118,7 +117,7 @@ TEST(HostMatrixTest, returnsCorrectSize)
     auto fvMatrix = ((HostMatrixEnvironment *)global_env)->fvMatrix;
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-    auto rank = exec->get_rank();
+    auto rank = exec->get_host_rank();
     auto name = ((HostMatrixEnvironment *)global_env)->name_;
 
     EXPECT_EQ(mesh->C().size(), exp_size[name]);
@@ -133,14 +132,13 @@ TEST(HostMatrixTest, canCreateCommunicationPattern)
     std::shared_ptr<const HostMatrixWrapper> hostMatrix =
         ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto commPattern = hostMatrix->create_communication_pattern();
-    auto comm = commPattern->get_comm();
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-    auto rank = exec->get_rank();
+    auto rank = exec->get_host_rank();
     auto name = ((HostMatrixEnvironment *)global_env)->name_;
 
     EXPECT_EQ(commPattern->send_idxs.size(), exp_send_idx_size[name][rank]);
-    EXPECT_EQ(commPattern->target_ids, exp_target_ids[name][comm.rank()]);
-    EXPECT_EQ(commPattern->target_sizes, exp_target_sizes[name][comm.rank()]);
+    EXPECT_EQ(commPattern->target_ids, exp_target_ids[name][rank]);
+    EXPECT_EQ(commPattern->target_sizes, exp_target_sizes[name][rank]);
 }
 
 TEST(HostMatrixTest, canGenerateLocalSparsityPattern)
@@ -162,8 +160,7 @@ TEST(HostMatrixTest, canGenerateNonLocalSparsityPattern)
 {
     auto hostMatrix = ((HostMatrixEnvironment *)global_env)->hostMatrix;
     auto exec = ((HostMatrixEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_device_comm();
-    auto rank = exec->get_rank();
+    auto rank = exec->get_host_rank();
     auto name = ((HostMatrixEnvironment *)global_env)->name_;
     auto partition = ((HostMatrixEnvironment *)global_env)->partition_;
 

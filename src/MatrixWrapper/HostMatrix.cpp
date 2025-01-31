@@ -51,8 +51,8 @@ HostMatrixWrapper::HostMatrixWrapper(
       interfaceBouCoeffs_(interfaceBouCoeffs)
 {
     auto ref_exec = exec.get_ref_exec();
-    auto comm = *exec.get_communicator().get();
-    label rank = exec.get_rank();
+    auto comm = *exec.get_host_comm().get();
+    label rank = comm.rank();
 
     using pair_dtype = std::pair<label, const scalar *>;
     // TODO this needs to be consistent with how sparsity are generated
@@ -181,7 +181,7 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
         partition) const
 {
     // vector of neighbour cell idx connected to interface
-    auto rank = get_exec_handler().get_rank();
+    auto rank = get_exec_handler().get_host_rank();
     auto pattern = std::make_shared<SparsityPattern>();
 
     for (label i = 0; i < interfaces_.size(); i++) {
@@ -197,12 +197,10 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
                 continue;
             }
 
-
             const auto &coupledPatch =
                 refCast<const coupledFvPatch>(iface->interface());
             const auto &patch =
                 refCast<const processorFvPatch>(iface->interface());
-
 
             const processorLduInterface &pldui =
                 refCast<const processorLduInterface>(iface->interface());
@@ -238,12 +236,13 @@ std::shared_ptr<SparsityPattern> HostMatrixWrapper::compute_interface_sparsity(
 #endif
             const labelUList &cols = addr_.patchAddr(neighbPatchId);
 
-            // FIXME the other comm_id is wrong
+            // TODO: check if the patch ids are correct
             pattern->insert_interface(
                 std::vector<label>(face_cells.cdata(),
                                    face_cells.cdata() + interface_size),
                 std::vector<label>(cols.cdata(), cols.cdata() + interface_size),
-                rank, rank, (i + 1) * -1, (i + 1) * -1);
+                rank, rank, -(local_to_global_interface_idx_[rank] + i),
+                -(local_to_global_interface_idx_[rank] + neighbPatchId));
         }
     }
     return pattern;
@@ -258,7 +257,7 @@ HostMatrixWrapper::compute_sparsity_patterns(
 {
     auto local_sparsity = compute_local_sparsity();
     auto non_local_sparsity = compute_interface_sparsity(partition);
-    auto rank = get_exec_handler().get_rank();
+    auto rank = get_exec_handler().get_host_rank();
     local_sparsity->move_interface(non_local_sparsity, rank,
                                    [](auto in) { return in; });
     return {local_sparsity, non_local_sparsity};
