@@ -264,10 +264,18 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     // TODO add implementation
     out << "CommunicationPattern: for rank: " << e.exec_handler.get_rank();
-    // out << " {";
-    // out << "\ntarget_ids: " << e.target_ids;
-    // out << "\ntarget_sizes: " << e.target_sizes;
-    // out << "}\n";
+    out << " {";
+    out << "\ntarget_ids: " << e.target_ids;
+    out << "target_sizes: " << e.target_sizes;
+    out << "send idxs: " << e.target_sizes;
+    for (auto send_idx: e.send_idxs){
+	    out << "[";
+	    for  (auto idx: send_idx){
+		    out << idx << " ";
+	    }
+	    out << "]\n";
+}
+    out << "}\n";
     return out;
 }
 
