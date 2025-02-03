@@ -263,7 +263,7 @@ std::vector<label> gather_labels_to_owner(const ExecutorHandler &exec_handler,
 std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 {
     // TODO add implementation
-    out << "CommunicationPattern: for rank: " << e.exec_handler.get_rank();
+    out << "CommunicationPattern: for rank: " << e.exec_handler.get_host_rank();
     out << " {";
     out << "\ntarget_ids: " << e.target_ids;
     out << "target_sizes: " << e.target_sizes;
@@ -274,6 +274,7 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 		    out << idx << " ";
 	    }
 	    out << "]\n";
+    }
     out << "}\n";
     return out;
 }
