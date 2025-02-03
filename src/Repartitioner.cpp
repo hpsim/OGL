@@ -27,8 +27,8 @@ Repartitioner::repartition_sparsity(
 
 
     auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
-    label rank = exec_handler.get_rank();
+    auto comm = *exec_handler.get_host_comm().get();
+    label rank = exec_handler.get_host_rank();
     label owner_rank = get_owner_rank(exec_handler);
     label ranks_per_gpu = ranks_per_gpu_;
 
@@ -154,9 +154,11 @@ Repartitioner::repartition_comm_pattern(
 
     // using comm_size_type = label;
     auto exec = exec_handler.get_ref_exec();
-    auto comm = src_comm_pattern->get_comm();
+    auto host_comm = exec_handler.get_host_comm();
+    auto device_comm = exec_handler.get_device_comm();
 
-    label rank = comm.rank();
+    label host_rank = host_comm->rank();
+    label device_rank = device_comm->rank();
     bool owner = is_owner(exec_handler);
 
     // Step 1. Check if communication partner is non-local after
@@ -195,24 +197,24 @@ Repartitioner::repartition_comm_pattern(
     // next the send_ixs need to be updated we send them piecewise since
     // the send_idxs are a vector of gko::arrays
     if (owner) {
-        label recv_ctr = comm_pattern.recv_counts[rank];
+        label recv_ctr = comm_pattern.recv_counts[host_rank];
         // retrieved from i-th neighbor
         for (int i = 1; i < ranks_per_gpu_; i++) {
             // how many gko::arrays to with send_indexes to receive
             // from i-th neighbor
-            label recv_count = comm_pattern.recv_counts[rank + i];
+            label recv_count = comm_pattern.recv_counts[host_rank + i];
 
             for (int j = 0; j < recv_count; j++) {
                 auto target_size = gathered_target_sizes[j + recv_ctr];
                 std::vector<label> recv_buffer(target_size);
 
-                comm.recv(exec, recv_buffer.data(), target_size, rank + i,
-                          rank);
+                host_comm->recv(exec, recv_buffer.data(), target_size,
+                                host_rank + i, host_rank);
 
                 // the new offset is
                 auto offset =
-                    get_orig_partition()->get_range_bounds()[rank + i] -
-                    get_orig_partition()->get_range_bounds()[rank];
+                    get_orig_partition()->get_range_bounds()[host_rank + i] -
+                    get_orig_partition()->get_range_bounds()[host_rank];
 
                 std::transform(recv_buffer.begin(), recv_buffer.end(),
                                recv_buffer.begin(),
@@ -226,8 +228,8 @@ Repartitioner::repartition_comm_pattern(
     } else {
         label owner = get_owner_rank(exec_handler);
         for (int i = 0; i < comm_pattern.send_counts[owner]; i++) {
-            comm.send(exec, send_idxs[i].data(), send_idxs[i].size(), owner,
-                      owner);
+            host_comm->send(exec, send_idxs[i].data(), send_idxs[i].size(),
+                            owner, owner);
         }
     }
 
@@ -290,6 +292,7 @@ Repartitioner::repartition_comm_pattern(
         // label target_id = merged_target_ids[i];
         send_idxs.emplace_back(merged_send_idxs[i]);
     }
+
 
     return std::make_shared<CommunicationPattern>(exec_handler,
                                                   merged_target_ids, send_idxs);

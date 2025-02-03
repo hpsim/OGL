@@ -35,7 +35,7 @@ public:
         exec = std::make_shared<ExecutorHandler>(time->thisDb(), dict, "dummy",
                                                  true);
 
-        auto comm = exec->get_gko_mpi_host_comm();
+        auto comm = exec->get_host_comm();
         if (comm->size() < 2) {
             std::cout << "At least 2 CPU processes should be used!"
                       << std::endl;
@@ -64,7 +64,7 @@ TEST(CommunicationPattern, compute_owner_rank_single_owner)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
 
     // Act
     auto owner_rank = compute_owner_rank(comm->rank(), comm->size());
@@ -77,7 +77,7 @@ TEST(CommunicationPattern, compute_owner_rank_two_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto comm_rank = comm->rank();
     auto comm_size = comm->size();
 
@@ -96,7 +96,7 @@ TEST(CommunicationPattern, compute_owner_rank_all_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto comm_rank = comm->rank();
 
     // Act
@@ -110,7 +110,7 @@ TEST(CommunicationPattern, compute_scatter_from_owner_counts_single_owner)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
     auto comm_rank = comm->rank();
@@ -151,7 +151,7 @@ TEST(CommunicationPattern, compute_scatter_from_owner_counts_two_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
     auto comm_rank = comm->rank();
@@ -208,7 +208,7 @@ TEST(CommunicationPattern, compute_gather_to_owner_counts_single_owner)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto num_elements = 10;
     auto comm_size = comm->size();
     auto comm_rank = comm->rank();
@@ -252,7 +252,7 @@ TEST(CommunicationPattern, compute_gather_to_owner_counts_two_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto num_elements = 10;
     auto comm_rank = comm->rank();
     auto comm_size = comm->size();
@@ -308,7 +308,7 @@ TEST(CommunicationPattern, compute_gather_to_owner_counts_all_owners)
 {
     // Arrange
     auto exec = ((CommunicationPatternEnvironment *)global_env)->exec;
-    auto comm = exec->get_gko_mpi_host_comm();
+    auto comm = exec->get_host_comm();
     auto num_elements = 10;
     auto comm_rank = comm->rank();
 

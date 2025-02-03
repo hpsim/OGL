@@ -60,7 +60,7 @@ void generate_pairwise_update_data(
     // need to find original id, whether this rank sends or receives, the
     // comm_rank, interface_size and pointer to send to
     bool owner = repartitioner->is_owner(exec_handler);
-    label rank = exec_handler.get_rank();
+    label rank = exec_handler.get_host_rank();
     size_t offset = start_offset;
 
     for (size_t i = 0; i < in->get_id().size(); i++) {
@@ -147,7 +147,6 @@ void generate_reorder_map(
         &reorder_maps)
 {
     // NOTE early return if rank is empty
-    label rank = exec_handler.get_rank();
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
     for (size_t i = 0; i < linops.size(); i++) {
@@ -187,15 +186,14 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
     if (write_global) {
         size_t rows = dist_mtx_->get_local_matrix()->get_size()[0];
         auto ref_exec = exec_handler.get_ref_exec();
-        auto comm = exec_handler.get_gko_mpi_host_comm();
+        auto comm = exec_handler.get_host_comm();
 
         auto partition = gko::share(
             gko::experimental::distributed::build_partition_from_local_size<
                 label, label>(ref_exec, *comm.get(), rows));
 
         // overwrite non_local column indices with global indices
-
-        label rank{exec_handler.get_rank()};
+        label rank{exec_handler.get_host_rank()};
         label offset = partition->get_range_bounds()[rank];
         label local_nnz = local->get_num_stored_elements();
 
@@ -259,9 +257,9 @@ void update_impl(
         &reorder_maps,
     bool fuse, std::map<label, scalar *> linops, label verbose)
 {
-    auto comm = exec_handler.get_communicator();
+    auto comm = exec_handler.get_host_comm();
     auto ref_exec = exec_handler.get_ref_exec();
-    auto rank = exec_handler.get_rank();
+    auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
     bool force_host_buffer = !exec_handler.get_non_orig_device_comm();
     word fieldname = host_A->get_field_name();
@@ -337,13 +335,12 @@ void update_impl(
     TIME_WITH_FIELDNAME(verbose, perform_pairwise_update, fieldname,
                         pairwise_communicate(););
 
-    auto reorder_data =
-        [reorder_maps, exec_handler]() {
-            for (auto [reorder_map, data_ptr] : reorder_maps) {
-                reorder_interface_impl<LocalMatrixType>(exec_handler,
-                                                        reorder_map, data_ptr);
-            }
-        };
+    auto reorder_data = [reorder_maps, exec_handler]() {
+        for (auto [reorder_map, data_ptr] : reorder_maps) {
+            reorder_interface_impl<LocalMatrixType>(exec_handler, reorder_map,
+                                                    data_ptr);
+        }
+    };
 
     TIME_WITH_FIELDNAME(verbose, reorder_matrix_data, fieldname,
                         reorder_data();)
@@ -372,9 +369,10 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
-    label rank = exec_handler.get_rank();
+    label rank = exec_handler.get_host_rank();
     auto exec = exec_handler.get_ref_exec();
-    auto comm = *exec_handler.get_communicator().get();
+    auto host_comm = *exec_handler.get_host_comm().get();
+    auto device_comm = *exec_handler.get_device_comm().get();
     bool owner = repartitioner->is_owner(exec_handler);
 
     auto [local_sparsity, non_local_sparsity] =
@@ -465,11 +463,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     if (fuse) {
         dist_A = gko::share(dist_mtx::create(
-            device_exec, comm, global_dim, local_linops[0], non_local_linops[0],
-            recv_sizes, recv_offsets, recv_gather_idxs));
+            device_exec, device_comm, global_dim, local_linops[0],
+            non_local_linops[0], recv_sizes, recv_offsets, recv_gather_idxs));
     } else {
         dist_A = gko::share(dist_mtx::create(
-            device_exec, comm, global_dim,
+            device_exec, device_comm, global_dim,
             gko::share(CombinationMatrix<LocalMatrixType>::create(
                 device_exec, repart_dim, local_linops)),
             gko::share(CombinationMatrix<LocalMatrixType>::create(
@@ -495,7 +493,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                                              fuse, linops, verbose););
 
     return std::make_shared<RepartDistMatrix>(
-        device_exec, comm, matrix_format, dist_A, repartitioner, fuse,
+        device_exec, host_comm, matrix_format, dist_A, repartitioner, fuse,
         all_to_all_update_data, pairwise_update_data, reorder_maps,
         compress_to_global, linops);
 }
