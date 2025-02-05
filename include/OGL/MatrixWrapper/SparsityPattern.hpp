@@ -36,9 +36,17 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
     return p;
 }
 
-/* @brief compute compress column indices
+/* @brief compute compressed column indices
 **
-**@param in - vector of vectors of column indices per interface/sub-matrix
+** based on the global column indices this function computes the compressed
+*column indices
+** here compressed columns are column indices starting at 0 and corresponding to
+*the order how non-local vector data is received.
+**
+**@param in - vector of vectors of global column indices per
+*interface/sub-matrix
+**@param comm_id - vector of with the ranks to which each interface communicates
+*to
 */
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> comm_id);
