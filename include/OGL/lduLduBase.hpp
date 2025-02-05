@@ -38,6 +38,8 @@ private:
 
     const bool force_host_buffer_;
 
+    const bool split_mpi_comm_;
+
     const bool fused_;
 
     const label ranks_per_gpu_;
@@ -53,6 +55,8 @@ public:
           force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
           fused_(solverControls.lookupOrDefault<Switch>("fuse", true)),
+          split_mpi_comm_(
+              solverControls.lookupOrDefault<Switch>("splitMPIComm", true)),
           ranks_per_gpu_(
               solverControls.lookupOrDefault<label>("ranksPerGPU", 1)),
           matrix_format_(
@@ -93,6 +97,8 @@ public:
             std::to_string(fused_) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
+            std::string("\n\tSplits MTI communicator: ") +
+            std::to_string(split_mpi_comm_) +
             std::string("\n\tCPU ranks per GPU: ") +
             std::to_string(ranks_per_gpu_) +
             std::string("\n\tMatrix format: ") + matrix_format_ +
@@ -143,6 +149,10 @@ private:
 
     const word field_name_;
 
+    const label ranks_per_gpu_;
+
+    const DeviceIdHandler device_id_handler_;
+
     const ExecutorHandler exec_handler_;
 
     const std::shared_ptr<HostMatrixWrapper> host_matrix_wrapper_;
@@ -165,7 +175,10 @@ public:
           solver_controls_(solverControls),
           verbose_(solverControls.lookupOrDefault<label>("verbose", 0)),
           field_name_(fieldName),
-          exec_handler_{db_, solver_controls_, fieldName},
+          ranks_per_gpu_(
+              solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1)),
+          device_id_handler_(ranks_per_gpu_),
+          exec_handler_{db_, solver_controls_, fieldName, device_id_handler_},
           host_matrix_wrapper_{std::make_shared<HostMatrixWrapper>(
               exec_handler_, db_, matrix.diag().size(), matrix.upper().size(),
               matrix.symmetric(), matrix.diag().begin(), matrix.upper().begin(),
@@ -202,12 +215,10 @@ public:
                                            const scalarField &source,
                                            solverPerformance &solverPerf) const
     {
-        label ranks_per_gpu =
-            solver_controls_.lookupOrDefault<label>("ranksPerGPU", 1);
         bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", true);
 
         auto repartitioner = std::make_shared<Repartitioner>(
-            host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu, verbose_,
+            host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu_, verbose_,
             exec_handler_);
 
         PersistentDistributedMatrix dist_A{db_,
@@ -282,8 +293,18 @@ public:
                             auto solver = solver_gen->generate(dist_A_v);)
         LOG_1(verbose_, "done create solver")
 
-        TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
-                            solver->apply(dist_b_v, dist_x_v);)
+        // solve only on active rank
+        bool active = repartitioner->get_repart_size() != 0;
+        label delta_t_solve_ = 0;
+        bool split_mpi_comm =
+            solver_controls_.lookupOrDefault<Switch>("splitMPIComm", true);
+
+        if (!active && split_mpi_comm) {
+        } else {
+            TIME_WITH_FIELDNAME(verbose_, solve, this->fieldName(),
+                                solver->apply(dist_b_v, dist_x_v);)
+            delta_t_solve_ = delta_t_solve;
+        }
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
@@ -295,12 +316,12 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
-        auto time_for_res_norm_eval = this->get_res_norm_time();
+        auto time_for_res_norm_eval = this->get_res_norm_time() + SMALL;
         auto time_per_iter =
-            delta_t_solve / max(this->get_number_of_iterations(), 1);
+            delta_t_solve_ / max(this->get_number_of_iterations(), 1);
         scalar prev_rel_res_cost = time_per_iter / time_for_res_norm_eval;
-        exec_handler_.get_gko_mpi_host_comm()->broadcast(
-            exec_handler_.get_ref_exec(), &prev_rel_res_cost, 1, 0);
+        exec_handler_.get_host_comm()->broadcast(exec_handler_.get_ref_exec(),
+                                                 &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         size_t dofs = repartitioner->get_orig_partition()->get_size();
         auto time_per_iter_and_dof = time_per_iter * 1000.0 / dofs;
@@ -328,16 +349,10 @@ public:
                 exec_handler_.get_exec_name() + typeName,
             field_name_);
 
-        // Solve system
-        if (Pstream::parRun()) {
-            TIME_WITH_FIELDNAME(
-                verbose_, solve_multi_gpu, field_name_,
-                auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
-            return res;
-        } else {
-            FatalErrorInFunction << "Only parallel runs are supported for OGL"
-                                 << exit(FatalError);
-        }
+        TIME_WITH_FIELDNAME(
+            verbose_, solve_multi_gpu, field_name_,
+            auto res = solve_multi_gpu_impl(psi, source, solverPerf);)
+        return res;
 
         return solverPerf;
     };

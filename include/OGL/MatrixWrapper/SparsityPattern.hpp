@@ -163,7 +163,13 @@ public:
 
     std::vector<label> compute_to_global_map(bool fuse) const
     {
-        return std::get<1>(detail::compress_cols(cols_, comm_id_));
+        // TODO just change the sorting algorithm of compress_cols
+	std::vector<label> inv_comm_ranks;
+	for (auto rank: comm_rank_){
+		inv_comm_ranks.push_back(-rank);
+	}
+
+        return std::get<1>(detail::compress_cols(cols_, inv_comm_ranks));
     }
 
     // TODO could make this a free function
@@ -275,8 +281,14 @@ public:
         std::vector<label> map;
         map.reserve(reserve_size);
 
+	std::vector<label> inv_comm_ranks;
+
+	for (auto rank: comm_rank_){
+		inv_comm_ranks.push_back(-rank);
+	}
+
         auto or_cols = (compress_cols)
-                           ? std::get<0>(detail::compress_cols(cols_, comm_id_))
+                           ? std::get<0>(detail::compress_cols(cols_, inv_comm_ranks))
                            : cols_;
 
         label map_offset = 0;
