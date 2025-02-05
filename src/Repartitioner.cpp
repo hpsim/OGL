@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include <algorithm>
+
 #include "OGL/Repartitioner.hpp"
 
 label Repartitioner::compute_repart_size(label local_size, label ranks_per_gpu,
@@ -167,6 +169,7 @@ Repartitioner::repartition_comm_pattern(
     // non-local means: the communication target rank id is != repartitioned
     // rank id
     std::vector<label> target_ids{};
+    std::vector<label> orig_target_ids{};
     std::vector<label> target_sizes{};
     std::vector<std::vector<label>> send_idxs;
     label communication_partner = src_comm_pattern->target_ids.size();
@@ -181,6 +184,8 @@ Repartitioner::repartition_comm_pattern(
             target_sizes.push_back(src_comm_pattern->target_sizes.data()[i]);
             send_idxs.push_back(src_comm_pattern->send_idxs[i]);
         }
+	// store all comm target ids for verification
+        orig_target_ids.push_back(target_id);
     }
 
     // send all remaining non local ids and sizes to the new
@@ -194,9 +199,28 @@ Repartitioner::repartition_comm_pattern(
     auto gathered_target_sizes = gather_labels_to_owner(
         exec_handler, comm_pattern, target_sizes.data(), target_sizes.size());
 
+    auto orig_id_comm_pattern = compute_gather_to_owner_counts(
+        exec_handler, ranks_per_gpu_, orig_target_ids.size());
+    auto gathered_orig_target_ids = gather_labels_to_owner(
+        exec_handler, orig_id_comm_pattern, orig_target_ids.data(), orig_target_ids.size());
+
+
     // next the send_ixs need to be updated we send them piecewise since
     // the send_idxs are a vector of gko::arrays
     if (owner) {
+	// verify if gathered_orig_target_ids are consecutive
+	std::sort(gathered_orig_target_ids.begin(), gathered_orig_target_ids.end());
+	for (int i = 1; i<gathered_target_sizes.size();i++) {
+		if ( !(gathered_orig_target_ids[i-1] == gathered_orig_target_ids[i] ||
+		  gathered_orig_target_ids[i-1] == gathered_orig_target_ids[i] - 1 
+		   )) {
+			        FatalErrorInFunction
+					        << " Unconnected ranks after repartitioning detected " 
+						<< exit(FatalError);
+
+		}
+	}
+
         label recv_ctr = comm_pattern.recv_counts[host_rank];
         // retrieved from i-th neighbor
         for (int i = 1; i < ranks_per_gpu_; i++) {
