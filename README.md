@@ -56,8 +56,9 @@ If you have Ninja installed on your system we recommend to use ninja over gnu ma
 
 The following example shows how to execute a build and install on a cuda system.
 
-    cmake --preset ninja-cuda-release
-    cmake --build --preset ninja-cpuonly-release  --target install
+    cmake --preset release
+    cmake --build --preset release 
+    cmake --build --preset release  --target install
 
 
 After a successful build install make sure that the `system/controlDict` includes the `libOGL.so` or  `libOGL.dyLib` file:
