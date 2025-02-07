@@ -133,7 +133,7 @@ include(cmake/ginkgo.cmake)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
-  -Wall -Wpedantic -Wextra -march=native -fopenmp -Wno-undefined-var-template")
+  -Wall -Wpedantic -Wextra -march=native -fopenmp")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("Compiling with clang")
@@ -217,9 +217,10 @@ target_sources(
           src/MatrixWrapper/Combination.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
-	  # src/Solver/BiCGStab.cpp
-	  # src/Solver/GMRES.cpp
-          # src/Solver/Multigrid.cpp src/Solver/IR.cpp
+	  src/Solver/BiCGStab.cpp
+	  src/Solver/GMRES.cpp
+	  # src/Solver/Multigrid.cpp
+	  # src/Solver/IR.cpp
 )
 
 enable_sanitizers(
