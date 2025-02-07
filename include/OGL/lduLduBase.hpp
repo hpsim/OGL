@@ -97,7 +97,7 @@ public:
             std::to_string(fused_) +
             std::string("\n\tForces host buffer based communication: ") +
             std::to_string(force_host_buffer_) +
-            std::string("\n\tSplits MTI communicator: ") +
+            std::string("\n\tSplits MPI communicator: ") +
             std::to_string(split_mpi_comm_) +
             std::string("\n\tCPU ranks per GPU: ") +
             std::to_string(ranks_per_gpu_) +
