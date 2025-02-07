@@ -219,7 +219,7 @@ target_sources(
           src/Solver/CG.cpp
 	  src/Solver/BiCGStab.cpp
 	  src/Solver/GMRES.cpp
-	  # src/Solver/Multigrid.cpp
+	  src/Solver/Multigrid.cpp
 	  # src/Solver/IR.cpp
 )
 
