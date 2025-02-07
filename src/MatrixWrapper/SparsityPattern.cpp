@@ -11,7 +11,7 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> comm_id)
 {
     auto id_permutation =
-        sort_permutation(comm_id, [](label a, label b) { return a > b; });
+        sort_permutation(comm_id, [](label a, label b) { return a < b; });
     std::map<label, label> col_map;
 
     std::vector<label> global_cols;
