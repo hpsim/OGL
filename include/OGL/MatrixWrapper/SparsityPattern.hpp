@@ -141,6 +141,7 @@ public:
         comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
+	orig_comm_rank_.push_back(comm_rank);
 
         map_.push_back(map);
     }
@@ -159,6 +160,7 @@ public:
         comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
+	orig_comm_rank_.push_back(comm_rank);
     }
 
     std::vector<label> compute_to_global_map(bool fuse) const
@@ -169,7 +171,7 @@ public:
 		inv_comm_ranks.push_back(-rank);
 	}
 
-        return std::get<1>(detail::compress_cols(cols_, inv_comm_ranks));
+        return std::get<1>(detail::compress_cols(cols_, orig_comm_rank_));
     }
 
     // TODO could make this a free function
@@ -276,67 +278,42 @@ public:
 
         std::vector<label> rows;
         rows.reserve(reserve_size);
-        std::vector<label> cols;
-        cols.reserve(reserve_size);
+        std::vector<label> out_cols;
+        out_cols.reserve(reserve_size);
         std::vector<label> map;
         map.reserve(reserve_size);
 
-	std::vector<label> inv_comm_ranks;
-
-	for (auto rank: comm_rank_){
-		inv_comm_ranks.push_back(-rank);
-	}
-
-        auto or_cols = (compress_cols)
-                           ? std::get<0>(detail::compress_cols(cols_, inv_comm_ranks))
-                           : cols_;
-
         label map_offset = 0;
 
-        for (size_t i = 0; i < id_.size(); i++) {
-            if (id_[i] != 0) {
-                continue;
-            }
-            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
-            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
-            size_t iface_length = rows_[i].size();
-            for (size_t j = 0; j < iface_length; j++) {
-                map.push_back(map_[i][j] + map_offset);
-            }
-            map_offset += iface_length;
-        }
-        for (size_t i = 0; i < id_.size(); i++) {
-            if (id_[i] != 1) {
-                continue;
-            }
-            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
-            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
-            size_t iface_length = rows_[i].size();
-            for (size_t j = 0; j < iface_length; j++) {
-                map.push_back(map_[i][j] + map_offset);
-            }
-            map_offset += iface_length;
-        }
-        for (size_t i = 0; i < id_.size(); i++) {
-            if (id_[i] != 2) {
-                continue;
-            }
-            rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
-            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
-            size_t iface_length = rows_[i].size();
-            for (size_t j = 0; j < iface_length; j++) {
-                map.push_back(map_[i][j] + map_offset);
-            }
-            map_offset += iface_length;
-        }
+        auto cols = (compress_cols)
+                           ? std::get<0>(detail::compress_cols(cols_, orig_comm_rank_))
+                           : cols_;
 
+	// ldu part first
+	if (!compress_cols) {
+	for (int id = 0; id < 3; id++ ) {
+		for (size_t i = 0; i < id_.size(); i++) {
+		    if (id_[i] != id) {
+			continue;
+		    }
+		    rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+		    out_cols.insert(out_cols.end(), cols[i].begin(), cols[i].end());
+		    size_t iface_length = rows_[i].size();
+		    for (size_t j = 0; j < iface_length; j++) {
+			map.push_back(map_[i][j] + map_offset);
+		    }
+		    map_offset += iface_length;
+		}
+	}
+	}
 
+	// the rest. here the ids are negative
         for (size_t i = 0; i < id_.size(); i++) {
             if (id_[i] >= 0) {
                 continue;
             }
             rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
-            cols.insert(cols.end(), or_cols[i].begin(), or_cols[i].end());
+            out_cols.insert(out_cols.end(), cols[i].begin(), cols[i].end());
             size_t iface_length = rows_[i].size();
             for (size_t j = 0; j < iface_length; j++) {
                 map.push_back(map_[i][j] + map_offset);
@@ -344,9 +321,9 @@ public:
             map_offset += iface_length;
         }
 
-        sort_sparsity(rows, cols, map);
+        sort_sparsity(rows, out_cols, map);
 
-        return {{rows}, {cols}, {map}, {(compress_cols) ? -1 : 0}};
+        return {{rows}, {out_cols}, {map}, {(compress_cols) ? -1 : 0}};
     }
 
     /* @brief move all interfaces to this data structure that communicate to
@@ -363,6 +340,7 @@ public:
         auto &other_cols = other->get_cols();
         auto &other_id = other->get_id();
         auto &other_comm_id = other->get_comm_id();
+        auto &other_orig_comm_rank = other->get_orig_comm_rank();
         auto &other_orig_rank = other->get_orig_rank();
         auto &other_comm_rank = other->get_comm_rank();
         auto &other_nnz = other->get_nnz();
@@ -379,6 +357,7 @@ public:
                 orig_rank_.push_back(std::move(other_orig_rank[i]));
                 id_.push_back(std::move(other_id[i]));
                 comm_id_.push_back(std::move(other_comm_id[i]));
+                orig_comm_rank_.push_back(std::move(other_orig_comm_rank[i]));
                 del_from_other.push_back(i);
             }
         }
@@ -392,6 +371,7 @@ public:
             other_cols.erase(other_cols.begin() + del);
             other_map.erase(other_map.begin() + del);
             other_comm_rank.erase(other_comm_rank.begin() + del);
+            other_orig_comm_rank.erase(other_orig_comm_rank.begin() + del);
             other_orig_rank.erase(other_orig_rank.begin() + del);
             other_id.erase(other_id.begin() + del);
             other_comm_id.erase(other_comm_id.begin() + del);
@@ -433,6 +413,8 @@ public:
 
     std::vector<label> &get_comm_rank() { return comm_rank_; }
 
+    std::vector<label> &get_orig_comm_rank() { return orig_comm_rank_; }
+
     std::vector<label> &get_comm_id() { return comm_id_; }
 
     label &get_nnz() { return nnz_; }
@@ -461,9 +443,15 @@ private:
     // the id of the interface with which this interface communicates
     std::vector<label> comm_id_;
 
+    // the rank from which this interface originates
     std::vector<label> orig_rank_;
 
+    // the current rank with which this rank communicates  
     std::vector<label> comm_rank_;
+
+    // the current rank with which this rank communicated  
+    // originally
+    std::vector<label> orig_comm_rank_;
 
     /* @brief sort given rows, cols, and map to be in row major order
      *
