@@ -10,6 +10,8 @@ namespace detail {
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     std::vector<std::vector<label>> in, std::vector<label> comm_id)
 {
+    // create a sorting map based on the comm ids
+    // here the ids with higher id should receive data first
     auto id_permutation =
         sort_permutation(comm_id, [](label a, label b) { return a > b; });
     std::map<label, label> col_map;
@@ -22,6 +24,7 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     }
 
     label ctr = 0;
+    // iterate in the order of communication ranks
     for (auto id : id_permutation) {
         auto &cols = in[id];
         for (auto col : cols) {
