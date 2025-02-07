@@ -97,8 +97,7 @@ public:
             outerStoppingCriterion_.build_dist_stopping_criterion(
                 exec, gkomatrix, x, b, verbose, export_res,
                 get_prev_number_of_iterations(),
-		get_solve_prev_rel_res_cost()
-		));
+                get_solve_prev_rel_res_cost()));
 
         auto inner_solver_gen =
             gko::share(bj::build()
@@ -130,24 +129,26 @@ public:
                            .on(exec));
 
         // Create multigrid factory
-        auto ret = mg::build()
-                       .with_max_levels(max_levels_)
-                       .with_min_coarse_rows(min_coarse_rows_)
-                       .with_pre_smoother(smoother_gen)
-                       .with_post_uses_pre(true)
-		       .with_mg_level(
-			   gko::multigrid::Pgm<scalar>::build().with_deterministic(false))
-                       .with_coarsest_solver(coarsest_gen)
-                       .with_criteria(outerStoppingCriterionVec_)
-                       .on(exec);
+        auto ret =
+            mg::build()
+                .with_max_levels(max_levels_)
+                .with_min_coarse_rows(min_coarse_rows_)
+                .with_pre_smoother(smoother_gen)
+                .with_post_uses_pre(true)
+                .with_mg_level(
+                    gko::multigrid::Pgm<scalar>::build().with_deterministic(
+                        false))
+                .with_coarsest_solver(coarsest_gen)
+                .with_criteria(outerStoppingCriterionVec_)
+                .on(exec);
 
         return ret;
     }
 
-        label get_res_norm_time() const
-		    {
-			            return outerStoppingCriterion_.get_res_norm_time();
-				        }
+    label get_res_norm_time() const
+    {
+        return outerStoppingCriterion_.get_res_norm_time();
+    }
 
     scalar get_solve_prev_rel_res_cost() const
     {
@@ -177,16 +178,16 @@ public:
                              outerStoppingCriterion_.get_is_final());
     }
 
-        void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
-		    {
-			            return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
-						                                                       prev_rel_res_cost);
-				        }
+    void set_prev_rel_res_cost(scalar prev_rel_res_cost) const
+    {
+        return ::Foam::set_solve_prev_rel_res_cost(sysMatrixName_, db_,
+                                                   prev_rel_res_cost);
+    }
 
     label get_prev_number_of_iterations() const
     {
         return get_solve_prev_iters(sysMatrixName_, db_,
-                                   outerStoppingCriterion_.get_is_final());
+                                    outerStoppingCriterion_.get_is_final());
     }
 
     label get_number_of_iterations() const

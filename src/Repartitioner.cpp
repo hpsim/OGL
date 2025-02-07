@@ -213,27 +213,27 @@ Repartitioner::repartition_comm_pattern(
         std::sort(gathered_orig_target_ids.begin(),
                   gathered_orig_target_ids.end());
         for (int i = 1; i < gathered_target_sizes.size(); i++) {
-		// we only need consecutivity among communication partners which will be local
-	    if(
-			    gathered_orig_target_ids[i] >  host_rank + ranks_per_gpu_ - 1 || 
-			    gathered_orig_target_ids[i-1] <  host_rank
-	     
-	      ) {
-		    continue;
-	    } 
+            // we only need consecutivity among communication partners which
+            // will be local
+            if (gathered_orig_target_ids[i] > host_rank + ranks_per_gpu_ - 1 ||
+                gathered_orig_target_ids[i - 1] < host_rank
+
+            ) {
+                continue;
+            }
 
             if (!(gathered_orig_target_ids[i - 1] ==
                       gathered_orig_target_ids[i] ||
                   gathered_orig_target_ids[i - 1] ==
                       gathered_orig_target_ids[i] - 1)) {
-		std::cout << __FILE__ <<
-			" host_rank " << host_rank <<
-			" ranks_per_gpu " << ranks_per_gpu_ <<
-		       	" gathered_orig_target_ids " << gathered_orig_target_ids << "\n";
+                std::cout << __FILE__ << " host_rank " << host_rank
+                          << " ranks_per_gpu " << ranks_per_gpu_
+                          << " gathered_orig_target_ids "
+                          << gathered_orig_target_ids << "\n";
                 FatalErrorInFunction
                     << " Unconnected ranks after repartitioning detected "
-		    << " rank " <<  gathered_orig_target_ids[i - 1] 
-		    << " and rank " <<  gathered_orig_target_ids[i] 
+                    << " rank " << gathered_orig_target_ids[i - 1]
+                    << " and rank " << gathered_orig_target_ids[i]
                     << exit(FatalError);
             }
         }

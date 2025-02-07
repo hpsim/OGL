@@ -141,7 +141,7 @@ public:
         comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
-	orig_comm_rank_.push_back(comm_rank);
+        orig_comm_rank_.push_back(comm_rank);
 
         map_.push_back(map);
     }
@@ -160,16 +160,16 @@ public:
         comm_id_.push_back(comm_id);
         orig_rank_.push_back(orig_rank);
         comm_rank_.push_back(comm_rank);
-	orig_comm_rank_.push_back(comm_rank);
+        orig_comm_rank_.push_back(comm_rank);
     }
 
     std::vector<label> compute_to_global_map(bool fuse) const
     {
         // TODO just change the sorting algorithm of compress_cols
-	std::vector<label> inv_comm_ranks;
-	for (auto rank: comm_rank_){
-		inv_comm_ranks.push_back(-rank);
-	}
+        std::vector<label> inv_comm_ranks;
+        for (auto rank : comm_rank_) {
+            inv_comm_ranks.push_back(-rank);
+        }
 
         return std::get<1>(detail::compress_cols(cols_, orig_comm_rank_));
     }
@@ -285,29 +285,31 @@ public:
 
         label map_offset = 0;
 
-        auto cols = (compress_cols)
-                           ? std::get<0>(detail::compress_cols(cols_, orig_comm_rank_))
-                           : cols_;
+        auto cols =
+            (compress_cols)
+                ? std::get<0>(detail::compress_cols(cols_, orig_comm_rank_))
+                : cols_;
 
-	// ldu part first
-	if (!compress_cols) {
-	for (int id = 0; id < 3; id++ ) {
-		for (size_t i = 0; i < id_.size(); i++) {
-		    if (id_[i] != id) {
-			continue;
-		    }
-		    rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
-		    out_cols.insert(out_cols.end(), cols[i].begin(), cols[i].end());
-		    size_t iface_length = rows_[i].size();
-		    for (size_t j = 0; j < iface_length; j++) {
-			map.push_back(map_[i][j] + map_offset);
-		    }
-		    map_offset += iface_length;
-		}
-	}
-	}
+        // ldu part first
+        if (!compress_cols) {
+            for (int id = 0; id < 3; id++) {
+                for (size_t i = 0; i < id_.size(); i++) {
+                    if (id_[i] != id) {
+                        continue;
+                    }
+                    rows.insert(rows.end(), rows_[i].begin(), rows_[i].end());
+                    out_cols.insert(out_cols.end(), cols[i].begin(),
+                                    cols[i].end());
+                    size_t iface_length = rows_[i].size();
+                    for (size_t j = 0; j < iface_length; j++) {
+                        map.push_back(map_[i][j] + map_offset);
+                    }
+                    map_offset += iface_length;
+                }
+            }
+        }
 
-	// the rest. here the ids are negative
+        // the rest. here the ids are negative
         for (size_t i = 0; i < id_.size(); i++) {
             if (id_[i] >= 0) {
                 continue;
@@ -446,10 +448,10 @@ private:
     // the rank from which this interface originates
     std::vector<label> orig_rank_;
 
-    // the current rank with which this rank communicates  
+    // the current rank with which this rank communicates
     std::vector<label> comm_rank_;
 
-    // the current rank with which this rank communicated  
+    // the current rank with which this rank communicated
     // originally
     std::vector<label> orig_comm_rank_;
 

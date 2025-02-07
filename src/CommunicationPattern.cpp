@@ -268,12 +268,12 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
     out << "\ntarget_ids: " << e.target_ids;
     out << "target_sizes: " << e.target_sizes;
     out << "send idxs: " << e.target_sizes;
-    for (auto send_idx: e.send_idxs){
-	    out << "[";
-	    for  (auto idx: send_idx){
-		    out << idx << " ";
-	    }
-	    out << "]\n";
+    for (auto send_idx : e.send_idxs) {
+        out << "[";
+        for (auto idx : send_idx) {
+            out << idx << " ";
+        }
+        out << "]\n";
     }
     out << "}\n";
     return out;
