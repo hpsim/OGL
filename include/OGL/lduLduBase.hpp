@@ -285,12 +285,11 @@ public:
         }
 
         LOG_1(verbose_, "start create solver")
-        auto solver_gen = this->create_dist_solver(
-            exec_handler_.get_device_exec(), dist_A_v, dist_x_v, dist_b_v,
-            verbose_, export_system, precond);
-
-        TIME_WITH_FIELDNAME(verbose_, generate_solver, this->fieldName(),
-                            auto solver = solver_gen->generate(dist_A_v);)
+        TIME_WITH_FIELDNAME(
+            verbose_, generate_solver, this->fieldName(),
+            auto solver = this->create_dist_solver(
+                exec_handler_.get_device_exec(), dist_A_v, dist_x_v, dist_b_v,
+                verbose_, export_system, precond);)
         LOG_1(verbose_, "done create solver")
 
         // solve only on active rank

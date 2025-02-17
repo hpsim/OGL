@@ -42,22 +42,24 @@ public:
 
     CREATE_SOLVER_METHODS(cg)
 
-    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    std::shared_ptr<cg> create_default(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> gkomatrix) const
     {
         auto cg = cg::build().with_criteria(stoppingCriterionVec_).on(exec);
-        return cg;
+        return cg->generate(gkomatrix);
     }
 
-    std::unique_ptr<cg::Factory, std::default_delete<cg::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<gko::LinOp> precond) const
+    std::shared_ptr<cg> create_precond(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> precond,
+        std::shared_ptr<gko::LinOp> gkomatrix) const
     {
         auto cg = cg::build()
                       .with_criteria(stoppingCriterionVec_)
                       .with_generated_preconditioner(precond)
                       .on(exec);
-        return cg;
+        return cg->generate(gkomatrix);
     }
 
     scalar get_init_res_norm() const

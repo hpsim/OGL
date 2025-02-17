@@ -87,12 +87,11 @@ public:
               innerSolverControls_.lookupOrDefault("minCoarseRows", label(10)))
     {}
 
-    std::unique_ptr<mg::Factory, std::default_delete<mg::Factory>>
-    create_dist_solver(std::shared_ptr<gko::Executor> exec,
-                       std::shared_ptr<gko::LinOp> sysmatrix,
-                       std::shared_ptr<dist_vec> x, std::shared_ptr<dist_vec> b,
-                       const label verbose, const bool export_res,
-                       std::shared_ptr<gko::LinOp> precond) const
+    std::shared_ptr<mg> create_dist_solver(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> sysmatrix, std::shared_ptr<dist_vec> x,
+        std::shared_ptr<dist_vec> b, const label verbose, const bool export_res,
+        std::shared_ptr<gko::LinOp> precond) const
     {
         auto gkomatrix =
             gko::as<RepartDistMatrix>(sysmatrix)->get_dist_matrix();
@@ -146,7 +145,7 @@ public:
                 .with_criteria(outerStoppingCriterionVec_)
                 .on(exec);
 
-        return ret;
+        return gko::share(ret->generate(gkomatrix));
     }
 
     label get_res_norm_time() const
