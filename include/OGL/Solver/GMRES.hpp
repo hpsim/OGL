@@ -43,23 +43,26 @@ public:
 
     CREATE_SOLVER_METHODS(gmres)
 
-    std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    std::shared_ptr<gmres> create_default(std::shared_ptr<gko::Executor> exec,
+                                          std::shared_ptr<gko::LinOp> sysmatrix
+
+    ) const
     {
         auto gmres =
             gmres::build().with_criteria(stoppingCriterionVec_).on(exec);
-        return gmres;
+        return gko::share(gmres->generate(sysmatrix));
     }
 
-    std::unique_ptr<gmres::Factory, std::default_delete<gmres::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<gko::LinOp> precond) const
+    std::shared_ptr<gmres> create_precond(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> precond,
+        std::shared_ptr<gko::LinOp> sysmatrix) const
     {
         auto gmres = gmres::build()
                          .with_criteria(stoppingCriterionVec_)
                          .with_generated_preconditioner(precond)
                          .on(exec);
-        return gmres;
+        return gko::share(gmres->generate(sysmatrix));
     }
 
     scalar get_init_res_norm() const

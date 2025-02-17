@@ -64,7 +64,8 @@ class StoppingCriterion {
 
             bool GKO_FACTORY_PARAMETER(export_res, false);
 
-            std::shared_ptr<gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix, {});
+            std::shared_ptr<const gko::LinOp> GKO_FACTORY_PARAMETER(gkomatrix,
+                                                                    {});
 
             std::shared_ptr<dist_vec> GKO_FACTORY_PARAMETER(x, {});
 
@@ -190,7 +191,7 @@ public:
 
     std::shared_ptr<const gko::stop::CriterionFactory>
     build_dist_stopping_criterion(std::shared_ptr<gko::Executor> device_exec,
-                                  std::shared_ptr<gko::LinOp> gkomatrix,
+                                  std::shared_ptr<const gko::LinOp> gkomatrix,
                                   std::shared_ptr<dist_vec> x,
                                   std::shared_ptr<dist_vec> b, label verbose,
                                   bool export_res, label prev_solve_iters,

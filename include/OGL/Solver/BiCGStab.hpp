@@ -46,24 +46,26 @@ public:
 
     CREATE_SOLVER_METHODS(bicgstab)
 
-    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
-    create_default(std::shared_ptr<gko::Executor> exec) const
+    std::shared_ptr<bicgstab> create_default(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> sysmatrix) const
     {
         auto bicgstab = gko::solver::Bicgstab<scalar>::build()
                             .with_criteria(stoppingCriterionVec_)
                             .on(exec);
-        return bicgstab;
+        return gko::share(bicgstab->generate(sysmatrix));
     }
 
-    std::unique_ptr<bicgstab::Factory, std::default_delete<bicgstab::Factory>>
-    create_precond(std::shared_ptr<gko::Executor> exec,
-                   std::shared_ptr<gko::LinOp> precond) const
+    std::shared_ptr<bicgstab> create_precond(
+        std::shared_ptr<gko::Executor> exec,
+        std::shared_ptr<gko::LinOp> precond,
+        std::shared_ptr<gko::LinOp> sysmatrix) const
     {
         auto bicgstab = bicgstab::build()
                             .with_criteria(stoppingCriterionVec_)
                             .with_generated_preconditioner(precond)
                             .on(exec);
-        return bicgstab;
+        return gko::share(bicgstab->generate(sysmatrix));
     }
 
     scalar get_init_res_norm() const
