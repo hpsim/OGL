@@ -96,6 +96,12 @@ public:
         auto gkomatrix =
             gko::as<RepartDistMatrix>(sysmatrix)->get_dist_matrix();
 
+        auto gko_local_matrix =
+            gko::as<
+                gko::experimental::distributed::Matrix<scalar, label, label>>(
+                gkomatrix)
+                ->get_local_matrix();
+
         outerStoppingCriterionVec_.push_back(
             outerStoppingCriterion_.build_dist_stopping_criterion(
                 exec, gkomatrix, x, b, verbose, export_res,
@@ -122,26 +128,43 @@ public:
                                 .with_skip_sorting(true)
                                 .on(exec);
         // Create CoarsestSolver factory
-        auto coarsest_gen =
-            gko::share(ir::build()
-                           .with_solver(inner_solver_gen)
-                           .with_relaxation_factor(inner_relaxation_factor_)
-                           .with_criteria(gko::stop::Iteration::build()
-                                              .with_max_iters(coarse_max_iters_)
-                                              .on(exec))
-                           .on(exec));
+        //
+        //
+        std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
+
+        // if (coarsest_solver_ == "CG") {
+        coarsest_solver = gko::share(
+            cg::build()
+                // .with_preconditioner(ras::build().with_local_solver(
+                //     bj::build().with_max_block_size(1u)))
+                .with_criteria(gko::stop::Iteration::build().with_max_iters(
+                                   coarse_max_iters_),
+                               gko::stop::ResidualNorm<scalar>::build()
+                                   .with_baseline(gko::stop::mode::absolute)
+                                   .with_reduction_factor(1e-18))
+                .on(exec));
+
+        // }
+        // auto coarsest_gen =
+        //     gko::share(ir::build()
+        //                    .with_solver(inner_solver_gen)
+        //                    .with_relaxation_factor(inner_relaxation_factor_)
+        //                    .with_criteria(gko::stop::Iteration::build()
+        //                                       .with_max_iters(coarse_max_iters_)
+        //                                       .on(exec))
+        //                    .on(exec));
 
         // Create multigrid factory
         auto ret =
             mg::build()
                 .with_max_levels(max_levels_)
-                .with_min_coarse_rows(min_coarse_rows_)
-                .with_pre_smoother(smoother_gen)
-                .with_post_uses_pre(true)
                 .with_mg_level(
                     gko::multigrid::Pgm<scalar>::build().with_deterministic(
                         false))
-                .with_coarsest_solver(coarsest_gen)
+                .with_min_coarse_rows(min_coarse_rows_)
+                .with_coarsest_solver(coarsest_solver)
+                //.with_pre_smoother(smoother_gen)
+                //.with_post_uses_pre(true)
                 .with_criteria(outerStoppingCriterionVec_)
                 .on(exec);
 

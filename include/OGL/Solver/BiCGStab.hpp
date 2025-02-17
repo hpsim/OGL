@@ -46,7 +46,7 @@ public:
 
     CREATE_SOLVER_METHODS(bicgstab)
 
-    std::unique_ptr<bicgstab> create_default(
+    std::shared_ptr<bicgstab> create_default(
         std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::LinOp> sysmatrix) const
     {
@@ -56,7 +56,7 @@ public:
         return gko::share(bicgstab->generate(sysmatrix));
     }
 
-    std::unique_ptr<bicgstab> create_precond(
+    std::shared_ptr<bicgstab> create_precond(
         std::shared_ptr<gko::Executor> exec,
         std::shared_ptr<gko::LinOp> precond,
         std::shared_ptr<gko::LinOp> sysmatrix) const
