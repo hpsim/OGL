@@ -13,7 +13,7 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     // create a sorting map based on the comm ids
     // here the ids with higher id should receive data first
     auto id_permutation =
-        sort_permutation(comm_id, [](label a, label b) { return a > b; });
+        sort_permutation(comm_id, [](label a, label b) { return a < b; });
     std::map<label, label> col_map;
 
     std::vector<label> global_cols;
