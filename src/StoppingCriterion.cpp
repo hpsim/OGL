@@ -91,7 +91,21 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     auto start_eval = std::chrono::steady_clock::now();
     const auto exec = this->get_executor();
 
-    auto *dense_r = gko::as<dist_vec>(updater.residual_);
+    std::shared_ptr<dist_vec> dense_r_vec;
+    // multigrid does not set residual for out iterations
+    if (updater.residual_ == nullptr) {
+        dense_r_vec = parameters_.b->clone();
+
+        auto one{gko::initialize<gko::matrix::Dense<scalar>>({1}, exec)};
+        auto neg_one{gko::initialize<gko::matrix::Dense<scalar>>({-1}, exec)};
+        parameters_.gkomatrix->apply(neg_one, updater.solution_, one,
+                                     dense_r_vec);
+    }
+
+    const dist_vec *dense_r = (updater.residual_ == nullptr)
+                                  ? dense_r_vec.get()
+                                  : gko::as<dist_vec>(updater.residual_);
+
     auto norm1 = vec::create(exec, gko::dim<2>{1});
     dense_r->compute_norm1(norm1.get());
     auto norm1_host = vec::create(exec->get_master(), gko::dim<2>{1});
