@@ -51,6 +51,13 @@ public:
         RepartDistMatrix>::convert_to;
     using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
 
+    std::shared_ptr<const gko::LinOp> get_dist_matrix() const
+    {
+        return this->dist_mtx_;
+    }
+
+    std::shared_ptr<gko::LinOp> get_dist_matrix() { return this->dist_mtx_; }
+
     std::shared_ptr<const gko::LinOp> get_local_matrix() const
     {
         return this->dist_mtx_->get_local_matrix();
