@@ -61,7 +61,7 @@ private:
 
     const label min_coarse_rows_;
 
-    const label cycle_;
+    const word cycle_;
 
     mutable std::vector<std::shared_ptr<const gko::stop::CriterionFactory>>
         outerStoppingCriterionVec_ = {};
@@ -97,7 +97,7 @@ public:
               innerSolverControls_.lookupOrDefault("maxLevels", label(9))),
           min_coarse_rows_(
               innerSolverControls_.lookupOrDefault("minCoarseRows", label(10))),
-          cycle_(solverControls_.lookupOrDefault("cycle", label(0)))
+          cycle_(solverControls_.lookupOrDefault("cycle", word("v")))
     {
         auto mtx_format =
             solverControls.lookupOrDefault("matrixFormat", word("Coo"));
@@ -127,6 +127,11 @@ public:
         std::shared_ptr<dist_vec> b, const label verbose, const bool export_res,
         std::shared_ptr<gko::LinOp> precond) const
     {
+        gko::solver::multigrid::cycle cycle;
+        if (cycle_ == "v") cycle = gko::solver::multigrid::cycle::v;
+        if (cycle_ == "w") cycle = gko::solver::multigrid::cycle::w;
+        if (cycle_ == "f") cycle = gko::solver::multigrid::cycle::f;
+
         auto gkomatrix =
             gko::as<RepartDistMatrix>(sysmatrix)->get_dist_matrix();
 
@@ -142,19 +147,14 @@ public:
                 get_prev_number_of_iterations(),
                 get_solve_prev_rel_res_cost()));
 
-        auto inner_solver_gen =
-            gko::share(bj::build()
-                           .with_skip_sorting(true)
-                           .with_max_block_size(max_block_size_)
-                           .on(exec));
-
         auto smoother_gen = gko::share(
             ir::build()
-                .with_solver(inner_solver_gen)
+                .with_solver(ras::build().with_local_solver(
+                    bj::build().with_skip_sorting(true).with_max_block_size(
+                        1u)))
                 .with_relaxation_factor(smoother_relaxation_factor_)
-                .with_criteria(gko::stop::Iteration::build()
-                                   .with_max_iters(smoother_max_iters_)
-                                   .on(exec))
+                .with_criteria(gko::stop::Iteration::build().with_max_iters(
+                    smoother_max_iters_))
                 .on(exec));
 
         // Create MultigridLevel factory
@@ -189,10 +189,10 @@ public:
                         false))
                 .with_min_coarse_rows(min_coarse_rows_)
                 .with_coarsest_solver(coarsest_solver)
-                //.with_pre_smoother(smoother_gen)
-                // .with_post_uses_pre(true)
+                .with_pre_smoother(smoother_gen)
+                .with_post_uses_pre(true)
                 .with_criteria(outerStoppingCriterionVec_)
-                .with_cycle(cycle_)
+                .with_cycle(cycle)
                 .on(exec);
 
         return gko::share(ret->generate(gkomatrix));

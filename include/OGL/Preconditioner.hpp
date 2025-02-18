@@ -16,10 +16,12 @@ namespace Foam {
 class Preconditioner {
     using mtx = gko::matrix::Csr<scalar>;
     using bj = gko::preconditioner::Jacobi<>;
+    using fbj = gko::preconditioner::Jacobi<float, label>;
+    using dbj = gko::preconditioner::Jacobi<double, label>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
     using it = gko::stop::Iteration;
-    using cg = gko::solver::Cg<scalar>;
+    using cg = gko::solver::Cg<float>;
     using mg = gko::solver::Multigrid;
     using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
@@ -90,21 +92,38 @@ public:
             // TODO for non constant system matrix reuse block pointers
             label max_block_size(
                 controls.lookupOrDefault("maxBlockSize", label(1)));
+            word precision(
+                controls.lookupOrDefault("precision", word("double")));
 
-            word msg = "Generate preconditioner " + name + " MaxBlockSize " +
-                       std::to_string(max_block_size);
+            word msg = "Generate preconditioner " + name + "<" + precision +
+                       "> MaxBlockSize " + std::to_string(max_block_size);
             MLOG_0(verbose_, msg)
 
-            auto pre_factory = bj::build()
-                                   .with_skip_sorting(skip_sorting)
-                                   .with_max_block_size(
-                                       static_cast<gko::uint32>(max_block_size))
-                                   .on(device_exec);
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
+            if (precision == "double") {
+                auto pre_factory =
+                    dbj::build()
+                        .with_skip_sorting(skip_sorting)
+                        .with_max_block_size(
+                            static_cast<gko::uint32>(max_block_size))
+                        .on(device_exec);
+                return wrap_schwarz(gkomatrix, device_exec,
+                                    std::move(pre_factory));
+            } else {
+                auto pre_factory =
+                    fbj::build()
+                        .with_skip_sorting(skip_sorting)
+                        .with_max_block_size(
+                            static_cast<gko::uint32>(max_block_size))
+                        .on(device_exec);
+                return wrap_schwarz(gkomatrix, device_exec,
+                                    std::move(pre_factory));
+            }
         }
         if (name == "ILU") {
             word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
 
             auto factorization_factory =
                 gko::factorization::Ilu<scalar, label>::build()
@@ -113,19 +132,21 @@ public:
 
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkomatrix)
+                    scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
 
 
-            return wrap_schwarz(gkomatrix, device_exec,
+            return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
         if (name == "ILUT") {
             word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
 
             auto factorization_factory =
                 gko::factorization::ParIlut<scalar, label>::build()
@@ -133,14 +154,13 @@ public:
                     .on(device_exec);
 
             auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
+                gko::as<gko::experimental::distributed::Matrix<>>(gkodistmatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
 
-
-            return wrap_schwarz(gkomatrix, device_exec,
+            return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
         if (name == "IRILU") {
@@ -178,6 +198,8 @@ public:
         if (name == "IC") {
             word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
 
             auto factorization_factory =
                 gko::factorization::Ic<scalar, label>::build()
@@ -186,14 +208,13 @@ public:
 
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkomatrix)
+                    scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
 
-
-            return wrap_schwarz(gkomatrix, device_exec,
+            return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
         if (name == "ICT") {
@@ -337,18 +358,33 @@ public:
             }
 
             if (type == "Distributed") {
+                auto gkodistmatrix =
+                    gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+                auto smoother_gen = gko::share(
+                    ir::build()
+                        .with_solver(ras::build().with_local_solver(
+                            bj::build()
+                                .with_skip_sorting(true)
+                                .with_max_block_size(1u)))
+                        .with_relaxation_factor(0.9)
+                        .with_criteria(
+                            gko::stop::Iteration::build().with_max_iters(
+                                smoother_max_iters))
+                        .on(device_exec));
                 auto ret = gko::share(
                     gko::solver::Multigrid::build()
                         .with_max_levels(max_levels)
                         .with_mg_level(gko::multigrid::Pgm<scalar>::build()
-                                           .with_deterministic(false))
+                                           .with_deterministic(true))
                         .with_min_coarse_rows(min_coarse_rows)
                         .with_coarsest_solver(coarsest_gen)
-                        .with_criteria(it::build().with_max_iters(1u))
+                        .with_criteria(it::build().with_max_iters(2u))
                         .with_smoother_iters(smoother_max_iters)
+                        .with_pre_smoother(smoother_gen)
+                        .with_post_uses_pre(true)
                         .with_cycle(cycle)
                         .on(device_exec)
-                        ->generate(gkomatrix));
+                        ->generate(gkodistmatrix));
                 return ret;
             }
             FatalErrorInFunction << "Unknown Multigrid type: " << type

@@ -323,13 +323,16 @@ public:
                                                  &prev_rel_res_cost, 1, 0);
         this->set_prev_rel_res_cost(prev_rel_res_cost);
         size_t dofs = repartitioner->get_orig_partition()->get_size();
+        auto time_per_dof = delta_t_solve_ * 1000.0 / dofs;
         auto time_per_iter_and_dof = time_per_iter * 1000.0 / dofs;
         word msg =
             "\nStatistics:\n\tNumber DOFs: " + std::to_string(dofs) +
             " [#]\n\tTime per iteration: " + std::to_string(time_per_iter) +
             std::string(" [mu s]\n\tTime per residual norm calculation: ") +
             std::to_string(time_for_res_norm_eval) +
-            std::string(" [mu s]\n\tTime per iteration and DOF: ") +
+            std::string(" [mu s]\n\tTime per DOF: ") +
+            std::to_string(time_per_dof) + std::string(" [ns]") +
+            std::string("\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
             std::string("\n\tRetrieve results bandwidth ") +
             std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
