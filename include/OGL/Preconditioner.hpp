@@ -21,7 +21,8 @@ class Preconditioner {
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
     using it = gko::stop::Iteration;
-    using cg = gko::solver::Cg<float>;
+    using cg = gko::solver::Cg<scalar>;
+    using fcg = gko::solver::Cg<float>;
     using mg = gko::solver::Multigrid;
     using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
