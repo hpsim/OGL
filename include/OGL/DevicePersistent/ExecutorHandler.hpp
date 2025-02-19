@@ -102,11 +102,24 @@ struct ExecutorInitFunctor {
     {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
+
         auto msg = [](auto exec, auto id) {
             std::string s;
+	    //auto node_comm = Pstream::commInterHost();
+	    auto node_comm = Pstream::commIntraHost();
+	    label global_rank = Pstream::myProcNo();
+	    label global_ranks = Pstream::nProcs(0);
+	    label device_ranks = Pstream::nProcs(node_comm);
+	    label node_id = global_ranks/ device_ranks;
+	    // Pstream::barrier(0);
+	    sleep(0.03 * global_rank);
             s += std::string("Create ") + std::string(exec) +
-                 std::string(" executor on device ") + std::to_string(id) +
-                 std::string(" on rank ") + std::to_string(Pstream::myProcNo());
+                 std::string(" executor device ") + std::to_string(id) +
+                 std::string(" node ") + std::to_string(node_id) +
+                 std::string(" local rank [") + std::to_string(Pstream::myProcNo(node_comm)) +
+                 std::string("/") + std::to_string(device_ranks) +
+                 std::string("] global rank [") + std::to_string(global_rank) +
+                 std::string("/") + std::to_string(global_ranks) + std::string("]");
             return s;
         };
 
