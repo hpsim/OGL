@@ -453,66 +453,63 @@ public:
                 if (name == "Multigrid") {
                     word msg = "Update Multigrid preconditioner";
                     MLOG_1(verbose_, msg)
-		    auto gkodistmatrix =
-			gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-		    label rows = gko::as<gko::experimental::distributed::
-                                                Matrix<scalar, label, label>>(
-                                        gkodistmatrix)
-                                        ->get_local_matrix()->get_size()[0];
-		    if (rows==0) return ret;
+                    auto gkodistmatrix =
+                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+                    label rows = gko::as<gko::experimental::distributed::Matrix<
+                        scalar, label, label>>(gkodistmatrix)
+                                     ->get_local_matrix()
+                                     ->get_size()[0];
+                    if (rows == 0) return ret;
 
                     word type =
                         controls.lookupOrDefault("type", word("Schwarz"));
 
-                        std::cout << __FILE__ << __LINE__
-                                  << "update multigrid\n";
-                        if (type == "Schwarz") {
-                            auto local_solver =
-                                std::const_pointer_cast<gko::LinOp>(
-                                    gko::as<ras>(ret)->get_local_solver());
+                    std::cout << __FILE__ << __LINE__ << "update multigrid\n";
+                    if (type == "Schwarz") {
+                        auto local_solver = std::const_pointer_cast<gko::LinOp>(
+                            gko::as<ras>(ret)->get_local_solver());
 
-                            gko::as<gko::UpdateMatrixValue>(local_solver)
-                                ->update_matrix_value(
-                                    gko::as<gko::experimental::distributed::
-                                                Matrix<scalar, label, label>>(
-                                        gkodistmatrix)
-                                        ->get_local_matrix());
-                        } else {
-                            gko::as<gko::UpdateMatrixValue>(ret)
-                                ->update_matrix_value(gkodistmatrix);
-                        }
+                        gko::as<gko::UpdateMatrixValue>(local_solver)
+                            ->update_matrix_value(
+                                gko::as<gko::experimental::distributed::Matrix<
+                                    scalar, label, label>>(gkodistmatrix)
+                                    ->get_local_matrix());
+                    } else {
+                        gko::as<gko::UpdateMatrixValue>(ret)
+                            ->update_matrix_value(gkodistmatrix);
                     }
-                    return ret;
-                } else {
-                    auto prev_precond = db_.template lookupObjectRef<
-                        DevicePersistentBase<gko::LinOp>>(precond_store_name);
-                    const label caching_period =
-                        controls.lookupOrDefault<label>("caching", 0);
-                    set_next_caching(sys_matrix_name_, db_, caching_period);
-
-                    auto generated_precond = init_preconditioner_impl(
-                        name, controls, gkomatrix, device_exec);
-
-                    auto precond_ptr = prev_precond.get_ptr();
-                    precond_ptr = generated_precond;
-                    return precond_ptr;
                 }
+                return ret;
+            } else {
+                auto prev_precond = db_.template lookupObjectRef<
+                    DevicePersistentBase<gko::LinOp>>(precond_store_name);
+                const label caching_period =
+                    controls.lookupOrDefault<label>("caching", 0);
+                set_next_caching(sys_matrix_name_, db_, caching_period);
+
+                auto generated_precond = init_preconditioner_impl(
+                    name, controls, gkomatrix, device_exec);
+
+                auto precond_ptr = prev_precond.get_ptr();
+                precond_ptr = generated_precond;
+                return precond_ptr;
             }
-            const label caching_period =
-                controls.lookupOrDefault<label>("caching", 0);
-            set_next_caching(sys_matrix_name_, db_, caching_period);
-            cache = get_next_caching(sys_matrix_name_, db_);
-
-            auto generated_precond = init_preconditioner_impl(
-                name, controls, gkomatrix, device_exec);
-
-            auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
-                                                           generated_precond);
-
-            // use get_ptr(() to avoid unused variable warning
-            po->get_ptr();
-
-            return generated_precond;
         }
-    };
+        const label caching_period =
+            controls.lookupOrDefault<label>("caching", 0);
+        set_next_caching(sys_matrix_name_, db_, caching_period);
+        cache = get_next_caching(sys_matrix_name_, db_);
+
+        auto generated_precond =
+            init_preconditioner_impl(name, controls, gkomatrix, device_exec);
+
+        auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
+                                                       generated_precond);
+
+        // use get_ptr(() to avoid unused variable warning
+        po->get_ptr();
+
+        return generated_precond;
+    }
+};
 }  // namespace Foam

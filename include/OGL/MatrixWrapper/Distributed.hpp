@@ -46,8 +46,7 @@ public:
         scalar *recv_ptr;  //
     };
 
-    using gko::EnableLinOp<
-        RepartDistMatrix>::convert_to;
+    using gko::EnableLinOp<RepartDistMatrix>::convert_to;
     using gko::EnableLinOp<RepartDistMatrix>::move_to;
 
     std::shared_ptr<const gko::LinOp> get_dist_matrix() const
@@ -90,8 +89,7 @@ public:
             // disallowed "
             //                         "for performance reasons"
             //                      << abort(FatalError);
-            gko::EnableLinOp<
-                RepartDistMatrix>::operator=(other);
+            gko::EnableLinOp<RepartDistMatrix>::operator=(other);
             this->dist_mtx_ = other.dist_mtx_;
             this->fuse_ = other.fuse_;
             this->matrix_format_ = other.matrix_format_;
@@ -114,8 +112,7 @@ public:
     {
         if (&other != this) {
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
-            gko::EnableLinOp<
-                RepartDistMatrix>::operator=(std::move(other));
+            gko::EnableLinOp<RepartDistMatrix>::operator=(std::move(other));
             this->fuse_ = other.fuse_;
             this->matrix_format_ = other.matrix_format_;
             this->dist_mtx_ = std::move(other.dist_mtx_);
