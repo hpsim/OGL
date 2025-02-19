@@ -453,19 +453,19 @@ public:
                 if (name == "Multigrid") {
                     word msg = "Update Multigrid preconditioner";
                     MLOG_1(verbose_, msg)
+		    auto gkodistmatrix =
+			gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+		    label rows = gko::as<gko::experimental::distributed::
+                                                Matrix<scalar, label, label>>(
+                                        gkodistmatrix)
+                                        ->get_local_matrix()->get_size()[0];
+		    if (rows==0) return ret;
+
                     word type =
                         controls.lookupOrDefault("type", word("Schwarz"));
 
-
-                    auto ret = db_.template lookupObjectRef<
-                                      DevicePersistentBase<gko::LinOp>>(
-                                      precond_store_name)
-                                   .get_ptr();
-                    if (name == "Multigrid") {
                         std::cout << __FILE__ << __LINE__
                                   << "update multigrid\n";
-                        word type =
-                            controls.lookupOrDefault("type", word("Schwarz"));
                         if (type == "Schwarz") {
                             auto local_solver =
                                 std::const_pointer_cast<gko::LinOp>(
@@ -475,11 +475,11 @@ public:
                                 ->update_matrix_value(
                                     gko::as<gko::experimental::distributed::
                                                 Matrix<scalar, label, label>>(
-                                        gkomatrix)
+                                        gkodistmatrix)
                                         ->get_local_matrix());
                         } else {
                             gko::as<gko::UpdateMatrixValue>(ret)
-                                ->update_matrix_value(gkomatrix);
+                                ->update_matrix_value(gkodistmatrix);
                         }
                     }
                     return ret;

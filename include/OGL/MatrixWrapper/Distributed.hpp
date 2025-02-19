@@ -6,7 +6,6 @@
 
 #include <map>
 
-#include <ginkgo/core/distributed/lin_op.hpp>
 #include <ginkgo/ginkgo.hpp>
 
 #include "OGL/CommunicationPattern.hpp"
@@ -23,7 +22,7 @@
  * matrix are of RepartDistMatrix type.
  * */
 class RepartDistMatrix
-    : public gko::experimental::EnableDistributedLinOp<RepartDistMatrix>,
+    : public gko::EnableLinOp<RepartDistMatrix>,
       public gko::EnableCreateMethod<RepartDistMatrix>,
       public gko::experimental::distributed::DistributedBase {
     friend class gko::EnableCreateMethod<RepartDistMatrix>;
@@ -47,9 +46,9 @@ public:
         scalar *recv_ptr;  //
     };
 
-    using gko::experimental::EnableDistributedLinOp<
+    using gko::EnableLinOp<
         RepartDistMatrix>::convert_to;
-    using gko::experimental::EnableDistributedLinOp<RepartDistMatrix>::move_to;
+    using gko::EnableLinOp<RepartDistMatrix>::move_to;
 
     std::shared_ptr<const gko::LinOp> get_dist_matrix() const
     {
@@ -91,7 +90,7 @@ public:
             // disallowed "
             //                         "for performance reasons"
             //                      << abort(FatalError);
-            gko::experimental::EnableDistributedLinOp<
+            gko::EnableLinOp<
                 RepartDistMatrix>::operator=(other);
             this->dist_mtx_ = other.dist_mtx_;
             this->fuse_ = other.fuse_;
@@ -115,7 +114,7 @@ public:
     {
         if (&other != this) {
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
-            gko::experimental::EnableDistributedLinOp<
+            gko::EnableLinOp<
                 RepartDistMatrix>::operator=(std::move(other));
             this->fuse_ = other.fuse_;
             this->matrix_format_ = other.matrix_format_;
@@ -149,7 +148,7 @@ public:
         std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
             reorder_maps,
         std::vector<label> compress_to_global, std::map<label, scalar *> linops)
-        : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
+        : gko::EnableLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
           matrix_format_(matrix_format),
@@ -171,7 +170,7 @@ public:
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
                      communicator comm)
-        : gko::experimental::EnableDistributedLinOp<RepartDistMatrix>(exec),
+        : gko::EnableLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase{comm}
     {}
 

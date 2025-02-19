@@ -112,7 +112,7 @@ struct ExecutorInitFunctor {
 	    label device_ranks = Pstream::nProcs(node_comm);
 	    label node_id = global_ranks/ device_ranks;
 	    // Pstream::barrier(0);
-	    sleep(0.03 * global_rank);
+	    // sleep(0.03 * global_rank);
             s += std::string("Create ") + std::string(exec) +
                  std::string(" executor device ") + std::to_string(id) +
                  std::string(" node ") + std::to_string(node_id) +
