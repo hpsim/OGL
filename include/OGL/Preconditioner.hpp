@@ -293,7 +293,6 @@ public:
                 controls.lookupOrDefault("maxLevels", label(5)));
             const label min_coarse_rows(
                 controls.lookupOrDefault("minCoarseRows", label(10)));
-            bool zeroGuess(controls.lookupOrDefault<Switch>("zeroGuess", true));
             const label smoother_max_iters(
                 controls.lookupOrDefault("smootherMaxIters", label(1)));
 
@@ -312,11 +311,14 @@ public:
                         static_cast<gko::uint32>(coarse_solver_iters)))
                     .on(device_exec));
 
-            word msg = "Generate preconditioner " + name + " MaxLevels " +
-                       std::to_string(max_levels) + " MinCoarseRows " +
-                       std::to_string(min_coarse_rows) + " ZeroGuess " +
-                       std::to_string(zeroGuess) + " Cycle " + cycle_name +
-                       " type: " + type;
+            word msg =
+                "Generate preconditioner: " + name +
+                "\n\tmaxLevels: " + std::to_string(max_levels) +
+                "\n\tminCoarseRows: " + std::to_string(min_coarse_rows) +
+                "\n\tsmootherMaxIters: " + std::to_string(smoother_max_iters) +
+                "\n\tcoarseSolverIters: " +
+                std::to_string(coarse_solver_iters) +
+                "\n\tcycle: " + cycle_name + " type: " + type;
             MLOG_0(verbose_, msg)
 
             if (type == "Schwarz") {
