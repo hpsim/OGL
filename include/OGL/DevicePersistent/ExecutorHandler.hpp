@@ -31,6 +31,17 @@ struct DeviceIdHandler {
             FatalErrorInFunction << "Only parallel runs are supported for OGL"
                                  << exit(FatalError);
         }
+
+
+        if (Pstream::nProcs(0) % ranks_per_gpu != 0 ) {
+            FatalErrorInFunction <<
+		    " Total number of ranks = " << Pstream::nProcs(0)
+		    << " is not a multiple of "
+		    << " ranksPerGPU " << ranks_per_gpu
+                                 << exit(FatalError);
+	}
+
+
     }
 
     /* @brief compute the local device id
@@ -102,7 +113,6 @@ struct ExecutorInitFunctor {
     {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
-
         auto msg = [](auto exec, auto id) {
             std::string s;
             // auto node_comm = Pstream::commInterHost();
@@ -111,16 +121,17 @@ struct ExecutorInitFunctor {
             label global_ranks = Pstream::nProcs(0);
             label device_ranks = Pstream::nProcs(node_comm);
             label node_id = global_ranks / device_ranks;
+
             // Pstream::barrier(0);
             // sleep(0.03 * global_rank);
             s += std::string("Create ") + std::string(exec) +
                  std::string(" executor device ") + std::to_string(id) +
                  std::string(" node ") + std::to_string(node_id) +
-                 std::string(" local rank [") +
+                 std::string(" local rank [") + 
                  std::to_string(Pstream::myProcNo(node_comm)) +
-                 std::string("/") + std::to_string(device_ranks) +
+                 std::string("/") + std::to_string(device_ranks-1) +
                  std::string("] global rank [") + std::to_string(global_rank) +
-                 std::string("/") + std::to_string(global_ranks) +
+                 std::string("/") + std::to_string(global_ranks - 1) +
                  std::string("]");
             return s;
         };
@@ -135,7 +146,8 @@ struct ExecutorInitFunctor {
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
             LOG_0(verbose_, msg(executor_name_, id))
-            return gko::share(gko::CudaExecutor::create(id, host_exec));
+            auto ret =  gko::share(gko::CudaExecutor::create(id, host_exec));
+	    return ret;
         }
         if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {
