@@ -35,6 +35,7 @@ HostMatrixWrapper::HostMatrixWrapper(
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(verbose),
       field_name_(fieldName),
+      folder_(db.time().rootPath()),
       reorder_on_copy_(
           solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
       addr_(addr),

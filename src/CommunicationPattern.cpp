@@ -280,15 +280,17 @@ std::ostream &operator<<(std::ostream &out, const CommunicationPattern &e)
 }
 
 
+// computes flat vector of send idxs
 std::vector<label> CommunicationPattern::total_rank_send_idx() const
 {
-    std::vector<label> tmp;
+    // flatten and return
+    std::vector<label> ret;
 
     for (auto &rows : send_idxs) {
-        tmp.insert(tmp.end(), rows.begin(), rows.end());
+        ret.insert(ret.end(), rows.begin(), rows.end());
     }
 
-    return tmp;
+    return ret;
 }
 
 

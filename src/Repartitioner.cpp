@@ -326,6 +326,11 @@ Repartitioner::repartition_comm_pattern(
         }
     }
 
+    // sort the send_idxs so that we send ordered dofs per interface 
+    for (auto & iface_idxs: merged_send_idxs){
+	    std::stable_sort(iface_idxs.begin(), iface_idxs.end());
+    }
+
     // recompute send_idxs
     send_idxs.clear();
 

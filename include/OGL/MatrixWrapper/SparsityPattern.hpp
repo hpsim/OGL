@@ -49,7 +49,7 @@ std::vector<label> sort_permutation(const std::vector<T> &vec, Compare compare)
 *to
 */
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in, std::vector<label> comm_id);
+    std::vector<std::vector<label>> in, std::vector<label> comm_rank);
 }  // namespace detail
 
 namespace Foam {

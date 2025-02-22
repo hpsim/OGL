@@ -81,6 +81,8 @@ private:
 
     const word field_name_;
 
+    const word folder_;
+
     // Whether the matrix coefficients should be reordered
     // during copy or on device
     const bool reorder_on_copy_;
@@ -268,6 +270,8 @@ public:
     const ExecutorHandler &get_exec_handler() const { return exec_; }
 
     const word get_field_name() const { return field_name_; }
+
+    const word get_folder() const { return folder_;}
 };
 
 
