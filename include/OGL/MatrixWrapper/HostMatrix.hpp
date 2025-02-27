@@ -271,7 +271,7 @@ public:
 
     const word get_field_name() const { return field_name_; }
 
-    const word get_folder() const { return folder_;}
+    const word get_folder() const { return folder_; }
 };
 
 

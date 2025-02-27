@@ -33,15 +33,12 @@ struct DeviceIdHandler {
         }
 
 
-        if (Pstream::nProcs(0) % ranks_per_gpu != 0 ) {
-            FatalErrorInFunction <<
-		    " Total number of ranks = " << Pstream::nProcs(0)
-		    << " is not a multiple of "
-		    << " ranksPerGPU " << ranks_per_gpu
-                                 << exit(FatalError);
-	}
-
-
+        if (Pstream::nProcs(0) % ranks_per_gpu != 0) {
+            FatalErrorInFunction
+                << " Total number of ranks = " << Pstream::nProcs(0)
+                << " is not a multiple of "
+                << " ranksPerGPU " << ranks_per_gpu << exit(FatalError);
+        }
     }
 
     /* @brief compute the local device id
@@ -127,9 +124,9 @@ struct ExecutorInitFunctor {
             s += std::string("Create ") + std::string(exec) +
                  std::string(" executor device ") + std::to_string(id) +
                  std::string(" node ") + std::to_string(node_id) +
-                 std::string(" local rank [") + 
+                 std::string(" local rank [") +
                  std::to_string(Pstream::myProcNo(node_comm)) +
-                 std::string("/") + std::to_string(device_ranks-1) +
+                 std::string("/") + std::to_string(device_ranks - 1) +
                  std::string("] global rank [") + std::to_string(global_rank) +
                  std::string("/") + std::to_string(global_ranks - 1) +
                  std::string("]");
@@ -146,8 +143,8 @@ struct ExecutorInitFunctor {
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
             LOG_0(verbose_, msg(executor_name_, id))
-            auto ret =  gko::share(gko::CudaExecutor::create(id, host_exec));
-	    return ret;
+            auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
+            return ret;
         }
         if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
             if (version.dpcpp_version.tag == not_compiled_tag) {

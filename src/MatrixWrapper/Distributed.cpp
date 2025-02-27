@@ -464,12 +464,13 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         repart_comm_pattern->send_recv_pattern();
 
     std::ofstream myfile;
-    std::string folder =  host_A->get_folder();
-    myfile.open (folder + "/host_comm_pattern_" + std::to_string(Pstream::myProcNo()) );
+    std::string folder = host_A->get_folder();
+    myfile.open(folder + "/host_comm_pattern_" +
+                std::to_string(Pstream::myProcNo()));
     myfile << "repart_comm_pattern " << *repart_comm_pattern.get() << "\n";
-    myfile << "\nrecv_gather_idxs: " << convert_to_vector( recv_gather_idxs)
-	   << "\nrecv_sizes: " << recv_sizes
-	   << "\nrecv_offsets: " << recv_offsets << "\n";
+    myfile << "\nrecv_gather_idxs: " << convert_to_vector(recv_gather_idxs)
+           << "\nrecv_sizes: " << recv_sizes
+           << "\nrecv_offsets: " << recv_offsets << "\n";
 
     if (fuse) {
         dist_A = gko::share(dist_mtx::create(

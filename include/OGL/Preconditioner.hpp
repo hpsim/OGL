@@ -329,8 +329,8 @@ public:
                                     smoother_max_iters)))
                         .with_post_uses_pre(true)
                         .with_mg_level(
-                            amgx_pgm::build().with_deterministic(true)
-			    .on(device_exec))
+                            amgx_pgm::build().with_deterministic(true).on(
+                                device_exec))
                         .with_coarsest_solver(gko::share(
                             cg::build()
                                 .with_preconditioner(gko::share(
@@ -338,15 +338,13 @@ public:
                                         .with_skip_sorting(true)
                                         .with_max_block_size(
                                             static_cast<gko::uint32>(1))
-                                        .on(device_exec)
-					))
+                                        .on(device_exec)))
                                 .with_criteria(
                                     gko::stop::Iteration::build()
                                         .with_max_iters(
                                             static_cast<gko::uint32>(
-                                                coarse_solver_iters))).on(device_exec)
-				)
-					)
+                                                coarse_solver_iters)))
+                                .on(device_exec)))
                         .with_criteria(it::build().with_max_iters(1u))
                         .on(device_exec);
 
@@ -355,14 +353,14 @@ public:
             }
 
             if (type == "Distributed") {
-            auto coarsest_gen = gko::share(
-                cg::build()
-                    .with_preconditioner(ras::build()
-                                             .with_local_solver(pre_factory)
-					     )
-                    .with_criteria(gko::stop::Iteration::build().with_max_iters(
-                        static_cast<gko::uint32>(coarse_solver_iters))).on(device_exec)
-		    );
+                auto coarsest_gen = gko::share(
+                    cg::build()
+                        .with_preconditioner(
+                            ras::build().with_local_solver(pre_factory))
+                        .with_criteria(
+                            gko::stop::Iteration::build().with_max_iters(
+                                static_cast<gko::uint32>(coarse_solver_iters)))
+                        .on(device_exec));
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(
@@ -375,8 +373,7 @@ public:
                         .with_criteria(
                             gko::stop::Iteration::build().with_max_iters(
                                 smoother_max_iters))
-                        .on(device_exec)
-			);
+                        .on(device_exec));
                 auto ret = gko::share(
                     gko::solver::Multigrid::build()
                         .with_max_levels(max_levels)

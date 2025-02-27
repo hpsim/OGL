@@ -24,35 +24,34 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
     }
 
 
-    // ranks that are the same need to be fused 
+    // ranks that are the same need to be fused
     // first before sorting the interface
     // because we send indices sorted per interface
     std::vector<std::vector<label>> fused_in;
     label prev = -1;
     for (auto id : comm_permutation) {
-	    if (comm_rank[id] == prev){
-		    auto & back = fused_in.back();
-		    for (auto col : in[id]) {
-			    back.push_back(col);
-		    } 
-	    } else {
-		    std::vector<label> ins;
-		    for (auto col : in[id]) {
-			    ins.push_back(col);
-		    } 
-		    fused_in.push_back(ins);
-		prev=comm_rank[id];
-	    }
+        if (comm_rank[id] == prev) {
+            auto &back = fused_in.back();
+            for (auto col : in[id]) {
+                back.push_back(col);
+            }
+        } else {
+            std::vector<label> ins;
+            for (auto col : in[id]) {
+                ins.push_back(col);
+            }
+            fused_in.push_back(ins);
+            prev = comm_rank[id];
+        }
     }
 
 
     // iterate in the order of communication ranks
     label ctr = 0;
-    for (auto cols: fused_in) {
-
-	// sort by global id because this the order how they are sent
-	std::stable_sort(cols.begin(),cols.end());
-	// based on global col we compute the compressed recv ctr
+    for (auto cols : fused_in) {
+        // sort by global id because this the order how they are sent
+        std::stable_sort(cols.begin(), cols.end());
+        // based on global col we compute the compressed recv ctr
         for (auto col : cols) {
             // new element found
             if (col_map.find(col) == col_map.end()) {
