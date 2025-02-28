@@ -171,9 +171,7 @@ HostMatrixWrapper::create_communication_pattern() const
     for (label proc : target_ids) {
         auto send_idx = interface_cell_map[proc];
         // comm pattern send idxs need to be in order
-        for (auto &iface_idxs : send_idx) {
-            std::stable_sort(iface_idxs.begin(), iface_idxs.end());
-        }
+        std::stable_sort(send_idx.begin(), send_idx.end());
         send_idxs.emplace_back(send_idx);
     }
 
