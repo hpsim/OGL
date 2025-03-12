@@ -465,8 +465,6 @@ public:
 
                     word type =
                         controls.lookupOrDefault("type", word("Schwarz"));
-
-                    std::cout << __FILE__ << __LINE__ << "update multigrid\n";
                     if (type == "Schwarz") {
                         auto local_solver = std::const_pointer_cast<gko::LinOp>(
                             gko::as<ras>(ret)->get_local_solver());
