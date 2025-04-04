@@ -32,7 +32,6 @@ struct DeviceIdHandler {
                                  << exit(FatalError);
         }
 
-
         if (Pstream::nProcs(0) % ranks_per_gpu != 0) {
             FatalErrorInFunction
                 << " Total number of ranks = " << Pstream::nProcs(0)
