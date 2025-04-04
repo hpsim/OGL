@@ -12,8 +12,10 @@ template <typename MatrixType>
 std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     const ExecutorHandler &exec_handler, gko::dim<2> dim,
     const std::vector<std::vector<label>> &rowss,
-    const std::vector<std::vector<label>> &colss, const std::vector<label> &ids,
-    std::map<label, scalar *> &linops, bool fuse)
+    const std::vector<std::vector<label>> &colss,
+    const std::vector<label> &ids,
+    std::vector<std::vector<label>> &map,
+    std::map<label, scalar *> &linops, bool fuse, bool reorder)
 {
     OGL_ASSERT_EQ(rowss.size(), colss.size());
     auto exec = exec_handler.get_device_exec();
@@ -28,14 +30,32 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     for (size_t i = 0; i < rowss.size(); i++) {
         const auto &rows = rowss[i];
         const auto &cols = colss[i];
-        gko::array<scalar> coeffs(exec, rows.size());
-        coeffs.fill(0.0);
+
+        // fill coeffs with  map data to track reordering
+        std::vector<scalar> smap {};
+        smap.reserve(map[i].size());
+        for (auto m: map[i]){
+            smap.push_back(scalar(m));
+        }
+
+        gko::array<scalar> coeffs(exec, smap.begin(), smap.end());
+
+
         auto mtx_data = gko::device_matrix_data<scalar, label>(
             exec->get_master(), dim,
             gko::array<label>(exec->get_master(), rows.begin(), rows.end()),
             gko::array<label>(exec->get_master(), cols.begin(), cols.end()),
             coeffs);
         auto mtx = gko::share(MatrixType::create(exec));
+
+        if (reorder){
+            d_reorder_op = gko::reorder::Rcm<scalar, label>::build()
+                            .with_construct_inverse_permutation(true)
+                            .on(exec)
+                            ->generate(mtx);
+            auto perm = d_reorder_op->get_permutation();
+        }
+
         gko::as<MatrixType>(mtx)->read(mtx_data);
         linops[ids[i]] = mtx->get_values() + offset;
         offset += (fuse) ? rows.size() : 0;
@@ -404,14 +424,14 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         (fuse) ? repart_loc_sparsity->get_fused_vecs(false)
                : repart_loc_sparsity->get_vecs(false, reparts);
     auto local_linops = generate_inner_linops<LocalMatrixType>(
-        exec_handler, repart_dim, loc_rows, loc_cols, loc_ids, linops, fuse);
+        exec_handler, repart_dim, loc_rows, loc_cols, loc_ids, loc_map, linops, fuse, true);
 
     auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
         (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
     auto non_local_linops = generate_inner_linops<LocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
-        non_loc_ids, linops, fuse);
+        non_loc_ids, non_loc_map, linops, fuse, false);
 
     auto compress_to_global =
         repart_non_loc_sparsity->compute_to_global_map(fuse);
