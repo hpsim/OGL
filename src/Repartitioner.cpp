@@ -150,9 +150,9 @@ Repartitioner::repartition_comm_pattern(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern) const
 {
-    if (ranks_per_gpu_ == 1) {
-        return src_comm_pattern;
-    }
+    // if (ranks_per_gpu_ == 1) {
+    //     return src_comm_pattern;
+    // }
 
     // using comm_size_type = label;
     auto exec = exec_handler.get_ref_exec();
