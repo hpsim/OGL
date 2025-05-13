@@ -35,7 +35,7 @@ void export_mtx(const word fieldName,
                 const objectRegistry &db)
 {
     std::string folder{db.time().timePath()};
-    // std::filesystem::create_directories(folder);
+    std::filesystem::create_directories(folder);
 
     std::string fn{folder + "/" + fieldName + "_A.mtx"};
     std::cout << "[OGL LOG] exporting " << fn << std::endl;
