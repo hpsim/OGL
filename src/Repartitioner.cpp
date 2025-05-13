@@ -150,6 +150,8 @@ Repartitioner::repartition_comm_pattern(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern) const
 {
+    // TODO:add early return again
+    // and just sort send_idxs
     // if (ranks_per_gpu_ == 1) {
     //     return src_comm_pattern;
     // }
