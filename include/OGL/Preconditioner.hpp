@@ -302,14 +302,6 @@ public:
                                .with_max_block_size(static_cast<gko::uint32>(1))
                                .on(device_exec));
 
-            auto coarsest_gen = gko::share(
-                cg::build()
-                    .with_preconditioner(ras::build()
-                                             .with_local_solver(pre_factory)
-                                             .on(device_exec))
-                    .with_criteria(gko::stop::Iteration::build().with_max_iters(
-                        static_cast<gko::uint32>(coarse_solver_iters)))
-                    .on(device_exec));
 
             word msg =
                 "Generate preconditioner: " + name +
@@ -361,6 +353,14 @@ public:
             }
 
             if (type == "Distributed") {
+                auto coarsest_gen = gko::share(
+                    cg::build()
+                        .with_preconditioner(
+                            ras::build().with_local_solver(pre_factory))
+                        .with_criteria(
+                            gko::stop::Iteration::build().with_max_iters(
+                                static_cast<gko::uint32>(coarse_solver_iters)))
+                        .on(device_exec));
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(

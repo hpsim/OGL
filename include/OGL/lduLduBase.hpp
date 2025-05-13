@@ -272,9 +272,10 @@ public:
                             auto precond = this->init_preconditioner(
                                 dist_A_v, exec_handler_.get_device_exec());)
 
+        bool active = repartitioner->get_repart_size() != 0;
         bool export_system(
             solver_controls_.lookupOrDefault<Switch>("export", false));
-        if (export_system && db_.time().writeTime()) {
+        if (export_system && db_.time().writeTime() && active) {
             bool write_global(
                 solver_controls_.lookupOrDefault<Switch>("writeGlobal", true));
             LOG_0(verbose_, "Export system")
@@ -293,7 +294,6 @@ public:
         LOG_1(verbose_, "done create solver")
 
         // solve only on active rank
-        bool active = repartitioner->get_repart_size() != 0;
         label delta_t_solve_ = 0;
         bool split_mpi_comm =
             solver_controls_.lookupOrDefault<Switch>("splitMPIComm", true);

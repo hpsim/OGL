@@ -35,6 +35,7 @@ HostMatrixWrapper::HostMatrixWrapper(
       device_id_guard_{db, fieldName, exec_.get_device_exec()},
       verbose_(verbose),
       field_name_(fieldName),
+      folder_(db.time().rootPath()),
       reorder_on_copy_(
           solverControls.lookupOrDefault<Switch>("reorderOnHost", true)),
       addr_(addr),
@@ -168,7 +169,10 @@ HostMatrixWrapper::create_communication_pattern() const
     // create index_sets
     std::vector<std::vector<label>> send_idxs;
     for (label proc : target_ids) {
-        send_idxs.emplace_back(interface_cell_map[proc]);
+        auto send_idx = interface_cell_map[proc];
+        // comm pattern send idxs need to be in order
+        std::stable_sort(send_idx.begin(), send_idx.end());
+        send_idxs.emplace_back(send_idx);
     }
 
     return std::make_shared<CommunicationPattern>(get_exec_handler(),

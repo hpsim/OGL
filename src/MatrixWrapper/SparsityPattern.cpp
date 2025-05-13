@@ -8,12 +8,12 @@ namespace detail {
 
 
 std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
-    std::vector<std::vector<label>> in, std::vector<label> comm_id)
+    std::vector<std::vector<label>> in, std::vector<label> comm_rank)
 {
-    // create a sorting map based on the comm ids
-    // here the ids with higher id should receive data first
-    auto id_permutation =
-        sort_permutation(comm_id, [](label a, label b) { return a < b; });
+    // create a sorting map based on the comm ranks
+    // here data from lower ranks is received  first
+    auto comm_permutation =
+        sort_permutation(comm_rank, [](label a, label b) { return a < b; });
     std::map<label, label> col_map;
 
     std::vector<label> global_cols;
@@ -23,10 +23,35 @@ std::pair<std::vector<std::vector<label>>, std::vector<label>> compress_cols(
         }
     }
 
-    label ctr = 0;
+
+    // ranks that are the same need to be fused
+    // first before sorting the interface
+    // because we send indices sorted per interface
+    std::vector<std::vector<label>> fused_in;
+    label prev = -1;
+    for (auto id : comm_permutation) {
+        if (comm_rank[id] == prev) {
+            auto &back = fused_in.back();
+            for (auto col : in[id]) {
+                back.push_back(col);
+            }
+        } else {
+            std::vector<label> ins;
+            for (auto col : in[id]) {
+                ins.push_back(col);
+            }
+            fused_in.push_back(ins);
+            prev = comm_rank[id];
+        }
+    }
+
+
     // iterate in the order of communication ranks
-    for (auto id : id_permutation) {
-        auto &cols = in[id];
+    label ctr = 0;
+    for (auto cols : fused_in) {
+        // sort by global id because this the order how they are sent
+        std::stable_sort(cols.begin(), cols.end());
+        // based on global col we compute the compressed recv ctr
         for (auto col : cols) {
             // new element found
             if (col_map.find(col) == col_map.end()) {

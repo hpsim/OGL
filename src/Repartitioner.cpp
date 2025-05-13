@@ -150,9 +150,11 @@ Repartitioner::repartition_comm_pattern(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const CommunicationPattern> src_comm_pattern) const
 {
-    if (ranks_per_gpu_ == 1) {
-        return src_comm_pattern;
-    }
+    // TODO:add early return again
+    // and just sort send_idxs
+    // if (ranks_per_gpu_ == 1) {
+    //     return src_comm_pattern;
+    // }
 
     // using comm_size_type = label;
     auto exec = exec_handler.get_ref_exec();
@@ -324,6 +326,11 @@ Repartitioner::repartition_comm_pattern(
             merged_send_idxs.emplace_back(
                 std::vector<label>(send_idx_begin, send_idx_end));
         }
+    }
+
+    // sort the send_idxs so that we send ordered dofs per interface
+    for (auto &iface_idxs : merged_send_idxs) {
+        std::stable_sort(iface_idxs.begin(), iface_idxs.end());
     }
 
     // recompute send_idxs

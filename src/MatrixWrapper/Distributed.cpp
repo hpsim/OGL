@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "OGL/MatrixWrapper/Distributed.hpp"
+#include <fstream>
 
 /* helper function to convert a sparsity pattern into a vector of linops with
  * zero coefficients
@@ -168,6 +169,7 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
         gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
     auto non_local = gko::share(
         gko::matrix::Coo<scalar, label>::create(exec_handler.get_ref_exec()));
+
 
     if (fuse_) {
         gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
@@ -460,6 +462,17 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         repart_comm_pattern->compute_recv_gather_idxs(exec_handler);
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
+
+    if (verbose > 1){
+	    std::ofstream myfile;
+	    std::string folder = host_A->get_folder();
+	    myfile.open(folder + "/host_comm_pattern_" +
+			std::to_string(Pstream::myProcNo()));
+	    myfile << "repart_comm_pattern " << *repart_comm_pattern.get() << "\n";
+	    myfile << "\nrecv_gather_idxs: " << convert_to_vector(recv_gather_idxs)
+		   << "\nrecv_sizes: " << recv_sizes
+		   << "\nrecv_offsets: " << recv_offsets << "\n";
+    }
 
     if (fuse) {
         dist_A = gko::share(dist_mtx::create(
