@@ -144,11 +144,13 @@ void compute_pad(const std::vector<std::vector<label>> &rows,
                  std::vector<std::vector<label>> &pads)
 {
     for (auto i = 0; i < linops.size(); i++) {
+	pads.push_back(std::vector<label> {});
         if constexpr (std::is_same_v<MatrixType,
                                      gko::matrix::Ell<scalar, label>>) {
             auto mtx = gko::as<MatrixType>(linops[i]);
             auto &pad = pads[i];
-            label end = pad.size();
+            label end = mtx->get_num_stored_elements();
+	    pad.reserve(end);
             label ell_rows = mtx->get_num_stored_elements_per_row();
             label row_ctr = 0;
             for (auto j = 0; j < pad.size(); j++) {
@@ -179,6 +181,7 @@ void generate_reorder_map(
     // NOTE early return if rank is empty
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
+    OGL_ASSERT_EQ(linops.size(), pads.size());
     for (size_t i = 0; i < linops.size(); i++) {
         auto &m = maps[i];
         auto &p = pads[i];

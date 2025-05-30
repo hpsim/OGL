@@ -113,6 +113,7 @@ struct ExecutorInitFunctor {
 
     std::shared_ptr<gko::Executor> init() const
     {
+        LOG_2(verbose_, "create executors")
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         auto msg = [](auto exec, auto id) {
@@ -139,10 +140,12 @@ struct ExecutorInitFunctor {
         };
 
         if (!device_id_handler_.is_owner()) {
+	    std::cout << __FILE__ << "is not owner" << __LINE__ << "\n";
             return host_exec;
         }
 
         if (executor_name_ == "cuda") {
+	    std::cout << __FILE__ << "is owner" << __LINE__ << "\n";
             if (version.cuda_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
                     << "CUDA Backend was not compiled. Recompile OGL/Ginkgo "
@@ -151,8 +154,11 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
-            LOG_0(verbose_, msg(executor_name_, id))
+	    std::cout << __FILE__ << "is owner" << __LINE__ << "\n";
+            //LOG_0(verbose_, msg(executor_name_, id))
+	    std::cout << __FILE__ << "is owner" << __LINE__ << "\n";
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
+	    std::cout << __FILE__ << "is owner" << __LINE__ << "\n";
             return ret;
         }
         if (executor_name_ == "sycl" || executor_name_ == "dpcpp") {
