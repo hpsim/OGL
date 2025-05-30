@@ -178,6 +178,7 @@ public:
     /* @brief returns rows, columns and mapping and id for consumption on create
      * distributed
      *
+     * @returns a tuple of local_rows, local_cols, local_map, local_ids
      */
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
@@ -267,6 +268,12 @@ public:
                 fuse_ldu(map_, id_, true), ret_id};
     }
 
+    // TODO could make this a free function
+    /* @brief returns rows, columns and mapping and id for consumption on create
+     * distributed
+     *
+     * @returns a tuple of local_rows, local_cols, local_map, local_ids
+     */
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
     get_fused_vecs(bool compress_cols)
