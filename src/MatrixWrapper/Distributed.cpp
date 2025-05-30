@@ -149,7 +149,7 @@ void compute_pad(const std::vector<std::vector<label>> &rows,
             auto mtx = gko::as<MatrixType>(linops[i]);
             auto &pad = pads[i];
             label end = pad.size();
-            label ell_rows = mtx->num_stored_elements_per_row();
+            label ell_rows = mtx->get_num_stored_elements_per_row();
             label row_ctr = 0;
             for (auto j = 0; j < pad.size(); j++) {
                 bool new_row = j > 0 && rows[i][j] > rows[i][j - 1];
@@ -485,6 +485,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // compute padding
     std::vector<std::vector<label>> local_pad;
     std::vector<std::vector<label>> non_local_pad;
+
+    compute_pad<LocalMatrixType>(loc_rows, local_linops, local_pad);
+    compute_pad<LocalMatrixType>(non_loc_rows, non_local_linops, non_local_pad);
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
