@@ -71,14 +71,19 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
+    bool is_owner() const {
+        label rank = Pstream::myProcNo();
+        label owner_rank = rank - (rank % ranks_per_gpu);
+        bool is_owner = owner_rank == rank;
+        return is_owner;
+    }
+
     /* @brief compute the group id for the split communicator
      */
     label compute_group() const
     {
-        label rank = Pstream::myProcNo();
-        label owner_rank = rank - (rank % ranks_per_gpu);
-        bool is_owner = owner_rank == rank;
-        return (is_owner) ? 0 : 1;
+        bool is_owner_b = is_owner();
+        return (is_owner_b) ? 0 : 1;
     }
 };
 
@@ -100,11 +105,12 @@ struct ExecutorInitFunctor {
           verbose_(verbose)
     {}
 
-
     void update(std::shared_ptr<gko::Executor>) const {}
 
     const std::string not_compiled_tag = "not compiled";
     const gko::version_info version = gko::version_info::get();
+
+
     std::shared_ptr<gko::Executor> init() const
     {
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
@@ -131,6 +137,10 @@ struct ExecutorInitFunctor {
                  std::string("]");
             return s;
         };
+
+        if (!device_id_handler_.is_owner()) {
+            return host_exec;
+        }
 
         if (executor_name_ == "cuda") {
             if (version.cuda_version.tag == not_compiled_tag) {
@@ -211,7 +221,7 @@ private:
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name, DeviceIdHandler device_id_handler
-		    )
+          )
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
@@ -231,18 +241,18 @@ public:
               solverControls.lookupOrDefault("splitMPIComm", true)),
           host_comm_(std::make_shared<gko::experimental::mpi::communicator>(
                         MPI_COMM_WORLD, gko_force_host_buffer_)),
-	  host_rank_(host_comm_->rank()),
+     host_rank_(host_comm_->rank()),
           device_comm_(
               (split_comm_)
                   ? [this, device_id_handler](){
-		    label group = device_id_handler.compute_group();
-		    MPI_Comm gko_comm;
+          label group = device_id_handler.compute_group();
+          MPI_Comm gko_comm;
             label host_rank =0;
-		    MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
+          MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
 
-		    return std::make_shared<gko::experimental::mpi::communicator>(
-			gko_comm, gko_force_host_buffer_);
-		  }()
+          return std::make_shared<gko::experimental::mpi::communicator>(
+         gko_comm, gko_force_host_buffer_);
+        }()
                   : host_comm_),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))

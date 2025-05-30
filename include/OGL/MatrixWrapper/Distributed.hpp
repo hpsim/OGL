@@ -35,12 +35,11 @@ public:
     using vec = gko::matrix::Dense<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
-    // id, comm_pattern, data_ptr
-
     using reorder_map_type =
         std::tuple<std::shared_ptr<gko::array<label>>, scalar *,
                    std::shared_ptr<gko::array<label>>>;
     using all_to_all_data = std::tuple<label, AllToAllPattern, scalar *>;
+
     struct pairwise_data {
         label id;          // original interface id on orig rank
         label send;        // 0 - send, 1, receive, 2 same_rank
