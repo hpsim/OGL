@@ -290,20 +290,28 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // pading after row_gather required, thus data is first row_gathered
         // into a temporary buffer and then padded into final view this is
         // required for example for ELL matrices
-        // auto tmp_row_collection =
-        // gko::share(gko::matrix::Dense<scalar>::create(
-        //     device_exec, gko::dim<2>{static_cast<dim_type>(recv_size), 1}));
-        auto row_collection_view =
+        label coo_length = recv_size;
+        label ell_length = pad->get_num_elems();
+        auto recv_view =
             gko::share(gko::matrix::Dense<scalar>::create(
-                device_exec, gko::dim<2>{static_cast<dim_type>(recv_size), 1},
-                gko::array<scalar>::view(device_exec, recv_size, dst_data), 1));
-        auto dense_vec = row_collection_view->clone();
-        auto tmp_row_collection = row_collection_view->clone();
-        dense_vec->row_gather(map.get(), tmp_row_collection.get());
+                device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
+                gko::array<scalar>::view(device_exec, coo_length, dst_data), 1));
+        auto dense_vec = recv_view->clone();
+
+        auto tmp_row_collection =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
+                gko::array<scalar> (device_exec, ell_length), 1));
+        tmp_row_collection->fill(0.0);
+        auto tmp_coo =
+            gko::share(gko::matrix::Dense<scalar>::create(
+                device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
+                gko::array<scalar>::view(device_exec, coo_length, tmp_row_collection->get_values()), 1));
+        dense_vec->row_gather(map.get(), tmp_coo.get());
 
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-            device_exec, gko::dim<2>{static_cast<dim_type>(recv_size), 1},
+            device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
             gko::array<scalar>::view(device_exec, pad->get_num_elems(),
                                      dst_data),
             1));
