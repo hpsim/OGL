@@ -614,9 +614,8 @@ void update_distributed(const ExecutorHandler &exec_handler,
                         word matrix_format, label verbose)
 {
     if (matrix_format == "Ell") {
-        FatalErrorInFunction
-            << " Updating Ell matrix not supported\nSet regenerate 1;"
-            << exit(FatalError);
+        return dist_A->update<gko::matrix::Ell<scalar, label>>(exec_handler,
+                                                               host_A, verbose);
     }
     if (matrix_format == "Coo") {
         return dist_A->update<gko::matrix::Coo<scalar, label>>(exec_handler,
