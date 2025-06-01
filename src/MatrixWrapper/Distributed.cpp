@@ -153,7 +153,7 @@ void compute_pad(const std::vector<std::vector<label>> &rows,
 	    pad.reserve(end);
             label ell_rows = mtx->get_num_stored_elements_per_row();
             label row_ctr = 0;
-            for (auto j = 0; j < pad.size(); j++) {
+            for (auto j = 0; j < rows[i].size(); j++) {
                 bool new_row = j > 0 && rows[i][j] > rows[i][j - 1];
                 if (new_row) {
                     for (auto k = row_ctr; k < ell_rows; k++) {
@@ -261,14 +261,15 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
 
 
 /*
- *
+ * @map - the corresponding row_major order map view[i] = recv[map[i]]
+ * @pad - the corresponding padding map
  */
 void reorder_interface_impl(const ExecutorHandler &exec_handler,
-                            std::shared_ptr<const gko::array<label>>
-                                map,  // the corresponding row_major order map
+                            std::shared_ptr<const gko::array<label>> map,  
                             std::shared_ptr<const gko::array<label>> pad,
                             scalar *dst_data)
 {
+    std::cout << __FILE__ << __LINE__ << " !!!! reorder interface impl: \n";
     using vec = gko::matrix::Dense<scalar>;
     using dim_type = gko::dim<2>::dimension_type;
 
@@ -278,6 +279,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
     auto dst_view = gko::array<scalar>::view(device_exec, recv_size, dst_data);
 
     if (pad->get_num_elems() == 0) {
+    std::cout << __FILE__ << __LINE__ << " !!!! num elems == 0: \n";
         // No padding needed
         // a dense view into into dst
         // this allows to row_gather
@@ -311,6 +313,18 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
                 gko::array<scalar>::view(device_exec, coo_length, tmp_row_collection->get_values()), 1));
         dense_vec->row_gather(map.get(), tmp_coo.get());
 
+	// 
+        std::cout << __FILE__ << __LINE__ << " pad: \n";
+	for (int i = 0; i < pad->get_num_elems(); i++ ) {
+        std::cout << pad->get_const_data()[i]  << "\n";
+	}
+        std::cout << __FILE__ << __LINE__ << " done  pad \n";
+
+        std::cout << __FILE__ << __LINE__ << " tmp_row_collection: \n";
+	for (int i = 0; i < tmp_row_collection->get_num_stored_elements(); i++ ) {
+        std::cout << tmp_row_collection->get_const_values()[i]  << "\n";
+	}
+        std::cout << __FILE__ << __LINE__ << "done tmp_row_collection \n";
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
@@ -318,6 +332,12 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
                                      dst_data),
             1));
         tmp_row_collection->row_gather(pad.get(), row_collection.get());
+        std::cout << __FILE__ << __LINE__ << " row_collection: \n";
+	for (int i = 0; i < tmp_row_collection->get_num_stored_elements(); i++ ) {
+        std::cout << row_collection->get_const_values()[i]  << "\n";
+	}
+        std::cout << __FILE__ << __LINE__ << "done row_collection \n";
+
     }
 }
 
@@ -408,6 +428,7 @@ void update_impl(
                         pairwise_communicate(););
 
     auto reorder_data = [reorder_maps, exec_handler]() {
+	    std::cout << __FILE__ << __LINE__ << " !!!! update impl: \n";
 	for (auto i = 0; i< reorder_maps.size(); i++) {
 	auto [reorder_map, data_ptr, pad] = reorder_maps[i];
         // for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
