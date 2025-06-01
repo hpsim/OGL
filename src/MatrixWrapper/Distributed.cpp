@@ -260,7 +260,6 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
 /*
  *
  */
-template <typename LocalMatrixType>
 void reorder_interface_impl(const ExecutorHandler &exec_handler,
                             std::shared_ptr<const gko::array<label>>
                                 map,  // the corresponding row_major order map
@@ -319,7 +318,6 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
     }
 }
 
-template <typename LocalMatrixType>
 void update_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const HostMatrixWrapper> host_A,
@@ -410,7 +408,7 @@ void update_impl(
 	for (auto i = 0; i< reorder_maps.size(); i++) {
 	auto [reorder_map, data_ptr, pad] = reorder_maps[i];
         // for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
-            reorder_interface_impl<LocalMatrixType>(exec_handler, reorder_map, pad,
+            reorder_interface_impl(exec_handler, reorder_map, pad,
                                                     data_ptr);
         // }
 	 }
@@ -428,13 +426,13 @@ void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
 {
     SIMPLE_TIME(
         verbose, perform_matrix_update,
-        update_impl<LocalMatrixType>(
+        update_impl(
             exec_handler, host_A, all_to_all_update_data_,
             pairwise_update_data_, reorder_maps_, fuse_, linops_, verbose););
 }
 
 
-template <typename LocalMatrixType>
+template <typename LocalMatrixType, typename NonLocalMatrixType = gko::matrix::Coo<scalar, label>>
 std::shared_ptr<RepartDistMatrix> create_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
@@ -483,7 +481,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
         (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
-    auto non_local_linops = generate_inner_linops<LocalMatrixType>(
+    auto non_local_linops = generate_inner_linops<NonLocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops, fuse);
 
@@ -495,7 +493,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     std::vector<std::vector<label>> non_local_pad;
 
     compute_pad<LocalMatrixType>(loc_rows, local_linops, local_pad);
-    compute_pad<LocalMatrixType>(non_loc_rows, non_local_linops, non_local_pad);
+    compute_pad<NonLocalMatrixType>(non_loc_rows, non_local_linops, non_local_pad);
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
@@ -522,7 +520,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             (!owner) ? local_sparsity : repart_loc_sparsity, fuse,
             repartitioner, linops, start_local_offset, pairwise_update_data););
     SIMPLE_TIME(verbose, generate_non_local_pairwise_data,
-                generate_pairwise_update_data<LocalMatrixType>(
+                generate_pairwise_update_data<NonLocalMatrixType>(
                     exec_handler, host_A,
                     (!owner) ? non_local_sparsity : repart_non_loc_sparsity,
                     fuse, repartitioner, linops, 0, pairwise_update_data););
@@ -563,7 +561,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             device_exec, device_comm, global_dim,
             gko::share(CombinationMatrix<LocalMatrixType>::create(
                 device_exec, repart_dim, local_linops)),
-            gko::share(CombinationMatrix<LocalMatrixType>::create(
+            gko::share(CombinationMatrix<NonLocalMatrixType>::create(
                 device_exec, repart_non_local_dim, non_local_linops)),
             recv_sizes, recv_offsets, recv_gather_idxs));
     }
@@ -576,11 +574,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                     exec_handler, local_linops, loc_map, local_pad, reorder_maps););
     SIMPLE_TIME(
         verbose, generate_non_local_reorder_map,
-        generate_reorder_map<LocalMatrixType>(exec_handler, non_local_linops,
+        generate_reorder_map<NonLocalMatrixType>(exec_handler, non_local_linops,
                                               non_loc_map, non_local_pad, reorder_maps););
 
     SIMPLE_TIME(verbose, perform_matrix_update,
-                update_impl<LocalMatrixType>(exec_handler, host_A,
+                update_impl<LocalMatrixType, NonLocalMatrixType>(exec_handler, host_A,
                                              all_to_all_update_data,
                                              pairwise_update_data, reorder_maps,
                                              fuse, linops, verbose););
