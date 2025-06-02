@@ -139,29 +139,34 @@ void generate_alltoall_update_data(
 }
 
 template <typename MatrixType>
-void compute_pad(const std::vector<std::vector<label>> &rows,
+void compute_pad(
+                 const std::vector<std::vector<label>> &cols,
+                 const std::vector<std::vector<label>> &rows,
                  const std::vector<std::shared_ptr<gko::LinOp>> &linops,
                  std::vector<std::vector<label>> &pads)
 {
     for (auto i = 0; i < linops.size(); i++) {
-	pads.push_back(std::vector<label> {});
+        pads.push_back(std::vector<label> {});
         if constexpr (std::is_same_v<MatrixType,
                                      gko::matrix::Ell<scalar, label>>) {
             auto mtx = gko::as<MatrixType>(linops[i]);
             auto &pad = pads[i];
             label end = mtx->get_num_stored_elements();
-	    pad.reserve(end);
+            pad.reserve(end);
             label ell_rows = mtx->get_num_stored_elements_per_row();
-            label row_ctr = 0;
-            for (auto j = 0; j < rows[i].size(); j++) {
-                bool new_row = j > 0 && rows[i][j] > rows[i][j - 1];
+            label col_ctr = 0;
+            // we traverse cols first but need to check whether we reached the
+            // end of a row
+            for (auto j = 0; j < cols[i].size(); j++) {
+                // next is a new row
+                bool new_row = j < cols[i].size() - 1 && rows[i][j] > rows[i][j + 1];
                 if (new_row) {
-                    for (auto k = row_ctr; k < ell_rows; k++) {
+                    for (auto k = col_ctr; k < ell_rows; k++) {
                         pad.push_back(end);
                     }
-                    row_ctr = 0;
+                    col_ctr = 0;
                 } else {
-                    row_ctr++;
+                    col_ctr++;
                 }
                 pad.push_back(j);
             }
@@ -516,8 +521,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     std::vector<std::vector<label>> local_pad;
     std::vector<std::vector<label>> non_local_pad;
 
-    compute_pad<LocalMatrixType>(loc_rows, local_linops, local_pad);
-    compute_pad<NonLocalMatrixType>(non_loc_rows, non_local_linops, non_local_pad);
+    // FIXME we pass here loc_rows instead of loc_cols
+    // since for symmetric matrices row major loc_rows are column-major cols
+    compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
