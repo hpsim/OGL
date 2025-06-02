@@ -145,6 +145,7 @@ void compute_pad(
                  const std::vector<std::shared_ptr<gko::LinOp>> &linops,
                  std::vector<std::vector<label>> &pads)
 {
+	std::cout << __FILE__ <<  "start compute_pad\n";
     for (auto i = 0; i < linops.size(); i++) {
         pads.push_back(std::vector<label> {});
         if constexpr (std::is_same_v<MatrixType,
@@ -152,26 +153,83 @@ void compute_pad(
             auto mtx = gko::as<MatrixType>(linops[i]);
             auto &pad = pads[i];
             label end = mtx->get_num_stored_elements();
-            pad.reserve(end);
             label ell_rows = mtx->get_num_stored_elements_per_row();
-            label col_ctr = 0;
-            // we traverse cols first but need to check whether we reached the
-            // end of a row
+
+	    auto found_elems = std::vector<label>(cols[i].size(), 0);
+	    label current_ctr = 0;
+
+	    auto row_elems = std::vector<label>(rows[i].size(), 0);
+
+	    // count elements in rows 
+            for (auto j = 0; j < rows[i].size(); j++) {
+		    row_elems[rows[i][j]]++;
+	    }
+
+	    // 
+            pad.resize(end);
+            for (auto j = 0; j < pad.size(); j++) {
+		    pad[j] = end;
+	    }
+
+	    label pad_ctr = 0;
+	    label rows_start = 0; 
             for (auto j = 0; j < cols[i].size(); j++) {
-                // next is a new row
-                bool new_row = j < cols[i].size() - 1 && rows[i][j] > rows[i][j + 1];
-                if (new_row) {
-                    for (auto k = col_ctr; k < ell_rows; k++) {
-                        pad.push_back(end);
-                    }
-                    col_ctr = 0;
-                } else {
-                    col_ctr++;
-                }
-                pad.push_back(j);
+		label c_row = rows[i][j]; 
+		label c_col = cols[i][j]; 
+
+		// check if the current value is a padded value
+		// padded values are added if:
+		// - current counter points to new colunm
+		// - we are in a new row even if not all rows below have been filled up
+		// and if for the row not all values have been found yet
+
+		// look back, row index jumps back if we entered a new column
+                bool new_col = j > 0 && c_row < rows[i][j-1];
+
+
+		// update padding for all rows below
+		if (new_col){
+			// fill elements below
+			for (auto k=rows_start;k<c_row;k++){
+				std::cout << __FILE__ 
+					<< " process row k=" << k
+				       	<< " row has " << -row_elems[k]
+				       	<< " remaining elems  pad_ctr " << pad_ctr
+				       	<< " j " << j << " \n"; 
+				// only if row_elems smaller padding needs to be inserted
+				if (row_elems[k] <= 0 && found_elems[k] < ell_rows) {
+				    std::cout << __FILE__ << " insert pad\n";
+				    pad[pad_ctr] = end;
+				    found_elems[k]++;
+				    pad_ctr++;
+				} 
+				// if (-row_elems[c_row] == ell_rows) {
+				// 	rows_start = k;
+				// }
+			}
+		}
+
+		// more then one row in between
+                bool jump_row = j > 0 && c_row - 1 != rows[i][j-1];
+		if (jump_row) {
+			for (auto k=rows[i][j-1];k<c_row;k++){
+				if (row_elems[k] <= 0 && found_elems[k] < ell_rows) {
+				    pad[pad_ctr] = end;
+				    found_elems[k]++;
+				    pad_ctr++;
+				} 
+			}
+		}
+
+		pad[pad_ctr] = j;
+		// mark row as found
+		row_elems[c_row]--;
+		found_elems[c_row]++;
+	        pad_ctr++;
             }
         }
     }
+	std::cout << __FILE__ <<  "end compute_pad\n";
 }
 
 template <typename MatrixType>
@@ -524,6 +582,8 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // FIXME we pass here loc_rows instead of loc_cols
     // since for symmetric matrices row major loc_rows are column-major cols
     compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
+    // TODO pad for non_local is not  needed technically
+    compute_pad<NonLocalMatrixType>(non_loc_rows, non_loc_cols, non_local_linops, non_local_pad);
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
