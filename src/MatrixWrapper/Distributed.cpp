@@ -316,7 +316,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 	// 
         std::cout << __FILE__ << __LINE__ << " pad: \n";
 	for (int i = 0; i < pad->get_num_elems(); i++ ) {
-        std::cout << pad->get_const_data()[i]  << "\n";
+		std::cout << pad->get_const_data()[i]  << "\n";
 	}
         std::cout << __FILE__ << __LINE__ << " done  pad \n";
 
@@ -602,10 +602,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
                                               non_loc_map, non_local_pad, reorder_maps););
 
     SIMPLE_TIME(verbose, perform_matrix_update,
-                update_impl<LocalMatrixType, NonLocalMatrixType>(exec_handler, host_A,
+                update_impl(exec_handler, host_A,
                                              all_to_all_update_data,
                                              pairwise_update_data, reorder_maps,
-                                             fuse, linops, verbose););
+                                             fuse, linops, verbose);
+		);
 
     return std::make_shared<RepartDistMatrix>(
         device_exec, host_comm, matrix_format, dist_A, repartitioner, fuse,
