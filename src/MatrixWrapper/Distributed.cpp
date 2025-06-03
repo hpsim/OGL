@@ -19,6 +19,15 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     OGL_ASSERT_EQ(rowss.size(), colss.size());
     auto exec = exec_handler.get_device_exec();
     std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
+
+    bool needs_col_major = false;
+
+    if constexpr (std::is_same_v<MatrixType,
+                                     gko::matrix::Ell<scalar, label>>) {
+	    needs_col_major = true;
+    }
+
+
     // create empty matrix if no interfaces are present
     if (rowss.size() == 0) {
         lin_ops.push_back(
@@ -140,12 +149,11 @@ void generate_alltoall_update_data(
 
 template <typename MatrixType>
 void compute_pad(
-                 const std::vector<std::vector<label>> &cols,
                  const std::vector<std::vector<label>> &rows,
+                 const std::vector<std::vector<label>> &cols,
                  const std::vector<std::shared_ptr<gko::LinOp>> &linops,
                  std::vector<std::vector<label>> &pads)
 {
-	std::cout << __FILE__ <<  "start compute_pad\n";
     for (auto i = 0; i < linops.size(); i++) {
         pads.push_back(std::vector<label> {});
         if constexpr (std::is_same_v<MatrixType,
@@ -153,83 +161,71 @@ void compute_pad(
             auto mtx = gko::as<MatrixType>(linops[i]);
             auto &pad = pads[i];
             label end = mtx->get_num_stored_elements();
-            label ell_rows = mtx->get_num_stored_elements_per_row();
+	    if (end) {
 
-	    auto found_elems = std::vector<label>(cols[i].size(), 0);
-	    label current_ctr = 0;
+	    auto device_exec = mtx->get_executor();
+            auto col_dev_view = gko::array<label>::const_view(
+			                    device_exec, end, mtx->get_const_col_idxs());
+	    auto ell_cols = col_dev_view.copy_to_array();
+	    ell_cols.set_executor(device_exec->get_master());
 
-	    auto row_elems = std::vector<label>(rows[i].size(), 0);
 
-	    // count elements in rows 
-            for (auto j = 0; j < rows[i].size(); j++) {
-		    row_elems[rows[i][j]]++;
+	    // sum of all nnzs before
+	    auto n_rows = (rows[i].size()) ? rows[i].back() + 1 : 0;
+	    auto nnzs  = std::vector<label>(n_rows, 0);
+	    for (auto j=0;j<cols[i].size();j++){
+		    nnzs[rows[i][j]]++;
 	    }
 
-	    // 
-            pad.resize(end);
-            for (auto j = 0; j < pad.size(); j++) {
-		    pad[j] = end;
+	    auto nnz_sum = std::vector<label>(n_rows+1, 0);
+	    for (auto j=1;j<nnz_sum.size();j++){
+		    nnz_sum[j] += nnz_sum[j-1] + nnzs[j-1]; 
 	    }
 
-	    label pad_ctr = 0;
-	    label rows_start = 0; 
-            for (auto j = 0; j < cols[i].size(); j++) {
-		label c_row = rows[i][j]; 
-		label c_col = cols[i][j]; 
+	    // ell inserts values in col major order
+	    // thus given a linear_index_col_maj we compute the corresponding linear_index_row_maj
+	    auto coo_pos  = std::vector<label>(cols[i].size(), 0);
+	    auto rel_col  = std::vector<label>(end, 0);
+	    auto el_found  = std::vector<label>(n_rows, 0);
 
-		// check if the current value is a padded value
-		// padded values are added if:
-		// - current counter points to new colunm
-		// - we are in a new row even if not all rows below have been filled up
-		// and if for the row not all values have been found yet
+	    // compute elements found in current row
+	    for (auto j=0;j<end;j++) {
+		    auto col = ell_cols.get_const_data()[j];
+		    if (col >= 0) {
+			    //auto row = j % mtx->get_num_stored_elements_per_row();
+			    auto row = j % mtx->get_size()[0];
+			    rel_col[j] = el_found[row]; 
+			    el_found[row]++;
+		    }
+	    }
 
-		// look back, row index jumps back if we entered a new column
-                bool new_col = j > 0 && c_row < rows[i][j-1];
+	    // iterate in ell order
+	    auto j_ctr = 0;
+	    for (auto j=0;j<end;j++) {
+		    auto col = ell_cols.get_const_data()[j];
+		    if (col >= 0) {
+			    //auto row = j % mtx->get_num_stored_elements_per_row();
+			    auto row = j % mtx->get_size()[0];
+			    auto coo_pos_ = nnz_sum[row] + rel_col[j]; 
+			    coo_pos[j_ctr] = coo_pos_;
+			    j_ctr++;
+		    }
+	    }
 
-
-		// update padding for all rows below
-		if (new_col){
-			// fill elements below
-			for (auto k=rows_start;k<c_row;k++){
-				std::cout << __FILE__ 
-					<< " process row k=" << k
-				       	<< " row has " << -row_elems[k]
-				       	<< " remaining elems  pad_ctr " << pad_ctr
-				       	<< " j " << j << " \n"; 
-				// only if row_elems smaller padding needs to be inserted
-				if (row_elems[k] <= 0 && found_elems[k] < ell_rows) {
-				    std::cout << __FILE__ << " insert pad\n";
-				    pad[pad_ctr] = end;
-				    found_elems[k]++;
-				    pad_ctr++;
-				} 
-				// if (-row_elems[c_row] == ell_rows) {
-				// 	rows_start = k;
-				// }
-			}
-		}
-
-		// more then one row in between
-                bool jump_row = j > 0 && c_row - 1 != rows[i][j-1];
-		if (jump_row) {
-			for (auto k=rows[i][j-1];k<c_row;k++){
-				if (row_elems[k] <= 0 && found_elems[k] < ell_rows) {
-				    pad[pad_ctr] = end;
-				    found_elems[k]++;
-				    pad_ctr++;
-				} 
-			}
-		}
-
-		pad[pad_ctr] = j;
-		// mark row as found
-		row_elems[c_row]--;
-		found_elems[c_row]++;
-	        pad_ctr++;
-            }
-        }
+	    j_ctr =0;
+	    for(auto j=0; j< end; j++) 
+	    {
+	        auto col = ell_cols.get_const_data()[j];
+		if (col >= 0 ) {
+			pad.push_back(coo_pos[j_ctr]);
+			j_ctr++;
+		} else {
+			pad.push_back(end-1);
+		}	
+	    }
+	    }
+	}
     }
-	std::cout << __FILE__ <<  "end compute_pad\n";
 }
 
 template <typename MatrixType>
@@ -332,7 +328,6 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
                             std::shared_ptr<const gko::array<label>> pad,
                             scalar *dst_data)
 {
-    std::cout << __FILE__ << __LINE__ << " !!!! reorder interface impl: \n";
     using vec = gko::matrix::Dense<scalar>;
     using dim_type = gko::dim<2>::dimension_type;
 
@@ -342,7 +337,6 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
     auto dst_view = gko::array<scalar>::view(device_exec, recv_size, dst_data);
 
     if (pad->get_num_elems() == 0) {
-    std::cout << __FILE__ << __LINE__ << " !!!! num elems == 0: \n";
         // No padding needed
         // a dense view into into dst
         // this allows to row_gather
@@ -376,18 +370,6 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
                 gko::array<scalar>::view(device_exec, coo_length, tmp_row_collection->get_values()), 1));
         dense_vec->row_gather(map.get(), tmp_coo.get());
 
-	// 
-        std::cout << __FILE__ << __LINE__ << " pad: \n";
-	for (int i = 0; i < pad->get_num_elems(); i++ ) {
-		std::cout << pad->get_const_data()[i]  << "\n";
-	}
-        std::cout << __FILE__ << __LINE__ << " done  pad \n";
-
-        std::cout << __FILE__ << __LINE__ << " tmp_row_collection: \n";
-	for (int i = 0; i < tmp_row_collection->get_num_stored_elements(); i++ ) {
-        std::cout << tmp_row_collection->get_const_values()[i]  << "\n";
-	}
-        std::cout << __FILE__ << __LINE__ << "done tmp_row_collection \n";
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
@@ -395,12 +377,6 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
                                      dst_data),
             1));
         tmp_row_collection->row_gather(pad.get(), row_collection.get());
-        std::cout << __FILE__ << __LINE__ << " row_collection: \n";
-	for (int i = 0; i < tmp_row_collection->get_num_stored_elements(); i++ ) {
-        std::cout << row_collection->get_const_values()[i]  << "\n";
-	}
-        std::cout << __FILE__ << __LINE__ << "done row_collection \n";
-
     }
 }
 
@@ -491,7 +467,6 @@ void update_impl(
                         pairwise_communicate(););
 
     auto reorder_data = [reorder_maps, exec_handler]() {
-	    std::cout << __FILE__ << __LINE__ << " !!!! update impl: \n";
 	for (auto i = 0; i< reorder_maps.size(); i++) {
 	auto [reorder_map, data_ptr, pad] = reorder_maps[i];
         // for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
