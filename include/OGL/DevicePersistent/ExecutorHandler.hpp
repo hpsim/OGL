@@ -71,7 +71,8 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
-    bool is_owner() const {
+    bool is_owner() const
+    {
         label rank = Pstream::myProcNo();
         label owner_rank = rank - (rank % ranks_per_gpu);
         bool is_owner = owner_rank == rank;
@@ -152,7 +153,7 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
-            //LOG_0(verbose_, msg(executor_name_, id))
+            // LOG_0(verbose_, msg(executor_name_, id))
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
             return ret;
         }
