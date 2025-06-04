@@ -119,7 +119,10 @@ public:
 
 
     /* @brief given rows and cols a new interface/submatrix is added and stored
-     *  in row major format
+     *  in row major format,
+     *
+     *  @row_major_order - whether the passed interface is already in
+     * row_major_order
      *  */
     void insert_interface(std::vector<label> &&rows, std::vector<label> &&cols,
                           label orig_rank, label comm_rank, label id,
@@ -178,6 +181,7 @@ public:
     /* @brief returns rows, columns and mapping and id for consumption on create
      * distributed
      *
+     * @returns a tuple of local_rows, local_cols, local_map, local_ids
      */
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
@@ -267,6 +271,12 @@ public:
                 fuse_ldu(map_, id_, true), ret_id};
     }
 
+    // TODO could make this a free function
+    /* @brief returns rows, columns and mapping and id for consumption on create
+     * distributed
+     *
+     * @returns a tuple of local_rows, local_cols, local_map, local_ids
+     */
     std::tuple<std::vector<std::vector<label>>, std::vector<std::vector<label>>,
                std::vector<std::vector<label>>, std::vector<label>>
     get_fused_vecs(bool compress_cols)
@@ -457,19 +467,28 @@ private:
 
     /* @brief sort given rows, cols, and map to be in row major order
      *
+     * @row_major whether to sort it in row major (true) or column major order
      */
     void sort_sparsity(std::vector<label> &rows, std::vector<label> &cols,
-                       std::vector<label> &map)
+                       std::vector<label> &map, bool row_major = true)
     {
         // add offset to mapping
         // so interface mapping is not continuous
         std::vector<label> permutation(rows.size());
         std::iota(permutation.begin(), permutation.end(), 0);
-        std::stable_sort(permutation.begin(), permutation.end(),
-                         [&](std::size_t i, std::size_t j) {
-                             return std::tie(rows[i], cols[i]) <
-                                    std::tie(rows[j], cols[j]);
-                         });
+        if (row_major) {
+            std::stable_sort(permutation.begin(), permutation.end(),
+                             [&](std::size_t i, std::size_t j) {
+                                 return std::tie(rows[i], cols[i]) <
+                                        std::tie(rows[j], cols[j]);
+                             });
+        } else {
+            std::stable_sort(permutation.begin(), permutation.end(),
+                             [&](std::size_t i, std::size_t j) {
+                                 return std::tie(cols[i], rows[i]) <
+                                        std::tie(cols[j], rows[j]);
+                             });
+        }
         rows = detail::apply_permutation(rows, permutation);
         cols = detail::apply_permutation(cols, permutation);
         map = detail::apply_permutation(map, permutation);

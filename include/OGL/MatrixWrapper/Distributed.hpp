@@ -35,8 +35,11 @@ public:
     using vec = gko::matrix::Dense<scalar>;
     using device_matrix_data = gko::device_matrix_data<scalar, label>;
     using communicator = gko::experimental::mpi::communicator;
-    // id, comm_pattern, data_ptr
+    using reorder_map_type =
+        std::tuple<std::shared_ptr<gko::array<label>>, scalar *,
+                   std::shared_ptr<gko::array<label>>>;
     using all_to_all_data = std::tuple<label, AllToAllPattern, scalar *>;
+
     struct pairwise_data {
         label id;          // original interface id on orig rank
         label send;        // 0 - send, 1, receive, 2 same_rank
@@ -136,15 +139,16 @@ public:
 
     std::shared_ptr<const gko::LinOp> get_dist_mtx() const { return dist_mtx_; }
 
-    RepartDistMatrix(
-        std::shared_ptr<const gko::Executor> exec, communicator comm,
-        word matrix_format, std::shared_ptr<dist_mtx> dist_mtx,
-        std::shared_ptr<const Repartitioner> repartitioner, bool fuse,
-        std::vector<all_to_all_data> all_to_all_update_data,
-        std::vector<pairwise_data> pairwise_update_data,
-        std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-            reorder_maps,
-        std::vector<label> compress_to_global, std::map<label, scalar *> linops)
+    RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
+                     communicator comm, word matrix_format,
+                     std::shared_ptr<dist_mtx> dist_mtx,
+                     std::shared_ptr<const Repartitioner> repartitioner,
+                     bool fuse,
+                     std::vector<all_to_all_data> all_to_all_update_data,
+                     std::vector<pairwise_data> pairwise_update_data,
+                     std::vector<reorder_map_type> reorder_maps,
+                     std::vector<label> compress_to_global,
+                     std::map<label, scalar *> linops)
         : gko::EnableLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
@@ -221,8 +225,7 @@ private:
 
     std::shared_ptr<const Repartitioner> repartitioner_;
 
-    std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-        reorder_maps_;
+    std::vector<reorder_map_type> reorder_maps_;
 
     std::vector<label> compress_to_global_;
 

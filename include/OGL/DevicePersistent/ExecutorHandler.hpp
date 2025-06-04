@@ -71,15 +71,20 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
-    /* @brief compute the group id for the split communicator
+    /* @brief check if rank is an owning rank
      */
-    label compute_group() const
+    bool is_owner() const
     {
         label rank = Pstream::myProcNo();
         label owner_rank = rank - (rank % ranks_per_gpu);
         bool is_owner = owner_rank == rank;
-        return (is_owner) ? 0 : 1;
+        return is_owner;
     }
+
+    /* @brief compute the group id for the split communicator
+     * the group id is either 0 for active and 1 for inactive
+     */
+    label compute_group() const { return is_owner() ? 0 : 1; }
 };
 
 struct ExecutorInitFunctor {
@@ -100,13 +105,15 @@ struct ExecutorInitFunctor {
           verbose_(verbose)
     {}
 
-
     void update(std::shared_ptr<gko::Executor>) const {}
 
     const std::string not_compiled_tag = "not compiled";
     const gko::version_info version = gko::version_info::get();
+
+
     std::shared_ptr<gko::Executor> init() const
     {
+        LOG_0(verbose_, "create executors")
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         auto msg = [](auto exec, auto id) {
@@ -142,6 +149,9 @@ struct ExecutorInitFunctor {
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
             LOG_0(verbose_, msg(executor_name_, id))
+            if (!device_id_handler_.is_owner()) {
+                return host_exec;
+            }
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
             return ret;
         }
@@ -167,6 +177,9 @@ struct ExecutorInitFunctor {
             label id = device_id_handler_.compute_device_id(
                 gko::HipExecutor::get_num_devices());
             LOG_0(verbose_, msg(executor_name_, id))
+            if (!device_id_handler_.is_owner()) {
+                return host_exec;
+            }
             auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
@@ -211,7 +224,7 @@ private:
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
                     const word field_name, DeviceIdHandler device_id_handler
-		    )
+          )
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
@@ -231,18 +244,18 @@ public:
               solverControls.lookupOrDefault("splitMPIComm", true)),
           host_comm_(std::make_shared<gko::experimental::mpi::communicator>(
                         MPI_COMM_WORLD, gko_force_host_buffer_)),
-	  host_rank_(host_comm_->rank()),
+     host_rank_(host_comm_->rank()),
           device_comm_(
               (split_comm_)
                   ? [this, device_id_handler](){
-		    label group = device_id_handler.compute_group();
-		    MPI_Comm gko_comm;
+          label group = device_id_handler.compute_group();
+          MPI_Comm gko_comm;
             label host_rank =0;
-		    MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
+          MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
 
-		    return std::make_shared<gko::experimental::mpi::communicator>(
-			gko_comm, gko_force_host_buffer_);
-		  }()
+          return std::make_shared<gko::experimental::mpi::communicator>(
+         gko_comm, gko_force_host_buffer_);
+        }()
                   : host_comm_),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))

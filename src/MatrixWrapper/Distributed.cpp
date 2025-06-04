@@ -19,6 +19,7 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     OGL_ASSERT_EQ(rowss.size(), colss.size());
     auto exec = exec_handler.get_device_exec();
     std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
+
     // create empty matrix if no interfaces are present
     if (rowss.size() == 0) {
         lin_ops.push_back(
@@ -138,25 +139,113 @@ void generate_alltoall_update_data(
     }
 }
 
+/* this function effectively computes a second reordering map, reordering from
+ * coo row major order to ell in col major order
+ */
+template <typename MatrixType>
+void compute_pad(const std::vector<std::vector<label>> &rows,
+                 const std::vector<std::vector<label>> &cols,
+                 const std::vector<std::shared_ptr<gko::LinOp>> &linops,
+                 std::vector<std::vector<label>> &pads)
+{
+    for (auto i = 0; i < linops.size(); i++) {
+        pads.push_back(std::vector<label>{});
+        if constexpr (std::is_same_v<MatrixType,
+                                     gko::matrix::Ell<scalar, label>>) {
+            auto mtx = gko::as<MatrixType>(linops[i]);
+            auto &pad = pads[i];
+            label end = mtx->get_num_stored_elements();
+            if (end) {
+                auto device_exec = mtx->get_executor();
+                auto col_dev_view = gko::array<label>::const_view(
+                    device_exec, end, mtx->get_const_col_idxs());
+                auto ell_cols = col_dev_view.copy_to_array();
+                ell_cols.set_executor(device_exec->get_master());
+
+
+                // sum of all nnzs before
+                auto n_rows = (rows[i].size()) ? rows[i].back() + 1 : 0;
+                auto nnzs = std::vector<label>(n_rows, 0);
+                for (auto j = 0; j < cols[i].size(); j++) {
+                    nnzs[rows[i][j]]++;
+                }
+
+                auto nnz_sum = std::vector<label>(n_rows + 1, 0);
+                for (auto j = 1; j < nnz_sum.size(); j++) {
+                    nnz_sum[j] += nnz_sum[j - 1] + nnzs[j - 1];
+                }
+
+                // ell inserts values in col major order
+                // thus given a linear_index_col_maj we compute the
+                // corresponding linear_index_row_maj
+                auto coo_pos = std::vector<label>(cols[i].size(), 0);
+                auto rel_col = std::vector<label>(end, 0);
+                auto el_found = std::vector<label>(n_rows, 0);
+
+                // compute elements found in current row
+                for (auto j = 0; j < end; j++) {
+                    auto col = ell_cols.get_const_data()[j];
+                    if (col >= 0) {
+                        // auto row = j %
+                        // mtx->get_num_stored_elements_per_row();
+                        auto row = j % mtx->get_size()[0];
+                        rel_col[j] = el_found[row];
+                        el_found[row]++;
+                    }
+                }
+
+                // iterate in ell order
+                auto j_ctr = 0;
+                for (auto j = 0; j < end; j++) {
+                    auto col = ell_cols.get_const_data()[j];
+                    if (col >= 0) {
+                        // auto row = j %
+                        // mtx->get_num_stored_elements_per_row();
+                        auto row = j % mtx->get_size()[0];
+                        auto coo_pos_ = nnz_sum[row] + rel_col[j];
+                        coo_pos[j_ctr] = coo_pos_;
+                        j_ctr++;
+                    }
+                }
+
+                j_ctr = 0;
+                for (auto j = 0; j < end; j++) {
+                    auto col = ell_cols.get_const_data()[j];
+                    if (col >= 0) {
+                        pad.push_back(coo_pos[j_ctr]);
+                        j_ctr++;
+                    } else {
+                        pad.push_back(end - 1);
+                    }
+                }
+            }
+        }
+    }
+}
+
 template <typename MatrixType>
 void generate_reorder_map(
     const ExecutorHandler &exec_handler,
     // TODO check if it makes sense to use the linop dataptr map here
     const std::vector<std::shared_ptr<gko::LinOp>> &linops,
     const std::vector<std::vector<label>> &maps,
-    std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-        &reorder_maps)
+    const std::vector<std::vector<label>> &pads,
+    std::vector<RepartDistMatrix::reorder_map_type> &reorder_maps)
 {
     // NOTE early return if rank is empty
     if (maps.size() == 0) return;
     OGL_ASSERT_EQ(linops.size(), maps.size());
+    OGL_ASSERT_EQ(linops.size(), pads.size());
     for (size_t i = 0; i < linops.size(); i++) {
         auto &m = maps[i];
+        auto &p = pads[i];
         auto map = std::make_shared<gko::array<label>>(
             exec_handler.get_ref_exec(), m.begin(), m.end());
+        auto pad = std::make_shared<gko::array<label>>(
+            exec_handler.get_ref_exec(), p.begin(), p.end());
         map->set_executor(exec_handler.get_device_exec());
-        reorder_maps.emplace_back(map,
-                                  gko::as<MatrixType>(linops[i])->get_values());
+        reorder_maps.emplace_back(
+            map, gko::as<MatrixType>(linops[i])->get_values(), pad);
     }
 }
 
@@ -225,10 +314,13 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
 }
 
 
-template <typename LocalMatrixType>
+/*
+ * @map - the corresponding row_major order map view[i] = recv[map[i]]
+ * @pad - the corresponding padding map
+ */
 void reorder_interface_impl(const ExecutorHandler &exec_handler,
-                            std::shared_ptr<const gko::array<label>>
-                                map,  // the corresponding row_major order map
+                            std::shared_ptr<const gko::array<label>> map,
+                            std::shared_ptr<const gko::array<label>> pad,
                             scalar *dst_data)
 {
     using vec = gko::matrix::Dense<scalar>;
@@ -239,25 +331,56 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 
     auto dst_view = gko::array<scalar>::view(device_exec, recv_size, dst_data);
 
-    // a dense view into into dst
-    // this allows to row_gather
-    auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
-        device_exec, gko::dim<2>{static_cast<dim_type>(recv_size), 1},
-        gko::array<scalar>::view(device_exec, recv_size, dst_data), 1));
+    if (pad->get_num_elems() == 0) {
+        // No padding needed
+        // a dense view into into dst
+        // this allows to row_gather
+        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            device_exec, gko::dim<2>{static_cast<dim_type>(recv_size), 1},
+            gko::array<scalar>::view(device_exec, recv_size, dst_data), 1));
 
-    auto dense_vec = row_collection->clone();
-    dense_vec->row_gather(map.get(), row_collection.get());
+        auto dense_vec = row_collection->clone();
+
+        dense_vec->row_gather(map.get(), row_collection.get());
+    } else {
+        // padding after row_gather required, thus data is first row_gathered
+        // into a temporary buffer and then padded into final view this is
+        // required for example for ELL matrices
+        label coo_length = recv_size;
+        label ell_length = pad->get_num_elems();
+        auto recv_view = gko::share(gko::matrix::Dense<scalar>::create(
+            device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
+            gko::array<scalar>::view(device_exec, coo_length, dst_data), 1));
+        auto dense_vec = recv_view->clone();
+
+        auto tmp_row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
+            gko::array<scalar>(device_exec, ell_length), 1));
+        tmp_row_collection->fill(0.0);
+        auto tmp_coo = gko::share(gko::matrix::Dense<scalar>::create(
+            device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
+            gko::array<scalar>::view(device_exec, coo_length,
+                                     tmp_row_collection->get_values()),
+            1));
+        dense_vec->row_gather(map.get(), tmp_coo.get());
+
+        // now row gather into final view
+        auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
+            device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
+            gko::array<scalar>::view(device_exec, pad->get_num_elems(),
+                                     dst_data),
+            1));
+        tmp_row_collection->row_gather(pad.get(), row_collection.get());
+    }
 }
 
-template <typename LocalMatrixType>
 void update_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const HostMatrixWrapper> host_A,
     std::vector<RepartDistMatrix::all_to_all_data> &all_to_all_update_data,
     std::vector<RepartDistMatrix::pairwise_data> &pairwise_update_data,
-    std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-        &reorder_maps,
-    bool fuse, std::map<label, scalar *> linops, label verbose)
+    std::vector<RepartDistMatrix::reorder_map_type> &reorder_maps, bool fuse,
+    std::map<label, scalar *> linops, label verbose)
 {
     auto comm = exec_handler.get_host_comm();
     auto ref_exec = exec_handler.get_ref_exec();
@@ -338,9 +461,8 @@ void update_impl(
                         pairwise_communicate(););
 
     auto reorder_data = [reorder_maps, exec_handler]() {
-        for (auto [reorder_map, data_ptr] : reorder_maps) {
-            reorder_interface_impl<LocalMatrixType>(exec_handler, reorder_map,
-                                                    data_ptr);
+        for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
+            reorder_interface_impl(exec_handler, reorder_map, pad, data_ptr);
         }
     };
 
@@ -354,15 +476,15 @@ void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
                               std::shared_ptr<const HostMatrixWrapper> host_A,
                               label verbose)
 {
-    SIMPLE_TIME(
-        verbose, perform_matrix_update,
-        update_impl<LocalMatrixType>(
-            exec_handler, host_A, all_to_all_update_data_,
-            pairwise_update_data_, reorder_maps_, fuse_, linops_, verbose););
+    SIMPLE_TIME(verbose, perform_matrix_update,
+                update_impl(exec_handler, host_A, all_to_all_update_data_,
+                            pairwise_update_data_, reorder_maps_, fuse_,
+                            linops_, verbose););
 }
 
 
-template <typename LocalMatrixType>
+template <typename LocalMatrixType,
+          typename NonLocalMatrixType = gko::matrix::Coo<scalar, label>>
 std::shared_ptr<RepartDistMatrix> create_impl(
     const ExecutorHandler &exec_handler,
     std::shared_ptr<const Repartitioner> repartitioner,
@@ -411,12 +533,18 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
         (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
-    auto non_local_linops = generate_inner_linops<LocalMatrixType>(
+    auto non_local_linops = generate_inner_linops<NonLocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops, fuse);
 
     auto compress_to_global =
         repart_non_loc_sparsity->compute_to_global_map(fuse);
+
+    // compute padding
+    // since for symmetric matrices row major loc_rows are column-major cols
+    std::vector<std::vector<label>> local_pad;
+    compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
+    auto non_local_pad = std::vector<std::vector<label>>(non_loc_rows.size());
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
@@ -443,7 +571,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             (!owner) ? local_sparsity : repart_loc_sparsity, fuse,
             repartitioner, linops, start_local_offset, pairwise_update_data););
     SIMPLE_TIME(verbose, generate_non_local_pairwise_data,
-                generate_pairwise_update_data<LocalMatrixType>(
+                generate_pairwise_update_data<NonLocalMatrixType>(
                     exec_handler, host_A,
                     (!owner) ? non_local_sparsity : repart_non_loc_sparsity,
                     fuse, repartitioner, linops, 0, pairwise_update_data););
@@ -452,6 +580,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // consistent across ranks
     std::stable_sort(pairwise_update_data.begin(), pairwise_update_data.end(),
                      [&](auto &a, auto &b) { return a.id < b.id; });
+
 
     std::shared_ptr<dist_mtx> dist_A;
     // recv_gather_idxs are send upon creation to ginkgo distributed matrix
@@ -483,27 +612,27 @@ std::shared_ptr<RepartDistMatrix> create_impl(
             device_exec, device_comm, global_dim,
             gko::share(CombinationMatrix<LocalMatrixType>::create(
                 device_exec, repart_dim, local_linops)),
-            gko::share(CombinationMatrix<LocalMatrixType>::create(
+            gko::share(CombinationMatrix<NonLocalMatrixType>::create(
                 device_exec, repart_non_local_dim, non_local_linops)),
             recv_sizes, recv_offsets, recv_gather_idxs));
     }
 
     // compute reorder maps
-    std::vector<std::tuple<std::shared_ptr<gko::array<label>>, scalar *>>
-        reorder_maps;
-    SIMPLE_TIME(verbose, generate_local_reorder_map,
-                generate_reorder_map<LocalMatrixType>(
-                    exec_handler, local_linops, loc_map, reorder_maps););
+    std::vector<RepartDistMatrix::reorder_map_type> reorder_maps;
+
     SIMPLE_TIME(
-        verbose, generate_non_local_reorder_map,
-        generate_reorder_map<LocalMatrixType>(exec_handler, non_local_linops,
-                                              non_loc_map, reorder_maps););
+        verbose, generate_local_reorder_map,
+        generate_reorder_map<LocalMatrixType>(
+            exec_handler, local_linops, loc_map, local_pad, reorder_maps););
+    SIMPLE_TIME(verbose, generate_non_local_reorder_map,
+                generate_reorder_map<NonLocalMatrixType>(
+                    exec_handler, non_local_linops, non_loc_map, non_local_pad,
+                    reorder_maps););
 
     SIMPLE_TIME(verbose, perform_matrix_update,
-                update_impl<LocalMatrixType>(exec_handler, host_A,
-                                             all_to_all_update_data,
-                                             pairwise_update_data, reorder_maps,
-                                             fuse, linops, verbose););
+                update_impl(exec_handler, host_A, all_to_all_update_data,
+                            pairwise_update_data, reorder_maps, fuse, linops,
+                            verbose););
 
     return std::make_shared<RepartDistMatrix>(
         device_exec, host_comm, matrix_format, dist_A, repartitioner, fuse,
@@ -533,9 +662,8 @@ void update_distributed(const ExecutorHandler &exec_handler,
                         word matrix_format, label verbose)
 {
     if (matrix_format == "Ell") {
-        FatalErrorInFunction
-            << " Updating Ell matrix not supported\nSet regenerate 1;"
-            << exit(FatalError);
+        return dist_A->update<gko::matrix::Ell<scalar, label>>(exec_handler,
+                                                               host_A, verbose);
     }
     if (matrix_format == "Coo") {
         return dist_A->update<gko::matrix::Coo<scalar, label>>(exec_handler,
