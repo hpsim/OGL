@@ -71,6 +71,8 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
+    /* @brief check if rank is an owning rank
+     */
     bool is_owner() const
     {
         label rank = Pstream::myProcNo();
@@ -80,11 +82,11 @@ struct DeviceIdHandler {
     }
 
     /* @brief compute the group id for the split communicator
+     * the group id is either 0 for active and 1 for inactive
      */
     label compute_group() const
     {
-        bool is_owner_b = is_owner();
-        return (is_owner_b) ? 0 : 1;
+        return is_owner() ? 0 : 1;
     }
 };
 

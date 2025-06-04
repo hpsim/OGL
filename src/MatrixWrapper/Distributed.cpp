@@ -20,13 +20,6 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     auto exec = exec_handler.get_device_exec();
     std::vector<std::shared_ptr<gko::LinOp>> lin_ops;
 
-    bool needs_col_major = false;
-
-    if constexpr (std::is_same_v<MatrixType, gko::matrix::Ell<scalar, label>>) {
-        needs_col_major = true;
-    }
-
-
     // create empty matrix if no interfaces are present
     if (rowss.size() == 0) {
         lin_ops.push_back(
@@ -146,6 +139,9 @@ void generate_alltoall_update_data(
     }
 }
 
+/* this function effectively computes a second reordering map, reordering from coo row major order
+ * to ell in col major order
+ */
 template <typename MatrixType>
 void compute_pad(const std::vector<std::vector<label>> &rows,
                  const std::vector<std::vector<label>> &cols,
@@ -465,11 +461,8 @@ void update_impl(
                         pairwise_communicate(););
 
     auto reorder_data = [reorder_maps, exec_handler]() {
-        for (auto i = 0; i < reorder_maps.size(); i++) {
-            auto [reorder_map, data_ptr, pad] = reorder_maps[i];
-            // for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
+             for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
             reorder_interface_impl(exec_handler, reorder_map, pad, data_ptr);
-            // }
         }
     };
 
@@ -548,15 +541,10 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         repart_non_loc_sparsity->compute_to_global_map(fuse);
 
     // compute padding
-    std::vector<std::vector<label>> local_pad;
-    std::vector<std::vector<label>> non_local_pad;
-
-    // FIXME we pass here loc_rows instead of loc_cols
     // since for symmetric matrices row major loc_rows are column-major cols
+    std::vector<std::vector<label>> local_pad;
     compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
-    // TODO pad for non_local is not  needed technically
-    compute_pad<NonLocalMatrixType>(non_loc_rows, non_loc_cols,
-                                    non_local_linops, non_local_pad);
+    auto non_local_pad = std::vector<std::vector<label>> (non_loc_rows.size());
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
