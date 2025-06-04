@@ -343,7 +343,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 
         dense_vec->row_gather(map.get(), row_collection.get());
     } else {
-        // pading after row_gather required, thus data is first row_gathered
+        // padding after row_gather required, thus data is first row_gathered
         // into a temporary buffer and then padded into final view this is
         // required for example for ELL matrices
         label coo_length = recv_size;
