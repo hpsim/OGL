@@ -114,7 +114,7 @@ struct ExecutorInitFunctor {
 
     std::shared_ptr<gko::Executor> init() const
     {
-        LOG_2(verbose_, "create executors")
+        LOG_0(verbose_, "create executors")
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         auto msg = [](auto exec, auto id) {
@@ -140,10 +140,6 @@ struct ExecutorInitFunctor {
             return s;
         };
 
-        if (!device_id_handler_.is_owner()) {
-            return host_exec;
-        }
-
         if (executor_name_ == "cuda") {
             if (version.cuda_version.tag == not_compiled_tag) {
                 FatalErrorInFunction
@@ -153,7 +149,10 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
-            // LOG_0(verbose_, msg(executor_name_, id))
+            LOG_0(verbose_, msg(executor_name_, id))
+            if (!device_id_handler_.is_owner()) {
+                return host_exec;
+            }
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
             return ret;
         }
@@ -179,6 +178,9 @@ struct ExecutorInitFunctor {
             label id = device_id_handler_.compute_device_id(
                 gko::HipExecutor::get_num_devices());
             LOG_0(verbose_, msg(executor_name_, id))
+            if (!device_id_handler_.is_owner()) {
+                return host_exec;
+            }
             auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
