@@ -84,10 +84,7 @@ struct DeviceIdHandler {
     /* @brief compute the group id for the split communicator
      * the group id is either 0 for active and 1 for inactive
      */
-    label compute_group() const
-    {
-        return is_owner() ? 0 : 1;
-    }
+    label compute_group() const { return is_owner() ? 0 : 1; }
 };
 
 struct ExecutorInitFunctor {

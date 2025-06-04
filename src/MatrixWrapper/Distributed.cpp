@@ -139,8 +139,8 @@ void generate_alltoall_update_data(
     }
 }
 
-/* this function effectively computes a second reordering map, reordering from coo row major order
- * to ell in col major order
+/* this function effectively computes a second reordering map, reordering from
+ * coo row major order to ell in col major order
  */
 template <typename MatrixType>
 void compute_pad(const std::vector<std::vector<label>> &rows,
@@ -461,7 +461,7 @@ void update_impl(
                         pairwise_communicate(););
 
     auto reorder_data = [reorder_maps, exec_handler]() {
-             for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
+        for (auto [reorder_map, data_ptr, pad] : reorder_maps) {
             reorder_interface_impl(exec_handler, reorder_map, pad, data_ptr);
         }
     };
@@ -544,7 +544,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     // since for symmetric matrices row major loc_rows are column-major cols
     std::vector<std::vector<label>> local_pad;
     compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
-    auto non_local_pad = std::vector<std::vector<label>> (non_loc_rows.size());
+    auto non_local_pad = std::vector<std::vector<label>>(non_loc_rows.size());
 
     // stores original id, comm_patttern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
