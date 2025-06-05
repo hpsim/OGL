@@ -154,6 +154,7 @@ struct CommunicationPattern {
 
     /* @brief concatenate all separate send idxs arrays into one contiguous
      * array
+     * @return a vector containing all send_idx of this rank in local idx
      */
     std::vector<label> total_rank_send_idx() const;
 
@@ -164,6 +165,17 @@ struct CommunicationPattern {
     gko::array<label> compute_recv_gather_idxs(
         const ExecutorHandler &exec_handler) const;
 
+
+    /* @brief computes the recv_connections, ie the send_idxs of the
+     * neighbouring ranks in global indexing
+     *
+     */
+    gko::array<label> compute_recv_connections(
+        const ExecutorHandler &exec_handler,
+    std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
+        partition
+
+                                               ) const;
 
     /** Computes the send and recv pattern for ginkgos distributed matrix SpMV
      */

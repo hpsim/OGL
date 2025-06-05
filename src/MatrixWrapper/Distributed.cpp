@@ -530,9 +530,35 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto local_linops = generate_inner_linops<LocalMatrixType>(
         exec_handler, repart_dim, loc_rows, loc_cols, loc_ids, linops, fuse);
 
-    auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
-        (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<
+            label, label>(exec_handler.get_ref_exec(), *exec_handler.get_host_comm().get(), repartitioner->get_repart_size()
+                          ));
+    auto recv_connections = repart_comm_pattern->compute_recv_connections(exec_handler,
+                                                                          partition
+                                                                          );
+    auto imap = gko::experimental::distributed::index_map<label, label> (
+                                            exec_handler.get_ref_exec(),
+                                            partition,
+                                            rank,
+                                            recv_connections
+                                            );
+
+    // NOTE with gko imap cols don't need to be compressed anymore
+    auto [non_loc_rows, non_loc_global_cols, non_loc_map, non_loc_ids] =
+        (fuse) ? repart_non_loc_sparsity->get_fused_vecs(false)
                : repart_non_loc_sparsity->get_vecs(true, false);
+
+    std::vector<std::vector<label>> non_loc_cols;
+
+    for (auto& non_loc_global_col_vec: non_loc_global_cols) {
+        auto non_loc_global_col = convert_to_array(non_loc_global_col_vec);
+        auto non_loc_col = imap.map_to_local(
+                        *non_loc_global_col.get(),
+                        gko::experimental::distributed::index_space::non_local);
+        non_loc_cols.push_back(convert_to_vector(non_loc_col));
+    }
+
     auto non_local_linops = generate_inner_linops<NonLocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops, fuse);
@@ -592,6 +618,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
 
+
     if (verbose > 1) {
         std::ofstream myfile;
         std::string folder = host_A->get_folder();
@@ -605,16 +632,16 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     if (fuse) {
         dist_A = gko::share(dist_mtx::create(
-            device_exec, device_comm, global_dim, local_linops[0],
-            non_local_linops[0], recv_sizes, recv_offsets, recv_gather_idxs));
+            device_exec, device_comm, imap, local_linops[0],
+            non_local_linops[0]));
     } else {
-        dist_A = gko::share(dist_mtx::create(
-            device_exec, device_comm, global_dim,
-            gko::share(CombinationMatrix<LocalMatrixType>::create(
-                device_exec, repart_dim, local_linops)),
-            gko::share(CombinationMatrix<NonLocalMatrixType>::create(
-                device_exec, repart_non_local_dim, non_local_linops)),
-            recv_sizes, recv_offsets, recv_gather_idxs));
+        // dist_A = gko::share(dist_mtx::create(
+        //     device_exec, device_comm, global_dim,
+        //     gko::share(CombinationMatrix<LocalMatrixType>::create(
+        //         device_exec, repart_dim, local_linops)),
+        //     gko::share(CombinationMatrix<NonLocalMatrixType>::create(
+        //         device_exec, repart_non_local_dim, non_local_linops)),
+        //     recv_sizes, recv_offsets, recv_gather_idxs));
     }
 
     // compute reorder maps
