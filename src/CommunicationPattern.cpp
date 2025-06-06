@@ -314,19 +314,19 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
 }
 
 
-    gko::array<label> CommunicationPattern::compute_recv_connections(
-        const ExecutorHandler &exec_handler,
+gko::array<label> CommunicationPattern::compute_recv_connections(
+    const ExecutorHandler &exec_handler,
     std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
-        partition
-                                               ) const {
-
+        partition) const
+{
     auto exec = exec_handler.get_ref_exec();
     auto host_comm = *exec_handler.get_host_comm().get();
     auto device_comm = *exec_handler.get_device_comm().get();
     auto rs_idx = total_rank_send_idx();
     auto rank = exec_handler.get_device_rank();
     label offset = partition->get_range_bounds()[rank];
-    std::transform(rs_idx.begin(), rs_idx.end(), rs_idx.begin(), [offset] (auto i) {return i+offset;});
+    std::transform(rs_idx.begin(), rs_idx.end(), rs_idx.begin(),
+                   [offset](auto i) { return i + offset; });
 
 
     auto pattern = send_recv_pattern();
@@ -339,8 +339,7 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
                              pattern.recv_offsets.data());
 
     return recv_buffer;
-
-    }
+}
 
 AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {

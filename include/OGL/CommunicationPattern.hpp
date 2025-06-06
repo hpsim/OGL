@@ -172,10 +172,10 @@ struct CommunicationPattern {
      */
     gko::array<label> compute_recv_connections(
         const ExecutorHandler &exec_handler,
-    std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
-        partition
+        std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
+            partition
 
-                                               ) const;
+    ) const;
 
     /** Computes the send and recv pattern for ginkgos distributed matrix SpMV
      */

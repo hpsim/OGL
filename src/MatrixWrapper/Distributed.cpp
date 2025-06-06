@@ -30,7 +30,7 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     for (size_t i = 0; i < rowss.size(); i++) {
         const auto &rows = rowss[i];
         const auto &cols = colss[i];
-	OGL_ASSERT_EQ(rows.size(), cols.size());
+        OGL_ASSERT_EQ(rows.size(), cols.size());
         gko::array<scalar> coeffs(exec, rows.size());
         coeffs.fill(0.0);
         auto mtx_data = gko::device_matrix_data<scalar, label>(
@@ -532,27 +532,24 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         exec_handler, repart_dim, loc_rows, loc_cols, loc_ids, linops, fuse);
 
     auto partition = gko::share(
-        gko::experimental::distributed::build_partition_from_local_size<
-            label, label>(exec_handler.get_ref_exec(), *exec_handler.get_device_comm().get(), repartitioner->get_repart_size()
-                          ));
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            exec_handler.get_ref_exec(), *exec_handler.get_device_comm().get(),
+            repartitioner->get_repart_size()));
 
 
-    auto recv_connections = repart_comm_pattern->compute_recv_connections(exec_handler,
-                                                                          partition
-                                                                          );
-    
-    // std::cout << __FILE__ << " rank " << rank 
-	//     << " repart size "  << repartitioner->get_repart_size()
-	//     << " recv_conections size "  << recv_connections.get_size()
-	//     << " get_num_parts()" << partition->get_num_parts()
-	//     << "\n";
+    auto recv_connections =
+        repart_comm_pattern->compute_recv_connections(exec_handler, partition);
 
-    auto imap = gko::experimental::distributed::index_map<label, label> (
-                                            exec_handler.get_ref_exec(),
-                                            partition,
-					    exec_handler.get_device_rank(),
-                                            recv_connections
-                                            );
+    // std::cout << __FILE__ << " rank " << rank
+    //     << " repart size "  << repartitioner->get_repart_size()
+    //     << " recv_conections size "  << recv_connections.get_size()
+    //     << " get_num_parts()" << partition->get_num_parts()
+    //     << "\n";
+
+    auto imap = gko::experimental::distributed::index_map<label, label>(
+        exec_handler.get_ref_exec(), partition, exec_handler.get_device_rank(),
+        recv_connections);
 
     gko::dim<2> repart_non_local_dim{repartitioner->get_repart_size(),
                                      imap.get_non_local_size()};
@@ -564,11 +561,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     std::vector<std::vector<label>> non_loc_cols;
 
-    for (auto& non_loc_global_col_vec: non_loc_global_cols) {
+    for (auto &non_loc_global_col_vec : non_loc_global_cols) {
         auto non_loc_global_col = convert_to_array(non_loc_global_col_vec);
         auto non_loc_col = imap.map_to_local(
-                        *non_loc_global_col.get(),
-                        gko::experimental::distributed::index_space::non_local);
+            *non_loc_global_col.get(),
+            gko::experimental::distributed::index_space::non_local);
         non_loc_cols.push_back(convert_to_vector(non_loc_col));
     }
 
@@ -644,9 +641,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     }
 
     if (fuse) {
-        dist_A = gko::share(dist_mtx::create(
-            device_exec, device_comm, imap, local_linops[0],
-            non_local_linops[0]));
+        dist_A =
+            gko::share(dist_mtx::create(device_exec, device_comm, imap,
+                                        local_linops[0], non_local_linops[0]));
     } else {
         // dist_A = gko::share(dist_mtx::create(
         //     device_exec, device_comm, global_dim,
