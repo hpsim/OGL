@@ -387,7 +387,7 @@ void update_impl(
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
-    bool force_host_buffer = !exec_handler.get_non_orig_device_comm();
+    bool force_host_buffer = !exec_handler.get_gko_force_host_buffer();
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
@@ -556,7 +556,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     // NOTE with gko imap cols don't need to be compressed anymore
     auto [non_loc_rows, non_loc_global_cols, non_loc_map, non_loc_ids] =
-        (fuse) ? repart_non_loc_sparsity->get_fused_vecs(false)
+        (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
 
     std::vector<std::vector<label>> non_loc_cols;
