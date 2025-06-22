@@ -24,7 +24,7 @@ class Preconditioner {
     using cg = gko::solver::Cg<scalar>;
     using fcg = gko::solver::Cg<float>;
     using mg = gko::solver::Multigrid;
-    using amgx_pgm = gko::multigrid::Pgm<scalar, label>;
+    using pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
@@ -52,6 +52,84 @@ public:
     {}
 
     template <typename PrecondFactory>
+    std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
+        std::shared_ptr<const gko::LinOp> gkomatrix,
+        std::shared_ptr<gko::Executor> device_exec,
+        std::shared_ptr<PrecondFactory> precond, const dictionary &d,
+        label local_rows) const
+    {
+        using pgm = gko::multigrid::Pgm<scalar, label>;
+        using fc = gko::multigrid::FixedCoarsening<scalar, label>;
+        using solver = gko::solver::Cg<scalar>;
+
+        auto selCoarseRows = d.lookupOrDefault("selCoarseRows", label(5));
+        auto fixedCoarsening =
+            d.lookupOrDefault<Switch>("fixedCoarsening", false);
+        auto coarseWeight = d.lookupOrDefault("coarseWeight", scalar(0.01));
+        auto solveNormC =
+            d.lookupOrDefault("reductionCoarseSolver", label(1e-6));
+        auto maxIterCoarse = d.lookupOrDefault("maxIterCoarse", label(50));
+
+        word msg = "Generate multi level schwarz:\n\tfixedCoarsening " +
+                   std::to_string(fixedCoarsening) + "\n\tselCoarseRows " +
+                   std::to_string(selCoarseRows) + "\n\trelTolCoarse " +
+                   std::to_string(solveNormC) + "\n\tmaxIterCoarse " +
+                   std::to_string(maxIterCoarse) + "\n\tcoarseWeigth" +
+                   std::to_string(coarseWeight);
+        MLOG_0(verbose_, msg)
+
+        auto pre_factory = ras::build().with_local_solver(
+            bj::build()
+                .with_skip_sorting(true)
+                .with_max_block_size(1u)
+                .on(device_exec));
+
+        auto coarse_solver = gko::share(
+            solver::build()
+                .with_preconditioner(pre_factory)
+                .with_criteria(
+                    gko::stop::Iteration::build().with_max_iters(maxIterCoarse),
+                    gko::stop::ResidualNorm<scalar>::build()
+                        .with_reduction_factor(solveNormC))
+                .on(device_exec));
+
+        if (fixedCoarsening) {
+            auto n_rows = local_rows / selCoarseRows;
+            auto sel_rows =
+                gko::array<label>(gko::ReferenceExecutor::create(), n_rows);
+            for (auto i = 0; i < sel_rows.get_size(); i++) {
+                sel_rows.get_data()[i] = selCoarseRows * i;
+            }
+
+            sel_rows.set_executor(device_exec);
+            auto pgm_fac = gko::share(fc::build()
+                                          .with_skip_sorting(true)
+                                          .with_coarse_rows(sel_rows)
+                                          .on(device_exec));
+
+            return gko::share(ras::build()
+                                  .with_local_solver(precond)
+                                  .with_coarse_level(pgm_fac)
+                                  .with_l1_smoother(false)
+                                  .with_coarse_solver(coarse_solver)
+                                  .with_coarse_weight(coarseWeight)
+                                  .on(device_exec)
+                                  ->generate(gkomatrix));
+        } else {
+            auto pgm_fac = gko::share(
+                pgm::build().with_skip_sorting(true).on(device_exec));
+
+            return gko::share(ras::build()
+                                  .with_local_solver(precond)
+                                  .with_coarse_level(pgm_fac)
+                                  .with_l1_smoother(false)
+                                  .with_coarse_solver(coarse_solver)
+                                  .on(device_exec)
+                                  ->generate(gkomatrix));
+        }
+    }
+
+    template <typename PrecondFactory>
     std::shared_ptr<gko::LinOp> wrap_schwarz(
         std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec,
@@ -60,8 +138,7 @@ public:
         auto local = gko::as<RepartDistMatrix>(gkomatrix)->get_local();
         return gko::share(
             ras::build()
-                .with_generated_local_solver(
-                    gko::share(precond->generate(local)))
+                .with_generated_local_solver(precond->generate(local))
                 .on(device_exec)
                 ->generate(
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_mtx()));
@@ -82,33 +159,50 @@ public:
     }
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
-        const word name, const dictionary &controls,
+        const word name, const dictionary &d,
         std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
-        bool skip_sorting =
-            controls.lookupOrDefault<Switch>("skipSorting", true);
+        bool skip_sorting = d.lookupOrDefault<Switch>("skipSorting", true);
+        bool multi_level_schwarz =
+            d.lookupOrDefault<Switch>("multiLevelSchwarz", false);
 
         if (name == "BJ") {
             // TODO for non constant system matrix reuse block pointers
-            label max_block_size(
-                controls.lookupOrDefault("maxBlockSize", label(1)));
-            word precision(
-                controls.lookupOrDefault("precision", word("double")));
+            label max_block_size(d.lookupOrDefault("maxBlockSize", label(1)));
+            word precision(d.lookupOrDefault("precision", word("double")));
 
             word msg = "Generate preconditioner " + name + "<" + precision +
                        "> MaxBlockSize " + std::to_string(max_block_size);
             MLOG_0(verbose_, msg)
 
             if (precision == "double") {
-                auto pre_factory =
-                    dbj::build()
-                        .with_skip_sorting(skip_sorting)
-                        .with_max_block_size(
-                            static_cast<gko::uint32>(max_block_size))
-                        .on(device_exec);
-                return wrap_schwarz(gkomatrix, device_exec,
-                                    std::move(pre_factory));
+                if (multi_level_schwarz) {
+                    auto pre_factory = gko::share(
+                        dbj::build()
+                            .with_skip_sorting(skip_sorting)
+                            .with_max_block_size(
+                                static_cast<gko::uint32>(max_block_size))
+                            .on(device_exec));
+                    auto gkodistmatrix =
+                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+                    auto local =
+                        gko::as<RepartDistMatrix>(gkomatrix)->get_local();
+                    auto local_rows = local->get_size()[0];
+                    return wrap_multi_level_schwarz(gkodistmatrix, device_exec,
+                                                    pre_factory, d, local_rows);
+                } else {
+                    auto pre_factory =
+                        dbj::build()
+                            .with_skip_sorting(skip_sorting)
+                            .with_max_block_size(
+                                static_cast<gko::uint32>(max_block_size))
+                            .on(device_exec);
+                    auto gkodistmatrix =
+                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+                    return wrap_schwarz(gkomatrix, device_exec,
+                                        std::move(pre_factory));
+                }
             } else {
                 auto pre_factory =
                     fbj::build()
@@ -121,25 +215,23 @@ public:
             }
         }
         if (name == "ILU") {
+            label iterations(d.lookupOrDefault("iterations", label(0)));
             word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
 
             auto factorization_factory =
-                gko::factorization::Ilu<scalar, label>::build()
+                gko::factorization::ParIlu<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
+                    .with_iterations(iterations)
                     .on(device_exec);
-
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<
                     scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
-
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
-
-
             return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
@@ -157,10 +249,8 @@ public:
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<>>(gkodistmatrix)
                     ->get_local_matrix()));
-
             auto precond_factory =
                 gko::preconditioner::Ilu<>::build().on(device_exec);
-
             return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
@@ -199,28 +289,25 @@ public:
         if (name == "IC") {
             word msg = "Generate preconditioner " + name;
             MLOG_0(verbose_, msg)
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
 
             auto factorization_factory =
                 gko::factorization::Ic<scalar, label>::build()
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
-
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
             auto factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<
                     scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
-
             auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
-
             return wrap_schwarz(gkodistmatrix, device_exec,
                                 std::move(precond_factory), factorization);
         }
+
         if (name == "ICT") {
-            bool approx_select(
-                controls.lookupOrDefault("approximateSelect", false));
+            bool approx_select(d.lookupOrDefault("approximateSelect", true));
             word msg = "Generate preconditioner " + name +
                        " with approximate select " +
                        std::to_string(approx_select);
@@ -231,21 +318,21 @@ public:
                     .with_skip_sorting(skip_sorting)
                     .on(device_exec);
 
+            auto gkodistmatrix =
+                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
             auto ic_factorization = gko::share(factorization_factory->generate(
                 gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkomatrix)
+                    scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
 
             auto precond_factory =
                 gko::preconditioner::Ic<>::build().on(device_exec);
 
-
             return wrap_schwarz(gkomatrix, device_exec,
                                 std::move(precond_factory), ic_factorization);
         }
         if (name == "ISAI") {
-            label sparsity_power(
-                controls.lookupOrDefault("sparsityPower", label(1)));
+            label sparsity_power(d.lookupOrDefault("sparsityPower", label(1)));
 
             word msg = "Generate preconditioner " + name + " SparsityPower " +
                        std::to_string(sparsity_power);
@@ -261,8 +348,7 @@ public:
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "GISAI") {
-            label sparsity_power(
-                controls.lookupOrDefault("sparsityPower", label(1)));
+            label sparsity_power(d.lookupOrDefault("sparsityPower", label(1)));
 
             word msg = "Generate preconditioner " + name + " SparsityPower " +
                        std::to_string(sparsity_power);
@@ -278,76 +364,72 @@ public:
             return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
         }
         if (name == "Multigrid") {
-            word type = controls.lookupOrDefault("type", word("Schwarz"));
+            word type = d.lookupOrDefault("type", word("Schwarz"));
 
-            const label coarse_solver_iters(
-                controls.lookupOrDefault("coarseSolverIters", label(4)));
+            auto maxIterCoarseS( d.lookupOrDefault("maxIterCoarse", label(4)));
+            auto solveNorm = d.lookupOrDefault("relTolCoarse", label(1e-6));
+            auto cycleName = d.lookupOrDefault("cycle", word("v"));
+            auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
+            auto minRowsC = d.lookupOrDefault("minCoarseRows", label(10));
+            auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
 
-            auto cycle_name = controls.lookupOrDefault("cycle", word("v"));
             gko::solver::multigrid::cycle cycle;
-            if (cycle_name == "v") cycle = gko::solver::multigrid::cycle::v;
-            if (cycle_name == "w") cycle = gko::solver::multigrid::cycle::w;
-            if (cycle_name == "f") cycle = gko::solver::multigrid::cycle::f;
+            if (cycleName == "v") cycle = gko::solver::multigrid::cycle::v;
+            if (cycleName == "w") cycle = gko::solver::multigrid::cycle::w;
+            if (cycleName == "f") cycle = gko::solver::multigrid::cycle::f;
 
-            const label max_levels(
-                controls.lookupOrDefault("maxLevels", label(5)));
-            const label min_coarse_rows(
-                controls.lookupOrDefault("minCoarseRows", label(10)));
-            const label smoother_max_iters(
-                controls.lookupOrDefault("smootherMaxIters", label(1)));
-
-            auto pre_factory =
-                gko::share(bj::build()
-                               .with_skip_sorting(true)
-                               .with_max_block_size(static_cast<gko::uint32>(1))
-                               .on(device_exec));
-
-
-            word msg =
-                "Generate preconditioner: " + name +
-                "\n\tmaxLevels: " + std::to_string(max_levels) +
-                "\n\tminCoarseRows: " + std::to_string(min_coarse_rows) +
-                "\n\tsmootherMaxIters: " + std::to_string(smoother_max_iters) +
-                "\n\tcoarseSolverIters: " +
-                std::to_string(coarse_solver_iters) +
-                "\n\tcycle: " + cycle_name + " type: " + type;
+            word msg = "Generate preconditioner: " + name +
+                       "\n\tmaxLevels: " + std::to_string(maxLevels) +
+                       "\n\tminCoarseRows: " + std::to_string(minRowsC) +
+                       "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
+                       "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
+                       "\n\tcycle: " + cycleName + " type: " + type;
             MLOG_0(verbose_, msg)
+
+            auto bjfac =
+                bj::build().with_max_block_size(1u).with_skip_sorting(true);
+            auto single_it = it::build().with_max_iters(1u);
+            auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
+                static_cast<gko::uint32>(maxIterCoarseS));
+            auto coarse_solve_norm =
+                gko::stop::ResidualNorm<scalar>::build().with_reduction_factor(
+                    solveNorm);
+            auto smoother_it = gko::stop::Iteration::build().with_max_iters(
+                static_cast<gko::uint32>(maxIterS));
+
+            auto smoother_gen =
+                type == "Distributed"
+                    ? gko::share(ir::build()
+                                     .with_solver(
+                                         ras::build().with_local_solver(bjfac))
+                                     .with_relaxation_factor(0.9)
+                                     .with_criteria(smoother_it)
+                                     .on(device_exec))
+                    : gko::share(ir::build()
+                                     .with_solver(bjfac)
+                                     .with_relaxation_factor(0.9)
+                                     .with_criteria(smoother_it)
+                                     .on(device_exec));
 
             if (type == "Schwarz") {
                 auto pre_factory =
                     mg::build()
-                        .with_max_levels(static_cast<gko::uint32>(max_levels))
+                        .with_max_levels(static_cast<gko::uint32>(maxLevels))
                         .with_cycle(cycle)
-                        .with_min_coarse_rows(
-                            static_cast<gko::uint32>(min_coarse_rows))
-                        .with_pre_smoother(
-                            ir::build()
-                                .with_solver(
-                                    bj::build().with_max_block_size(1u))
-                                .with_relaxation_factor(0.9)
-                                .with_criteria(it::build().with_max_iters(
-                                    smoother_max_iters)))
+                        .with_min_coarse_rows(static_cast<gko::uint32>(minRowsC))
+                        .with_pre_smoother(smoother_gen)
                         .with_post_uses_pre(true)
                         .with_mg_level(
-                            amgx_pgm::build().with_deterministic(true).on(
+                            pgm::build().with_deterministic(false).on(
                                 device_exec))
-                        .with_coarsest_solver(gko::share(
-                            cg::build()
-                                .with_preconditioner(gko::share(
-                                    bj::build()
-                                        .with_skip_sorting(true)
-                                        .with_max_block_size(
-                                            static_cast<gko::uint32>(1))
-                                        .on(device_exec)))
-                                .with_criteria(
-                                    gko::stop::Iteration::build()
-                                        .with_max_iters(
-                                            static_cast<gko::uint32>(
-                                                coarse_solver_iters)))
-                                .on(device_exec)))
-                        .with_criteria(it::build().with_max_iters(1u))
+                        .with_coarsest_solver(
+                            gko::share(cg::build()
+                                           .with_preconditioner(bjfac)
+                                           .with_criteria(coarse_solve_it,
+                                                          coarse_solve_norm)
+                                           .on(device_exec)))
+                        .with_criteria(single_it)
                         .on(device_exec);
-
                 return wrap_schwarz(gkomatrix, device_exec,
                                     std::move(pre_factory));
             }
@@ -356,33 +438,26 @@ public:
                 auto coarsest_gen = gko::share(
                     cg::build()
                         .with_preconditioner(
-                            ras::build().with_local_solver(pre_factory))
-                        .with_criteria(
-                            gko::stop::Iteration::build().with_max_iters(
-                                static_cast<gko::uint32>(coarse_solver_iters)))
+                            ras::build().with_local_solver(bjfac))
+                        .with_criteria(coarse_solve_it, coarse_solve_norm)
                         .on(device_exec));
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(
                     ir::build()
-                        .with_solver(ras::build().with_local_solver(
-                            bj::build()
-                                .with_skip_sorting(true)
-                                .with_max_block_size(1u)))
+                        .with_solver(ras::build().with_local_solver(bjfac))
                         .with_relaxation_factor(0.9)
-                        .with_criteria(
-                            gko::stop::Iteration::build().with_max_iters(
-                                smoother_max_iters))
+                        .with_criteria(smoother_it)
                         .on(device_exec));
                 auto ret = gko::share(
                     gko::solver::Multigrid::build()
-                        .with_max_levels(max_levels)
+                        .with_max_levels(maxLevels)
                         .with_mg_level(gko::multigrid::Pgm<scalar>::build()
                                            .with_deterministic(true))
-                        .with_min_coarse_rows(min_coarse_rows)
+                        .with_min_coarse_rows(minRowsC)
                         .with_coarsest_solver(coarsest_gen)
                         .with_criteria(it::build().with_max_iters(2u))
-                        .with_smoother_iters(smoother_max_iters)
+                        .with_smoother_iters(maxIterS)
                         .with_pre_smoother(smoother_gen)
                         .with_post_uses_pre(true)
                         .with_cycle(cycle)
@@ -409,7 +484,8 @@ public:
         std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
     {
-        const word precond_store_name = "Cached_preconditinoner";
+        const word precond_store_name =
+            sys_matrix_name_ + "Cached_preconditinoner";
         const fileName path = precond_store_name;
         bool stored{db_.template foundObject<regIOobject>(precond_store_name)};
 
@@ -433,7 +509,7 @@ public:
         }
 #endif
 
-        const dictionary &controls = e.isDict() ? e.dict() : dictionary::null;
+        const dictionary &d = e.isDict() ? e.dict() : dictionary::null;
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
@@ -463,8 +539,7 @@ public:
                                      ->get_size()[0];
                     if (rows == 0) return ret;
 
-                    word type =
-                        controls.lookupOrDefault("type", word("Schwarz"));
+                    word type = d.lookupOrDefault("type", word("Schwarz"));
 
                     if (type == "Schwarz") {
                         auto local_solver = std::const_pointer_cast<gko::LinOp>(
@@ -485,24 +560,23 @@ public:
                 auto prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
                 const label caching_period =
-                    controls.lookupOrDefault<label>("caching", 0);
+                    d.lookupOrDefault<label>("caching", 0);
                 set_next_caching(sys_matrix_name_, db_, caching_period);
 
-                auto generated_precond = init_preconditioner_impl(
-                    name, controls, gkomatrix, device_exec);
+                auto generated_precond =
+                    init_preconditioner_impl(name, d, gkomatrix, device_exec);
 
                 auto precond_ptr = prev_precond.get_ptr();
                 precond_ptr = generated_precond;
                 return precond_ptr;
             }
         }
-        const label caching_period =
-            controls.lookupOrDefault<label>("caching", 0);
+        const label caching_period = d.lookupOrDefault<label>("caching", 0);
         set_next_caching(sys_matrix_name_, db_, caching_period);
         cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
-            init_preconditioner_impl(name, controls, gkomatrix, device_exec);
+            init_preconditioner_impl(name, d, gkomatrix, device_exec);
 
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
                                                        generated_precond);
