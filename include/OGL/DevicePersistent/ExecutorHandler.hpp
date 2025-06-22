@@ -113,7 +113,6 @@ struct ExecutorInitFunctor {
 
     std::shared_ptr<gko::Executor> init() const
     {
-        LOG_0(verbose_, "create executors")
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         auto msg = [](auto exec, auto id) {
@@ -123,13 +122,12 @@ struct ExecutorInitFunctor {
             label global_rank = Pstream::myProcNo();
             label global_ranks = Pstream::nProcs(0);
             label device_ranks = Pstream::nProcs(node_comm);
-            label node_id = global_ranks / device_ranks;
 
             // Pstream::barrier(0);
             // sleep(0.03 * global_rank);
             s += std::string("Create ") + std::string(exec) +
-                 std::string(" executor device ") + std::to_string(id) +
-                 std::string(" node ") + std::to_string(node_id) +
+                 std::string(" executor, on node: ") + Foam::hostName() +
+                 std::string(" device: ") + std::to_string(id) +
                  std::string(" local rank [") +
                  std::to_string(Pstream::myProcNo(node_comm)) +
                  std::string("/") + std::to_string(device_ranks - 1) +
@@ -148,10 +146,11 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
-            LOG_0(verbose_, msg(executor_name_, id))
+            auto out_msg = msg(executor_name_, id);
             if (!device_id_handler_.is_owner()) {
                 return host_exec;
             }
+            LOG_0(verbose_, out_msg)
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
             return ret;
         }
@@ -176,10 +175,11 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::HipExecutor::get_num_devices());
-            LOG_0(verbose_, msg(executor_name_, id))
+            auto out_msg = msg(executor_name_, id);
             if (!device_id_handler_.is_owner()) {
                 return host_exec;
             }
+            LOG_0(verbose_, out_msg)
             auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
