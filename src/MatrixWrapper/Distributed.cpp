@@ -264,7 +264,8 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
     if (fuse_) {
         gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
             ->convert_to(local.get());
-        gko::as<LocalMatrixType>(dist_mtx_->get_non_local_matrix())
+        gko::as<gko::matrix::Coo<scalar, label>>(
+            dist_mtx_->get_non_local_matrix())
             ->convert_to(non_local.get());
     } else {
         gko::as<CombinationMatrix<LocalMatrixType>>(
