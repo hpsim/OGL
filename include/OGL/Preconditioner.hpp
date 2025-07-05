@@ -18,6 +18,7 @@ class Preconditioner {
     using bj = gko::preconditioner::Jacobi<>;
     using fbj = gko::preconditioner::Jacobi<float, label>;
     using dbj = gko::preconditioner::Jacobi<double, label>;
+    using sor = gko::preconditioner::Sor<scalar, label>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
     using it = gko::stop::Iteration;
@@ -371,6 +372,7 @@ public:
             auto cycleName = d.lookupOrDefault("cycle", word("v"));
             auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
             auto minRowsC = d.lookupOrDefault("minCoarseRows", label(10));
+            auto smoother = d.lookupOrDefault("smoother", word("SOR"));
             auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
 
             gko::solver::multigrid::cycle cycle;
@@ -381,13 +383,28 @@ public:
             word msg = "Generate preconditioner: " + name +
                        "\n\tmaxLevels: " + std::to_string(maxLevels) +
                        "\n\tminCoarseRows: " + std::to_string(minRowsC) +
+                       "\n\tSmoother: " + smoother +
                        "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
                        "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
                        "\n\tcycle: " + cycleName + " type: " + type;
             MLOG_0(verbose_, msg)
 
-            auto bjfac =
-                bj::build().with_max_block_size(1u).with_skip_sorting(true);
+
+            std::shared_ptr<gko::LinOpFactory> bjfac {};
+
+            if (smoother == "Jacobi") {
+            bjfac =
+                bj::build().with_max_block_size(1u).with_skip_sorting(true).on(device_exec);
+            }
+            if (smoother == "SOR") {
+            bjfac =
+                sor::build().with_skip_sorting(true).with_symmetric(false).on(device_exec);
+            }
+            if (smoother == "SSOR") {
+            bjfac =
+                sor::build().with_skip_sorting(true).with_symmetric(true).on(device_exec);
+            }
+
             auto single_it = it::build().with_max_iters(1u);
             auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
                 static_cast<gko::uint32>(maxIterCoarseS));
