@@ -80,10 +80,8 @@ public:
         MLOG_0(verbose_, msg)
 
         auto pre_factory = ras::build().with_local_solver(
-            bj::build()
-                .with_skip_sorting(true)
-                .with_max_block_size(1u)
-                .on(device_exec));
+            bj::build().with_skip_sorting(true).with_max_block_size(1u).on(
+                device_exec));
 
         auto coarse_solver = gko::share(
             solver::build()
@@ -367,7 +365,7 @@ public:
         if (name == "Multigrid") {
             word type = d.lookupOrDefault("type", word("Schwarz"));
 
-            auto maxIterCoarseS( d.lookupOrDefault("maxIterCoarse", label(4)));
+            auto maxIterCoarseS(d.lookupOrDefault("maxIterCoarse", label(4)));
             auto solveNorm = d.lookupOrDefault("relTolCoarse", label(1e-6));
             auto cycleName = d.lookupOrDefault("cycle", word("v"));
             auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
@@ -390,19 +388,25 @@ public:
             MLOG_0(verbose_, msg)
 
 
-            std::shared_ptr<gko::LinOpFactory> bjfac {};
+            std::shared_ptr<gko::LinOpFactory> bjfac{};
 
             if (smoother == "Jacobi") {
-            bjfac =
-                bj::build().with_max_block_size(1u).with_skip_sorting(true).on(device_exec);
+                bjfac = bj::build()
+                            .with_max_block_size(1u)
+                            .with_skip_sorting(true)
+                            .on(device_exec);
             }
             if (smoother == "SOR") {
-            bjfac =
-                sor::build().with_skip_sorting(true).with_symmetric(false).on(device_exec);
+                bjfac = sor::build()
+                            .with_skip_sorting(true)
+                            .with_symmetric(false)
+                            .on(device_exec);
             }
             if (smoother == "SSOR") {
-            bjfac =
-                sor::build().with_skip_sorting(true).with_symmetric(true).on(device_exec);
+                bjfac = sor::build()
+                            .with_skip_sorting(true)
+                            .with_symmetric(true)
+                            .on(device_exec);
             }
 
             auto single_it = it::build().with_max_iters(1u);
@@ -433,7 +437,8 @@ public:
                     mg::build()
                         .with_max_levels(static_cast<gko::uint32>(maxLevels))
                         .with_cycle(cycle)
-                        .with_min_coarse_rows(static_cast<gko::uint32>(minRowsC))
+                        .with_min_coarse_rows(
+                            static_cast<gko::uint32>(minRowsC))
                         .with_pre_smoother(smoother_gen)
                         .with_post_uses_pre(true)
                         .with_mg_level(

@@ -33,7 +33,7 @@ private:
 
 public:
     GKOPipeCGFactory(const dictionary &solverControls, const objectRegistry &db,
-                 word sysMatrixName)
+                     word sysMatrixName)
         : solverControls_(solverControls),
           db_(db),
           sysMatrixName_(sysMatrixName),
@@ -132,10 +132,10 @@ public:
 
     //- Construct from matrix components and solver controls
     GKOPipeCG(const word &fieldName, const lduMatrix &matrix,
-          const FieldField<Field, scalar> &interfaceBouCoeffs,
-          const FieldField<Field, scalar> &interfaceIntCoeffs,
-          const lduInterfaceFieldPtrsList &interfaces,
-          const dictionary &solverControls)
+              const FieldField<Field, scalar> &interfaceBouCoeffs,
+              const FieldField<Field, scalar> &interfaceIntCoeffs,
+              const lduInterfaceFieldPtrsList &interfaces,
+              const dictionary &solverControls)
         : GKOlduBaseSolver(fieldName, matrix, interfaceBouCoeffs,
                            interfaceIntCoeffs, interfaces, solverControls)
     {}

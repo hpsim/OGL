@@ -295,9 +295,8 @@ public:
     std::shared_ptr<const gko::experimental::mpi::communicator>
     get_device_comm() const
     {
-        if (!device_comm_init_){
+        if (!device_comm_init_) {
             OGL_ASSERT_EQ(device_comm_init_, true);
-
         }
         return this->device_comm_;
     }
