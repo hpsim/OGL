@@ -544,7 +544,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     // std::cout << __FILE__ << " rank " << rank
     //     << " repart size "  << repartitioner->get_repart_size()
-    //     << " recv_conections size "  << recv_connections.get_size()
+    //     << " recv_connections size "  << recv_connections.get_size()
     //     << " get_num_parts()" << partition->get_num_parts()
     //     << "\n";
 
@@ -583,7 +583,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
     auto non_local_pad = std::vector<std::vector<label>>(non_loc_rows.size());
 
-    // stores original id, comm_patttern, target data ptr
+    // stores original id, comm_pattern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
     SIMPLE_TIME(verbose, generate_all_to_all_update_data,
                 generate_alltoall_update_data<LocalMatrixType>(
