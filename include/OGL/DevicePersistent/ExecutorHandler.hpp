@@ -117,11 +117,16 @@ struct ExecutorInitFunctor {
 
         auto msg = [](auto exec, auto id) {
             std::string s;
-            // auto node_comm = Pstream::commInterHost();
-            auto node_comm = Pstream::commIntraHost();
             label global_rank = Pstream::myProcNo();
             label global_ranks = Pstream::nProcs(0);
-            label device_ranks = Pstream::nProcs(node_comm);
+            label device_ranks = 0;
+            label local_rank = 0;
+#ifdef WITH_ESI_VERSION
+            // auto node_comm = Pstream::commInterHost();
+            auto node_comm = Pstream::commIntraHost();
+            device_ranks = Pstream::nProcs(node_comm);
+            local_rank = Pstream::myProcNo(node_comm);
+#endif
 
             // Pstream::barrier(0);
             // sleep(0.03 * global_rank);
@@ -129,7 +134,7 @@ struct ExecutorInitFunctor {
                  std::string(" executor, on node: ") + Foam::hostName() +
                  std::string(" device: ") + std::to_string(id) +
                  std::string(" local rank [") +
-                 std::to_string(Pstream::myProcNo(node_comm)) +
+                 std::to_string(local_rank) +
                  std::string("/") + std::to_string(device_ranks - 1) +
                  std::string("] global rank [") + std::to_string(global_rank) +
                  std::string("/") + std::to_string(global_ranks - 1) +
@@ -296,9 +301,9 @@ public:
     get_device_comm() const
     {
         if (!device_comm_init_) {
-                FatalErrorInFunction
-                    << "The device_comm is uninitialised. Call init_device_comm() first"
-                    << exit(FatalError);
+            FatalErrorInFunction << "The device_comm is uninitialised. Call "
+                                    "init_device_comm() first"
+                                 << exit(FatalError);
             OGL_ASSERT_EQ(device_comm_init_, true);
         }
         return this->device_comm_;

@@ -332,7 +332,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 
     auto dst_view = gko::array<scalar>::view(device_exec, recv_size, dst_data);
 
-    if (pad->get_num_elems() == 0) {
+    if (pad->get_size() == 0) {
         // No padding needed
         // a dense view into into dst
         // this allows to row_gather
@@ -348,7 +348,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // into a temporary buffer and then padded into final view this is
         // required for example for ELL matrices
         label coo_length = recv_size;
-        label ell_length = pad->get_num_elems();
+        label ell_length = pad->get_size();
         auto recv_view = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
             gko::array<scalar>::view(device_exec, coo_length, dst_data), 1));
@@ -368,7 +368,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
-            gko::array<scalar>::view(device_exec, pad->get_num_elems(),
+            gko::array<scalar>::view(device_exec, pad->get_size(),
                                      dst_data),
             1));
         tmp_row_collection->row_gather(pad.get(), row_collection.get());
