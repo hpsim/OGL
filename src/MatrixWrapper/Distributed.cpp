@@ -368,8 +368,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
-            gko::array<scalar>::view(device_exec, pad->get_size(),
-                                     dst_data),
+            gko::array<scalar>::view(device_exec, pad->get_size(), dst_data),
             1));
         tmp_row_collection->row_gather(pad.get(), row_collection.get());
     }

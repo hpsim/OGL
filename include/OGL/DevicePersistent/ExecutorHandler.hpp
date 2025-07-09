@@ -133,8 +133,7 @@ struct ExecutorInitFunctor {
             s += std::string("Create ") + std::string(exec) +
                  std::string(" executor, on node: ") + Foam::hostName() +
                  std::string(" device: ") + std::to_string(id) +
-                 std::string(" local rank [") +
-                 std::to_string(local_rank) +
+                 std::string(" local rank [") + std::to_string(local_rank) +
                  std::string("/") + std::to_string(device_ranks - 1) +
                  std::string("] global rank [") + std::to_string(global_rank) +
                  std::string("/") + std::to_string(global_ranks - 1) +
