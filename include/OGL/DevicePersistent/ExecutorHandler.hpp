@@ -296,6 +296,9 @@ public:
     get_device_comm() const
     {
         if (!device_comm_init_) {
+                FatalErrorInFunction
+                    << "The device_comm is uninitialised. Call init_device_comm() first"
+                    << exit(FatalError);
             OGL_ASSERT_EQ(device_comm_init_, true);
         }
         return this->device_comm_;
