@@ -494,6 +494,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
+    using dim_type = gko::dim<2>::dimension_type;
     label rank = exec_handler.get_host_rank();
     auto exec = exec_handler.get_ref_exec();
     auto host_comm = *exec_handler.get_host_comm().get();
@@ -514,8 +515,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
-    gko::dim<2> repart_dim{repartitioner->get_repart_size(),
-                           repartitioner->get_repart_size()};
+    gko::dim<2> repart_dim{
+        static_cast<dim_type>(repartitioner->get_repart_size()),
+        static_cast<dim_type>(repartitioner->get_repart_size())};
 
     // create vector of inner type linops
     // if fuse the vector contains only a single element
@@ -552,8 +554,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
         exec_handler.get_ref_exec(), partition, exec_handler.get_device_rank(),
         recv_connections);
 
-    gko::dim<2> repart_non_local_dim{repartitioner->get_repart_size(),
-                                     imap.get_non_local_size()};
+    gko::dim<2> repart_non_local_dim{
+        static_cast<dim_type>(repartitioner->get_repart_size()),
+        static_cast<dim_type>(imap.get_non_local_size())};
 
     // NOTE with gko imap cols don't need to be compressed anymore
     auto [non_loc_rows, non_loc_global_cols, non_loc_map, non_loc_ids] =
