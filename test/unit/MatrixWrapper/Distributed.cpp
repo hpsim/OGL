@@ -149,7 +149,7 @@ public:
 INSTANTIATE_TEST_SUITE_P(DistMatL2DInit, DistMatL2D,
                          testing::Combine(testing::Values(1, 2, 4),
                                           testing::Values("Coo"),
-                                          testing::Values(false, true)),
+                                          testing::Values(true)), // for now only support fused matrices
                          [](const auto &info) {
                              // Can use info.param here to generate the test
                              // suffix
