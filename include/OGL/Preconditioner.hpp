@@ -15,7 +15,7 @@
 namespace Foam {
 class Preconditioner {
     using mtx = gko::matrix::Csr<scalar>;
-    using bj = gko::preconditioner::Jacobi<>;
+    using bj = gko::preconditioner::Jacobi<scalar, label>;
     using fbj = gko::preconditioner::Jacobi<float, label>;
     using dbj = gko::preconditioner::Jacobi<double, label>;
     using sor = gko::preconditioner::Sor<scalar, label>;
@@ -366,11 +366,12 @@ public:
             word type = d.lookupOrDefault("type", word("Schwarz"));
 
             auto maxIterCoarseS(d.lookupOrDefault("maxIterCoarse", label(4)));
-            auto solveNorm = d.lookupOrDefault("relTolCoarse", label(1e-6));
+            auto solveNorm = d.lookupOrDefault("relTolCoarse", scalar(1e-6));
+            auto relaxFac = d.lookupOrDefault("relaxationFactor", scalar(0.9));
             auto cycleName = d.lookupOrDefault("cycle", word("v"));
             auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
             auto minRowsC = d.lookupOrDefault("minCoarseRows", label(10));
-            auto smoother = d.lookupOrDefault("smoother", word("SOR"));
+            auto smoother = d.lookupOrDefault("smoother", word("Jacobi"));
             auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
 
             gko::solver::multigrid::cycle cycle;
@@ -382,8 +383,10 @@ public:
                        "\n\tmaxLevels: " + std::to_string(maxLevels) +
                        "\n\tminCoarseRows: " + std::to_string(minRowsC) +
                        "\n\tSmoother: " + smoother +
+                       "\n\trelaxationFactor: " + std::to_string(relaxFac) +
                        "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
                        "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
+                       "\n\tinnerSolverNorm: " + std::to_string(solveNorm) +
                        "\n\tcycle: " + cycleName + " type: " + type;
             MLOG_0(verbose_, msg)
 
@@ -423,12 +426,12 @@ public:
                     ? gko::share(ir::build()
                                      .with_solver(
                                          ras::build().with_local_solver(bjfac))
-                                     .with_relaxation_factor(0.9)
+                                     .with_relaxation_factor(relaxFac)
                                      .with_criteria(smoother_it)
                                      .on(device_exec))
                     : gko::share(ir::build()
                                      .with_solver(bjfac)
-                                     .with_relaxation_factor(0.9)
+                                     .with_relaxation_factor(relaxFac)
                                      .with_criteria(smoother_it)
                                      .on(device_exec));
 
@@ -468,7 +471,7 @@ public:
                 auto smoother_gen = gko::share(
                     ir::build()
                         .with_solver(ras::build().with_local_solver(bjfac))
-                        .with_relaxation_factor(0.9)
+                        .with_relaxation_factor(relaxFac)
                         .with_criteria(smoother_it)
                         .on(device_exec));
                 auto ret = gko::share(
