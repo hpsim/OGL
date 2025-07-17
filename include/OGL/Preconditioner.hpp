@@ -372,6 +372,8 @@ public:
             auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
             auto minRowsC = d.lookupOrDefault("minCoarseRows", label(10));
             auto smoother = d.lookupOrDefault("smoother", word("Jacobi"));
+            auto coarseSolver =
+                d.lookupOrDefault("coarseSolver", word("Jacobi"));
             auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
 
             gko::solver::multigrid::cycle cycle;
@@ -385,6 +387,7 @@ public:
                        "\n\tSmoother: " + smoother +
                        "\n\trelaxationFactor: " + std::to_string(relaxFac) +
                        "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
+                       "\n\tcoarseSolver: " + coarseSolver +
                        "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
                        "\n\tinnerSolverNorm: " + std::to_string(solveNorm) +
                        "\n\tcycle: " + cycleName + " type: " + type;
@@ -436,6 +439,23 @@ public:
                                      .on(device_exec));
 
             if (type == "Schwarz") {
+                std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
+                if (coarseSolver == "CG") {
+                    coarsest_solver = gko::share(
+                        cg::build()
+                            .with_preconditioner(bjfac)
+                            .with_criteria(coarse_solve_it, coarse_solve_norm)
+                            .on(device_exec));
+                }
+                if (coarseSolver == "Jacobi") {
+                    coarsest_solver =
+                        gko::share(ir::build()
+                                       .with_solver(bjfac)
+                                       .with_relaxation_factor(relaxFac)
+                                       .with_criteria(coarse_solve_it)
+                                       .on(device_exec));
+                }
+
                 auto pre_factory =
                     mg::build()
                         .with_max_levels(static_cast<gko::uint32>(maxLevels))
@@ -447,12 +467,7 @@ public:
                         .with_mg_level(
                             pgm::build().with_deterministic(false).on(
                                 device_exec))
-                        .with_coarsest_solver(
-                            gko::share(cg::build()
-                                           .with_preconditioner(bjfac)
-                                           .with_criteria(coarse_solve_it,
-                                                          coarse_solve_norm)
-                                           .on(device_exec)))
+                        .with_coarsest_solver(coarsest_solver)
                         .with_criteria(single_it)
                         .on(device_exec);
                 return wrap_schwarz(gkomatrix, device_exec,
@@ -460,12 +475,23 @@ public:
             }
 
             if (type == "Distributed") {
-                auto coarsest_gen = gko::share(
-                    cg::build()
-                        .with_preconditioner(
-                            ras::build().with_local_solver(bjfac))
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(device_exec));
+                std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
+                if (coarseSolver == "CG") {
+                    coarsest_solver = gko::share(
+                        ir::build()
+                            .with_solver(ras::build().with_local_solver(bjfac))
+                            .with_relaxation_factor(relaxFac)
+                            .with_criteria(coarse_solve_it)
+                            .on(device_exec));
+                }
+                if (coarseSolver == "Jacobi") {
+                    coarsest_solver = gko::share(
+                        cg::build()
+                            .with_preconditioner(
+                                ras::build().with_local_solver(bjfac))
+                            .with_criteria(coarse_solve_it, coarse_solve_norm)
+                            .on(device_exec));
+                }
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(
@@ -480,7 +506,7 @@ public:
                         .with_mg_level(gko::multigrid::Pgm<scalar>::build()
                                            .with_deterministic(true))
                         .with_min_coarse_rows(minRowsC)
-                        .with_coarsest_solver(coarsest_gen)
+                        .with_coarsest_solver(coarsest_solver)
                         .with_criteria(it::build().with_max_iters(2u))
                         .with_smoother_iters(maxIterS)
                         .with_pre_smoother(smoother_gen)
