@@ -415,10 +415,10 @@ public:
                             .on(device_exec);
             }
             if (bjfac == nullptr) {
-            FatalErrorInFunction << "Unknown smoother: " << smoother
-                                 << "\nValid Choices: Jacobi, SOR, SSOR"
-                                 << abort(FatalError);
-	    }
+                FatalErrorInFunction << "Unknown smoother: " << smoother
+                                     << "\nValid Choices: Jacobi, SOR, SSOR"
+                                     << abort(FatalError);
+            }
 
             auto single_it = it::build().with_max_iters(1u);
             auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
@@ -460,11 +460,11 @@ public:
                                        .with_criteria(coarse_solve_it)
                                        .on(device_exec));
                 }
-		    if ( coarsest_solver == nullptr) {
-		    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
-					 << "\nValid Choices: CG, Jacobi"
-					 << abort(FatalError);
-		    }
+                if (coarsest_solver == nullptr) {
+                    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
+                                         << "\nValid Choices: CG, Jacobi"
+                                         << abort(FatalError);
+                }
 
                 auto pre_factory =
                     mg::build()
@@ -502,11 +502,11 @@ public:
                             .with_criteria(coarse_solve_it, coarse_solve_norm)
                             .on(device_exec));
                 }
-		    if ( coarsest_solver == nullptr) {
-		    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
-					 << "\nValid Choices: CG, Jacobi"
-					 << abort(FatalError);
-		    }
+                if (coarsest_solver == nullptr) {
+                    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
+                                         << "\nValid Choices: CG, Jacobi"
+                                         << abort(FatalError);
+                }
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(
