@@ -365,12 +365,12 @@ public:
         if (name == "Multigrid") {
             word type = d.lookupOrDefault("type", word("Schwarz"));
 
-            auto maxIterCoarseS(d.lookupOrDefault("maxIterCoarse", label(4)));
+            auto maxIterCoarseS(d.lookupOrDefault("maxIterCoarse", label(1)));
             auto solveNorm = d.lookupOrDefault("relTolCoarse", scalar(1e-6));
             auto relaxFac = d.lookupOrDefault("relaxationFactor", scalar(0.9));
             auto cycleName = d.lookupOrDefault("cycle", word("v"));
-            auto maxLevels = d.lookupOrDefault("maxLevels", label(5));
-            auto minRowsC = d.lookupOrDefault("minCoarseRows", label(10));
+            auto maxLevels = d.lookupOrDefault("maxLevels", label(20));
+            auto minRowsC = d.lookupOrDefault("minCoarseRows", label(64000));
             auto smoother = d.lookupOrDefault("smoother", word("Jacobi"));
             auto coarseSolver =
                 d.lookupOrDefault("coarseSolver", word("Jacobi"));
@@ -414,6 +414,11 @@ public:
                             .with_symmetric(true)
                             .on(device_exec);
             }
+            if (bjfac == nullptr) {
+            FatalErrorInFunction << "Unknown smoother: " << smoother
+                                 << "\nValid Choices: Jacobi, SOR, SSOR"
+                                 << abort(FatalError);
+	    }
 
             auto single_it = it::build().with_max_iters(1u);
             auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
@@ -455,6 +460,11 @@ public:
                                        .with_criteria(coarse_solve_it)
                                        .on(device_exec));
                 }
+		    if ( coarsest_solver == nullptr) {
+		    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
+					 << "\nValid Choices: CG, Jacobi"
+					 << abort(FatalError);
+		    }
 
                 auto pre_factory =
                     mg::build()
@@ -492,6 +502,11 @@ public:
                             .with_criteria(coarse_solve_it, coarse_solve_norm)
                             .on(device_exec));
                 }
+		    if ( coarsest_solver == nullptr) {
+		    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
+					 << "\nValid Choices: CG, Jacobi"
+					 << abort(FatalError);
+		    }
                 auto gkodistmatrix =
                     gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
                 auto smoother_gen = gko::share(
