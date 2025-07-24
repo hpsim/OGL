@@ -45,10 +45,6 @@ variation:
         values:
           - set: solvers/p
             ranksPerGPU: 1
-          - set: solvers/p
-            ranksPerGPU: 2
-          - set: solvers/p
-            ranksPerGPU: 4
         variation:
         - operation: fvSolution
           schema: "{preconditioner}{solver}{executor}"
