@@ -32,10 +32,9 @@ variation:
     variation:
     - operation: fvSolution
       schema: "fuse={fuse}"
+      common:
+        export: 1
       values:
-        - set: solvers/p
-          fuse: 0
-          ranksPerGPU: 1
         - set: solvers/p
           fuse: 1
           ranksPerGPU: 1
@@ -54,7 +53,6 @@ variation:
             executor: reference
             solver: GKOCG
             verbose: 1
-            writeGlobal: 1
 postProcess:
   queries: ["method", "ranksPerGPU", "numberOfSubdomains", "fuse", "timeStepContErrors_sumLocal"]
   matcher:
