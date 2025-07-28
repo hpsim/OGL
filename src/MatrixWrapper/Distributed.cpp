@@ -30,6 +30,7 @@ std::vector<std::shared_ptr<gko::LinOp>> generate_inner_linops(
     for (size_t i = 0; i < rowss.size(); i++) {
         const auto &rows = rowss[i];
         const auto &cols = colss[i];
+        OGL_ASSERT_EQ(rows.size(), cols.size());
         gko::array<scalar> coeffs(exec, rows.size());
         coeffs.fill(0.0);
         auto mtx_data = gko::device_matrix_data<scalar, label>(
@@ -263,7 +264,8 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
     if (fuse_) {
         gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
             ->convert_to(local.get());
-        gko::as<LocalMatrixType>(dist_mtx_->get_non_local_matrix())
+        gko::as<gko::matrix::Coo<scalar, label>>(
+            dist_mtx_->get_non_local_matrix())
             ->convert_to(non_local.get());
     } else {
         gko::as<CombinationMatrix<LocalMatrixType>>(
@@ -331,7 +333,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 
     auto dst_view = gko::array<scalar>::view(device_exec, recv_size, dst_data);
 
-    if (pad->get_num_elems() == 0) {
+    if (pad->get_size() == 0) {
         // No padding needed
         // a dense view into into dst
         // this allows to row_gather
@@ -347,7 +349,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // into a temporary buffer and then padded into final view this is
         // required for example for ELL matrices
         label coo_length = recv_size;
-        label ell_length = pad->get_num_elems();
+        label ell_length = pad->get_size();
         auto recv_view = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(coo_length), 1},
             gko::array<scalar>::view(device_exec, coo_length, dst_data), 1));
@@ -367,8 +369,7 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
         // now row gather into final view
         auto row_collection = gko::share(gko::matrix::Dense<scalar>::create(
             device_exec, gko::dim<2>{static_cast<dim_type>(ell_length), 1},
-            gko::array<scalar>::view(device_exec, pad->get_num_elems(),
-                                     dst_data),
+            gko::array<scalar>::view(device_exec, pad->get_size(), dst_data),
             1));
         tmp_row_collection->row_gather(pad.get(), row_collection.get());
     }
@@ -386,7 +387,7 @@ void update_impl(
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
-    bool force_host_buffer = !exec_handler.get_non_orig_device_comm();
+    bool force_host_buffer = !exec_handler.get_gko_force_host_buffer();
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
@@ -493,9 +494,11 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 {
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
+    using dim_type = gko::dim<2>::dimension_type;
     label rank = exec_handler.get_host_rank();
     auto exec = exec_handler.get_ref_exec();
     auto host_comm = *exec_handler.get_host_comm().get();
+    exec_handler.init_device_comm();
     auto device_comm = *exec_handler.get_device_comm().get();
     bool owner = repartitioner->is_owner(exec_handler);
 
@@ -512,10 +515,9 @@ std::shared_ptr<RepartDistMatrix> create_impl(
 
     auto global_rows = repartitioner->get_orig_partition()->get_size();
     gko::dim<2> global_dim{global_rows, global_rows};
-    gko::dim<2> repart_dim{repartitioner->get_repart_size(),
-                           repartitioner->get_repart_size()};
-    gko::dim<2> repart_non_local_dim{repartitioner->get_repart_size(),
-                                     repart_non_loc_sparsity->get_nnz()};
+    gko::dim<2> repart_dim{
+        static_cast<dim_type>(repartitioner->get_repart_size()),
+        static_cast<dim_type>(repartitioner->get_repart_size())};
 
     // create vector of inner type linops
     // if fuse the vector contains only a single element
@@ -523,6 +525,8 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto device_exec = exec_handler.get_device_exec();
     auto ranks_per_owner = repartitioner->get_ranks_per_gpu();
     bool reparts = ranks_per_owner > 1;
+    // TODO rename this to something useful
+    // this is the part of the update data structure
     std::map<label, scalar *> linops;
     auto [loc_rows, loc_cols, loc_map, loc_ids] =
         (fuse) ? repart_loc_sparsity->get_fused_vecs(false)
@@ -530,9 +534,45 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto local_linops = generate_inner_linops<LocalMatrixType>(
         exec_handler, repart_dim, loc_rows, loc_cols, loc_ids, linops, fuse);
 
-    auto [non_loc_rows, non_loc_cols, non_loc_map, non_loc_ids] =
+    auto partition = gko::share(
+        gko::experimental::distributed::build_partition_from_local_size<label,
+                                                                        label>(
+            exec_handler.get_ref_exec(), *exec_handler.get_device_comm().get(),
+            repartitioner->get_repart_size()));
+
+
+    auto recv_connections =
+        repart_comm_pattern->compute_recv_connections(exec_handler, partition);
+
+    // std::cout << __FILE__ << " rank " << rank
+    //     << " repart size "  << repartitioner->get_repart_size()
+    //     << " recv_connections size "  << recv_connections.get_size()
+    //     << " get_num_parts()" << partition->get_num_parts()
+    //     << "\n";
+
+    auto imap = gko::experimental::distributed::index_map<label, label>(
+        exec_handler.get_ref_exec(), partition, exec_handler.get_device_rank(),
+        recv_connections);
+
+    gko::dim<2> repart_non_local_dim{
+        static_cast<dim_type>(repartitioner->get_repart_size()),
+        static_cast<dim_type>(imap.get_non_local_size())};
+
+    // NOTE with gko imap cols don't need to be compressed anymore
+    auto [non_loc_rows, non_loc_global_cols, non_loc_map, non_loc_ids] =
         (fuse) ? repart_non_loc_sparsity->get_fused_vecs(true)
                : repart_non_loc_sparsity->get_vecs(true, false);
+
+    std::vector<std::vector<label>> non_loc_cols;
+
+    for (auto &non_loc_global_col_vec : non_loc_global_cols) {
+        auto non_loc_global_col = convert_to_array(non_loc_global_col_vec);
+        auto non_loc_col = imap.map_to_local(
+            *non_loc_global_col.get(),
+            gko::experimental::distributed::index_space::non_local);
+        non_loc_cols.push_back(convert_to_vector(non_loc_col));
+    }
+
     auto non_local_linops = generate_inner_linops<NonLocalMatrixType>(
         exec_handler, repart_non_local_dim, non_loc_rows, non_loc_cols,
         non_loc_ids, linops, fuse);
@@ -546,7 +586,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     compute_pad<LocalMatrixType>(loc_rows, loc_cols, local_linops, local_pad);
     auto non_local_pad = std::vector<std::vector<label>>(non_loc_rows.size());
 
-    // stores original id, comm_patttern, target data ptr
+    // stores original id, comm_pattern, target data ptr
     std::vector<RepartDistMatrix::all_to_all_data> all_to_all_update_data;
     SIMPLE_TIME(verbose, generate_all_to_all_update_data,
                 generate_alltoall_update_data<LocalMatrixType>(
@@ -592,6 +632,7 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     auto [send_counts, send_offsets, recv_sizes, recv_offsets] =
         repart_comm_pattern->send_recv_pattern();
 
+
     if (verbose > 1) {
         std::ofstream myfile;
         std::string folder = host_A->get_folder();
@@ -604,17 +645,17 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     }
 
     if (fuse) {
-        dist_A = gko::share(dist_mtx::create(
-            device_exec, device_comm, global_dim, local_linops[0],
-            non_local_linops[0], recv_sizes, recv_offsets, recv_gather_idxs));
+        dist_A =
+            gko::share(dist_mtx::create(device_exec, device_comm, imap,
+                                        local_linops[0], non_local_linops[0]));
     } else {
-        dist_A = gko::share(dist_mtx::create(
-            device_exec, device_comm, global_dim,
-            gko::share(CombinationMatrix<LocalMatrixType>::create(
-                device_exec, repart_dim, local_linops)),
-            gko::share(CombinationMatrix<NonLocalMatrixType>::create(
-                device_exec, repart_non_local_dim, non_local_linops)),
-            recv_sizes, recv_offsets, recv_gather_idxs));
+        // dist_A = gko::share(dist_mtx::create(
+        //     device_exec, device_comm, global_dim,
+        //     gko::share(CombinationMatrix<LocalMatrixType>::create(
+        //         device_exec, repart_dim, local_linops)),
+        //     gko::share(CombinationMatrix<NonLocalMatrixType>::create(
+        //         device_exec, repart_non_local_dim, non_local_linops)),
+        //     recv_sizes, recv_offsets, recv_gather_idxs));
     }
 
     // compute reorder maps

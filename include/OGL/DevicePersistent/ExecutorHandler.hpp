@@ -113,25 +113,27 @@ struct ExecutorInitFunctor {
 
     std::shared_ptr<gko::Executor> init() const
     {
-        LOG_0(verbose_, "create executors")
         auto host_exec = gko::share(gko::ReferenceExecutor::create());
 
         auto msg = [](auto exec, auto id) {
             std::string s;
-            // auto node_comm = Pstream::commInterHost();
-            auto node_comm = Pstream::commIntraHost();
             label global_rank = Pstream::myProcNo();
             label global_ranks = Pstream::nProcs(0);
-            label device_ranks = Pstream::nProcs(node_comm);
-            label node_id = global_ranks / device_ranks;
+            label device_ranks = 0;
+            label local_rank = 0;
+#ifdef WITH_ESI_VERSION
+            // auto node_comm = Pstream::commInterHost();
+            auto node_comm = Pstream::commIntraHost();
+            device_ranks = Pstream::nProcs(node_comm);
+            local_rank = Pstream::myProcNo(node_comm);
+#endif
 
             // Pstream::barrier(0);
             // sleep(0.03 * global_rank);
             s += std::string("Create ") + std::string(exec) +
-                 std::string(" executor device ") + std::to_string(id) +
-                 std::string(" node ") + std::to_string(node_id) +
-                 std::string(" local rank [") +
-                 std::to_string(Pstream::myProcNo(node_comm)) +
+                 std::string(" executor, on node: ") + Foam::hostName() +
+                 std::string(" device: ") + std::to_string(id) +
+                 std::string(" local rank [") + std::to_string(local_rank) +
                  std::string("/") + std::to_string(device_ranks - 1) +
                  std::string("] global rank [") + std::to_string(global_rank) +
                  std::string("/") + std::to_string(global_ranks - 1) +
@@ -148,10 +150,11 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::CudaExecutor::get_num_devices());
-            LOG_0(verbose_, msg(executor_name_, id))
+            auto out_msg = msg(executor_name_, id);
             if (!device_id_handler_.is_owner()) {
                 return host_exec;
             }
+            LOG_0(verbose_, out_msg)
             auto ret = gko::share(gko::CudaExecutor::create(id, host_exec));
             return ret;
         }
@@ -176,10 +179,11 @@ struct ExecutorInitFunctor {
             }
             label id = device_id_handler_.compute_device_id(
                 gko::HipExecutor::get_num_devices());
-            LOG_0(verbose_, msg(executor_name_, id))
+            auto out_msg = msg(executor_name_, id);
             if (!device_id_handler_.is_owner()) {
                 return host_exec;
             }
+            LOG_0(verbose_, out_msg)
             auto ret = gko::share(gko::HipExecutor::create(id, host_exec));
             return ret;
         }
@@ -217,14 +221,17 @@ private:
 
     const bool host_rank_;
 
+    DeviceIdHandler device_id_handler_;
+
+    mutable bool device_comm_init_;
+
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
 
     const word device_executor_name_;
 
 public:
     ExecutorHandler(const objectRegistry &db, const dictionary &solverControls,
-                    const word field_name, DeviceIdHandler device_id_handler
-          )
+                    const word field_name, DeviceIdHandler device_id_handler)
         : PersistentBase<gko::Executor, ExecutorInitFunctor>(
               solverControls.lookupOrDefault("executor", word("reference")) +
                   +"_" + field_name,
@@ -233,33 +240,39 @@ public:
                   solverControls.lookupOrDefault("executor", word("reference")),
                   field_name,
                   solverControls.lookupOrDefault("verbose", label(0)),
-                  device_id_handler
-                  ),
+                  device_id_handler),
               true, 0),
           gko_force_host_buffer_(
               solverControls.lookupOrDefault("forceHostBuffer", false)),
           non_orig_device_comm_(
               solverControls.lookupOrDefault("MPIxRankOffload", false)),
-          split_comm_(
-              solverControls.lookupOrDefault("splitMPIComm", true)),
+          split_comm_(solverControls.lookupOrDefault("splitMPIComm", true)),
           host_comm_(std::make_shared<gko::experimental::mpi::communicator>(
-                        MPI_COMM_WORLD, gko_force_host_buffer_)),
-     host_rank_(host_comm_->rank()),
-          device_comm_(
-              (split_comm_)
-                  ? [this, device_id_handler](){
-          label group = device_id_handler.compute_group();
-          MPI_Comm gko_comm;
-            label host_rank =0;
-          MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
-
-          return std::make_shared<gko::experimental::mpi::communicator>(
-         gko_comm, gko_force_host_buffer_);
-        }()
-                  : host_comm_),
+              MPI_COMM_WORLD, gko_force_host_buffer_)),
+          host_rank_(host_comm_->rank()),
+          device_id_handler_(device_id_handler),
+          device_comm_init_(false),
+          device_comm_({}),
           device_executor_name_(
               solverControls.lookupOrDefault("executor", word("reference")))
     {}
+
+    void init_device_comm() const
+    {
+        if (split_comm_) {
+            label group = device_id_handler_.compute_group();
+            MPI_Comm gko_comm;
+            label host_rank = 0;
+            MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
+            device_comm_ =
+                std::make_shared<gko::experimental::mpi::communicator>(
+                    gko_comm, gko_force_host_buffer_);
+
+        } else {
+            device_comm_ = host_comm_;
+        }
+        device_comm_init_ = true;
+    }
 
     bool get_gko_force_host_buffer() const
     {
@@ -286,6 +299,12 @@ public:
     std::shared_ptr<const gko::experimental::mpi::communicator>
     get_device_comm() const
     {
+        if (!device_comm_init_) {
+            FatalErrorInFunction << "The device_comm is uninitialised. Call "
+                                    "init_device_comm() first"
+                                 << exit(FatalError);
+            OGL_ASSERT_EQ(device_comm_init_, true);
+        }
         return this->device_comm_;
     }
 

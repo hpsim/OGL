@@ -83,12 +83,10 @@ public:
             fvMatrix->boundaryCoeffs(), fvMatrix->internalCoeffs(), interfaces,
             dict, "fieldName", 0);
 
-        std::cout << __FILE__ << __LINE__ << " done hostmatrixwrapper \n";
         partition_ = gko::share(
             gko::experimental::distributed::build_partition_from_local_size<
                 label, label>(exec->get_ref_exec(),
                               *exec->get_host_comm().get(), exp_size[name_]));
-        std::cout << __FILE__ << __LINE__ << " done partition \n";
     }
 
     std::string name_;

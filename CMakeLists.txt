@@ -75,7 +75,7 @@ to turn off this check")
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-    "ogl_0600_gko190_bck"
+   "ogl_0600_gko190"
     CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
@@ -217,6 +217,7 @@ target_sources(
           src/MatrixWrapper/Combination.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
+	  src/Solver/PipeCG.cpp
 	  src/Solver/BiCGStab.cpp
 	  src/Solver/GMRES.cpp
 	  src/Solver/Multigrid.cpp

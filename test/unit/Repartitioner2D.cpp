@@ -209,6 +209,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
         exec, comm_target_ids[rank], rows[rank]);
 
     // Act
+    exec.init_device_comm();
     auto repart_comm_pattern =
         repartitioner.repartition_comm_pattern(exec, comm_pattern);
 

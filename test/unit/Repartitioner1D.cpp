@@ -221,6 +221,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_comm_pattern)
         std::make_shared<CommunicationPattern>(exec, ids[rank], rows[rank]);
 
     // Act
+    exec.init_device_comm();
     auto repart_comm_pattern =
         repartitioner.repartition_comm_pattern(exec, comm_pattern);
 

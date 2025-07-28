@@ -20,7 +20,7 @@ private:
     using ir = gko::solver::Ir<scalar>;
     using mg = gko::solver::Multigrid;
     using bj = gko::preconditioner::Jacobi<scalar, label>;
-    using amgx_pgm = gko::multigrid::AmgxPgm<scalar, label>;
+    using pgm = gko::multigrid::Pgm<scalar, label>;
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
@@ -48,6 +48,8 @@ private:
     const word smoother_solver_;
 
     const label max_block_size_;
+
+    const scalar inner_reduction_factor_;
 
     const scalar inner_relaxation_factor_;
 
@@ -85,6 +87,8 @@ public:
               "smootherSolver", word("CG"))),
           max_block_size_(
               innerSolverControls_.lookupOrDefault("maxBlockSize", label(4))),
+          inner_reduction_factor_(innerSolverControls_.lookupOrDefault(
+              "reductionFactor", scalar(0.0001))),
           inner_relaxation_factor_(innerSolverControls_.lookupOrDefault(
               "innerRelaxationFactor", scalar(0.9))),
           smoother_relaxation_factor_(innerSolverControls_.lookupOrDefault(
@@ -112,11 +116,13 @@ public:
                    std::string("\n\tcoarsestSolver: ") + coarsest_solver_ +
                    std::string("\n\tcoarseMaxIters: ") +
                    std::to_string(coarse_max_iters_) +
+                   std::string("\n\treductionFactor: ") +
+                   std::to_string(inner_reduction_factor_) +
                    std::string("\n\tsmootherMaxIters: ") +
                    std::to_string(smoother_max_iters_) +
                    std::string("\n\tmaxLevels: ") +
                    std::to_string(max_levels_) +
-                   std::string("\n\tminCoasresRows: ") +
+                   std::string("\n\tminCoarseRows: ") +
                    std::to_string(min_coarse_rows_);
         MLOG_0(verbose_, msg)
     }
@@ -158,10 +164,9 @@ public:
                 .on(exec));
 
         // Create MultigridLevel factory
-        auto mg_level_gen = amgx_pgm::build()
-                                .with_deterministic(true)
-                                .with_skip_sorting(true)
-                                .on(exec);
+        auto mg_level_gen =
+            pgm::build().with_deterministic(true).with_skip_sorting(true).on(
+                exec);
 
         // Create CoarsestSolver factory
         std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
@@ -171,11 +176,12 @@ public:
             cg::build()
                 .with_preconditioner(ras::build().with_local_solver(
                     bj::build().with_max_block_size(1u)))
-                .with_criteria(gko::stop::Iteration::build().with_max_iters(
-                                   coarse_max_iters_),
-                               gko::stop::ResidualNorm<scalar>::build()
-                                   .with_baseline(gko::stop::mode::absolute)
-                                   .with_reduction_factor(1e-18))
+                .with_criteria(
+                    gko::stop::Iteration::build().with_max_iters(
+                        coarse_max_iters_),
+                    gko::stop::ResidualNorm<scalar>::build()
+                        .with_baseline(gko::stop::mode::absolute)
+                        .with_reduction_factor(inner_reduction_factor_))
                 .on(exec));
 
         // }

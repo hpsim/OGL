@@ -146,25 +146,26 @@ public:
 };
 
 
-INSTANTIATE_TEST_SUITE_P(DistMatL2DInit, DistMatL2D,
-                         testing::Combine(testing::Values(1, 2, 4),
-                                          testing::Values("Coo"),
-                                          testing::Values(false, true)),
-                         [](const auto &info) {
-                             // Can use info.param here to generate the test
-                             // suffix
-                             std::vector<std::string> names;
-                             names.emplace_back("ranks");
-                             names.emplace_back("format");
-                             names.emplace_back("fuse");
-                             std::string name = "ranks_";
-                             name += std::to_string(std::get<0>(info.param));
-                             name += "_format_";
-                             name += std::get<1>(info.param);
-                             name += "_fused_";
-                             name += std::to_string(std::get<2>(info.param));
-                             return name;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    DistMatL2DInit, DistMatL2D,
+    testing::Combine(
+        testing::Values(1, 2, 4), testing::Values("Coo"),
+        testing::Values(true)),  // for now only support fused matrices
+    [](const auto &info) {
+        // Can use info.param here to generate the test
+        // suffix
+        std::vector<std::string> names;
+        names.emplace_back("ranks");
+        names.emplace_back("format");
+        names.emplace_back("fuse");
+        std::string name = "ranks_";
+        name += std::to_string(std::get<0>(info.param));
+        name += "_format_";
+        name += std::get<1>(info.param);
+        name += "_fused_";
+        name += std::to_string(std::get<2>(info.param));
+        return name;
+    });
 
 
 TEST_P(DistMatL2D, canCreateDistributedMatrix)

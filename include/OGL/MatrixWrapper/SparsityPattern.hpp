@@ -295,10 +295,11 @@ public:
 
         label map_offset = 0;
 
-        auto cols =
-            (compress_cols)
-                ? std::get<0>(detail::compress_cols(cols_, orig_comm_rank_))
-                : cols_;
+        // auto cols =
+        //     (compress_cols)
+        //         ? std::get<0>(detail::compress_cols(cols_, orig_comm_rank_))
+        //         : cols_;
+        auto cols = cols_;
 
         // ldu part first
         if (!compress_cols) {

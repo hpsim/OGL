@@ -136,7 +136,7 @@ void communicate_values(const ExecutorHandler &exec_handler,
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_host_comm().get();
 
-    // label rank = exec_handler.get_rank();
+    // label rank = exec_handler.get_host_rank();
     // Foam::sleep(rank);
     // size_t send_size = comm_pattern.send_offsets.back();
     // std::vector<scalar> send_vec;;
@@ -313,6 +313,33 @@ gko::array<label> CommunicationPattern::compute_recv_gather_idxs(
     return recv_buffer;
 }
 
+
+gko::array<label> CommunicationPattern::compute_recv_connections(
+    const ExecutorHandler &exec_handler,
+    std::shared_ptr<gko::experimental::distributed::Partition<label, label>>
+        partition) const
+{
+    auto exec = exec_handler.get_ref_exec();
+    auto host_comm = *exec_handler.get_host_comm().get();
+    auto device_comm = *exec_handler.get_device_comm().get();
+    auto rs_idx = total_rank_send_idx();
+    auto rank = exec_handler.get_device_rank();
+    label offset = partition->get_range_bounds()[rank];
+    std::transform(rs_idx.begin(), rs_idx.end(), rs_idx.begin(),
+                   [offset](auto i) { return i + offset; });
+
+
+    auto pattern = send_recv_pattern();
+    auto recv_buffer =
+        gko::array<label>(exec_handler.get_ref_exec(), rs_idx.size());
+
+    device_comm.all_to_all_v(exec, rs_idx.data(), pattern.send_counts.data(),
+                             pattern.send_offsets.data(),
+                             recv_buffer.get_data(), pattern.recv_counts.data(),
+                             pattern.recv_offsets.data());
+
+    return recv_buffer;
+}
 
 AllToAllPattern CommunicationPattern::send_recv_pattern() const
 {
