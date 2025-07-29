@@ -324,6 +324,18 @@ public:
         return this->device_comm_;
     }
 
+    std::shared_ptr<const gko::experimental::mpi::communicator>
+    get_repart_comm() const
+    {
+        if (!device_comm_init_) {
+            FatalErrorInFunction << "The repart_comm is uninitialised. Call "
+                                    "init_device_comm() first"
+                                 << exit(FatalError);
+            OGL_ASSERT_EQ(device_comm_init_, true);
+        }
+        return this->repart_comm_;
+    }
+
     std::shared_ptr<const gko::experimental::mpi::communicator> get_host_comm()
         const
     {

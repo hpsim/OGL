@@ -135,9 +135,8 @@ void communicate_values(const ExecutorHandler &exec_handler,
 {
     auto exec = exec_handler.get_device_exec();
     auto comm = *exec_handler.get_host_comm().get();
-
-    // label rank = exec_handler.get_device_rank();
-    // auto recv_size = comm_pattern.recv_offsets.back();
+    label rank = exec_handler.get_device_rank();
+    auto recv_size = comm_pattern.recv_offsets.back();
 
     // Foam::sleep(rank);
     // size_t send_size = comm_pattern.send_offsets.back();
@@ -159,12 +158,10 @@ void communicate_values(const ExecutorHandler &exec_handler,
 
 
     // auto start = std::chrono::steady_clock::now();
-
     comm.all_to_all_v(exec, send_buffer, comm_pattern.send_counts.data(),
                       comm_pattern.send_offsets.data(), recv_buffer,
                       comm_pattern.recv_counts.data(),
                       comm_pattern.recv_offsets.data());
-
     // auto end = std::chrono::steady_clock::now();
     // auto delta_t =
     //     std::chrono::duration_cast<std::chrono::microseconds>(end - start)
@@ -242,10 +239,29 @@ void communicate_values(
         //     << "\nrecv_offsets " << comm_pattern.recv_offsets
         //     << "\n";
 
+        // label rank = comm->rank();
+        // auto recv_size = comm_pattern.recv_offsets.back();
+        // auto start = std::chrono::steady_clock::now();
         comm->all_to_all_v(
             target_exec, send_buffer, comm_pattern.send_counts.data(),
             comm_pattern.send_offsets.data(), recv_buffer,
             comm_pattern.recv_counts.data(), comm_pattern.recv_offsets.data());
+        // auto end = std::chrono::steady_clock::now();
+        // auto delta_t =
+        //     std::chrono::duration_cast<std::chrono::microseconds>(end -
+        //     start)
+        //         .count() /
+        //     1000.0;
+        // if (recv_size > 0) {
+        //     std::cout << __FILE__ << ":" << __LINE__ << " received "
+        //               << std::to_string(recv_size) << " elements of "
+        //               << std::to_string(recv_size * 8 / 1e9)
+        //               << "[Gb] on device rank: " << std::to_string(rank)
+        //               << " time " << std::to_string(delta_t)
+        //               << "[ms] bandwidth: "
+        //               << std::to_string(recv_size * 8 / delta_t / 1e6)
+        //               << "[Gb/s] \n";
+        // }
     }
 }
 

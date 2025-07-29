@@ -384,10 +384,11 @@ void update_impl(
     std::map<label, scalar *> linops, label verbose)
 {
     auto comm = exec_handler.get_host_comm();
+    // auto repart_comm = exec_handler.get_repart_comm();
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
-    bool force_host_buffer = !exec_handler.get_gko_force_host_buffer();
+    bool force_host_buffer = exec_handler.get_gko_force_host_buffer();
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
