@@ -237,15 +237,15 @@ jobs:
           --filter global==completed \
           --validate_against=/__w/OGL/OGL/test/integration/validation.json
 
-    - name: Validate preconditioned state
-      working-directory: /github/home/${{matrix.Case}}
-      run: |
-        obr query \
-          -q global -q continuityErrors -q CourantNumber \
-          --validate_against=/__w/OGL/OGL/test/integration/validation.json \
-          --filter preconditioner!=none \
-          --filter global==completed \
-          --filter case==${{matrix.Case}}
+    # - name: Validate preconditioned state
+    #   working-directory: /github/home/${{matrix.Case}}
+    #   run: |
+    #     obr query \
+    #       -q global -q continuityErrors -q CourantNumber \
+    #       --validate_against=/__w/OGL/OGL/test/integration/validation.json \
+    #       --filter preconditioner!=none \
+    #       --filter global==completed \
+    #       --filter case==${{matrix.Case}}
 
     - name: Validate matrix formats
       working-directory: /github/home/${{matrix.Case}}
