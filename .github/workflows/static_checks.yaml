@@ -75,7 +75,7 @@ jobs:
           | sed 's/^"\(.*\)"$/\1/' \
           | grep -F -f pattern - > files
         # run clang-tidy on all specified files
-        clang-tidy --fix --extra-arg=-w -p build/ReleaseCPUOnly $(cat files)
+        clang-tidy --fix --extra-arg=-w -p build/develop $(cat files)
 
     - name: Check for fixes
       run: |
