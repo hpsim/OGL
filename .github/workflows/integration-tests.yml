@@ -234,7 +234,6 @@ jobs:
           -q global -q continuityErrors -q CourantNumber \
           --filter case==${{matrix.Case}} \
           --filter preconditioner==none \
-          --filter matrixFormat==Coo \
           --filter global==completed \
           --validate_against=/__w/OGL/OGL/test/integration/validation.json
 
@@ -254,7 +253,6 @@ jobs:
         obr query \
           -q global -q continuityErrors -q CourantNumber \
           --validate_against=/__w/OGL/OGL/test/integration/validation.json \
-          --filter matrixFormat!=Coo \
           --filter global==completed \
           --filter case==${{matrix.Case}}
 
