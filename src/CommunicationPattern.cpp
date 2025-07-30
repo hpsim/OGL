@@ -192,15 +192,15 @@ AllToAllPattern compute_repart_allToall(
     std::vector<int> recv_offsets(ranks+1);
 
     label start_rank = host_comm->rank();
-    for (auto i=0;i<exec_handler.get_ranks_per_gpu();i++){
+    for (auto i=0;i<ranks;i++){
         send_counts[i] = allToAllIn.send_counts[start_rank+i];
         send_offsets[i] = allToAllIn.send_offsets[start_rank+i];
         recv_counts[i] = allToAllIn.recv_counts[start_rank+i];
         recv_offsets[i] = allToAllIn.recv_offsets[start_rank+i];
     }
 
-    send_offsets.back() = allToAllIn.send_offsets.back();
-    recv_offsets.back() = allToAllIn.recv_offsets.back();
+    send_offsets.back() = scalar(allToAllIn.send_offsets.back());
+    recv_offsets.back() = scalar(allToAllIn.recv_offsets.back());
     return {
         send_counts, send_offsets, recv_counts, recv_offsets
     };

@@ -270,7 +270,7 @@ public:
             // gko comm
             label group = device_id_handler_.compute_group();
             MPI_Comm gko_comm;
-            label host_rank = 0;
+            label host_rank = Pstream::myProcNo();
             MPI_Comm_split(MPI_COMM_WORLD, group, host_rank, &gko_comm);
             device_comm_ =
                 std::make_shared<gko::experimental::mpi::communicator>(
@@ -278,8 +278,9 @@ public:
 
             // repart comm
             MPI_Comm repart_comm;
-            label device_id = device_id_handler_.compute_device_id(4);
-            MPI_Comm_split(MPI_COMM_WORLD, device_id, host_rank, &repart_comm);
+            label global_rank = Pstream::myProcNo();
+            label device_id = global_rank / device_id_handler_.ranks_per_gpu;
+            MPI_Comm_split(MPI_COMM_WORLD, device_id, host_rank , &repart_comm);
             repart_comm_ =
                 std::make_shared<gko::experimental::mpi::communicator>(
                     repart_comm, gko_force_host_buffer_);
