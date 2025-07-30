@@ -396,10 +396,42 @@ void update_impl(
                               all_to_all_update_data, host_A,
                               force_host_buffer, exec_handler]() {
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
+
+	    // auto start = std::chrono::steady_clock::now();
             auto repartAllToAll = compute_repart_allToall(exec_handler, comm_pattern);
+	    // auto end = std::chrono::steady_clock::now();
+	    // auto delta_t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()/1000.0;
+	    // std::cout << __FILE__ << ":" << "delta t " << delta_t << " [ms]\n";
+
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
-            communicate_values(ref_exec, device_exec, repart_comm, repartAllToAll,
-                               send_data_ptr, data_ptr, force_host_buffer);
+            // communicate_values(ref_exec, device_exec, repart_comm, repartAllToAll,
+            //                    send_data_ptr, data_ptr, force_host_buffer);
+	    // if ( repart_comm->rank() == 0 ) {
+		    // std::cout << __FILE__ <<
+			//     " Pstream::rank " << Pstream::myProcNo() <<
+			//     " repart_rank() "  << repart_comm->rank() <<
+			//     " send_offsets.back() "  <<  repartAllToAll.send_offsets.back() <<
+			//     " recv_counts: "  <<  repartAllToAll.recv_counts <<
+			//     " recv_offsets: "  <<  repartAllToAll.recv_offsets <<
+		    // std::endl;
+	    // }
+
+	    MPI_Request request;
+
+	    MPI_Igatherv(
+		    send_data_ptr,
+		    repartAllToAll.send_offsets.back(),
+		    MPI_DOUBLE,
+		    data_ptr,
+		    repartAllToAll.recv_counts.data(),
+		    repartAllToAll.recv_offsets.data(),
+		    MPI_DOUBLE,
+		    0,
+		    repart_comm->get(),
+                    &request
+		    );
+
+	    MPI_Wait(&request, MPI_STATUS_IGNORE);
         }
     };
 
