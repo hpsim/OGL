@@ -300,6 +300,8 @@ public:
      * */
     bool get_non_orig_device_comm() const { return non_orig_device_comm_; }
 
+    label get_ranks_per_gpu() const { return device_id_handler_.ranks_per_gpu; }
+
     const std::shared_ptr<gko::Executor> get_device_exec() const
     {
         return this->get_persistent_object();
