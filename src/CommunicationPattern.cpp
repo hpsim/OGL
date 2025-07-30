@@ -192,7 +192,6 @@ AllToAllPattern compute_repart_allToall(const ExecutorHandler &exec_handler,
     std::vector<int> recv_counts(ranks, 0);
     std::vector<int> recv_offsets(ranks + 1, 0);
 
-    // label start_rank = host_comm->rank();
     for (auto i = 0; i < ranks; i++) {
         send_counts[i] = allToAllIn.send_counts[start_rank + i];
         send_offsets[i] = allToAllIn.send_offsets[start_rank + i];
