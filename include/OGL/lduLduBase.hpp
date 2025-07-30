@@ -216,6 +216,7 @@ public:
                                            solverPerformance &solverPerf) const
     {
         bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", true);
+        exec_handler_.init_device_comm();
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu_, verbose_,
