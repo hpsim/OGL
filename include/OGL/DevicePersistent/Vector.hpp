@@ -67,7 +67,7 @@ struct VectorInitFunctor {
         //// TODO store
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
-        bool host_buffer = !exec_.get_non_orig_device_comm();
+        bool host_buffer = exec_.get_gko_force_host_buffer();
 
         communicate_values(ref_exec, exec, comm, comm_pattern,
                            host_view.get_const_data(),
@@ -171,13 +171,14 @@ public:
 
     /** Copies the content of the distributed vector back to the original source
      **/
-    void copy_back()
+    MPI_Request copy_back()
     {
         auto exec = exec_.get_device_exec();
         auto rank = exec_.get_host_rank();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_host_comm();
-        bool host_buffer = !exec_.get_non_orig_device_comm();
+	auto repart_comm = exec_.get_repart_comm();
+        bool host_buffer = exec_.get_gko_force_host_buffer();
 
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
@@ -185,10 +186,25 @@ public:
 
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
+        auto repartAllToAll = compute_repart_allToall(exec_, comm_pattern);
 
         communicate_values(exec, ref_exec, comm, comm_pattern,
                            get_vector()->get_local_values(),
                            const_cast<T *>(memory_), host_buffer);
+        MPI_Request request;
+	// MPI_Iscatterv(
+        //             get_vector()->get_local_values(),
+	// 	    repartAllToAll.send_counts.data(),
+	// 	    repartAllToAll.send_offsets.data(),
+	// 	    MPI_DOUBLE,
+	// 	    const_cast<T *>(memory_),
+	// 	    repartAllToAll.recv_counts.back(),
+	// 	    MPI_DOUBLE,
+	// 	    0,
+	// 	    repart_comm->get(),
+        //             &request
+	// 	    );
+	return request;
     }
 
     /** Writes the content of the distributed vector to disk
