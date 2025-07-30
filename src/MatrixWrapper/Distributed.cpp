@@ -384,7 +384,7 @@ void update_impl(
     std::map<label, scalar *> linops, label verbose)
 {
     auto comm = exec_handler.get_host_comm();
-    // auto repart_comm = exec_handler.get_repart_comm();
+    auto repart_comm = exec_handler.get_repart_comm();
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
@@ -392,12 +392,13 @@ void update_impl(
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
-    auto all_to_all_update = [comm, ref_exec, device_exec,
+    auto all_to_all_update = [repart_comm, ref_exec, device_exec,
                               all_to_all_update_data, host_A,
-                              force_host_buffer]() {
+                              force_host_buffer, exec_handler]() {
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
+            auto repartAllToAll = compute_repart_allToall(exec_handler, comm_pattern);
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
-            communicate_values(ref_exec, device_exec, comm, comm_pattern,
+            communicate_values(ref_exec, device_exec, repart_comm, repartAllToAll,
                                send_data_ptr, data_ptr, force_host_buffer);
         }
     };
