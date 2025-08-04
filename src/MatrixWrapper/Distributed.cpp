@@ -394,11 +394,11 @@ void update_impl(
     // perform all-to-all updates first
     auto all_to_all_update = [repart_comm, ref_exec, device_exec,
                               all_to_all_update_data, host_A,
-                              force_host_buffer, exec_handler]() {
+                              force_host_buffer, exec_handler, rank]() {
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
 
 	    // auto start = std::chrono::steady_clock::now();
-            auto repartAllToAll = compute_repart_allToall(exec_handler, comm_pattern);
+            auto repartAllToAll = compute_repart_allToall(exec_handler, comm_pattern, rank);
 	    // auto end = std::chrono::steady_clock::now();
 	    // auto delta_t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()/1000.0;
 	    // std::cout << __FILE__ << ":" << "delta t " << delta_t << " [ms]\n";
@@ -415,7 +415,6 @@ void update_impl(
 			//     " recv_offsets: "  <<  repartAllToAll.recv_offsets <<
 		    // std::endl;
 	    // }
-
 	    MPI_Request request;
 
 	    MPI_Igatherv(
@@ -430,7 +429,6 @@ void update_impl(
 		    repart_comm->get(),
                     &request
 		    );
-
 	    MPI_Wait(&request, MPI_STATUS_IGNORE);
         }
     };

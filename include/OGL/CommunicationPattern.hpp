@@ -23,7 +23,7 @@ struct AllToAllPattern {
  *
  */
 AllToAllPattern compute_repart_allToall(
-    const ExecutorHandler &exec_handler, const AllToAllPattern allToAll);
+    const ExecutorHandler &exec_handler, const AllToAllPattern allToAll, label start_rank);
 
 /* @brief  This function computes the send and recv counts vectors and the send
  * and recv offsets vectors for scattering from an owner to all ranks, including
