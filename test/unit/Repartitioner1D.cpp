@@ -136,6 +136,7 @@ TEST_P(RepartitionerFixture1D, can_repartition_sparsity_pattern)
     // Arrange
     auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
+    exec.init_device_comm();
 
     // std::vector<label> ranks{rank};
     auto local_sparsity = std::make_shared<SparsityPattern>();

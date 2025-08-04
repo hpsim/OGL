@@ -161,6 +161,7 @@ INSTANTIATE_TEST_SUITE_P(RepartitionerFixture2DInstantiation,
 TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
 {
     // Arrange
+    exec.init_device_comm();
     auto ranks_per_gpu = GetParam();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
@@ -209,7 +210,6 @@ TEST_P(RepartitionerFixture2D, can_repartition_2D_comm_pattern_for_n_ranks)
         exec, comm_target_ids[rank], rows[rank]);
 
     // Act
-    exec.init_device_comm();
     auto repart_comm_pattern =
         repartitioner.repartition_comm_pattern(exec, comm_pattern);
 
@@ -235,6 +235,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern)
 {
     // Arrange
     auto ranks_per_gpu = GetParam();
+    exec.init_device_comm();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
