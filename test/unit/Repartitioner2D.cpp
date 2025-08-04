@@ -235,6 +235,7 @@ TEST_P(RepartitionerFixture2D, can_repartition_sparsity_pattern)
 {
     // Arrange
     auto ranks_per_gpu = GetParam();
+    exec.init_device_comm();
     auto repartitioner = Repartitioner(local_size, ranks_per_gpu, 0, exec);
     auto ref_exec = exec.get_ref_exec();
 
