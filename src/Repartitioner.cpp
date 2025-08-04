@@ -27,7 +27,6 @@ Repartitioner::repartition_sparsity(
 {
     LOG_1(verbose_, "start repartition sparsity pattern")
 
-
     auto exec = exec_handler.get_ref_exec();
     auto comm = *exec_handler.get_host_comm().get();
     label rank = exec_handler.get_host_rank();
@@ -66,7 +65,6 @@ Repartitioner::repartition_sparsity(
 
         return gather_closure(comm_pattern, tmp, offset);
     };
-
 
     /* Helper function, create and return gathered sparsity pattern based on
      * in_sparsity
