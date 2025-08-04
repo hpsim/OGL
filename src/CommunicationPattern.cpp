@@ -171,7 +171,8 @@ void communicate_values(const ExecutorHandler &exec_handler,
     //     std::cout << __FILE__ << ":" << __LINE__ << " received "
     //               << std::to_string(recv_size) << " elements of "
     //               << std::to_string(recv_size * 8 / 1e9)
-    //               << "[Gb] on device rank: " << std::to_string(rank) << " time "
+    //               << "[Gb] on device rank: " << std::to_string(rank) << "
+    //               time "
     //               << std::to_string(delta_t) << "[ms] bandwidth: "
     //               << std::to_string(recv_size * 8 / delta_t / 1e6)
     //               << "[Gb/s] \n";
