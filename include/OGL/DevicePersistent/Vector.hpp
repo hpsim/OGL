@@ -177,7 +177,7 @@ public:
         auto rank = exec_.get_host_rank();
         auto ref_exec = exec_.get_ref_exec();
         auto comm = exec_.get_host_comm();
-	auto repart_comm = exec_.get_repart_comm();
+        auto repart_comm = exec_.get_repart_comm();
         bool host_buffer = exec_.get_gko_force_host_buffer();
 
         auto repartitioner = dist_matrix_->get_repartitioner();
@@ -186,25 +186,54 @@ public:
 
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
-        auto repartAllToAll = compute_repart_allToall(exec_, comm_pattern);
 
-        communicate_values(exec, ref_exec, comm, comm_pattern,
-                           get_vector()->get_local_values(),
-                           const_cast<T *>(memory_), host_buffer);
-        MPI_Request request;
-	// MPI_Iscatterv(
-        //             get_vector()->get_local_values(),
-	// 	    repartAllToAll.send_counts.data(),
-	// 	    repartAllToAll.send_offsets.data(),
-	// 	    MPI_DOUBLE,
-	// 	    const_cast<T *>(memory_),
-	// 	    repartAllToAll.recv_counts.back(),
-	// 	    MPI_DOUBLE,
-	// 	    0,
-	// 	    repart_comm->get(),
-        //             &request
-	// 	    );
-	return request;
+        label owner_rank = exec_.get_owner_rank();
+        auto repartAllToAll =
+            compute_repart_allToall(exec_, comm_pattern, owner_rank);
+
+        // if (owner_rank != Pstream::myProcNo()){
+        // 	label recv_count = repartAllToAll.recv_counts[0];
+        // 	repartAllToAll.recv_counts[Pstream::myProcNo()] = recv_count;
+        // 	repartAllToAll.recv_counts[0] = 0;
+        // }
+
+        // communicate_values(exec, ref_exec, comm, comm_pattern,
+        //                    get_vector()->get_local_values(),
+        //                    const_cast<T *>(memory_), host_buffer);
+        // std::cout << __FILE__
+        // 	<< " owner_rank " << exec_.get_owner_rank()
+        // 	<< " rank " << Pstream::myProcNo()
+        // 	<< " comm_pattern.send_counts: " << comm_pattern.send_counts
+        // 	<< " comm_pattern.recv_counts: " << comm_pattern.recv_counts
+        // 	<< " send_counts: " << repartAllToAll.send_counts
+        // 	<< " send_offsets: " << repartAllToAll.send_offsets
+        // 	<< " recv_counts: " << repartAllToAll.recv_counts
+        //        	<< "\n";
+
+        // auto start_rep = std::chrono::steady_clock::now();
+        label send_size = comm_pattern.send_offsets.back();
+        auto send_view = gko::array<scalar>::const_view(
+            exec, send_size, get_vector()->get_local_values());
+        auto tmp = gko::array<scalar>(exec, send_size);
+
+        tmp = send_view;
+        tmp.set_executor(ref_exec);
+        // auto end_rep = std::chrono::steady_clock::now();
+        // auto delta_t_rep =
+        // std::chrono::duration_cast<std::chrono::microseconds>(end_rep -
+        // start_rep).count() /1000.0; std::cout << __FILE__ << " copy back: "
+        // << delta_t_rep << " [ms]\n";
+
+
+        MPI_Request copy_back_req;
+        MPI_Iscatterv(tmp.get_data(),
+                      // get_vector()->get_local_values(),
+                      repartAllToAll.send_counts.data(),
+                      repartAllToAll.send_offsets.data(), MPI_DOUBLE,
+                      const_cast<T *>(memory_), repartAllToAll.recv_counts[0],
+                      MPI_DOUBLE, 0, repart_comm->get(), &copy_back_req);
+        MPI_Wait(&copy_back_req, MPI_STATUS_IGNORE);
+        return copy_back_req;
     }
 
     /** Writes the content of the distributed vector to disk
