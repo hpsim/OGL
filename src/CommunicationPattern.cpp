@@ -180,18 +180,18 @@ void communicate_values(const ExecutorHandler &exec_handler,
 }
 
 AllToAllPattern compute_repart_allToall(
-    const ExecutorHandler &exec_handler, const AllToAllPattern allToAllIn)
+    const ExecutorHandler &exec_handler, const AllToAllPattern allToAllIn, label start_rank)
     {
     auto host_comm = exec_handler.get_host_comm();
     auto repart_comm = exec_handler.get_repart_comm();
     auto ranks = repart_comm->size();
 
-    std::vector<int> send_counts(ranks);
-    std::vector<int> send_offsets(ranks+1);
-    std::vector<int> recv_counts(ranks);
-    std::vector<int> recv_offsets(ranks+1);
+    std::vector<int> send_counts(ranks, 0);
+    std::vector<int> send_offsets(ranks+1,0);
+    std::vector<int> recv_counts(ranks, 0);
+    std::vector<int> recv_offsets(ranks+1,0);
 
-    label start_rank = host_comm->rank();
+    // label start_rank = host_comm->rank();
     for (auto i=0;i<ranks;i++){
         send_counts[i] = allToAllIn.send_counts[start_rank+i];
         send_offsets[i] = allToAllIn.send_offsets[start_rank+i];

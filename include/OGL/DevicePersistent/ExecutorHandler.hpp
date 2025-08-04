@@ -71,12 +71,18 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
+    label global_owner() const
+    {
+        label rank = Pstream::myProcNo();
+        return rank - (rank % ranks_per_gpu);
+    }
+
     /* @brief check if rank is an owning rank
      */
     bool is_owner() const
     {
         label rank = Pstream::myProcNo();
-        label owner_rank = rank - (rank % ranks_per_gpu);
+        label owner_rank =  rank - (rank % ranks_per_gpu);
         bool is_owner = owner_rank == rank;
         return is_owner;
     }
@@ -302,6 +308,8 @@ public:
     bool get_non_orig_device_comm() const { return non_orig_device_comm_; }
 
     label get_ranks_per_gpu() const { return device_id_handler_.ranks_per_gpu; }
+
+    label get_owner_rank() const { return device_id_handler_.global_owner(); }
 
     const std::shared_ptr<gko::Executor> get_device_exec() const
     {

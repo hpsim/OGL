@@ -306,8 +306,13 @@ public:
             delta_t_solve_ = delta_t_solve;
         }
 
+    	// auto start_rep = std::chrono::steady_clock::now();
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
-                            dist_x.copy_back();)
+dist_x.copy_back();)
+        // auto copy_back_req = dist_x.copy_back();
+    	// auto end_rep = std::chrono::steady_clock::now();
+        // auto delta_t_rep = std::chrono::duration_cast<std::chrono::microseconds>(end_rep - start_rep).count() /1000.0;
+	// std::cout << __FILE__ << " full copy back: " << delta_t_rep << " [ms]\n";
 
         auto bandwidth_copy_back =
             sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
@@ -335,9 +340,11 @@ public:
             std::to_string(time_per_dof) + std::string(" [ns]") +
             std::string("\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwidth ") +
+            std::string("\n\tRetrieve results bandwidth "); // +
             std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
+
+	// MPI_Wait(&copy_back_req,MPI_STATUS_IGNORE);
 
         return solverPerf;
     }

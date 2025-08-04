@@ -44,9 +44,13 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
     auto Axref = gko::share(
         dist_vec::create(device_exec, comm, global_size, local_size));
     Axref->fill(0.0);
-
+ 
+    auto start_axref = std::chrono::steady_clock::now();
     compute_Axref_dist(global_size[0], local_size[0], device_exec, gkomatrix, x,
                        Axref);
+    auto end_axref = std::chrono::steady_clock::now();
+    auto delta_t_axref = std::chrono::duration_cast<std::chrono::microseconds>(end_axref-start_axref).count()/1.0;
+    // std::cout << __FILE__ << " delta_t_axref " << delta_t_axref << " [mu s]\n"; 
 
     auto unity =
         gko::initialize<gko::matrix::Dense<scalar>>(1, {1.0}, device_exec);
@@ -169,6 +173,7 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
                               end_eval - start_eval)
                               .count() /
                           1.0;
+    // std::cout << __FILE__ << "time " << *(parameters_.time) << " [mu s]\n"; 
     return result;
 }
 
