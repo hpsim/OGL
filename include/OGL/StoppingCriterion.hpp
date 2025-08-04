@@ -147,6 +147,8 @@ class StoppingCriterion {
 
     const label frequency_;
 
+    const word frequencyMode_;
+
     const scalar relaxationFactor_;
 
     const bool adapt_minIter_;
@@ -172,6 +174,8 @@ public:
           norm_eval_limit_(
               controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
+          frequencyMode_(controlDict.lookupOrDefault(
+              "evalFrequencyMode", word("relative"))),  // optimizer, fixed
           relaxationFactor_(
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.6))),
           adapt_minIter_(
@@ -202,7 +206,9 @@ public:
         label frequency = frequency_;
         // in case of export_res all residuals need to be computed
         if (!export_res) {
+            std::cout << __FILE__ << "adapt minIter and frequency1 \n";
             if (prev_solve_iters > 0 && adapt_minIter_ && prev_rel_cost > 0) {
+                std::cout << __FILE__ << "adapt minIter and frequency2 \n";
                 minIter = prev_solve_iters * relaxationFactor_;
                 if (frequencyMode == "optimizer") {
                     auto alpha = sqrt(
