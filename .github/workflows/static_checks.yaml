@@ -67,7 +67,7 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/OGL/OGL
         # Create list of all source files belonging to this repository
-        git ls-files | grep -E "\.(C)" > pattern
+        git ls-files | grep -E "\.(cpp)" > pattern
         # Create list of .cpp files that are in this repository and part of the
         # compilation database
         # also filters out " at the begin and end of the filename
