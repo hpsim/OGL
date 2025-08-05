@@ -136,7 +136,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
   -Wall -Wpedantic -Wextra -march=native -fopenmp")
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  message("Compiling with clang")
+  message(STATUS "Compiling with clang")
+  message(STATUS "Enabling generation of compilation database.")
   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \

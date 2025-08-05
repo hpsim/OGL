@@ -215,8 +215,10 @@ private:
 
     const bool non_orig_device_comm_;
 
+    // whether to split mpi communicators
     const bool split_comm_;
 
+    // original communicator including all ranks
     mutable std::shared_ptr<gko::experimental::mpi::communicator> host_comm_;
 
     const bool host_rank_;
@@ -225,7 +227,12 @@ private:
 
     mutable bool device_comm_init_;
 
+    // device communicator including ranks that are associated to a gpu
     mutable std::shared_ptr<gko::experimental::mpi::communicator> device_comm_;
+
+    // communicator including ranks that are associated to a gpu and cpus that
+    // repart to gpu
+    mutable std::shared_ptr<gko::experimental::mpi::communicator> repart_comm_;
 
     const word device_executor_name_;
 
@@ -260,6 +267,7 @@ public:
     void init_device_comm() const
     {
         if (split_comm_) {
+            // gko comm
             label group = device_id_handler_.compute_group();
             MPI_Comm gko_comm;
             label host_rank = 0;
@@ -267,6 +275,14 @@ public:
             device_comm_ =
                 std::make_shared<gko::experimental::mpi::communicator>(
                     gko_comm, gko_force_host_buffer_);
+
+            // repart comm
+            MPI_Comm repart_comm;
+            label device_id = device_id_handler_.compute_device_id(4);
+            MPI_Comm_split(MPI_COMM_WORLD, device_id, host_rank, &repart_comm);
+            repart_comm_ =
+                std::make_shared<gko::experimental::mpi::communicator>(
+                    repart_comm, gko_force_host_buffer_);
 
         } else {
             device_comm_ = host_comm_;
@@ -306,6 +322,18 @@ public:
             OGL_ASSERT_EQ(device_comm_init_, true);
         }
         return this->device_comm_;
+    }
+
+    std::shared_ptr<const gko::experimental::mpi::communicator>
+    get_repart_comm() const
+    {
+        if (!device_comm_init_) {
+            FatalErrorInFunction << "The repart_comm is uninitialised. Call "
+                                    "init_device_comm() first"
+                                 << exit(FatalError);
+            OGL_ASSERT_EQ(device_comm_init_, true);
+        }
+        return this->repart_comm_;
     }
 
     std::shared_ptr<const gko::experimental::mpi::communicator> get_host_comm()

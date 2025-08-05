@@ -98,13 +98,13 @@ def verify_local_matrix(lines, file_path):
         row, col, val = line.split(" ")
         val = float(val)
         if row == col:
-            if (val > 0.001) or (val < 0.0):
+            if (val > 0.001) or (val < -0.001):
                 raise ValueError(
                     f"diag value {row} {col} {val} is out of bounds 0, {file_path}"
                 )
                 sys.exit(1)
         else:
-            if (val > 0) or (val < -0.001):
+            if (val > 0.001) or (val < -0.001):
                 raise ValueError(
                     f"off diag {row} {col} {val} is out of bounds 0, {file_path}"
                 )

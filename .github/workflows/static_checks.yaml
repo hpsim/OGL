@@ -45,6 +45,7 @@ jobs:
       with:
         name: build-artifact
         path: build
+
   clang-tidy-check:
     name: Clang-tidy Check
     runs-on: ubuntu-latest
@@ -66,15 +67,15 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/OGL/OGL
         # Create list of all source files belonging to this repository
-        git ls-files | grep -E "\.(C)" > pattern
+        git ls-files | grep -E "\.(cpp)" > pattern
         # Create list of .cpp files that are in this repository and part of the
         # compilation database
         # also filters out " at the begin and end of the filename
-        jq ".[] | .file" build/ReleaseCPUOnly/compile_commands.json \
+        jq ".[] | .file" build/develop/compile_commands.json \
           | sed 's/^"\(.*\)"$/\1/' \
           | grep -F -f pattern - > files
         # run clang-tidy on all specified files
-        clang-tidy --fix --extra-arg=-w -p build/ReleaseCPUOnly $(cat files)
+        clang-tidy --fix --extra-arg=-w -p build/develop $(cat files)
 
     - name: Check for fixes
       run: |
