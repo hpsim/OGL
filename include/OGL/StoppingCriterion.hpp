@@ -206,9 +206,7 @@ public:
         label frequency = frequency_;
         // in case of export_res all residuals need to be computed
         if (!export_res) {
-            std::cout << __FILE__ << "adapt minIter and frequency1 \n";
             if (prev_solve_iters > 0 && adapt_minIter_ && prev_rel_cost > 0) {
-                std::cout << __FILE__ << "adapt minIter and frequency2 \n";
                 minIter = prev_solve_iters * relaxationFactor_;
                 if (frequencyMode == "optimizer") {
                     auto alpha = sqrt(
@@ -222,12 +220,11 @@ public:
             }
         }
 
-        word msg = "\nCreating stopping criterion\n\tminIter: " +
-                   std::to_string(minIter) +
-                   "\n\tfrequency: " + std::to_string(frequency) +
-                   "\n\tprev_solve_iters: " + std::to_string(prev_solve_iters) +
-                   "\n\tadapt_minIter:  " + std::to_string(adapt_minIter_) +
-                   "\n\tprev_rel_cost: ";
+        word msg = "Creating stopping criterion with minIter " +
+                   std::to_string(minIter) + " frequency " +
+                   std::to_string(frequency) + " prev_solve_iters " +
+                   std::to_string(prev_solve_iters) + " adapt_minIter_  " +
+                   std::to_string(adapt_minIter_) + " prev_rel_cost  ";
 
         MLOG_0(verbose, msg)
 
