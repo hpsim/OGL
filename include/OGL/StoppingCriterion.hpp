@@ -201,34 +201,30 @@ public:
                                   bool export_res, label prev_solve_iters,
                                   scalar prev_rel_cost) const
     {
+        word frequencyMode = "optimizer";
         label minIter = minIter_;
         label frequency = frequency_;
         // in case of export_res all residuals need to be computed
-        std::cout << __FILE__ << "adapt minIter and frequency0 \n";
         if (!export_res) {
-            std::cout << __FILE__ << "adapt minIter and frequency1 \n";
             if (prev_solve_iters > 0 && adapt_minIter_ && prev_rel_cost > 0) {
-                std::cout << __FILE__ << "adapt minIter and frequency2 \n";
                 minIter = prev_solve_iters * relaxationFactor_;
-                if (frequencyMode_ == "optimizer") {
+                if (frequencyMode == "optimizer") {
                     auto alpha = sqrt(
                         1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *
                         prev_rel_cost);
                     frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
                 }
-                // if (frequencyMode_ == "relative") {
+                if (frequencyMode == "relative") {
                 frequency = label(prev_solve_iters * 0.075) + 1;
-                // }
+                }
             }
         }
 
         word msg = "Creating stopping criterion with minIter " +
                    std::to_string(minIter) + " frequency " +
                    std::to_string(frequency) + " prev_solve_iters " +
-                   std::to_string(prev_solve_iters) + +" adapt_minIter_  " +
-                   std::to_string(adapt_minIter_) + +" prev_rel_cost  " +
-                   std::to_string(prev_rel_cost) + " prev_solve_iters*0.075  " +
-                   std::to_string(prev_solve_iters * 0.075);
+                   std::to_string(prev_solve_iters) +" adapt_minIter_  " +
+                   std::to_string(adapt_minIter_) +" prev_rel_cost  ";
 
         MLOG_0(verbose, msg)
 
