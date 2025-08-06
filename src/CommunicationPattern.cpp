@@ -179,32 +179,31 @@ void communicate_values(const ExecutorHandler &exec_handler,
     // }
 }
 
-AllToAllPattern compute_repart_allToall(
-    const ExecutorHandler &exec_handler, const AllToAllPattern allToAllIn, label start_rank)
-    {
+AllToAllPattern compute_repart_allToall(const ExecutorHandler &exec_handler,
+                                        const AllToAllPattern allToAllIn,
+                                        label start_rank)
+{
     auto host_comm = exec_handler.get_host_comm();
     auto repart_comm = exec_handler.get_repart_comm();
     auto ranks = repart_comm->size();
 
     std::vector<int> send_counts(ranks, 0);
-    std::vector<int> send_offsets(ranks+1,0);
+    std::vector<int> send_offsets(ranks + 1, 0);
     std::vector<int> recv_counts(ranks, 0);
-    std::vector<int> recv_offsets(ranks+1,0);
+    std::vector<int> recv_offsets(ranks + 1, 0);
 
     // label start_rank = host_comm->rank();
-    for (auto i=0;i<ranks;i++){
-        send_counts[i] = allToAllIn.send_counts[start_rank+i];
-        send_offsets[i] = allToAllIn.send_offsets[start_rank+i];
-        recv_counts[i] = allToAllIn.recv_counts[start_rank+i];
-        recv_offsets[i] = allToAllIn.recv_offsets[start_rank+i];
+    for (auto i = 0; i < ranks; i++) {
+        send_counts[i] = allToAllIn.send_counts[start_rank + i];
+        send_offsets[i] = allToAllIn.send_offsets[start_rank + i];
+        recv_counts[i] = allToAllIn.recv_counts[start_rank + i];
+        recv_offsets[i] = allToAllIn.recv_offsets[start_rank + i];
     }
 
     send_offsets.back() = scalar(allToAllIn.send_offsets.back());
     recv_offsets.back() = scalar(allToAllIn.recv_offsets.back());
-    return {
-        send_counts, send_offsets, recv_counts, recv_offsets
-    };
-    }
+    return {send_counts, send_offsets, recv_counts, recv_offsets};
+}
 
 void communicate_values(
     std::shared_ptr<const gko::Executor> src_exec,
