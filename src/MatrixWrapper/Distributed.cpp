@@ -527,7 +527,6 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     label rank = exec_handler.get_host_rank();
     auto exec = exec_handler.get_ref_exec();
     auto host_comm = *exec_handler.get_host_comm().get();
-    exec_handler.init_device_comm();
     auto device_comm = *exec_handler.get_device_comm().get();
     bool owner = repartitioner->is_owner(exec_handler);
 
