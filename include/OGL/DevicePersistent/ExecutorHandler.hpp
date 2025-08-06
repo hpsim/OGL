@@ -71,6 +71,8 @@ struct DeviceIdHandler {
         return device_global_id % num_devices_per_node;
     }
 
+    /* @brief returns the owner rank on the global comm world communicator
+     */
     label global_owner() const
     {
         label rank = Pstream::myProcNo();
@@ -82,7 +84,7 @@ struct DeviceIdHandler {
     bool is_owner() const
     {
         label rank = Pstream::myProcNo();
-        label owner_rank =  rank - (rank % ranks_per_gpu);
+        label owner_rank = rank - (rank % ranks_per_gpu);
         bool is_owner = owner_rank == rank;
         return is_owner;
     }
@@ -286,7 +288,7 @@ public:
             MPI_Comm repart_comm;
             label global_rank = Pstream::myProcNo();
             label device_id = global_rank / device_id_handler_.ranks_per_gpu;
-            MPI_Comm_split(MPI_COMM_WORLD, device_id, host_rank , &repart_comm);
+            MPI_Comm_split(MPI_COMM_WORLD, device_id, host_rank, &repart_comm);
             repart_comm_ =
                 std::make_shared<gko::experimental::mpi::communicator>(
                     repart_comm, gko_force_host_buffer_);
