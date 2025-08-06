@@ -56,6 +56,7 @@ public:
                            Foam::IOobject::MUST_READ),
             false);
 
+        // FIXME this needs the device_id_handler
         exec = std::make_shared<ExecutorHandler>(runTime_->thisDb(), dict,
                                                  "dummy", true);
 
@@ -172,6 +173,7 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
+    exec.set_ranks_per_gpu(ranks_per_gpu);
 
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
@@ -182,6 +184,7 @@ TEST_P(DistMatL2D, canCreateDistributedMatrix)
     gko::dim<2> global_vec_dim{repartitioner->get_orig_partition()->get_size(),
                                1};
     gko::dim<2> local_vec_dim{repartitioner->get_repart_dim()[0], 1};
+    exec.init_device_comm();
 
     auto distributed = create_distributed(exec, repartitioner, hostMatrix,
                                           matrix_format, fused, 0);
@@ -200,6 +203,8 @@ TEST_P(DistMatL2D, hasCorrectLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
+    exec.set_ranks_per_gpu(ranks_per_gpu);
+    exec.init_device_comm();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto repartitioner = std::make_shared<Repartitioner>(
@@ -254,6 +259,8 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
 {
     /* The test mesh is 6x6 grid decomposed into 4 3x3 subdomains */
     auto [ranks_per_gpu, matrix_format, fused] = GetParam();
+    exec.set_ranks_per_gpu(ranks_per_gpu);
+    exec.init_device_comm();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto name = ((Environment *)global_env)->name_;
@@ -292,6 +299,8 @@ TEST_P(DistMatL2D, hasCorrectNonLocalMatrix)
 TEST_P(DistMatL2D, canApplyCorrectly)
 {
     auto [ranks_per_gpu, format, fused] = GetParam();
+    exec.set_ranks_per_gpu(ranks_per_gpu);
+    exec.init_device_comm();
     auto mesh = ((Environment *)global_env)->mesh;
     auto hostMatrix = ((Environment *)global_env)->hostMatrix;
     auto name = ((Environment *)global_env)->name_;
@@ -314,12 +323,15 @@ TEST_P(DistMatL2D, canApplyCorrectly)
     x->fill(0);
 
     // Act
+    bool active = repartitioner->get_repart_size() != 0;
+    if (active){
     distributed->apply(b, x);
     auto res_x = std::vector<scalar>(
         x->get_local_vector()->get_const_values(),
         x->get_local_vector()->get_const_values() + local_vec_dim[0]);
 
     ASSERT_EQ(res_x, exp_x[name][fused][ranks_per_gpu][rank]);
+    }
 }
 
 int main(int argc, char *argv[])

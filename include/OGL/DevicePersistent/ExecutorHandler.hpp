@@ -311,6 +311,8 @@ public:
 
     label get_ranks_per_gpu() const { return device_id_handler_.ranks_per_gpu; }
 
+    void set_ranks_per_gpu(label ranks_per_gpu) { device_id_handler_.ranks_per_gpu= ranks_per_gpu; }
+
     label get_owner_rank() const { return device_id_handler_.global_owner(); }
 
     const std::shared_ptr<gko::Executor> get_device_exec() const
