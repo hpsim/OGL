@@ -121,13 +121,15 @@ void generate_alltoall_update_data(
     std::vector<RepartDistMatrix::all_to_all_data> &update_data)
 {
     label linop_offset_store{0};
-    for (size_t i = 0; i < 3; i++) {
+    // NOTE in case of symmetric matrix 0 (upper) is same as 1 (lower)
+    // thus we can start at 1
+    label start = 0;
+    for (size_t i = start; i < 3; i++) {
         label interface_size = in->get_rows()[i].size();
         label linop_idx = (fuse) ? 0 : in->get_id()[i];
         label linop_offset = (fuse) ? linop_offset_store : 0;
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_owner, interface_size);
-
         size_t recv_size = comm_pattern.recv_offsets.back();
 
         // NOTE Probably dont need to store linops[linop-idx] because we can
@@ -395,38 +397,40 @@ void update_impl(
     auto all_to_all_update = [repart_comm, ref_exec, device_exec,
                               all_to_all_update_data, host_A, force_host_buffer,
                               exec_handler, rank]() {
+        // NOTE if symmetric (get it from host_A) we can skip id=0 and wait till
+        // id=1 has been copied to use device copy
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
-            // auto start = std::chrono::steady_clock::now();
             auto repartAllToAll =
                 compute_repart_allToall(exec_handler, comm_pattern, rank);
-            // auto end = std::chrono::steady_clock::now();
-            // auto delta_t =
-            // std::chrono::duration_cast<std::chrono::microseconds>(end -
-            // start).count()/1000.0; std::cout << __FILE__ << ":" << "delta t "
-            // << delta_t << " [ms]\n";
 
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
-            // communicate_values(ref_exec, device_exec, repart_comm,
-            // repartAllToAll,
-            //                    send_data_ptr, data_ptr, force_host_buffer);
-            // if ( repart_comm->rank() == 0 ) {
-            // std::cout << __FILE__ <<
-            //     " Pstream::rank " << Pstream::myProcNo() <<
-            //     " repart_rank() "  << repart_comm->rank() <<
-            //     " send_offsets.back() "  <<
-            //     repartAllToAll.send_offsets.back() << " recv_counts: "  <<
-            //     repartAllToAll.recv_counts << " recv_offsets: "  <<
-            //     repartAllToAll.recv_offsets <<
-            // std::endl;
-            // }
-            MPI_Request request;
+            if (id == 0 && host_A->get_symmetric()) {
+		   // if symmetric we can skip id ==0 since it is the same as id==1
+            } else {
+                MPI_Request request;
+                MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
+                             MPI_DOUBLE, data_ptr,
+                             repartAllToAll.recv_counts.data(),
+                             repartAllToAll.recv_offsets.data(), MPI_DOUBLE, 0,
+                             repart_comm->get(), &request);
+                MPI_Wait(&request, MPI_STATUS_IGNORE);
+            }
 
-            MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
-                         MPI_DOUBLE, data_ptr,
-                         repartAllToAll.recv_counts.data(),
-                         repartAllToAll.recv_offsets.data(), MPI_DOUBLE, 0,
-                         repart_comm->get(), &request);
-            MPI_Wait(&request, MPI_STATUS_IGNORE);
+            // Perform symmetric inter device copy
+            if (id == 1 && repart_comm->rank() == 0 &&
+                host_A->get_symmetric()) {
+                auto [zid, zcomm_pattern, zdata_ptr] =
+                    all_to_all_update_data[0];
+                // copy recv size data from data_ptr to zdata_ptr
+                label recv_buffer_size = repartAllToAll.recv_offsets.back();
+                auto l_view = gko::array<scalar>::view(
+                    device_exec, recv_buffer_size, data_ptr);
+
+                auto u_view = gko::array<scalar>::view(
+                    device_exec, recv_buffer_size, zdata_ptr);
+
+                u_view = l_view;
+            }
         }
     };
 
@@ -441,7 +445,6 @@ void update_impl(
             return ret;
         }
     };
-
 
     // perform pairwise communications
     // this update interface data which needs communication

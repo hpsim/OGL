@@ -147,8 +147,6 @@ class StoppingCriterion {
 
     const label frequency_;
 
-    const word frequencyMode_;
-
     const scalar relaxationFactor_;
 
     const bool adapt_minIter_;
@@ -174,8 +172,6 @@ public:
           norm_eval_limit_(
               controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
-          frequencyMode_(controlDict.lookupOrDefault(
-              "evalFrequencyMode", word("relative"))),  // optimizer, fixed
           relaxationFactor_(
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.6))),
           adapt_minIter_(
