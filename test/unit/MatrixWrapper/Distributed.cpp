@@ -324,13 +324,13 @@ TEST_P(DistMatL2D, canApplyCorrectly)
 
     // Act
     bool active = repartitioner->get_repart_size() != 0;
-    if (active){
-    distributed->apply(b, x);
-    auto res_x = std::vector<scalar>(
-        x->get_local_vector()->get_const_values(),
-        x->get_local_vector()->get_const_values() + local_vec_dim[0]);
+    if (active) {
+        distributed->apply(b, x);
+        auto res_x = std::vector<scalar>(
+            x->get_local_vector()->get_const_values(),
+            x->get_local_vector()->get_const_values() + local_vec_dim[0]);
 
-    ASSERT_EQ(res_x, exp_x[name][fused][ranks_per_gpu][rank]);
+        ASSERT_EQ(res_x, exp_x[name][fused][ranks_per_gpu][rank]);
     }
 }
 

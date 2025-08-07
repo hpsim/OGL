@@ -171,7 +171,7 @@ public:
 
     /** Copies the content of the distributed vector back to the original source
      **/
-    MPI_Request copy_back()
+    void copy_back()
     {
         auto exec = exec_.get_device_exec();
         auto rank = exec_.get_host_rank();
@@ -197,20 +197,12 @@ public:
         // 	repartAllToAll.recv_counts[0] = 0;
         // }
 
+        // NOTE instead of all_to_all_v based communication MPI_Iscatterv
+        // seems to be prefarable
         // communicate_values(exec, ref_exec, comm, comm_pattern,
         //                    get_vector()->get_local_values(),
         //                    const_cast<T *>(memory_), host_buffer);
-        // std::cout << __FILE__
-        // 	<< " owner_rank " << exec_.get_owner_rank()
-        // 	<< " rank " << Pstream::myProcNo()
-        // 	<< " comm_pattern.send_counts: " << comm_pattern.send_counts
-        // 	<< " comm_pattern.recv_counts: " << comm_pattern.recv_counts
-        // 	<< " send_counts: " << repartAllToAll.send_counts
-        // 	<< " send_offsets: " << repartAllToAll.send_offsets
-        // 	<< " recv_counts: " << repartAllToAll.recv_counts
-        //        	<< "\n";
 
-        // auto start_rep = std::chrono::steady_clock::now();
         label send_size = comm_pattern.send_offsets.back();
         auto send_view = gko::array<scalar>::const_view(
             exec, send_size, get_vector()->get_local_values());
@@ -218,22 +210,13 @@ public:
 
         tmp = send_view;
         tmp.set_executor(ref_exec);
-        // auto end_rep = std::chrono::steady_clock::now();
-        // auto delta_t_rep =
-        // std::chrono::duration_cast<std::chrono::microseconds>(end_rep -
-        // start_rep).count() /1000.0; std::cout << __FILE__ << " copy back: "
-        // << delta_t_rep << " [ms]\n";
-
 
         MPI_Request copy_back_req;
-        MPI_Iscatterv(tmp.get_data(),
-                      // get_vector()->get_local_values(),
-                      repartAllToAll.send_counts.data(),
+        MPI_Iscatterv(tmp.get_data(), repartAllToAll.send_counts.data(),
                       repartAllToAll.send_offsets.data(), MPI_DOUBLE,
                       const_cast<T *>(memory_), repartAllToAll.recv_counts[0],
                       MPI_DOUBLE, 0, repart_comm->get(), &copy_back_req);
         MPI_Wait(&copy_back_req, MPI_STATUS_IGNORE);
-        return copy_back_req;
     }
 
     /** Writes the content of the distributed vector to disk

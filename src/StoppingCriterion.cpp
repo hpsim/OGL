@@ -53,9 +53,6 @@ StoppingCriterion::OpenFOAMDistStoppingCriterion::compute_normfactor_dist(
                              end_axref - start_axref)
                              .count() /
                          1.0;
-    // std::cout << __FILE__ << " delta_t_axref " << delta_t_axref << " [mu
-    // s]\n";
-
     auto unity =
         gko::initialize<gko::matrix::Dense<scalar>>(1, {1.0}, device_exec);
 
@@ -177,7 +174,6 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
                               end_eval - start_eval)
                               .count() /
                           1.0;
-    // std::cout << __FILE__ << "time " << *(parameters_.time) << " [mu s]\n";
     return result;
 }
 
