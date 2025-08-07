@@ -372,6 +372,7 @@ public:
             auto maxLevels = d.lookupOrDefault("maxLevels", label(20));
             auto minRowsC = d.lookupOrDefault("minCoarseRows", label(64000));
             auto smoother = d.lookupOrDefault("smoother", word("Jacobi"));
+            auto coarsening = d.lookupOrDefault("coarsening", word("GAMG"));
             auto coarseSolver =
                 d.lookupOrDefault("coarseSolver", word("Jacobi"));
             auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
@@ -387,12 +388,12 @@ public:
                        "\n\tSmoother: " + smoother +
                        "\n\trelaxationFactor: " + std::to_string(relaxFac) +
                        "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
+                       "\n\tcoarsening: " + coarsening +
                        "\n\tcoarseSolver: " + coarseSolver +
                        "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
                        "\n\tinnerSolverNorm: " + std::to_string(solveNorm) +
                        "\n\tcycle: " + cycleName + " type: " + type;
             MLOG_0(verbose_, msg)
-
 
             std::shared_ptr<gko::LinOpFactory> bjfac{};
 
@@ -419,6 +420,11 @@ public:
                                      << "\nValid Choices: Jacobi, SOR, SSOR"
                                      << abort(FatalError);
             }
+
+	    std::shared_ptr<gko::LinOp> coarseningWeight;
+	    if (coarsening=="GAMG"){
+		    coarseningWeight=gkomatrix;
+	    }
 
             auto single_it = it::build().with_max_iters(1u);
             auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
