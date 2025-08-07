@@ -306,7 +306,6 @@ public:
             delta_t_solve_ = delta_t_solve;
         }
 
-        // auto start_rep = std::chrono::steady_clock::now();
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
         auto bandwidth_copy_back =
@@ -338,8 +337,6 @@ public:
             std::string("\n\tRetrieve results bandwidth ");
         std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
-
-        // MPI_Wait(&copy_back_req,MPI_STATUS_IGNORE);
 
         return solverPerf;
     }
