@@ -130,11 +130,6 @@ void generate_alltoall_update_data(
         label linop_offset = (fuse) ? linop_offset_store : 0;
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_owner, interface_size);
-
-        std::cout << __FILE__ << ":" << __LINE__
-                  << " i " << i
-                  << "interface_size " << interface_size
-                  << "\n";
         size_t recv_size = comm_pattern.recv_offsets.back();
 
         // NOTE Probably dont need to store linops[linop-idx] because we can
@@ -402,8 +397,8 @@ void update_impl(
     auto all_to_all_update = [repart_comm, ref_exec, device_exec,
                               all_to_all_update_data, host_A, force_host_buffer,
                               exec_handler, rank]() {
-        // NOTE if symmetric (get it from host_A) we can skip id=0 and wait till id=1
-        // has been copied to use device copy
+        // NOTE if symmetric (get it from host_A) we can skip id=0 and wait till
+        // id=1 has been copied to use device copy
         //
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
             // auto start = std::chrono::steady_clock::now();
@@ -419,34 +414,35 @@ void update_impl(
             // communicate_values(ref_exec, device_exec, repart_comm,
             // repartAllToAll,
             //                    send_data_ptr, data_ptr, force_host_buffer);
-            std::cout << __FILE__ <<
-                " Pstream::rank " << Pstream::myProcNo() <<
-                " repart_rank() "  << repart_comm->rank() <<
-                " send_offsets.back() "  <<
-                " id " << id <<
-                repartAllToAll.send_offsets.back() << " recv_counts: "  <<
-                repartAllToAll.recv_counts << " recv_offsets: "  <<
-                repartAllToAll.recv_offsets <<
-            std::endl;
+            // std::cout << __FILE__ <<
+            //     " Pstream::rank " << Pstream::myProcNo() <<
+            //     " repart_rank() "  << repart_comm->rank() <<
+            //     " send_offsets.back() "  <<
+            //     " id " << id <<
+            //     repartAllToAll.send_offsets.back() << " recv_counts: "  <<
+            //     repartAllToAll.recv_counts << " recv_offsets: "  <<
+            //     repartAllToAll.recv_offsets <<
+            // std::endl;
 
-            if ( id == 0 &&  host_A->get_symmetric() ) {
-
+            if (id == 0 && host_A->get_symmetric()) {
             } else {
-            MPI_Request request;
-            MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
-                         MPI_DOUBLE, data_ptr,
-                         repartAllToAll.recv_counts.data(),
-                         repartAllToAll.recv_offsets.data(), MPI_DOUBLE, 0,
-                         repart_comm->get(), &request);
-            MPI_Wait(&request, MPI_STATUS_IGNORE);
+                MPI_Request request;
+                MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
+                             MPI_DOUBLE, data_ptr,
+                             repartAllToAll.recv_counts.data(),
+                             repartAllToAll.recv_offsets.data(), MPI_DOUBLE, 0,
+                             repart_comm->get(), &request);
+                MPI_Wait(&request, MPI_STATUS_IGNORE);
             }
 
             // Perform symmetric inter device copy
-            if ( id==1 && repart_comm->rank() == 0 && host_A->get_symmetric() ) {
-                auto [zid, zcomm_pattern, zdata_ptr] = all_to_all_update_data[0];
+            if (id == 1 && repart_comm->rank() == 0 &&
+                host_A->get_symmetric()) {
+                auto [zid, zcomm_pattern, zdata_ptr] =
+                    all_to_all_update_data[0];
                 // copy recv size data from data_ptr to zdata_ptr
                 //
-                label recv_buffer_size =repartAllToAll.recv_offsets.back();
+                label recv_buffer_size = repartAllToAll.recv_offsets.back();
                 auto l_view = gko::array<scalar>::view(
                     device_exec, recv_buffer_size, data_ptr);
 
@@ -454,7 +450,6 @@ void update_impl(
                     device_exec, recv_buffer_size, zdata_ptr);
 
                 u_view = l_view;
-
             }
         }
     };
