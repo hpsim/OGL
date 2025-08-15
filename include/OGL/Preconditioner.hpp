@@ -421,29 +421,25 @@ public:
                                      << abort(FatalError);
             }
 
-	    std::shared_ptr<gko::matrix::Csr<double, int>> coarseningWeight;
-	    if (coarsening=="GAMG"){
+            std::shared_ptr<gko::matrix::Csr<double, int>> coarseningWeight;
+            if (coarsening == "GAMG") {
+                auto &fvmesh =
+                    db_.template lookupObjectRef<fvMesh>("fvSchemes");
+                // weights[facei] -> column
+                auto weights =
+                    mag(cmptMultiply(fvmesh.Sf().primitiveField() /
+                                         sqrt(fvmesh.magSf().primitiveField()),
+                                     vector(1, 1.01, 1.02)));
 
-		auto& fvmesh = db_.template lookupObjectRef<fvMesh>("fvSchemes");
-		// weights[facei] -> column
-		auto weights = 	mag
-		(
-		cmptMultiply
-		(
-		fvmesh.Sf().primitiveField()
-		/sqrt(fvmesh.magSf().primitiveField()),
-		vector(1, 1.01, 1.02)
-		)
-		);
-
-		// here ldu adressing is needed
-		// 1. create row, cols, vals vector
-		// 2. fill with diagonals i=j=row=col
-	        // 3. fill with off-diagonals values from weights and row, cols from ldu
+                // here ldu adressing is needed
+                // 1. create row, cols, vals vector
+                // 2. fill with diagonals i=j=row=col
+                // 3. fill with off-diagonals values from weights and row, cols
+                // from ldu
 
 
-		coarseningWeight=nullptr;
-	    }
+                coarseningWeight = nullptr;
+            }
 
             auto single_it = it::build().with_max_iters(1u);
             auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
@@ -501,10 +497,9 @@ public:
                         .with_post_uses_pre(true)
                         .with_mg_level(
                             pgm::build()
-			    .with_deterministic(false)
-			    .with_local_weight_mtx(coarseningWeight)
-			    .on(
-                                device_exec))
+                                .with_deterministic(false)
+                                .with_local_weight_mtx(coarseningWeight)
+                                .on(device_exec))
                         .with_coarsest_solver(coarsest_solver)
                         .with_criteria(single_it)
                         .on(device_exec);
@@ -546,9 +541,10 @@ public:
                 auto ret = gko::share(
                     gko::solver::Multigrid::build()
                         .with_max_levels(maxLevels)
-                        .with_mg_level(gko::multigrid::Pgm<scalar>::build()
-			    .with_local_weight_mtx(coarseningWeight)
-                                           .with_deterministic(true))
+                        .with_mg_level(
+                            gko::multigrid::Pgm<scalar>::build()
+                                .with_local_weight_mtx(coarseningWeight)
+                                .with_deterministic(true))
                         .with_min_coarse_rows(minRowsC)
                         .with_coarsest_solver(coarsest_solver)
                         .with_criteria(it::build().with_max_iters(2u))
