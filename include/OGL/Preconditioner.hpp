@@ -421,9 +421,28 @@ public:
                                      << abort(FatalError);
             }
 
-	    std::shared_ptr<gko::LinOp> coarseningWeight;
+	    std::shared_ptr<gko::matrix::Csr<double, int>> coarseningWeight;
 	    if (coarsening=="GAMG"){
-		    coarseningWeight=gkomatrix;
+
+		auto& fvmesh = db_.template lookupObjectRef<fvMesh>("fvSchemes");
+		// weights[facei] -> column
+		auto weights = 	mag
+		(
+		cmptMultiply
+		(
+		fvmesh.Sf().primitiveField()
+		/sqrt(fvmesh.magSf().primitiveField()),
+		vector(1, 1.01, 1.02)
+		)
+		);
+
+		// here ldu adressing is needed
+		// 1. create row, cols, vals vector
+		// 2. fill with diagonals i=j=row=col
+	        // 3. fill with off-diagonals values from weights and row, cols from ldu
+
+
+		coarseningWeight=nullptr;
 	    }
 
             auto single_it = it::build().with_max_iters(1u);
@@ -481,7 +500,10 @@ public:
                         .with_pre_smoother(smoother_gen)
                         .with_post_uses_pre(true)
                         .with_mg_level(
-                            pgm::build().with_deterministic(false).on(
+                            pgm::build()
+			    .with_deterministic(false)
+			    .with_local_weight_mtx(coarseningWeight)
+			    .on(
                                 device_exec))
                         .with_coarsest_solver(coarsest_solver)
                         .with_criteria(single_it)
@@ -525,6 +547,7 @@ public:
                     gko::solver::Multigrid::build()
                         .with_max_levels(maxLevels)
                         .with_mg_level(gko::multigrid::Pgm<scalar>::build()
+			    .with_local_weight_mtx(coarseningWeight)
                                            .with_deterministic(true))
                         .with_min_coarse_rows(minRowsC)
                         .with_coarsest_solver(coarsest_solver)

@@ -75,7 +75,7 @@ to turn off this check")
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-   "ogl_0600_gko190"
+   "ogl_0600_gko110"
     CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
