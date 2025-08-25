@@ -160,8 +160,9 @@ public:
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &d,
         std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        const ExecutorHandler &exec_handler) const
     {
+        auto device_exec = exec_handler.get_device_exec();
         bool skip_sorting = d.lookupOrDefault<Switch>("skipSorting", true);
         bool multi_level_schwarz =
             d.lookupOrDefault<Switch>("multiLevelSchwarz", false);
@@ -431,6 +432,23 @@ public:
                                          sqrt(fvmesh.magSf().primitiveField()),
                                      vector(1, 1.01, 1.02)));
 
+                //   const std::shared_ptr<HostMatrixWrapper>
+                //   weight_matrix_wrapper
+                //       {std::make_shared<HostMatrixWrapper>(
+                // exec_handler, db_, matrix.diag().size(),
+                // matrix.upper().size(), matrix.symmetric(),
+                // matrix.diag().begin(), matrix.upper().begin(),
+                // matrix.lower().begin(), matrix.lduAddr(), interfaceBouCoeffs,
+                // interfaceIntCoeffs, interfaces, solverControls, fieldName,
+                // verbose_)
+                // };
+
+
+                // std::shared_ptr<RepartDistMatrix> dist_weight_mtx =
+                //     create_distributed(&exec_handler, repartitioner,
+                //                        weigh_matrix_wrapper, "Csr" true,
+                //                        verbose_);
+
                 // here ldu adressing is needed
                 // 1. create row, cols, vals vector
                 // 2. fill with diagonals i=j=row=col
@@ -571,10 +589,19 @@ public:
         return {};
     }
 
+    class PreconditionerWrapper {
+
+        virtual std::shared_ptr<gko::LinOp> create() {
+
+        }
+
+    };
+
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec) const
+        const ExecutorHandler &exec_handler) const
     {
+        auto device_exec = exec_handler.get_device_exec();
         const word precond_store_name =
             sys_matrix_name_ + "Cached_preconditinoner";
         const fileName path = precond_store_name;
@@ -655,7 +682,7 @@ public:
                 set_next_caching(sys_matrix_name_, db_, caching_period);
 
                 auto generated_precond =
-                    init_preconditioner_impl(name, d, gkomatrix, device_exec);
+                    init_preconditioner_impl(name, d, gkomatrix, exec_handler);
 
                 auto precond_ptr = prev_precond.get_ptr();
                 precond_ptr = generated_precond;
@@ -667,7 +694,7 @@ public:
         cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
-            init_preconditioner_impl(name, d, gkomatrix, device_exec);
+            init_preconditioner_impl(name, d, gkomatrix, exec_handler);
 
         auto po = new DevicePersistentBase<gko::LinOp>(IOobject(path, db_),
                                                        generated_precond);

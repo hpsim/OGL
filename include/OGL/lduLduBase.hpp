@@ -268,9 +268,9 @@ public:
                 dist_b.get_vector()->scale(dense_scaling.get());)
         }
 
-        TIME_WITH_FIELDNAME(verbose_, init_precond, this->fieldName(),
-                            auto precond = this->init_preconditioner(
-                                dist_A_v, exec_handler_.get_device_exec());)
+        TIME_WITH_FIELDNAME(
+            verbose_, init_precond, this->fieldName(),
+            auto precond = this->init_preconditioner(dist_A_v, exec_handler_);)
 
         bool active = repartitioner->get_repart_size() != 0;
         bool export_system(
