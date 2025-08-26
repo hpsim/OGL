@@ -56,82 +56,6 @@ public:
           verbose_(verbose)
     {}
 
-    template <typename PrecondFactory>
-    std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
-        std::shared_ptr<const gko::LinOp> gkomatrix,
-        std::shared_ptr<gko::Executor> device_exec,
-        std::shared_ptr<PrecondFactory> precond, const dictionary &d,
-        label local_rows) const
-    {
-        using pgm = gko::multigrid::Pgm<scalar, label>;
-        using fc = gko::multigrid::FixedCoarsening<scalar, label>;
-        using solver = gko::solver::Cg<scalar>;
-
-        auto selCoarseRows = d.lookupOrDefault("selCoarseRows", label(5));
-        auto fixedCoarsening =
-            d.lookupOrDefault<Switch>("fixedCoarsening", false);
-        auto coarseWeight = d.lookupOrDefault("coarseWeight", scalar(0.01));
-        auto solveNormC =
-            d.lookupOrDefault("reductionCoarseSolver", label(1e-6));
-        auto maxIterCoarse = d.lookupOrDefault("maxIterCoarse", label(50));
-
-        word msg = "Generate multi level schwarz:\n\tfixedCoarsening " +
-                   std::to_string(fixedCoarsening) + "\n\tselCoarseRows " +
-                   std::to_string(selCoarseRows) + "\n\trelTolCoarse " +
-                   std::to_string(solveNormC) + "\n\tmaxIterCoarse " +
-                   std::to_string(maxIterCoarse) + "\n\tcoarseWeigth" +
-                   std::to_string(coarseWeight);
-        MLOG_0(verbose_, msg)
-
-        auto pre_factory = ras::build().with_local_solver(
-            bj::build().with_skip_sorting(true).with_max_block_size(1u).on(
-                device_exec));
-
-        auto coarse_solver = gko::share(
-            solver::build()
-                .with_preconditioner(pre_factory)
-                .with_criteria(
-                    gko::stop::Iteration::build().with_max_iters(maxIterCoarse),
-                    gko::stop::ResidualNorm<scalar>::build()
-                        .with_reduction_factor(solveNormC))
-                .on(device_exec));
-
-        if (fixedCoarsening) {
-            auto n_rows = local_rows / selCoarseRows;
-            auto sel_rows =
-                gko::array<label>(gko::ReferenceExecutor::create(), n_rows);
-            for (auto i = 0; i < sel_rows.get_size(); i++) {
-                sel_rows.get_data()[i] = selCoarseRows * i;
-            }
-
-            sel_rows.set_executor(device_exec);
-            auto pgm_fac = gko::share(fc::build()
-                                          .with_skip_sorting(true)
-                                          .with_coarse_rows(sel_rows)
-                                          .on(device_exec));
-
-            return gko::share(ras::build()
-                                  .with_local_solver(precond)
-                                  .with_coarse_level(pgm_fac)
-                                  .with_l1_smoother(false)
-                                  .with_coarse_solver(coarse_solver)
-                                  .with_coarse_weight(coarseWeight)
-                                  .on(device_exec)
-                                  ->generate(gkomatrix));
-        } else {
-            auto pgm_fac = gko::share(
-                pgm::build().with_skip_sorting(true).on(device_exec));
-
-            return gko::share(ras::build()
-                                  .with_local_solver(precond)
-                                  .with_coarse_level(pgm_fac)
-                                  .with_l1_smoother(false)
-                                  .with_coarse_solver(coarse_solver)
-                                  .on(device_exec)
-                                  ->generate(gkomatrix));
-        }
-    }
-
 
     std::shared_ptr<gko::LinOp> init_preconditioner_impl(
         const word name, const dictionary &d,
@@ -144,51 +68,7 @@ public:
             d.lookupOrDefault<Switch>("multiLevelSchwarz", false);
 
         if (name == "BJ") {
-            // TODO for non constant system matrix reuse block pointers
-            label max_block_size(d.lookupOrDefault("maxBlockSize", label(1)));
-            word precision(d.lookupOrDefault("precision", word("double")));
-
-            word msg = "Generate preconditioner " + name + "<" + precision +
-                       "> MaxBlockSize " + std::to_string(max_block_size);
-            MLOG_0(verbose_, msg)
-
-            if (precision == "double") {
-                if (multi_level_schwarz) {
-                    auto pre_factory = gko::share(
-                        dbj::build()
-                            .with_skip_sorting(skip_sorting)
-                            .with_max_block_size(
-                                static_cast<gko::uint32>(max_block_size))
-                            .on(device_exec));
-                    auto gkodistmatrix =
-                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-                    auto local =
-                        gko::as<RepartDistMatrix>(gkomatrix)->get_local();
-                    auto local_rows = local->get_size()[0];
-                    return wrap_multi_level_schwarz(gkodistmatrix, device_exec,
-                                                    pre_factory, d, local_rows);
-                } else {
-                    auto pre_factory =
-                        dbj::build()
-                            .with_skip_sorting(skip_sorting)
-                            .with_max_block_size(
-                                static_cast<gko::uint32>(max_block_size))
-                            .on(device_exec);
-                    auto gkodistmatrix =
-                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-                    return wrap_schwarz(gkomatrix, device_exec,
-                                        std::move(pre_factory));
-                }
-            } else {
-                auto pre_factory =
-                    fbj::build()
-                        .with_skip_sorting(skip_sorting)
-                        .with_max_block_size(
-                            static_cast<gko::uint32>(max_block_size))
-                        .on(device_exec);
-                return wrap_schwarz(gkomatrix, device_exec,
-                                    std::move(pre_factory));
-            }
+            return BlockJacobi(device_exec, gkomatrix, d, verbose_).create();
         }
         if (name == "ILU") {
             label iterations(d.lookupOrDefault("iterations", label(0)));
