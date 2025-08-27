@@ -9,6 +9,7 @@
 #include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/MatrixWrapper/Distributed.hpp"
 #include "OGL/Preconditioner/Jacobi.hpp"
+#include "OGL/Preconditioner/Multigrid.hpp"
 #include "OGL/Preconditioner/Schwarz.hpp"
 
 #include "fvCFD.H"
@@ -22,7 +23,6 @@ class Preconditioner {
     using bj = gko::preconditioner::Jacobi<scalar, label>;
     using fbj = gko::preconditioner::Jacobi<float, label>;
     using dbj = gko::preconditioner::Jacobi<double, label>;
-    using sor = gko::preconditioner::Sor<scalar, label>;
     using ic = gko::preconditioner::Ic<>;
     using ir = gko::solver::Ir<scalar>;
     using it = gko::stop::Iteration;
@@ -70,370 +70,167 @@ public:
         if (name == "BJ") {
             return BlockJacobi(device_exec, gkomatrix, d, verbose_).create();
         }
-        if (name == "ILU") {
-            label iterations(d.lookupOrDefault("iterations", label(0)));
-            word msg = "Generate preconditioner " + name;
-            MLOG_0(verbose_, msg)
-
-            auto factorization_factory =
-                gko::factorization::ParIlu<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .with_iterations(iterations)
-                    .on(device_exec);
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-            auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
-            auto precond_factory =
-                gko::preconditioner::Ilu<>::build().on(device_exec);
-            return wrap_schwarz(gkodistmatrix, device_exec,
-                                std::move(precond_factory), factorization);
-        }
-        if (name == "ILUT") {
-            word msg = "Generate preconditioner " + name;
-            MLOG_0(verbose_, msg)
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-
-            auto factorization_factory =
-                gko::factorization::ParIlut<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .on(device_exec);
-
-            auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<>>(gkodistmatrix)
-                    ->get_local_matrix()));
-            auto precond_factory =
-                gko::preconditioner::Ilu<>::build().on(device_exec);
-            return wrap_schwarz(gkodistmatrix, device_exec,
-                                std::move(precond_factory), factorization);
-        }
-        if (name == "IRILU") {
-            auto trisolve_factory =
-                ir::build()
-                    .with_solver(
-                        bj::build().with_max_block_size(1u).on(device_exec))
-                    .with_criteria(
-                        gko::stop::Iteration::build().with_max_iters(5u).on(
-                            device_exec))
-                    .on(device_exec);
-
-            // Generate an ILU preconditioner factory by setting lower and
-            // upper triangular solver - in this case the previously defined
-            // iterative refinement method.
-            auto precond_factory =
-                gko::preconditioner::Ilu<ir, ir>::build()
-                    .with_l_solver(gko::clone(trisolve_factory))
-                    .with_u_solver(gko::clone(trisolve_factory))
-                    .on(device_exec);
-
-            auto factorization_factory =
-                gko::factorization::Ilu<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .on(device_exec);
-
-            auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
-                    ->get_local_matrix()));
-
-            // Use incomplete factors to generate ILU preconditioner
-            return wrap_schwarz(gkomatrix, device_exec,
-                                std::move(precond_factory), factorization);
-        }
-        if (name == "IC") {
-            word msg = "Generate preconditioner " + name;
-            MLOG_0(verbose_, msg)
-
-            auto factorization_factory =
-                gko::factorization::Ic<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .on(device_exec);
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-            auto factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
-            auto precond_factory =
-                gko::preconditioner::Ic<>::build().on(device_exec);
-            return wrap_schwarz(gkodistmatrix, device_exec,
-                                std::move(precond_factory), factorization);
-        }
-
-        if (name == "ICT") {
-            bool approx_select(d.lookupOrDefault("approximateSelect", true));
-            word msg = "Generate preconditioner " + name +
-                       " with approximate select " +
-                       std::to_string(approx_select);
-            MLOG_0(verbose_, msg)
-
-            auto factorization_factory =
-                gko::factorization::ParIct<scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .on(device_exec);
-
-            auto gkodistmatrix =
-                gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-            auto ic_factorization = gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
-
-            auto precond_factory =
-                gko::preconditioner::Ic<>::build().on(device_exec);
-
-            return wrap_schwarz(gkomatrix, device_exec,
-                                std::move(precond_factory), ic_factorization);
-        }
-        if (name == "ISAI") {
-            label sparsity_power(d.lookupOrDefault("sparsityPower", label(1)));
-
-            word msg = "Generate preconditioner " + name + " SparsityPower " +
-                       std::to_string(sparsity_power);
-            MLOG_0(verbose_, msg)
-
-            auto pre_factory =
-                gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
-                                          scalar, label>::build()
-                    .with_skip_sorting(skip_sorting)
-                    .with_sparsity_power(sparsity_power)
-                    .on(device_exec);
-
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
-        }
-        if (name == "GISAI") {
-            label sparsity_power(d.lookupOrDefault("sparsityPower", label(1)));
-
-            word msg = "Generate preconditioner " + name + " SparsityPower " +
-                       std::to_string(sparsity_power);
-            MLOG_0(verbose_, msg)
-
-            auto pre_factory = gko::preconditioner::Isai<
-                                   gko::preconditioner::isai_type::general,
-                                   scalar, label>::build()
-                                   .with_skip_sorting(skip_sorting)
-                                   .with_sparsity_power(sparsity_power)
-                                   .on(device_exec);
-
-            return wrap_schwarz(gkomatrix, device_exec, std::move(pre_factory));
-        }
         if (name == "Multigrid") {
-            word type = d.lookupOrDefault("type", word("Schwarz"));
-
-            auto maxIterCoarseS(d.lookupOrDefault("maxIterCoarse", label(1)));
-            auto solveNorm = d.lookupOrDefault("relTolCoarse", scalar(1e-6));
-            auto relaxFac = d.lookupOrDefault("relaxationFactor", scalar(0.9));
-            auto cycleName = d.lookupOrDefault("cycle", word("v"));
-            auto maxLevels = d.lookupOrDefault("maxLevels", label(20));
-            auto minRowsC = d.lookupOrDefault("minCoarseRows", label(64000));
-            auto smoother = d.lookupOrDefault("smoother", word("Jacobi"));
-            auto coarsening = d.lookupOrDefault("coarsening", word("GAMG"));
-            auto coarseSolver =
-                d.lookupOrDefault("coarseSolver", word("Jacobi"));
-            auto maxIterS = d.lookupOrDefault("maxIterSmoother", label(1));
-
-            gko::solver::multigrid::cycle cycle;
-            if (cycleName == "v") cycle = gko::solver::multigrid::cycle::v;
-            if (cycleName == "w") cycle = gko::solver::multigrid::cycle::w;
-            if (cycleName == "f") cycle = gko::solver::multigrid::cycle::f;
-
-            word msg = "Generate preconditioner: " + name +
-                       "\n\tmaxLevels: " + std::to_string(maxLevels) +
-                       "\n\tminCoarseRows: " + std::to_string(minRowsC) +
-                       "\n\tSmoother: " + smoother +
-                       "\n\trelaxationFactor: " + std::to_string(relaxFac) +
-                       "\n\tmaxIterSmoother: " + std::to_string(maxIterS) +
-                       "\n\tcoarsening: " + coarsening +
-                       "\n\tcoarseSolver: " + coarseSolver +
-                       "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS) +
-                       "\n\tinnerSolverNorm: " + std::to_string(solveNorm) +
-                       "\n\tcycle: " + cycleName + " type: " + type;
-            MLOG_0(verbose_, msg)
-
-            std::shared_ptr<gko::LinOpFactory> bjfac{};
-
-            if (smoother == "Jacobi") {
-                bjfac = bj::build()
-                            .with_max_block_size(1u)
-                            .with_skip_sorting(true)
-                            .on(device_exec);
-            }
-            if (smoother == "SOR") {
-                bjfac = sor::build()
-                            .with_skip_sorting(true)
-                            .with_symmetric(false)
-                            .on(device_exec);
-            }
-            if (smoother == "SSOR") {
-                bjfac = sor::build()
-                            .with_skip_sorting(true)
-                            .with_symmetric(true)
-                            .on(device_exec);
-            }
-            if (bjfac == nullptr) {
-                FatalErrorInFunction << "Unknown smoother: " << smoother
-                                     << "\nValid Choices: Jacobi, SOR, SSOR"
-                                     << abort(FatalError);
-            }
-
-            std::shared_ptr<gko::matrix::Csr<double, int>> coarseningWeight;
-            if (coarsening == "GAMG") {
-                auto &fvmesh =
-                    db_.template lookupObjectRef<fvMesh>("fvSchemes");
-                // weights[facei] -> column
-                auto weights =
-                    mag(cmptMultiply(fvmesh.Sf().primitiveField() /
-                                         sqrt(fvmesh.magSf().primitiveField()),
-                                     vector(1, 1.01, 1.02)));
-
-                //   const std::shared_ptr<HostMatrixWrapper>
-                //   weight_matrix_wrapper
-                //       {std::make_shared<HostMatrixWrapper>(
-                // exec_handler, db_, matrix.diag().size(),
-                // matrix.upper().size(), matrix.symmetric(),
-                // matrix.diag().begin(), matrix.upper().begin(),
-                // matrix.lower().begin(), matrix.lduAddr(), interfaceBouCoeffs,
-                // interfaceIntCoeffs, interfaces, solverControls, fieldName,
-                // verbose_)
-                // };
-
-
-                // std::shared_ptr<RepartDistMatrix> dist_weight_mtx =
-                //     create_distributed(&exec_handler, repartitioner,
-                //                        weigh_matrix_wrapper, "Csr" true,
-                //                        verbose_);
-
-                // here ldu adressing is needed
-                // 1. create row, cols, vals vector
-                // 2. fill with diagonals i=j=row=col
-                // 3. fill with off-diagonals values from weights and row, cols
-                // from ldu
-
-
-                coarseningWeight = nullptr;
-            }
-
-            auto single_it = it::build().with_max_iters(1u);
-            auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
-                static_cast<gko::uint32>(maxIterCoarseS));
-            auto coarse_solve_norm =
-                gko::stop::ResidualNorm<scalar>::build().with_reduction_factor(
-                    solveNorm);
-            auto smoother_it = gko::stop::Iteration::build().with_max_iters(
-                static_cast<gko::uint32>(maxIterS));
-
-            auto smoother_gen =
-                type == "Distributed"
-                    ? gko::share(ir::build()
-                                     .with_solver(
-                                         ras::build().with_local_solver(bjfac))
-                                     .with_relaxation_factor(relaxFac)
-                                     .with_criteria(smoother_it)
-                                     .on(device_exec))
-                    : gko::share(ir::build()
-                                     .with_solver(bjfac)
-                                     .with_relaxation_factor(relaxFac)
-                                     .with_criteria(smoother_it)
-                                     .on(device_exec));
-
-            if (type == "Schwarz") {
-                std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
-                if (coarseSolver == "CG") {
-                    coarsest_solver = gko::share(
-                        cg::build()
-                            .with_preconditioner(bjfac)
-                            .with_criteria(coarse_solve_it, coarse_solve_norm)
-                            .on(device_exec));
-                }
-                if (coarseSolver == "Jacobi") {
-                    coarsest_solver =
-                        gko::share(ir::build()
-                                       .with_solver(bjfac)
-                                       .with_relaxation_factor(relaxFac)
-                                       .with_criteria(coarse_solve_it)
-                                       .on(device_exec));
-                }
-                if (coarsest_solver == nullptr) {
-                    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
-                                         << "\nValid Choices: CG, Jacobi"
-                                         << abort(FatalError);
-                }
-
-                auto pre_factory =
-                    mg::build()
-                        .with_max_levels(static_cast<gko::uint32>(maxLevels))
-                        .with_cycle(cycle)
-                        .with_min_coarse_rows(
-                            static_cast<gko::uint32>(minRowsC))
-                        .with_pre_smoother(smoother_gen)
-                        .with_post_uses_pre(true)
-                        .with_mg_level(
-                            pgm::build()
-                                .with_deterministic(false)
-                                .with_local_weight_mtx(coarseningWeight)
-                                .on(device_exec))
-                        .with_coarsest_solver(coarsest_solver)
-                        .with_criteria(single_it)
-                        .on(device_exec);
-                return wrap_schwarz(gkomatrix, device_exec,
-                                    std::move(pre_factory));
-            }
-
-            if (type == "Distributed") {
-                std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
-                if (coarseSolver == "CG") {
-                    coarsest_solver = gko::share(
-                        ir::build()
-                            .with_solver(ras::build().with_local_solver(bjfac))
-                            .with_relaxation_factor(relaxFac)
-                            .with_criteria(coarse_solve_it)
-                            .on(device_exec));
-                }
-                if (coarseSolver == "Jacobi") {
-                    coarsest_solver = gko::share(
-                        cg::build()
-                            .with_preconditioner(
-                                ras::build().with_local_solver(bjfac))
-                            .with_criteria(coarse_solve_it, coarse_solve_norm)
-                            .on(device_exec));
-                }
-                if (coarsest_solver == nullptr) {
-                    FatalErrorInFunction << "Unknown smoother: " << coarseSolver
-                                         << "\nValid Choices: CG, Jacobi"
-                                         << abort(FatalError);
-                }
-                auto gkodistmatrix =
-                    gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-                auto smoother_gen = gko::share(
-                    ir::build()
-                        .with_solver(ras::build().with_local_solver(bjfac))
-                        .with_relaxation_factor(relaxFac)
-                        .with_criteria(smoother_it)
-                        .on(device_exec));
-                auto ret = gko::share(
-                    gko::solver::Multigrid::build()
-                        .with_max_levels(maxLevels)
-                        .with_mg_level(
-                            gko::multigrid::Pgm<scalar>::build()
-                                .with_local_weight_mtx(coarseningWeight)
-                                .with_deterministic(true))
-                        .with_min_coarse_rows(minRowsC)
-                        .with_coarsest_solver(coarsest_solver)
-                        .with_criteria(it::build().with_max_iters(2u))
-                        .with_smoother_iters(maxIterS)
-                        .with_pre_smoother(smoother_gen)
-                        .with_post_uses_pre(true)
-                        .with_cycle(cycle)
-                        .on(device_exec)
-                        ->generate(gkodistmatrix));
-                return ret;
-            }
-            FatalErrorInFunction << "Unknown Multigrid type: " << type
-                                 << "\nValid Choices: Schwarz, Distributed"
-                                 << abort(FatalError);
+            return Multigrid(device_exec, gkomatrix, d, verbose_)
+                .create(db_, exec_handler);
         }
+        // if (name == "ILU") {
+        //     label iterations(d.lookupOrDefault("iterations", label(0)));
+        //     word msg = "Generate preconditioner " + name;
+        //     MLOG_0(verbose_, msg)
+
+        //     auto factorization_factory =
+        //         gko::factorization::ParIlu<scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .with_iterations(iterations)
+        //             .on(device_exec);
+        //     auto gkodistmatrix =
+        //         gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+        //     auto factorization = gko::share(factorization_factory->generate(
+        //         gko::as<gko::experimental::distributed::Matrix<
+        //             scalar, label, label>>(gkodistmatrix)
+        //             ->get_local_matrix()));
+        //     auto precond_factory =
+        //         gko::preconditioner::Ilu<>::build().on(device_exec);
+        //     return wrap_schwarz(gkodistmatrix, device_exec,
+        //                         std::move(precond_factory), factorization);
+        // }
+        // if (name == "ILUT") {
+        //     word msg = "Generate preconditioner " + name;
+        //     MLOG_0(verbose_, msg)
+        //     auto gkodistmatrix =
+        //         gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+
+        //     auto factorization_factory =
+        //         gko::factorization::ParIlut<scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .on(device_exec);
+
+        //     auto factorization = gko::share(factorization_factory->generate(
+        //         gko::as<gko::experimental::distributed::Matrix<>>(gkodistmatrix)
+        //             ->get_local_matrix()));
+        //     auto precond_factory =
+        //         gko::preconditioner::Ilu<>::build().on(device_exec);
+        //     return wrap_schwarz(gkodistmatrix, device_exec,
+        //                         std::move(precond_factory), factorization);
+        // }
+        // if (name == "IRILU") {
+        //     auto trisolve_factory =
+        //         ir::build()
+        //             .with_solver(
+        //                 bj::build().with_max_block_size(1u).on(device_exec))
+        //             .with_criteria(
+        //                 gko::stop::Iteration::build().with_max_iters(5u).on(
+        //                     device_exec))
+        //             .on(device_exec);
+
+        //     // Generate an ILU preconditioner factory by setting lower and
+        //     // upper triangular solver - in this case the previously defined
+        //     // iterative refinement method.
+        //     auto precond_factory =
+        //         gko::preconditioner::Ilu<ir, ir>::build()
+        //             .with_l_solver(gko::clone(trisolve_factory))
+        //             .with_u_solver(gko::clone(trisolve_factory))
+        //             .on(device_exec);
+
+        //     auto factorization_factory =
+        //         gko::factorization::Ilu<scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .on(device_exec);
+
+        //     auto factorization = gko::share(factorization_factory->generate(
+        //         gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
+        //             ->get_local_matrix()));
+
+        //     // Use incomplete factors to generate ILU preconditioner
+        //     return wrap_schwarz(gkomatrix, device_exec,
+        //                         std::move(precond_factory), factorization);
+        // }
+        // if (name == "IC") {
+        //     word msg = "Generate preconditioner " + name;
+        //     MLOG_0(verbose_, msg)
+
+        //     auto factorization_factory =
+        //         gko::factorization::Ic<scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .on(device_exec);
+        //     auto gkodistmatrix =
+        //         gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+        //     auto factorization = gko::share(factorization_factory->generate(
+        //         gko::as<gko::experimental::distributed::Matrix<
+        //             scalar, label, label>>(gkodistmatrix)
+        //             ->get_local_matrix()));
+        //     auto precond_factory =
+        //         gko::preconditioner::Ic<>::build().on(device_exec);
+        //     return wrap_schwarz(gkodistmatrix, device_exec,
+        //                         std::move(precond_factory), factorization);
+        // }
+
+        // if (name == "ICT") {
+        //     bool approx_select(d.lookupOrDefault("approximateSelect", true));
+        //     word msg = "Generate preconditioner " + name +
+        //                " with approximate select " +
+        //                std::to_string(approx_select);
+        //     MLOG_0(verbose_, msg)
+
+        //     auto factorization_factory =
+        //         gko::factorization::ParIct<scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .on(device_exec);
+
+        //     auto gkodistmatrix =
+        //         gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
+        //     auto ic_factorization =
+        //     gko::share(factorization_factory->generate(
+        //         gko::as<gko::experimental::distributed::Matrix<
+        //             scalar, label, label>>(gkodistmatrix)
+        //             ->get_local_matrix()));
+
+        //     auto precond_factory =
+        //         gko::preconditioner::Ic<>::build().on(device_exec);
+
+        //     return wrap_schwarz(gkomatrix, device_exec,
+        //                         std::move(precond_factory),
+        //                         ic_factorization);
+        // }
+        // if (name == "ISAI") {
+        //     label sparsity_power(d.lookupOrDefault("sparsityPower",
+        //     label(1)));
+
+        //     word msg = "Generate preconditioner " + name + " SparsityPower "
+        //     +
+        //                std::to_string(sparsity_power);
+        //     MLOG_0(verbose_, msg)
+
+        //     auto pre_factory =
+        //         gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+        //                                   scalar, label>::build()
+        //             .with_skip_sorting(skip_sorting)
+        //             .with_sparsity_power(sparsity_power)
+        //             .on(device_exec);
+
+        //     return wrap_schwarz(gkomatrix, device_exec,
+        //     std::move(pre_factory));
+        // }
+        // if (name == "GISAI") {
+        //     label sparsity_power(d.lookupOrDefault("sparsityPower",
+        //     label(1)));
+
+        //     word msg = "Generate preconditioner " + name + " SparsityPower "
+        //     +
+        //                std::to_string(sparsity_power);
+        //     MLOG_0(verbose_, msg)
+
+        //     auto pre_factory = gko::preconditioner::Isai<
+        //                            gko::preconditioner::isai_type::general,
+        //                            scalar, label>::build()
+        //                            .with_skip_sorting(skip_sorting)
+        //                            .with_sparsity_power(sparsity_power)
+        //                            .on(device_exec);
+
+        //     return wrap_schwarz(gkomatrix, device_exec,
+        //     std::move(pre_factory));
+        // }
         if (name == "none") {
             return {};
         }

@@ -12,7 +12,7 @@ class BlockJacobi  // : public PreconditionerWrapper
 
     std::shared_ptr<gko::Executor> exec_;
     std::shared_ptr<const gko::LinOp> mtx_;
-    const dictionary &d;
+    const dictionary &d_;
     const label verbose_;
     bool skip_sorting_;
     bool multi_level_schwarz_;
@@ -43,9 +43,10 @@ public:
     virtual std::shared_ptr<gko::LinOp> create()
     {
         auto builder = [this](auto b) {
-            return b.with_skip_sorting(skip_sorting_)
-                .with_max_block_size(static_cast<gko::uint32>(max_block_size_))
-                .on(exec_);
+            return gko::share(b.with_skip_sorting(skip_sorting_)
+                                  .with_max_block_size(
+                                      static_cast<gko::uint32>(max_block_size_))
+                                  .on(exec_));
         };
 
         auto wrapper = [this](auto f) {

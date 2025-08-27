@@ -10,7 +10,7 @@ template <typename PrecondFactory>
 std::shared_ptr<gko::LinOp> wrap_schwarz(
     std::shared_ptr<const gko::LinOp> gkomatrix,
     std::shared_ptr<gko::Executor> device_exec,
-    std::unique_ptr<PrecondFactory> precond)
+    std::shared_ptr<PrecondFactory> precond)
 {
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
@@ -28,7 +28,7 @@ template <typename PrecondFactory, typename Factorization>
 std::shared_ptr<gko::LinOp> wrap_schwarz(
     std::shared_ptr<const gko::LinOp> gkomatrix,
     std::shared_ptr<gko::Executor> device_exec,
-    std::unique_ptr<PrecondFactory> precond,
+    std::shared_ptr<PrecondFactory> precond,
     std::shared_ptr<Factorization> factorization)
 {
     using ras =

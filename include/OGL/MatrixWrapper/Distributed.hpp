@@ -80,6 +80,25 @@ public:
         }
     }
 
+    std::shared_ptr<const gko::LinOp> clone() const
+    {
+
+        // TODO needs to update pairwise_update_data and all_to_all_update_data
+        // and linops
+
+        // std::map<label, scalar *> linops;
+        // this->linops_;
+        this->all_to_all_update_data_;
+        this->pairwise_update_data_;
+        return std::make_shared<RepartDistMatrix>(
+            this->get_executor(), this->get_communicator(),
+            this->matrix_format_, this->dist_mtx_->clone(),
+            this->repartitioner_, this->fuse_, this->all_to_all_update_data_,
+            this->pairwise_update_data_, this->reorder_maps_,
+            this->compress_to_global_
+            // , this->linops_
+                                                  );
+    }
 
     /**
      * Copy-assigns a CombinationMatrix matrix. Preserves executor, copies
@@ -101,7 +120,7 @@ public:
             this->pairwise_update_data_ = other.pairwise_update_data_;
             this->reorder_maps_ = other.reorder_maps_;
             this->compress_to_global_ = other.compress_to_global_;
-            this->linops_ = other.linops_;
+            // this->linops_ = other.linops_;
         }
         return *this;
     }
@@ -126,7 +145,7 @@ public:
                 std::move(other.pairwise_update_data_);
             this->reorder_maps_ = std::move(other.reorder_maps_);
             this->compress_to_global_ = std::move(other.compress_to_global_);
-            this->linops_ = std::move(other.linops_);
+            // this->linops_ = std::move(other.linops_);
         }
         return *this;
     }
@@ -147,8 +166,10 @@ public:
                      std::vector<all_to_all_data> all_to_all_update_data,
                      std::vector<pairwise_data> pairwise_update_data,
                      std::vector<reorder_map_type> reorder_maps,
-                     std::vector<label> compress_to_global,
-                     std::map<label, scalar *> linops)
+                     std::vector<label> compress_to_global
+                     // ,
+                     // std::map<label, scalar *> linops
+                     )
         : gko::EnableLinOp<RepartDistMatrix>(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
@@ -158,8 +179,8 @@ public:
           pairwise_update_data_(pairwise_update_data),
           repartitioner_(repartitioner),
           reorder_maps_(reorder_maps),
-          compress_to_global_(compress_to_global),
-          linops_(linops)
+          compress_to_global_(compress_to_global) //,
+          // linops_(linops)
     {
         this->set_size(dist_mtx_->get_size());
     }
@@ -229,8 +250,10 @@ private:
 
     std::vector<label> compress_to_global_;
 
-    std::map<label, scalar *>
-        linops_;  // map between linop id and shared ptr to linop
+    // map between host interface id and pointer to begin of block of  data
+    // before reordering
+    // std::map<label, scalar *>
+    //     linops_;
 };
 
 std::shared_ptr<const gko::LinOp> get_local(

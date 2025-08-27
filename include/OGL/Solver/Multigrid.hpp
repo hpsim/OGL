@@ -24,7 +24,6 @@ private:
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
-
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
     using dist_mtx =
         gko::experimental::distributed::Matrix<scalar, label, label>;
