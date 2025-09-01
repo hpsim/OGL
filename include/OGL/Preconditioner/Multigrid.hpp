@@ -113,8 +113,8 @@ public:
         }
 
         std::shared_ptr<gko::LinOpFactory> bjfac =
-                dbj::build().with_max_block_size(1u).with_skip_sorting(true).on(
-                    exec_);
+            dbj::build().with_max_block_size(1u).with_skip_sorting(true).on(
+                exec_);
 
         std::shared_ptr<gko::matrix::Csr<scalar, label>> coarseningWeight;
         if (coarsening_ == "GAMG") {
@@ -127,10 +127,7 @@ public:
 
             std::vector<scalar> diag(mtx_->get_size()[0], 0.00001);
 
-            repartDistMtx->update(
-                                  exec_handler,
-                                  diag.data(),
-                                  weights.begin(),
+            repartDistMtx->update(exec_handler, diag.data(), weights.begin(),
                                   verbose_);
 
             auto cw = gko::as<gko::matrix::Csr<scalar, label>>(
@@ -139,14 +136,15 @@ public:
                 std::const_pointer_cast<gko::matrix::Csr<scalar, label>>(cw);
 
             // std::cout << " coarsening weight:\n";
-            // for (auto i=0; i<coarseningWeight->get_num_stored_elements(); i++){
-            //   std::cout << i << ":" << coarseningWeight->get_values()[i] << ",";
+            // for (auto i=0; i<coarseningWeight->get_num_stored_elements();
+            // i++){
+            //   std::cout << i << ":" << coarseningWeight->get_values()[i] <<
+            //   ",";
             // }
             // std::cout << "\n";
         }
 
-        if (coarsening_ == "PGM")
-        {
+        if (coarsening_ == "PGM") {
             auto repartDistMtx = gko::as<RepartDistMatrix>(mtx_);
             auto cw = gko::as<gko::matrix::Csr<scalar, label>>(
                 repartDistMtx->get_local_matrix());
@@ -170,12 +168,12 @@ public:
 
         auto smoother_gen =
             type_ == "Distributed"
-                ? gko::share(
-                      ir::build()
-                          .with_solver(ras::build().with_local_solver(smootherFac))
-                          .with_relaxation_factor(relaxFac_)
-                          .with_criteria(smoother_it)
-                          .on(exec_))
+                ? gko::share(ir::build()
+                                 .with_solver(ras::build().with_local_solver(
+                                     smootherFac))
+                                 .with_relaxation_factor(relaxFac_)
+                                 .with_criteria(smoother_it)
+                                 .on(exec_))
                 : gko::share(ir::build()
                                  .with_solver(smootherFac)
                                  .with_relaxation_factor(relaxFac_)

@@ -58,7 +58,7 @@ public:
         std::vector<reorder_map_type> in, scalar *new_ptr) const
     {
         std::vector<reorder_map_type> out;
-        auto [map, _, pad] = in[0]; //) {
+        auto [map, _, pad] = in[0];  //) {
         out.emplace_back(map, new_ptr, pad);
         // }
         return out;
@@ -138,14 +138,13 @@ public:
             const_cast<scalar *>(new_non_local_data_ptr));
 
         auto new_reorder_map = update_reorder_map_ptr(
-            this->reorder_maps_, const_cast<scalar *>(new_data_ptr)
-        );
+            this->reorder_maps_, const_cast<scalar *>(new_data_ptr));
 
         return std::make_shared<RepartDistMatrix>(
             this->get_executor(), this->get_communicator(),
             this->matrix_format_, new_dist_mtx, this->repartitioner_,
-            this->fuse_, all_to_all_data, pairwise_update_data,
-            new_reorder_map, this->compress_to_global_);
+            this->fuse_, all_to_all_data, pairwise_update_data, new_reorder_map,
+            this->compress_to_global_);
     }
 
     /**
@@ -200,10 +199,8 @@ public:
     void update(const ExecutorHandler &exec_handler,
                 std::shared_ptr<const HostMatrixWrapper> host_A, label verbose);
 
-    void update(const ExecutorHandler &exec_handler,
-                const scalar* diag_ptr,
-                const scalar* face_ptr,
-                label verbose);
+    void update(const ExecutorHandler &exec_handler, const scalar *diag_ptr,
+                const scalar *face_ptr, label verbose);
 
     word get_matrix_format() const { return matrix_format_; }
 

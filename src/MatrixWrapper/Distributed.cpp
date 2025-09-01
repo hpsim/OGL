@@ -375,9 +375,8 @@ void reorder_interface_impl(const ExecutorHandler &exec_handler,
 }
 
 void advanced_update_impl(
-    const ExecutorHandler &exec_handler,
-    const scalar* diag_weights,
-    const scalar* face_weights,
+    const ExecutorHandler &exec_handler, const scalar *diag_weights,
+    const scalar *face_weights,
     std::vector<RepartDistMatrix::all_to_all_data> &all_to_all_update_data,
     std::vector<RepartDistMatrix::pairwise_data> &pairwise_update_data,
     std::vector<RepartDistMatrix::reorder_map_type> &reorder_maps, bool fuse,
@@ -393,20 +392,19 @@ void advanced_update_impl(
 
     // perform all-to-all updates first
     auto all_to_all_update = [comm, ref_exec, device_exec,
-                              all_to_all_update_data,
-                              force_host_buffer, face_weights, diag_weights]() {
+                              all_to_all_update_data, force_host_buffer,
+                              face_weights, diag_weights]() {
         for (auto [id, comm_pattern, data_ptr, offset] :
              all_to_all_update_data) {
             // auto [length, send_data_ptr] = host_A->get_interface_data(id);
-            if (id==2) {
-            communicate_values(ref_exec, device_exec, comm, comm_pattern,
-                               diag_weights, data_ptr + offset,
-                               force_host_buffer);
-            }
-            else {
-            communicate_values(ref_exec, device_exec, comm, comm_pattern,
-                               face_weights, data_ptr + offset,
-                               force_host_buffer);
+            if (id == 2) {
+                communicate_values(ref_exec, device_exec, comm, comm_pattern,
+                                   diag_weights, data_ptr + offset,
+                                   force_host_buffer);
+            } else {
+                communicate_values(ref_exec, device_exec, comm, comm_pattern,
+                                   face_weights, data_ptr + offset,
+                                   force_host_buffer);
             }
         }
     };
@@ -536,13 +534,12 @@ void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
 }
 
 void RepartDistMatrix::update(const ExecutorHandler &exec_handler,
-    const scalar* diag_ptr,
-    const scalar* face_ptr,
+                              const scalar *diag_ptr, const scalar *face_ptr,
                               label verbose)
 {
-    SIMPLE_TIME(
-        verbose, perform_matrix_update,
-        advanced_update_impl(exec_handler, diag_ptr, face_ptr, all_to_all_update_data_,
+    SIMPLE_TIME(verbose, perform_matrix_update,
+                advanced_update_impl(
+                    exec_handler, diag_ptr, face_ptr, all_to_all_update_data_,
                     pairwise_update_data_, reorder_maps_, fuse_, verbose););
 }
 
