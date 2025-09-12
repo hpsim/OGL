@@ -15,6 +15,8 @@ class Multigrid {
     using dbj = gko::preconditioner::Jacobi<double, label>;
     using fbj = gko::preconditioner::Jacobi<float, label>;
     using cg = gko::solver::Cg<scalar>;
+    using bicgstab = gko::solver::Bicgstab<scalar>;
+    using gmres = gko::solver::Gmres<scalar>;
     using mg = gko::solver::Multigrid;
     using pgm = gko::multigrid::Pgm<scalar, label>;
 
@@ -145,17 +147,17 @@ public:
         }
 
         if (coarsening_ == "PGM") {
-            auto repartDistMtx = gko::as<RepartDistMatrix>(mtx_);
-            auto cw = gko::as<gko::matrix::Csr<scalar, label>>(
-                repartDistMtx->get_local_matrix());
-            coarseningWeight =
-                std::const_pointer_cast<gko::matrix::Csr<scalar, label>>(cw);
+            // auto repartDistMtx = gko::as<RepartDistMatrix>(mtx_);
+            // auto cw = gko::as<gko::matrix::Csr<scalar, label>>(
+            //     repartDistMtx->get_local_matrix());
+            coarseningWeight = nullptr;
+            // std::const_pointer_cast<gko::matrix::Csr<scalar, label>>(cw);
         }
-        if (coarseningWeight == nullptr) {
-            FatalErrorInFunction << "Unknown coarsening: " << coarsening_
-                                 << "\nValid Choices: GAMG, PGM"
-                                 << abort(FatalError);
-        }
+        // if (coarseningWeight == nullptr) {
+        //     FatalErrorInFunction << "Unknown coarsening: " << coarsening_
+        //                          << "\nValid Choices: GAMG, PGM"
+        //                          << abort(FatalError);
+        // }
 
         auto single_it = it::build().with_max_iters(1u);
         auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
@@ -189,6 +191,22 @@ public:
                         .with_criteria(coarse_solve_it, coarse_solve_norm)
                         .on(exec_));
             }
+            if (coarseSolver_ == "BiCGStab") {
+                coarsest_solver = gko::share(
+                    bicgstab::build()
+                        .with_preconditioner(bjfac)
+                        .with_criteria(coarse_solve_it, coarse_solve_norm)
+                        .on(exec_));
+            }
+            if (coarseSolver_ == "GMRES") {
+	    std::cout << __FILE__ << __LINE__ << " GMRES 1\n";
+                coarsest_solver = gko::share(
+                    gmres::build()
+                        .with_preconditioner(bjfac)
+                        .with_criteria(coarse_solve_it, coarse_solve_norm)
+                        .on(exec_));
+	    std::cout << __FILE__ << __LINE__ << " GMRES 2 done\n";
+            }
             if (coarseSolver_ == "Jacobi") {
                 coarsest_solver =
                     gko::share(ir::build()
@@ -203,6 +221,7 @@ public:
                                      << abort(FatalError);
             }
 
+	    std::cout << __FILE__ << __LINE__ << " MG 1\n";
             auto pre_factory = gko::share(
                 mg::build()
                     .with_max_levels(static_cast<gko::uint32>(maxLevels_))
@@ -212,12 +231,13 @@ public:
                     .with_smoother_iters(maxIterS_)
                     .with_post_uses_pre(true)
                     .with_mg_level(pgm::build()
-                                       .with_deterministic(false)
+                                       .with_deterministic(true)
                                        .with_local_weight_mtx(coarseningWeight)
                                        .on(exec_))
                     .with_coarsest_solver(coarsest_solver)
                     .with_criteria(single_it)
                     .on(exec_));
+	    std::cout << __FILE__ << __LINE__ << " MG 2\n";
             return wrap_schwarz(mtx_, exec_, std::move(pre_factory));
         }
 
@@ -226,6 +246,14 @@ public:
             if (coarseSolver_ == "CG") {
                 coarsest_solver = gko::share(
                     cg::build()
+                        .with_preconditioner(
+                            ras::build().with_local_solver(bjfac))
+                        .with_criteria(coarse_solve_it, coarse_solve_norm)
+                        .on(exec_));
+            }
+            if (coarseSolver_ == "BiCGStab") {
+                coarsest_solver = gko::share(
+                    bicgstab::build()
                         .with_preconditioner(
                             ras::build().with_local_solver(bjfac))
                         .with_criteria(coarse_solve_it, coarse_solve_norm)
@@ -268,7 +296,7 @@ public:
                     .with_post_uses_pre(true)
                     .with_mg_level(pgm::build()
                                        .with_local_weight_mtx(coarseningWeight)
-                                       .with_deterministic(false))
+                                       .with_deterministic(true))
                     .with_coarsest_solver(coarsest_solver)
                     .with_criteria(single_it)
                     .on(exec_)

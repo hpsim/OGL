@@ -16,7 +16,9 @@ std::shared_ptr<gko::LinOp> wrap_schwarz(
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
 
+    std::cout << __FILE__ << __LINE__ << " MG 3\n";
     auto local = gko::as<RepartDistMatrix>(gkomatrix)->get_local();
+    std::cout << __FILE__ << __LINE__ << " MG 4\n";
     return gko::share(
         ras::build()
             .with_generated_local_solver(precond->generate(local))
