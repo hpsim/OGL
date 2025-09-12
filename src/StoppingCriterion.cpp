@@ -150,10 +150,15 @@ bool StoppingCriterion::OpenFOAMDistStoppingCriterion::check_impl(
     if (residual_norm < parameters_.openfoam_absolute_tolerance) {
         result = true;
     }
-    // check if relative tolerance is hit
+    // check if relative convergence tolerance is hit
     if (parameters_.openfoam_relative_tolerance > 0 &&
         residual_norm <
             parameters_.openfoam_relative_tolerance * init_residual) {
+        result = true;
+    }
+    // check if relative divergence criteria is hit
+    if (parameters_.openfoam_relative_tolerance > 0 &&
+        residual_norm > 20) {
         result = true;
     }
 
