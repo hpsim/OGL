@@ -8,6 +8,7 @@
 
 #include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/MatrixWrapper/Distributed.hpp"
+#include "OGL/Preconditioner/ISAI.hpp"
 #include "OGL/Preconditioner/Jacobi.hpp"
 #include "OGL/Preconditioner/LU.hpp"
 #include "OGL/Preconditioner/Multigrid.hpp"
@@ -78,6 +79,9 @@ public:
         if (name == "ILU") {
             return LU(device_exec, gkomatrix, d, verbose_).create();
         }
+        if (name == "ISAI") {
+            return ISAI(device_exec, gkomatrix, d, verbose_).create();
+        }
         // if (name == "IRILU") {
         //     auto trisolve_factory =
         //         ir::build()
@@ -128,45 +132,6 @@ public:
         //         gko::preconditioner::Ic<>::build().on(device_exec);
         //     return wrap_schwarz(gkodistmatrix, device_exec,
         //                         std::move(precond_factory), factorization);
-        // }
-
-        // if (name == "ISAI") {
-        //     label sparsity_power(d.lookupOrDefault("sparsityPower",
-        //     label(1)));
-
-        //     word msg = "Generate preconditioner " + name + " SparsityPower "
-        //     +
-        //                std::to_string(sparsity_power);
-        //     MLOG_0(verbose_, msg)
-
-        //     auto pre_factory =
-        //         gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
-        //                                   scalar, label>::build()
-        //             .with_skip_sorting(skip_sorting)
-        //             .with_sparsity_power(sparsity_power)
-        //             .on(device_exec);
-
-        //     return wrap_schwarz(gkomatrix, device_exec,
-        //     std::move(pre_factory));
-        // }
-        // if (name == "GISAI") {
-        //     label sparsity_power(d.lookupOrDefault("sparsityPower",
-        //     label(1)));
-
-        //     word msg = "Generate preconditioner " + name + " SparsityPower "
-        //     +
-        //                std::to_string(sparsity_power);
-        //     MLOG_0(verbose_, msg)
-
-        //     auto pre_factory = gko::preconditioner::Isai<
-        //                            gko::preconditioner::isai_type::general,
-        //                            scalar, label>::build()
-        //                            .with_skip_sorting(skip_sorting)
-        //                            .with_sparsity_power(sparsity_power)
-        //                            .on(device_exec);
-
-        //     return wrap_schwarz(gkomatrix, device_exec,
-        //     std::move(pre_factory));
         // }
         if (name == "none") {
             return {};
