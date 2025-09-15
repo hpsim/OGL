@@ -405,7 +405,7 @@ void update_impl(
 
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
             if (id == 0 && host_A->get_symmetric()) {
-		   // if symmetric we can skip id ==0 since it is the same as id==1
+                // if symmetric we can skip id ==0 since it is the same as id==1
             } else {
                 MPI_Request request;
                 MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
