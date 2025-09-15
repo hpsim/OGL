@@ -334,8 +334,8 @@ public:
             std::to_string(time_per_dof) + std::string(" [ns]") +
             std::string("\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwidth "); 
-            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
+            std::string("\n\tRetrieve results bandwidth ");
+        std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;

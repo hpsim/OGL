@@ -44,8 +44,9 @@ public:
     {
         auto builder = [this](auto b) {
             return gko::share(b.with_skip_sorting(skip_sorting_)
-                .with_max_block_size(static_cast<gko::uint32>(max_block_size_))
-                .on(exec_));
+                                  .with_max_block_size(
+                                      static_cast<gko::uint32>(max_block_size_))
+                                  .on(exec_));
         };
 
         auto wrapper = [this](auto f) {

@@ -84,8 +84,10 @@ public:
         //                      << abort(FatalError);
     }
 
-    std::shared_ptr<gko::LinOp> create(const objectRegistry &db,
-                                       const ExecutorHandler &exec_handler)
+    std::shared_ptr<gko::LinOp> create(
+        /* const objectRegistry &db,
+          const ExecutorHandler &exec_handler*/
+    )
     {
         gko::solver::multigrid::cycle cycle;
         if (cycleName_ == "v") cycle = gko::solver::multigrid::cycle::v;
@@ -203,10 +205,11 @@ public:
                     .with_pre_smoother(smoother_gen)
                     .with_smoother_iters(maxIterS_)
                     .with_post_uses_pre(true)
-                    .with_mg_level(pgm::build()
-                                       .with_deterministic(true)
-                                       // .with_local_weight_mtx(coarseningWeight)
-                                       .on(exec_))
+                    .with_mg_level(
+                        pgm::build()
+                            .with_deterministic(true)
+                            // .with_local_weight_mtx(coarseningWeight)
+                            .on(exec_))
                     .with_coarsest_solver(coarsest_solver)
                     .with_criteria(single_it)
                     .on(exec_));
@@ -266,9 +269,10 @@ public:
                     .with_pre_smoother(smoother_gen)
                     .with_smoother_iters(maxIterS_)
                     .with_post_uses_pre(true)
-                    .with_mg_level(pgm::build()
-                                       // .with_local_weight_mtx(coarseningWeight)
-                                       .with_deterministic(true))
+                    .with_mg_level(
+                        pgm::build()
+                            // .with_local_weight_mtx(coarseningWeight)
+                            .with_deterministic(true))
                     .with_coarsest_solver(coarsest_solver)
                     .with_criteria(single_it)
                     .on(exec_)
