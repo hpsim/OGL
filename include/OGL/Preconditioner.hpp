@@ -82,38 +82,6 @@ public:
         if (name == "ISAI") {
             return ISAI(device_exec, gkomatrix, d, verbose_).create();
         }
-        // if (name == "IRILU") {
-        //     auto trisolve_factory =
-        //         ir::build()
-        //             .with_solver(
-        //                 bj::build().with_max_block_size(1u).on(device_exec))
-        //             .with_criteria(
-        //                 gko::stop::Iteration::build().with_max_iters(5u).on(
-        //                     device_exec))
-        //             .on(device_exec);
-
-        //     // Generate an ILU preconditioner factory by setting lower and
-        //     // upper triangular solver - in this case the previously defined
-        //     // iterative refinement method.
-        //     auto precond_factory =
-        //         gko::preconditioner::Ilu<ir, ir>::build()
-        //             .with_l_solver(gko::clone(trisolve_factory))
-        //             .with_u_solver(gko::clone(trisolve_factory))
-        //             .on(device_exec);
-
-        //     auto factorization_factory =
-        //         gko::factorization::Ilu<scalar, label>::build()
-        //             .with_skip_sorting(skip_sorting)
-        //             .on(device_exec);
-
-        //     auto factorization = gko::share(factorization_factory->generate(
-        //         gko::as<gko::experimental::distributed::Matrix<>>(gkomatrix)
-        //             ->get_local_matrix()));
-
-        //     // Use incomplete factors to generate ILU preconditioner
-        //     return wrap_schwarz(gkomatrix, device_exec,
-        //                         std::move(precond_factory), factorization);
-        // }
         // if (name == "IC") {
         //     word msg = "Generate preconditioner " + name;
         //     MLOG_0(verbose_, msg)
