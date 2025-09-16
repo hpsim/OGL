@@ -216,11 +216,12 @@ public:
             }
         }
 
-        word msg = "Creating stopping criterion with minIter " +
-                   std::to_string(minIter) + " frequency " +
-                   std::to_string(frequency) + " prev_solve_iters " +
-                   std::to_string(prev_solve_iters) + " adapt_minIter_  " +
-                   std::to_string(adapt_minIter_) + " prev_rel_cost  ";
+        word msg = "\nCreating stopping criterion\n\tminIter: " +
+                   std::to_string(minIter) +
+                   "\n\tfrequency: " + std::to_string(frequency) +
+                   "\n\tprev_solve_iters: " + std::to_string(prev_solve_iters) +
+                   "\n\tadapt_minIter:  " + std::to_string(adapt_minIter_) +
+                   "\n\tprev_rel_cost: ";
 
         MLOG_0(verbose, msg)
 

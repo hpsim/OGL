@@ -8,6 +8,7 @@
 
 #include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/MatrixWrapper/Distributed.hpp"
+#include "OGL/Preconditioner/Cholesky.hpp"
 #include "OGL/Preconditioner/ISAI.hpp"
 #include "OGL/Preconditioner/Jacobi.hpp"
 #include "OGL/Preconditioner/LU.hpp"
@@ -79,28 +80,12 @@ public:
         if (name == "ILU") {
             return LU(device_exec, gkomatrix, d, verbose_).create();
         }
+        if (name == "IC") {
+            return Cholesky(device_exec, gkomatrix, d, verbose_).create();
+        }
         if (name == "ISAI") {
             return ISAI(device_exec, gkomatrix, d, verbose_).create();
         }
-        // if (name == "IC") {
-        //     word msg = "Generate preconditioner " + name;
-        //     MLOG_0(verbose_, msg)
-
-        //     auto factorization_factory =
-        //         gko::factorization::Ic<scalar, label>::build()
-        //             .with_skip_sorting(skip_sorting)
-        //             .on(device_exec);
-        //     auto gkodistmatrix =
-        //         gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-        //     auto factorization = gko::share(factorization_factory->generate(
-        //         gko::as<gko::experimental::distributed::Matrix<
-        //             scalar, label, label>>(gkodistmatrix)
-        //             ->get_local_matrix()));
-        //     auto precond_factory =
-        //         gko::preconditioner::Ic<>::build().on(device_exec);
-        //     return wrap_schwarz(gkodistmatrix, device_exec,
-        //                         std::move(precond_factory), factorization);
-        // }
         if (name == "none") {
             return {};
         }

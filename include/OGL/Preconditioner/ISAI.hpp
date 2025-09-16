@@ -40,25 +40,24 @@ public:
         MLOG_0(verbose_, msg)
     }
 
-
-    auto generate_precond_factory()
+    auto generate_precond_factory_spd()
     {
-        if (type_ == "SPD") {
-            return gko::preconditioner::Isai<
-                       gko::preconditioner::isai_type::spd, scalar,
-                       label>::build()
+        return gko::share(
+            gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+                                      scalar, label>::build()
                 .with_skip_sorting(skip_sorting_)
                 .with_sparsity_power(sparsityPower_)
-                .on(exec_);
-        }
-        if (type_ == "General") {
-            return gko::preconditioner::Isai<
-                       gko::preconditioner::isai_type::general, scalar,
-                       label>::build()
+                .on(exec_));
+    }
+
+    auto generate_precond_factory_general()
+    {
+        return gko::share(
+            gko::preconditioner::Isai<gko::preconditioner::isai_type::general,
+                                      scalar, label>::build()
                 .with_skip_sorting(skip_sorting_)
                 .with_sparsity_power(sparsityPower_)
-                .on(exec_);
-        }
+                .on(exec_));
     }
 
     virtual std::shared_ptr<gko::LinOp> create()
@@ -76,6 +75,11 @@ public:
             }
         };
 
-        return wrapper(generate_precond_factory());
+        if (type_ == "SPD") {
+            return wrapper(generate_precond_factory_spd());
+        }
+        if (type_ == "General") {
+            return wrapper(generate_precond_factory_general());
+        }
     }
 };

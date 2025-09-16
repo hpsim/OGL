@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "OGL/Preconditioner/CoarseSolver.hpp"
 #include "OGL/Preconditioner/Schwarz.hpp"
 
 class Multigrid {
@@ -14,9 +15,6 @@ class Multigrid {
     using sor = gko::preconditioner::Sor<scalar, label>;
     using dbj = gko::preconditioner::Jacobi<double, label>;
     using fbj = gko::preconditioner::Jacobi<float, label>;
-    using cg = gko::solver::Cg<scalar>;
-    using bicgstab = gko::solver::Bicgstab<scalar>;
-    using gmres = gko::solver::Gmres<scalar>;
     using mg = gko::solver::Multigrid;
     using pgm = gko::multigrid::Pgm<scalar, label>;
 
@@ -33,8 +31,6 @@ class Multigrid {
     bool multi_level_schwarz_;
 
     word type_;
-    label maxIterCoarseS_;
-    scalar solveNorm_;
     scalar relaxFac_;
     word cycleName_;
     label maxLevels_;
@@ -56,8 +52,6 @@ public:
           multi_level_schwarz_(
               d.lookupOrDefault<Switch>("multiLevelSchwarz", false)),
           type_(d.lookupOrDefault("type", word("Schwarz"))),
-          maxIterCoarseS_(d.lookupOrDefault("maxIterCoarse", label(1))),
-          solveNorm_(d.lookupOrDefault("relTolCoarse", scalar(1e-6))),
           relaxFac_(d.lookupOrDefault("relaxationFactor", scalar(0.9))),
           cycleName_(d.lookupOrDefault("cycle", word("v"))),
           maxLevels_(d.lookupOrDefault("maxLevels", label(20))),
@@ -67,7 +61,7 @@ public:
           coarseSolver_(d.lookupOrDefault("coarseSolver", word("Jacobi"))),
           maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1)))
     {
-        word msg = "Generate Multigrid preconditioner:\n\tmaxLevels:" +
+        word msg = "\nGenerate Multigrid preconditioner:\n\tmaxLevels:" +
                    std::to_string(maxLevels_) +
                    "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
                    "\n\tSmoother: " + smoother_ +
@@ -75,8 +69,6 @@ public:
                    "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
                    "\n\tcoarsening: " + coarsening_ +
                    "\n\tcoarseSolver: " + coarseSolver_ +
-                   "\n\tmaxIterCoarse: " + std::to_string(maxIterCoarseS_) +
-                   "\n\tinnerSolverNorm: " + std::to_string(solveNorm_) +
                    "\n\tcycle: " + cycleName_ + "\n\ttype: " + type_;
         MLOG_0(verbose_, msg)
         // FatalErrorInFunction << "Unknown Multigrid type: " << type
@@ -116,10 +108,6 @@ public:
                                  << abort(FatalError);
         }
 
-        std::shared_ptr<gko::LinOpFactory> bjfac =
-            dbj::build().with_max_block_size(1u).with_skip_sorting(true).on(
-                exec_);
-
         // std::shared_ptr<gko::matrix::Csr<scalar, label>> coarseningWeight;
         // if (coarsening_ == "GAMG") {
         // }
@@ -138,11 +126,6 @@ public:
         // // }
 
         auto single_it = it::build().with_max_iters(1u);
-        auto coarse_solve_it = gko::stop::Iteration::build().with_max_iters(
-            static_cast<gko::uint32>(maxIterCoarseS_));
-        auto coarse_solve_norm =
-            gko::stop::ResidualNorm<scalar>::build().with_reduction_factor(
-                solveNorm_);
         auto smoother_it = gko::stop::Iteration::build().with_max_iters(
             static_cast<gko::uint32>(maxIterS_));
 
@@ -161,42 +144,6 @@ public:
                                  .on(exec_));
 
         if (type_ == "Schwarz") {
-            std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
-            if (coarseSolver_ == "CG") {
-                coarsest_solver = gko::share(
-                    cg::build()
-                        .with_preconditioner(bjfac)
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(exec_));
-            }
-            if (coarseSolver_ == "BiCGStab") {
-                coarsest_solver = gko::share(
-                    bicgstab::build()
-                        .with_preconditioner(bjfac)
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(exec_));
-            }
-            if (coarseSolver_ == "GMRES") {
-                coarsest_solver = gko::share(
-                    gmres::build()
-                        .with_preconditioner(bjfac)
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(exec_));
-            }
-            if (coarseSolver_ == "Jacobi") {
-                coarsest_solver =
-                    gko::share(ir::build()
-                                   .with_solver(bjfac)
-                                   .with_relaxation_factor(relaxFac_)
-                                   .with_criteria(coarse_solve_it)
-                                   .on(exec_));
-            }
-            if (coarsest_solver == nullptr) {
-                FatalErrorInFunction << "Unknown smoother: " << coarseSolver_
-                                     << "\nValid Choices: CG, Jacobi"
-                                     << abort(FatalError);
-            }
-
             auto pre_factory = gko::share(
                 mg::build()
                     .with_max_levels(static_cast<gko::uint32>(maxLevels_))
@@ -210,49 +157,21 @@ public:
                             .with_deterministic(true)
                             // .with_local_weight_mtx(coarseningWeight)
                             .on(exec_))
-                    .with_coarsest_solver(coarsest_solver)
+                    .with_coarsest_solver(
+                        generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
                     .on(exec_));
             return wrap_schwarz(mtx_, exec_, std::move(pre_factory));
         }
 
         if (type_ == "Distributed") {
-            std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
-            if (coarseSolver_ == "CG") {
-                coarsest_solver = gko::share(
-                    cg::build()
-                        .with_preconditioner(
-                            ras::build().with_local_solver(bjfac))
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(exec_));
-            }
-            if (coarseSolver_ == "BiCGStab") {
-                coarsest_solver = gko::share(
-                    bicgstab::build()
-                        .with_preconditioner(
-                            ras::build().with_local_solver(bjfac))
-                        .with_criteria(coarse_solve_it, coarse_solve_norm)
-                        .on(exec_));
-            }
-            if (coarseSolver_ == "Jacobi") {
-                coarsest_solver = gko::share(
-                    ir::build()
-                        .with_solver(ras::build().with_local_solver(bjfac))
-                        .with_relaxation_factor(relaxFac_)
-                        .with_criteria(coarse_solve_it)
-                        .on(exec_));
-            }
+            // std::shared_ptr<const gko::LinOpFactory> coarsest_solver{};
             // NOTE does not support distributed currently
             // if (coarseSolver_ == "Direct") {
             //     coarsest_solver = gko::share(
             //         gko::experimental::solver::Direct<scalar, label>::build()
             //             .on(exec_));
             // }
-            if (coarsest_solver == nullptr) {
-                FatalErrorInFunction << "Unknown smoother: " << coarseSolver_
-                                     << "\nValid Choices: CG, Jacobi"
-                                     << abort(FatalError);
-            }
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
             auto smoother_gen = gko::share(
@@ -273,7 +192,9 @@ public:
                         pgm::build()
                             // .with_local_weight_mtx(coarseningWeight)
                             .with_deterministic(true))
-                    .with_coarsest_solver(coarsest_solver)
+                    .with_coarsest_solver(
+                        generate_coarse_solver(exec_, d_, verbose_))
+                    .with_criteria(single_it)
                     .with_criteria(single_it)
                     .on(exec_)
                     ->generate(gkodistmatrix));

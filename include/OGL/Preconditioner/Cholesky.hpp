@@ -5,7 +5,7 @@
 
 #include "OGL/Preconditioner/Schwarz.hpp"
 
-class LU  // : public PreconditionerWrapper
+class Cholesky  // : public PreconditionerWrapper
 {
     using dic = gko::preconditioner::Jacobi<double, label>;
     using fic = gko::preconditioner::Jacobi<float, label>;
@@ -21,9 +21,9 @@ class LU  // : public PreconditionerWrapper
 
 
 public:
-    LU(std::shared_ptr<gko::Executor> exec,
-       std::shared_ptr<const gko::LinOp> mtx, const dictionary &d,
-       label verbose)
+    Cholesky(std::shared_ptr<gko::Executor> exec,
+             std::shared_ptr<const gko::LinOp> mtx, const dictionary &d,
+             label verbose)
         : exec_(exec),
           mtx_(mtx),
           d_(d),
@@ -32,7 +32,7 @@ public:
           multi_level_schwarz_(
               d.lookupOrDefault<Switch>("multiLevelSchwarz", false)),
           precision_(d.lookupOrDefault("precision", word("double"))),
-          factorization_(d.lookupOrDefault("factorization", word("ParILU")))
+          factorization_(d.lookupOrDefault("factorization", word("IC")))
     {
         word msg = "Generate " + factorization_ +
                    "  preconditioner:\n\tprecision: " + precision_;
@@ -42,9 +42,9 @@ public:
 
     std::shared_ptr<gko::LinOp> generate_factorization() const
     {
-        if (factorization_ == "ILU") {
+        if (factorization_ == "IC") {
             auto factorization_factory =
-                gko::factorization::Ilu<scalar, label>::build()
+                gko::factorization::Ic<scalar, label>::build()
                     .with_skip_sorting(skip_sorting_)
                     .on(exec_);
 
@@ -55,10 +55,10 @@ public:
                     scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
         }
-        if (factorization_ == "ParILU") {
+        if (factorization_ == "ParIC") {
             label iterations = d_.lookupOrDefault("iterations", label(5));
             auto factorization_factory =
-                gko::factorization::ParIlut<scalar, label>::build()
+                gko::factorization::ParIct<scalar, label>::build()
                     .with_skip_sorting(skip_sorting_)
                     .with_iterations(iterations)
                     .on(exec_);
@@ -70,11 +70,11 @@ public:
                     scalar, label, label>>(gkodistmatrix)
                     ->get_local_matrix()));
         }
-        if (factorization_ == "ParILUT") {
+        if (factorization_ == "ParICT") {
             label iterations = d_.lookupOrDefault("iterations", label(5));
             label fillInLimit = d_.lookupOrDefault("fillInLimit", label(2));
             auto factorization_factory =
-                gko::factorization::ParIlut<scalar, label>::build()
+                gko::factorization::ParIct<scalar, label>::build()
                     .with_skip_sorting(skip_sorting_)
                     .with_fill_in_limit(fillInLimit)
                     .with_iterations(iterations)
@@ -92,7 +92,7 @@ public:
     virtual std::shared_ptr<gko::LinOp> create()
     {
         auto precond_factory =
-            gko::share(gko::preconditioner::Ilu<>::build().on(exec_));
+            gko::share(gko::preconditioner::Ic<>::build().on(exec_));
 
         auto wrapper = [this](auto f) {
             if (multi_level_schwarz_) {

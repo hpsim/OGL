@@ -55,7 +55,8 @@ public:
                     gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
                 auto local = gko::as<RepartDistMatrix>(mtx_)->get_local();
                 auto local_rows = local->get_size()[0];
-                return wrap_multi_level_schwarz(distmtx, exec_, f, d_,
+                return wrap_multi_level_schwarz(distmtx, exec_, f,
+                                                d_.subDict("multiLevelConfig"),
                                                 local_rows, verbose_);
             } else {
                 return wrap_schwarz(mtx_, exec_, std::move(f));
