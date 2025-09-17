@@ -158,7 +158,10 @@ public:
                         generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
                     .on(exec_));
-            return wrap_schwarz(mtx_, exec_, std::move(pre_factory));
+            return wrap_schwarz(
+                mtx_, exec_,
+                gko::share(pre_factory->generate(
+                    gko::as<RepartDistMatrix>(mtx_)->get_local())));
         }
 
         if (type_ == "Distributed") {

@@ -50,10 +50,11 @@ public:
 
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-            return gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
+            return factorization_factory->generate(
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(
+                    gkodistmatrix)
+                    ->get_local_matrix());
         }
         if (factorization_ == "ParILU") {
             label iterations = d_.lookupOrDefault("iterations", label(5));
@@ -65,10 +66,11 @@ public:
 
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-            return gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
+            return factorization_factory->generate(
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(
+                    gkodistmatrix)
+                    ->get_local_matrix());
         }
         if (factorization_ == "ParILUT") {
             label iterations = d_.lookupOrDefault("iterations", label(5));
@@ -79,21 +81,22 @@ public:
                     .with_fill_in_limit(fillInLimit)
                     .with_iterations(iterations)
                     .on(exec_);
-
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-            return gko::share(factorization_factory->generate(
-                gko::as<gko::experimental::distributed::Matrix<
-                    scalar, label, label>>(gkodistmatrix)
-                    ->get_local_matrix()));
+            return factorization_factory->generate(
+                gko::as<gko::experimental::distributed::Matrix<scalar, label,
+                                                               label>>(
+                    gkodistmatrix)
+                    ->get_local_matrix());
         }
     }
 
     virtual std::shared_ptr<gko::LinOp> create()
     {
-        auto precond_factory =
-            gko::share(gko::preconditioner::Ilu<>::build().on(exec_));
-
-        return dispatch_schwarz(mtx_, exec_, precond_factory, d_, verbose_);
+        auto precond_factory = gko::preconditioner::Ilu<>::build().on(exec_);
+        return dispatch_schwarz(
+            mtx_, exec_,
+            gko::share(precond_factory->generate(generate_factorization())), d_,
+            verbose_);
     }
 };

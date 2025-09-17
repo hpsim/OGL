@@ -43,19 +43,26 @@ public:
     virtual std::shared_ptr<gko::LinOp> create()
     {
         auto builder = [this](auto b) {
-            return gko::share(b.with_skip_sorting(skip_sorting_)
-                                  .with_max_block_size(
-                                      static_cast<gko::uint32>(max_block_size_))
-                                  .on(exec_));
+            return b.with_skip_sorting(skip_sorting_)
+                .with_max_block_size(static_cast<gko::uint32>(max_block_size_))
+                .on(exec_);
         };
 
         if (precision_ == "double") {
-            return dispatch_schwarz(mtx_, exec_, builder(dbj::build()), d_,
-                                    verbose_);
+            auto b = builder(dbj::build());
+            return dispatch_schwarz(
+                mtx_, exec_,
+                gko::share(
+                    b->generate(gko::as<RepartDistMatrix>(mtx_)->get_local())),
+                d_, verbose_);
         }
         if (precision_ == "float") {
-            return dispatch_schwarz(mtx_, exec_, builder(fbj::build()), d_,
-                                    verbose_);
+            auto b = builder(fbj::build());
+            return dispatch_schwarz(
+                mtx_, exec_,
+                gko::share(
+                    b->generate(gko::as<RepartDistMatrix>(mtx_)->get_local())),
+                d_, verbose_);
         }
 
         return {};

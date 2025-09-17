@@ -16,38 +16,38 @@ std::shared_ptr<gko::LinOp> wrap_schwarz(
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
-
-    auto local = gko::as<RepartDistMatrix>(gkomatrix)->get_local();
+    // auto local = gko::as<RepartDistMatrix>(gkomatrix)->get_local();
     return gko::share(
         ras::build()
-            .with_generated_local_solver(precond->generate(local))
+            .with_generated_local_solver(precond)
             .on(device_exec)
             ->generate(gko::as<RepartDistMatrix>(gkomatrix)->get_dist_mtx()));
 }
 
-template <typename PrecondFactory, typename Factorization>
-std::shared_ptr<gko::LinOp> wrap_schwarz(
-    std::shared_ptr<const gko::LinOp> gkomatrix,
-    std::shared_ptr<gko::Executor> device_exec,
-    std::shared_ptr<PrecondFactory> precond,
-    std::shared_ptr<Factorization> factorization)
-{
-    using ras =
-        gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
-                                                                label>;
-    return gko::share(
-        ras::build()
-            .with_generated_local_solver(precond->generate(factorization))
-            .on(device_exec)
-            ->generate(gkomatrix));
-}
+// template <typename PrecondFactory, typename Factorization>
+// std::shared_ptr<gko::LinOp> wrap_schwarz(
+//     std::shared_ptr<const gko::LinOp> gkomatrix,
+//     std::shared_ptr<gko::Executor> device_exec,
+//     std::shared_ptr<PrecondFactory> precond,
+//     std::shared_ptr<Factorization> factorization)
+// {
+//     using ras =
+//         gko::experimental::distributed::preconditioner::Schwarz<scalar,
+//         label,
+//                                                                 label>;
+//     return gko::share(
+//         ras::build()
+//             .with_generated_local_solver(precond->generate(factorization))
+//             .on(device_exec)
+//             ->generate(gkomatrix));
+// }
+//
 
-
-template <typename PrecondFactory>
+template <typename Precond>
 std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
     std::shared_ptr<const gko::LinOp> mtx,
     std::shared_ptr<gko::Executor> device_exec,
-    std::shared_ptr<PrecondFactory> precond, const dictionary &d, label verbose)
+    std::shared_ptr<Precond> precond, const dictionary &d, label verbose)
 {
     using pgm = gko::multigrid::Pgm<scalar, label>;
     using fc = gko::multigrid::FixedCoarsening<scalar, label>;
@@ -89,7 +89,7 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
                 device_exec));
 
         return gko::share(ras::build()
-                              .with_local_solver(precond)
+                              .with_generated_local_solver(precond)
                               .with_coarse_level(coarsening_fac)
                               .with_l1_smoother(false)
                               .with_coarse_solver(coarse_solver)
@@ -106,7 +106,7 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
         auto pgm_fac =
             gko::share(pgm::build().with_skip_sorting(true).on(device_exec));
         return gko::share(ras::build()
-                              .with_local_solver(precond)
+                              .with_generated_local_solver(precond)
                               .with_coarse_level(pgm_fac)
                               .with_l1_smoother(false)
                               .with_coarse_weight(coarseWeight)

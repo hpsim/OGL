@@ -42,33 +42,40 @@ public:
 
     auto generate_precond_factory_spd()
     {
-        return gko::share(
-            gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
-                                      scalar, label>::build()
-                .with_skip_sorting(skip_sorting_)
-                .with_sparsity_power(sparsityPower_)
-                .on(exec_));
+        return gko::preconditioner::Isai<gko::preconditioner::isai_type::spd,
+                                         scalar, label>::build()
+            .with_skip_sorting(skip_sorting_)
+            .with_sparsity_power(sparsityPower_)
+            .on(exec_);
     }
 
     auto generate_precond_factory_general()
     {
-        return gko::share(
-            gko::preconditioner::Isai<gko::preconditioner::isai_type::general,
-                                      scalar, label>::build()
-                .with_skip_sorting(skip_sorting_)
-                .with_sparsity_power(sparsityPower_)
-                .on(exec_));
+        return gko::preconditioner::Isai<
+                   gko::preconditioner::isai_type::general, scalar,
+                   label>::build()
+            .with_skip_sorting(skip_sorting_)
+            .with_sparsity_power(sparsityPower_)
+            .on(exec_);
     }
 
     virtual std::shared_ptr<gko::LinOp> create()
     {
         if (type_ == "SPD") {
-            return dispatch_schwarz(mtx_, exec_, generate_precond_factory_spd(),
-                                    d_, verbose_);
+            auto b = generate_precond_factory_spd();
+            return dispatch_schwarz(
+                mtx_, exec_,
+                gko::share(
+                    b->generate(gko::as<RepartDistMatrix>(mtx_)->get_local())),
+                d_, verbose_);
         }
         if (type_ == "General") {
+            auto b = generate_precond_factory_general();
             return dispatch_schwarz(
-                mtx_, exec_, generate_precond_factory_general(), d_, verbose_);
+                mtx_, exec_,
+                gko::share(
+                    b->generate(gko::as<RepartDistMatrix>(mtx_)->get_local())),
+                d_, verbose_);
         }
     }
 };
