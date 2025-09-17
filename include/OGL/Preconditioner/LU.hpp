@@ -94,16 +94,6 @@ public:
         auto precond_factory =
             gko::share(gko::preconditioner::Ilu<>::build().on(exec_));
 
-        auto wrapper = [this](auto f) {
-            if (multi_level_schwarz_) {
-                return wrap_multi_level_schwarz(
-                    mtx_, exec_, f, d_.subDict("multiLevelConfig"), verbose_);
-            } else {
-                return wrap_schwarz(mtx_, exec_, std::move(f),
-                                    generate_factorization());
-            }
-        };
-
-        return wrapper(precond_factory);
+        return dispatch_schwarz(mtx_, exec_, precond_factory, d_, verbose_);
     }
 };

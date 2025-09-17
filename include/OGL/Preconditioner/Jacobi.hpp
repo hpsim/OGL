@@ -50,12 +50,12 @@ public:
         };
 
         if (precision_ == "double") {
-            return dispatch_schwarz(mtx_, exec_, builder(dbj::build()),
-                                    d_, verbose);
+            return dispatch_schwarz(mtx_, exec_, builder(dbj::build()), d_,
+                                    verbose_);
         }
         if (precision_ == "float") {
-            return dispatch_schwarz(mtx_, exec_, builder(fbj::build()),
-                                    d_, verbose);
+            return dispatch_schwarz(mtx_, exec_, builder(fbj::build()), d_,
+                                    verbose_);
         }
 
         return {};

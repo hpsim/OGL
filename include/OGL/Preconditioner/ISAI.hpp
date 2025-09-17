@@ -62,20 +62,13 @@ public:
 
     virtual std::shared_ptr<gko::LinOp> create()
     {
-        auto wrapper = [this](auto f) {
-            if (multi_level_schwarz_) {
-                return wrap_multi_level_schwarz(
-                    mtx_, exec_, f, d_.subDict("multiLevelConfig"), verbose_);
-            } else {
-                return wrap_schwarz(mtx_, exec_, std::move(f));
-            }
-        };
-
         if (type_ == "SPD") {
-            return wrapper(generate_precond_factory_spd());
+            return dispatch_schwarz(mtx_, exec_, generate_precond_factory_spd(),
+                                    d_, verbose_);
         }
         if (type_ == "General") {
-            return wrapper(generate_precond_factory_general());
+            return dispatch_schwarz(
+                mtx_, exec_, generate_precond_factory_general(), d_, verbose_);
         }
     }
 };
