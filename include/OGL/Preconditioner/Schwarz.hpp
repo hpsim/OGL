@@ -45,10 +45,9 @@ std::shared_ptr<gko::LinOp> wrap_schwarz(
 
 template <typename PrecondFactory>
 std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
-    std::shared_ptr<const gko::LinOp> gkomatrix,
+    std::shared_ptr<const gko::LinOp> mtx,
     std::shared_ptr<gko::Executor> device_exec,
-    std::shared_ptr<PrecondFactory> precond, const dictionary &d,
-    label local_rows, label verbose)
+    std::shared_ptr<PrecondFactory> precond, const dictionary &d, label verbose)
 {
     using pgm = gko::multigrid::Pgm<scalar, label>;
     using fc = gko::multigrid::FixedCoarsening<scalar, label>;
@@ -57,6 +56,10 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
     using ras =
         gko::experimental::distributed::preconditioner::Schwarz<scalar, label,
                                                                 label>;
+
+    auto distmtx = gko::as<RepartDistMatrix>(mtx)->get_dist_matrix();
+    auto local_rows =
+        gko::as<RepartDistMatrix>(mtx)->get_local()->get_size()[0];
 
     auto coarse_solver = generate_coarse_solver(device_exec, d, verbose);
     auto coarsening = d.lookupOrDefault<word>("coarsening", word("PGM"));
@@ -80,20 +83,19 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
         for (auto i = 0; i < sel_rows.get_size(); i++) {
             sel_rows.get_data()[i] = selCoarseRows * i;
         }
-
         sel_rows.set_executor(device_exec);
-        auto pgm_fac = gko::share(
+        auto coarsening_fac = gko::share(
             fc::build().with_skip_sorting(true).with_coarse_rows(sel_rows).on(
                 device_exec));
 
         return gko::share(ras::build()
                               .with_local_solver(precond)
-                              .with_coarse_level(pgm_fac)
+                              .with_coarse_level(coarsening_fac)
                               .with_l1_smoother(false)
                               .with_coarse_solver(coarse_solver)
                               .with_coarse_weight(coarseWeight)
                               .on(device_exec)
-                              ->generate(gkomatrix));
+                              ->generate(distmtx));
     }
     if (coarsening == "PGM") {
         word msg =
@@ -110,7 +112,21 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
                               .with_coarse_weight(coarseWeight)
                               .with_coarse_solver(coarse_solver)
                               .on(device_exec)
-                              ->generate(gkomatrix));
+                              ->generate(distmtx));
+    }
+}
+
+
+template <typename PrecondFactory>
+std::shared_ptr<gko::LinOp> dispatch_schwarz(
+    std::shared_ptr<const gko::LinOp> mtx, std::shared_ptr<gko::Executor> exec,
+    std::shared_ptr<PrecondFactory> precond, const dictionary &d, label verbose)
+{
+    if (d.lookupOrDefault<Switch>("multiLevelSchwarz", false)) {
+        return wrap_multi_level_schwarz(mtx, exec, precond,
+                                        d.subDict("multiLevelConfig"), verbose);
+    } else {
+        return wrap_schwarz(mtx, exec, std::move(precond));
     }
 }
 

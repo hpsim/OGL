@@ -37,7 +37,6 @@ class Multigrid {
     label minRowsC_;
     word smoother_;
     word coarsening_;
-    word coarseSolver_;
     label maxIterS_;
 
 public:
@@ -58,7 +57,6 @@ public:
           minRowsC_(d.lookupOrDefault("minCoarseRows", label(64000))),
           smoother_(d.lookupOrDefault("smoother", word("Jacobi"))),
           coarsening_(d.lookupOrDefault("coarsening", word("GAMG"))),
-          coarseSolver_(d.lookupOrDefault("coarseSolver", word("Jacobi"))),
           maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1)))
     {
         word msg = "\nGenerate Multigrid preconditioner:\n\tmaxLevels:" +
@@ -68,7 +66,6 @@ public:
                    "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
                    "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
                    "\n\tcoarsening: " + coarsening_ +
-                   "\n\tcoarseSolver: " + coarseSolver_ +
                    "\n\tcycle: " + cycleName_ + "\n\ttype: " + type_;
         MLOG_0(verbose_, msg)
         // FatalErrorInFunction << "Unknown Multigrid type: " << type

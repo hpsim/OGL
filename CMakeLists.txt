@@ -194,14 +194,14 @@ target_sources(
           src/MatrixWrapper/SparsityPattern.cpp
           src/MatrixWrapper/Distributed.cpp
           src/MatrixWrapper/Combination.cpp
-	  src/Preconditioner/CoarseSolver.cpp
+          src/Preconditioner/CoarseSolver.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
           src/Solver/PipeCG.cpp
           src/Solver/BiCGStab.cpp
           src/Solver/GMRES.cpp
           src/Solver/Multigrid.cpp
-  # src/Solver/IR.cpp
+          rc/Solver/IR.cpp
 )
 
 enable_sanitizers(

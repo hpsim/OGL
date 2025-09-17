@@ -64,12 +64,8 @@ public:
     {
         auto wrapper = [this](auto f) {
             if (multi_level_schwarz_) {
-                // auto distmtx =
-                //     gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-                // auto local = gko::as<RepartDistMatrix>(mtx_)->get_local();
-                // auto local_rows = local->get_size()[0];
-                // return wrap_multi_level_schwarz(distmtx, exec_, f, d_,
-                //                                 local_rows, verbose_);
+                return wrap_multi_level_schwarz(
+                    mtx_, exec_, f, d_.subDict("multiLevelConfig"), verbose_);
             } else {
                 return wrap_schwarz(mtx_, exec_, std::move(f));
             }

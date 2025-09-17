@@ -49,25 +49,13 @@ public:
                                   .on(exec_));
         };
 
-        auto wrapper = [this](auto f) {
-            if (multi_level_schwarz_) {
-                auto distmtx =
-                    gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-                auto local = gko::as<RepartDistMatrix>(mtx_)->get_local();
-                auto local_rows = local->get_size()[0];
-                return wrap_multi_level_schwarz(distmtx, exec_, f,
-                                                d_.subDict("multiLevelConfig"),
-                                                local_rows, verbose_);
-            } else {
-                return wrap_schwarz(mtx_, exec_, std::move(f));
-            }
-        };
-
         if (precision_ == "double") {
-            return wrapper(builder(dbj::build()));
+            return dispatch_schwarz(mtx_, exec_, builder(dbj::build()),
+                                    d_, verbose);
         }
         if (precision_ == "float") {
-            return wrapper(builder(fbj::build()));
+            return dispatch_schwarz(mtx_, exec_, builder(fbj::build()),
+                                    d_, verbose);
         }
 
         return {};
