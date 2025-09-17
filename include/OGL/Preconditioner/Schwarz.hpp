@@ -74,7 +74,7 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
             "\nGenerate multi level schwarz:\n\tcoarsening: "
             "fixed\n\tselCoarseRows: " +
             std::to_string(selCoarseRows) +
-            "\n\tcoarseWeigth: " + std::to_string(coarseWeight);
+            "\n\tcoarseWeight: " + std::to_string(coarseWeight);
         MLOG_0(verbose, msg)
 
         auto n_rows = local_rows / selCoarseRows;
@@ -100,7 +100,7 @@ std::shared_ptr<gko::LinOp> wrap_multi_level_schwarz(
     if (coarsening == "PGM") {
         word msg =
             "\nGenerate multi level schwarz:\n\tfixedCoarsening: "
-            "PGM\n\tcoarseWeigth: " +
+            "PGM\n\tcoarseWeight: " +
             std::to_string(coarseWeight);
         MLOG_0(verbose, msg)
         auto pgm_fac =

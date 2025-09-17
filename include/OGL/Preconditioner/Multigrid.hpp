@@ -192,7 +192,6 @@ public:
                     .with_coarsest_solver(
                         generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
-                    .with_criteria(single_it)
                     .on(exec_)
                     ->generate(gkodistmatrix));
             return ret;
