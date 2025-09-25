@@ -11,11 +11,7 @@ Files: common/.common.H.swo
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
-Files: test/validation.json
-Copyright: 2024 OGL authors
-License: GPL-3.0-or-later
-
-Files: test/channel_validation.json
+Files: test/**
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
@@ -34,6 +30,11 @@ License: GPL-3.0-or-later
 Files: CITATION.cff
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
+
+Files: .pre-commit-config.yaml
+Copyright: 2024 OGL authors
+License: GPL-3.0-or-later
+
 # Sample paragraph, commented out:
 #
 # Files: src/*

@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2024 OGL authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+case:
+    type: OpenFOAMTutorialCase
+    application: icoFoam/cavity
+    domain: incompressible
+    case: cavity
+    # uses:
+    #   - initialConditions: 0.orig
+    post_build:
+      - controlDict:
+           writeFormat: binary
+           libs: [libOGL.so]
+           stopAt: nextWrite
+           writeInterval: 2
+      - blockMesh
+      - decomposePar:
+            method: simple
+            numberOfSubdomains: 4
+variation:
+  - operation: decomposePar
+    schema: "decompose/{method}-{numberOfSubdomains}"
+    values:
+      - method: simple
+        numberOfSubdomains: 4
+      - method: scotch
+        numberOfSubdomains: 4
+      - method: scotch
+        numberOfSubdomains: 3
+    variation:
+    - operation: fvSolution
+      schema: "fuse={fuse}"
+      common:
+        export: 1
+      values:
+        - set: solvers/p
+          fuse: 1
+          ranksPerGPU: 1
+      variation:
+      - operation: fvSolution
+        schema: "ranksPerGPU={ranksPerGPU}"
+        values:
+          - set: solvers/p
+            ranksPerGPU: 1
+        variation:
+        - operation: fvSolution
+          schema: "{preconditioner}{solver}{executor}"
+          values:
+          - set: solvers/p
+            preconditioner: none
+            executor: reference
+            solver: GKOCG
+            verbose: 1
+postProcess:
+  queries: ["method", "ranksPerGPU", "numberOfSubdomains", "fuse", "timeStepContErrors_sumLocal"]
+  matcher:
+    - regexp: '\[OGL LOG\]\[Proc: 0\]{field}: {name}: (?P<{name}>[0-9.]*) \[ms\]'
+      name: ogl_matcher
+      args: ["field", "name"]
+    - regexp: '\[INFO\] {name}: (?P<{name}>[0-9.]*) \[ms\]'
+      name: info_matcher
+      args: ["name"]
+  log:
+    - matcher: info_matcher
+      args: ["TimeStep"]
+      type: average
+    - matcher: transpEqn
+      args: ["p"]
+      type: average

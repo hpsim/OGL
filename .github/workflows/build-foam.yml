@@ -11,7 +11,7 @@ defaults:
 
 on:
   push:
-    branches: 
+    branches:
       - dev
       - main
   pull_request:
@@ -41,7 +41,7 @@ jobs:
      - name: Set matrix data
        id: set-matrix
        run: |
-         pwd 
+         pwd
          echo "matrix=$(jq -c . < .github/workflows/test_matrix.json)" >> $GITHUB_OUTPUT
 
   build:
@@ -58,23 +58,22 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 
     - name: Cache build folder
       uses: actions/cache@v4
+      if: ${{!contains(github.event.pull_request.labels.*.name, 'Skip-cache')}}
       with:
-        key: build-${{ matrix.OF.path }}-${{env.GINKGO_CHECKOUT_VERSION}}
-        path: |
-          ${{github.workspace}}/build
+         key: build_PR_${{ github.event.pull_request.number }}_${{matrix.OF.path}}
+         path: ${{github.workspace}}/build
 
     - name: Cache FOAM_USER_LIBBIN
       uses: actions/cache@v4
       with:
-        key: FOAM_USER_LIBBIN-${{ matrix.OF.version }}-${{ github.sha }}
-        path: |
-          ${{matrix.OF.foam_user_libbin}}
+         key: FOAM_USER_LIBBIN-${{ matrix.OF.version }}-${{ github.sha }}
+         path: ${{matrix.OF.foam_user_libbin}}
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -83,25 +82,19 @@ jobs:
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
         mkdir -p ${{matrix.OF.foam_user_libbin}}
-        mkdir -p build
-        cd build
-        [ -d "/github/home/$GINKGO_CHECKOUT_VERSION" ] && cp -rp /github/home/$GINKGO_CHECKOUT_VERSION third_party
-        cmake -GNinja -DOGL_ALLOW_REFERENCE_ONLY=On -DOGL_BUILD_UNITTEST=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=${{matrix.OF.foam_user_libbin}} ..
+        cmake --preset develop
 
     - name: Build OGL
-      working-directory: ${{github.workspace}}/build
+      working-directory: ${{github.workspace}}
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --build . --config $BUILD_TYPE
+        cmake  --build --preset develop
 
     - name: Install OGL
       working-directory: ${{github.workspace}}
       run: |
         source /root/OpenFOAM/${{matrix.OF.path}}/etc/bashrc
-        cmake --install ./build
-        ls $FOAM_USER_LIBBIN
-        ls ${{matrix.OF.foam_user_libbin}}
-
+        cmake --build --preset develop --target install
 
     - name: Check folders
       working-directory: ${{github.workspace}}

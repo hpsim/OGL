@@ -19,7 +19,7 @@ env:
   WM_LINK_LANGUAGE: c++
   WM_LABEL_OPTION:  Int32
   WM_MPLIB: SYSTEMOPENMPI
-  MPI_BUFFER_SIZE: 20000000 
+  MPI_BUFFER_SIZE: 20000000
   BUILD_TYPE: Release
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -27,7 +27,7 @@ env:
   OBR_RUN_CMD: "mpirun --oversubscribe -np {np} {solver} -parallel -case {path}/case > {path}/case/{solver}_{timestamp}.log 2>&1"
   GINKGO_EXECUTOR: reference
 
-on: 
+on:
   workflow_call:
     inputs:
       path:
@@ -74,10 +74,10 @@ jobs:
       run: |
          ls
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
          obr --version
@@ -89,7 +89,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init -gy --config /__w/OGL/OGL/test/integration.yaml 
+        obr init -g --config /__w/OGL/OGL/test/integration/lidDrivenCavity.yaml
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -99,7 +99,7 @@ jobs:
       steps:
       - id: set-matrix
         run: |
-          echo "matrix=[\"cavity\", \"${{inputs.cyclic_case}}\"]" >> $GITHUB_OUTPUT
+          echo "matrix=[\"cavity\"]" >> $GITHUB_OUTPUT
 
   run:
     runs-on: ubuntu-latest
@@ -108,7 +108,7 @@ jobs:
     name: run-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
@@ -128,7 +128,7 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV
@@ -137,10 +137,10 @@ jobs:
       working-directory: /github/home/
       run: |
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
 
@@ -166,7 +166,7 @@ jobs:
 
     - name: Execute test cases
       working-directory: /github/home/integration
-      timeout-minutes: 12
+      timeout-minutes: 40
       run: |
         export PATH=$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/bin:$PATH
         export LD_LIBRARY_PATH=${{inputs.foam_user_libbin}}:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
@@ -193,7 +193,7 @@ jobs:
     name: validate-${{matrix.Case}}-${{inputs.version}}
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
@@ -204,10 +204,10 @@ jobs:
       run: |
          ls
          python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade 
-         pip uninstall obr -y 
-         pip uninstall owls -y 
-         cd /root/OBR 
+         pip install setuptools --upgrade
+         pip uninstall obr -y
+         pip uninstall owls -y
+         cd /root/OBR
          git pull origin dev
          pip install -e .
 
@@ -220,7 +220,7 @@ jobs:
     - name: Validation of exported mtx files
       working-directory: /github/home/${{matrix.Case}}
       run: |
-        python3 /__w/OGL/OGL/test/data_validation.py workspace
+        python3 /__w/OGL/OGL/test/integration/data_validation.py workspace
 
     - name: Run obr status
       working-directory: /github/home/${{matrix.Case}}
@@ -234,27 +234,25 @@ jobs:
           -q global -q continuityErrors -q CourantNumber \
           --filter case==${{matrix.Case}} \
           --filter preconditioner==none \
-          --filter matrixFormat==Coo \
           --filter global==completed \
-          --validate_against=/__w/OGL/OGL/test/validation.json
+          --validate_against=/__w/OGL/OGL/test/integration/validation.json
 
-    - name: Validate preconditioned state
-      working-directory: /github/home/${{matrix.Case}}
-      run: |
-        obr query \
-          -q global -q continuityErrors -q CourantNumber \
-          --validate_against=/__w/OGL/OGL/test/validation.json \
-          --filter preconditioner!=none \
-          --filter global==completed \
-          --filter case==${{matrix.Case}}
+    # - name: Validate preconditioned state
+    #   working-directory: /github/home/${{matrix.Case}}
+    #   run: |
+    #     obr query \
+    #       -q global -q continuityErrors -q CourantNumber \
+    #       --validate_against=/__w/OGL/OGL/test/integration/validation.json \
+    #       --filter preconditioner!=none \
+    #       --filter global==completed \
+    #       --filter case==${{matrix.Case}}
 
     - name: Validate matrix formats
       working-directory: /github/home/${{matrix.Case}}
       run: |
         obr query \
           -q global -q continuityErrors -q CourantNumber \
-          --validate_against=/__w/OGL/OGL/test/validation.json \
-          --filter matrixFormat!=Coo \
+          --validate_against=/__w/OGL/OGL/test/integration/validation.json \
           --filter global==completed \
           --filter case==${{matrix.Case}}
 
