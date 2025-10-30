@@ -198,7 +198,7 @@ public:
         // }
 
         // NOTE instead of all_to_all_v based communication MPI_Iscatterv
-        // seems to be prefarable
+        // seems to be preferable
         // communicate_values(exec, ref_exec, comm, comm_pattern,
         //                    get_vector()->get_local_values(),
         //                    const_cast<T *>(memory_), host_buffer);
