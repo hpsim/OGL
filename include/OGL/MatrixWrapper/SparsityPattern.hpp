@@ -413,7 +413,7 @@ public:
 
     const std::vector<label> &get_id() const { return id_; }
 
-    std::vector<int> get_lengths()
+    std::vector<label> get_lengths()
     {
         std::vector<label> ret{};
         for (auto &row : rows_) {
