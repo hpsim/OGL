@@ -185,14 +185,18 @@ protected:
                       gko::dim<2> size,
                       std::vector<std::shared_ptr<gko::LinOp>> operators)
         : gko::EnableLinOp<CombinationMatrix>(exec),
-          comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
+          coeffs_([exec, operators]() {
+              auto ret = std::vector<std::shared_ptr<gko::LinOp>>();
+              for (int i = 0; i < operators.size(); i++) {
+                  ret.push_back(gko::share(
+                      gko::initialize<gko::matrix::Dense<scalar>>({1}, exec)));
+              }
+              return ret;
+          }()),
+          comb_(gko::share(gko::Combination<scalar>::create(
+              coeffs_.begin(), coeffs_.end(), operators.begin(),
+              operators.end())))
     {
-        if (size[1] > 0) {
-            for (auto &op : operators) {
-                this->comb_->add_operators(
-                    gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
-            }
-        }
         this->set_size(size);
     }
 
@@ -222,6 +226,7 @@ protected:
     }
 
 private:
+    std::vector<std::shared_ptr<gko::LinOp>> coeffs_;  //
     std::shared_ptr<gko::Combination<scalar>> comb_;
 };
 
