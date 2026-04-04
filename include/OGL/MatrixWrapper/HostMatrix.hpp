@@ -97,7 +97,7 @@ private:
 
     // multiply the complete system by this factor, ie sAx=sb
     // NOTE this needed to avoid negative diagonal matrix entries, but
-    // this could be also achieved by just fliping the sign
+    // this could be also achieved by just flipping the sign
     const scalar scaling_;
 
     // number of local matrix rows

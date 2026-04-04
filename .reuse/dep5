@@ -35,6 +35,10 @@ Files: .pre-commit-config.yaml
 Copyright: 2024 OGL authors
 License: GPL-3.0-or-later
 
+Files: .github/workflows/trigger-lrz-gitlab-ci.yaml
+Copyright: 2026 NeoN authors, 2026 ogl authors
+License: GPL-3.0-or-later
+
 # Sample paragraph, commented out:
 #
 # Files: src/*
