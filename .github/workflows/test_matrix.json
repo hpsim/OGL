@@ -1,12 +1,12 @@
 {
   "OF": [
     {
-      "version": "v2212",
+      "version": "v2512",
       "fork": "ESI",
       "path": "openfoam",
       "repo": "https://develop.openfoam.com/Development/openfoam.git",
       "cyclic_case": "periodicPlaneChannel",
-      "foam_user_libbin": "/github/home/OpenFOAM/user-v2312/platforms/linux64GccDPInt32Opt/lib/"
+      "foam_user_libbin": "/github/home/OpenFOAM/user-v2512/platforms/linux64GccDPInt32Opt/lib/"
     }
   ]
 }

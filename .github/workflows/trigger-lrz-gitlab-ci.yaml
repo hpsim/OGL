@@ -1,0 +1,130 @@
+name: LRZ GitLab CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    types: [opened, synchronize, reopened, unlabeled, labeled]
+  schedule:
+    - cron: '00 8 * * 0'  # Runs at 10 AM CEST (08:00 UTC) every Sunday
+  workflow_dispatch:      # Allows manual trigger
+
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.event_name }}-
+    ${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test-ogl:
+    name: Build and test ogl
+    runs-on: ubuntu-latest
+    timeout-minutes: 1440 # 24 hours
+
+    outputs:
+      branch: ${{ steps.branch.outputs.branch }}
+      skip-nvidia: ${{ steps.skip-labels.outputs.skip-nvidia }}
+      skip-amd: ${{ steps.skip-labels.outputs.skip-amd }}
+      skip-intel: ${{ steps.skip-labels.outputs.skip-intel }}
+
+    if: >
+      github.event_name != 'pull_request' ||
+      !contains(github.event.pull_request.labels.*.name, 'skip-build')
+
+    env:
+      LRZ_GROUP: greole
+      LRZ_HOST: gitlab-ce.lrz.de
+      REPO_NAME: ogl
+      OGL_REPO: ogl
+      OGL_PROJECT_TOKEN: ${{ secrets.OGL_PROJECT_TOKEN }}
+      OGL_TRIGGER_TOKEN: ${{ secrets.OGL_TRIGGER_TOKEN }}
+      MAX_WAIT_MINUTES: 1440
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine branch
+        id: branch
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request"* ]]; then
+            BRANCH="$GITHUB_HEAD_REF"
+          else
+            BRANCH=${GITHUB_REF_NAME#refs/heads/}
+          fi
+          echo "Determined ogl branch: $BRANCH"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Determine skip labels
+        id: skip-labels
+        run: |
+          # default values
+          echo "skip-nvidia=false" >> $GITHUB_OUTPUT
+          echo "skip-amd=false" >> $GITHUB_OUTPUT
+          echo "skip-intel=false" >> $GITHUB_OUTPUT
+
+          # Only check labels if this is a PR
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            labels=$(jq -r '.pull_request.labels[].name // empty' "$GITHUB_EVENT_PATH")
+            for label in $labels; do
+              case "$label" in
+                skip-nvidia) echo "skip-nvidia=true" >> $GITHUB_OUTPUT ;;
+                skip-amd)    echo "skip-amd=true" >> $GITHUB_OUTPUT ;;
+                skip-intel)  echo "skip-intel=true" >> $GITHUB_OUTPUT ;;
+              esac
+            done
+          fi
+
+      - name: Debug skip outputs
+        run: |
+          echo "skip-nvidia=${{ steps.skip-labels.outputs.skip-nvidia }}"
+          echo "skip-amd=${{ steps.skip-labels.outputs.skip-amd }}"
+          echo "skip-intel=${{ steps.skip-labels.outputs.skip-intel }}"
+
+      - name: Push commit to ogl LRZ GitLab
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add lrz https://oauth2:${OGL_PROJECT_TOKEN}@${{ env.LRZ_HOST }}/${{ env.LRZ_GROUP }}/${{ env.REPO_NAME }}.git
+          git fetch origin ${{ steps.branch.outputs.branch }}
+          git checkout -B ${{ steps.branch.outputs.branch }} origin/${{ steps.branch.outputs.branch }}
+          git reset --hard origin/${{ steps.branch.outputs.branch }}
+          git push --force lrz HEAD:refs/heads/${{ steps.branch.outputs.branch }}
+
+      - name: Cancel running/pending ogl LRZ CI pipelines
+        if: ${{ github.event_name != 'push' }}
+        run: |
+          ./ci/github/cancel_triggered_pipelines.sh \
+            "${{ env.REPO_NAME }}" \
+            "${{ steps.branch.outputs.branch }}" \
+            "${OGL_PROJECT_TOKEN}"
+
+      - name: Trigger ogl LRZ GitLab CI pipeline
+        id: trigger-ogl
+        run: |
+          ./ci/github/trigger_pipeline.sh \
+            "${{ env.REPO_NAME }}" \
+            "${{ steps.branch.outputs.branch }}" \
+            "${OGL_PROJECT_TOKEN}" \
+            "${OGL_TRIGGER_TOKEN}" \
+            "variables[BENCHMARK]=false" \
+            "variables[SKIP_NVIDIA]=${{ steps.skip-labels.outputs.skip-nvidia }}" \
+            "variables[SKIP_AMD]=${{ steps.skip-labels.outputs.skip-amd }}" \
+            "variables[SKIP_INTEL]=${{ steps.skip-labels.outputs.skip-intel }}"
+
+      - name: Wait for ogl LRZ GitLab CI pipeline
+        run: |
+          ./ci/github/wait_pipeline.sh \
+            "${{ env.REPO_NAME }}" \
+            "${{ steps.trigger-ogl.outputs.pipeline_id }}" \
+            "${OGL_PROJECT_TOKEN}"
+
+      - name: Cancel running/pending NeoFOAM LRZ CI pipelines
+        run: |
+          ./ci/github/cancel_triggered_pipelines.sh \
+            "${{ env.OGL_REPO }}" \
+            "${{ steps.branch.outputs.branch }}" \
+            "${OGL_PROJECT_TOKEN}"
