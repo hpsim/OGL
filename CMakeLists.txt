@@ -27,7 +27,6 @@ option(OGL_DATA_VALIDATION "Check if resulting matrix data is valid" FALSE)
 option(OGL_USE_FOAM_FOUNDATION_VERSION "Build OGL for the OpenFOAM Foundation version" FALSE)
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
-option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
 option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
@@ -36,9 +35,9 @@ option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
 option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
+option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
-
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
 option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
@@ -75,7 +74,7 @@ to turn off this check")
 endif()
 
 set(GINKGO_CHECKOUT_VERSION
-   "ogl_0600_gko190"
+    "ogl_0600_gko190"
     CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
@@ -218,11 +217,11 @@ target_sources(
           src/MatrixWrapper/Combination.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
-	  src/Solver/PipeCG.cpp
-	  src/Solver/BiCGStab.cpp
-	  src/Solver/GMRES.cpp
-	  src/Solver/Multigrid.cpp
-	  # src/Solver/IR.cpp
+          src/Solver/PipeCG.cpp
+          src/Solver/BiCGStab.cpp
+          src/Solver/GMRES.cpp
+          src/Solver/Multigrid.cpp
+  # src/Solver/IR.cpp
 )
 
 enable_sanitizers(
