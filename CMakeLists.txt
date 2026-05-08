@@ -28,6 +28,8 @@ option(OGL_USE_FOAM_FOUNDATION_VERSION "Build OGL for the OpenFOAM Foundation ve
 option(OGL_BUILD_UNITTEST "Build OGL unittests" FALSE)
 option(OGL_CUDA_ARCHITECTURES "Which cuda architecture to build for" "native")
 option(OGL_ALLOW_REFERENCE_ONLY "Enable builds of Ginkgo with reference backend only" FALSE)
+option(OGL_BUILD_SYCL "Build Ginkgo with SYCL backend" FALSE)
+option(OGL_BUILD_OMP "Build Ginkgo with OMP backend" FALSE)
 option(OGL_ENABLE_SANITIZE_ADDRESS "Enable address sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_LEAK "Enable leak sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_UB "Enable undefined behaviour sanitizer" FALSE)
@@ -38,8 +40,6 @@ option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether Ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
-option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
-option(GINKGO_BUILD_OMP "Build Ginkgo with omp backend" FALSE)
 
 include(cmake/AutoEnableDevice.cmake)
 

@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -75,7 +75,7 @@ jobs:
         export LD_LIBRARY_PATH=$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/sys-openmpi/:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/openmpi-system:$WM_PROJECT_DIR/platforms/linux64GccDPInt32Opt/lib/dummy/:$LD_LIBRARY_PATH
         mkdir -p integration && cd integration
         export CYCLIC_CASE=${{inputs.cyclic_case}}
-        obr init -gy --config /__w/OGL/OGL/test/integration/lidDrivenCavity.yaml
+        obr init -g --config /__w/OGL/OGL/test/integration/lidDrivenCavity.yaml
         cat workspace/*/case/*log
 
   setup_integration_matrix:
@@ -98,7 +98,7 @@ jobs:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -118,17 +118,6 @@ jobs:
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV
-
-    - name: Update OBR
-      working-directory: /github/home/
-      run: |
-         python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade
-         pip uninstall obr -y
-         pip uninstall owls -y
-         cd /root/OBR
-         git pull origin dev
-         pip install -e .
 
     - name: Cache build
       uses: actions/cache@v4
@@ -183,7 +172,7 @@ jobs:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Archive workspace
       uses: actions/cache@v4
