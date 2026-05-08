@@ -36,10 +36,6 @@
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "OGL_ALLOW_REFERENCE_ONLY": {
-          "type": "BOOL",
-          "value": "ON"
-        },
         "OGL_BUILD_UNITTEST": {
           "type": "BOOL",
           "value": "ON"

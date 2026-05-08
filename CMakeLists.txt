@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 OGL authors
+# SPDX-FileCopyrightText: 2024-2026 OGL authors
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -35,7 +35,6 @@ option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
 option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
-option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
@@ -56,26 +55,6 @@ set(GINKGO_BUILD_EXAMPLES
 set(GINKGO_BUILD_BENCHMARKS
     OFF
     CACHE INTERNAL "")
-
-if((NOT OGL_ALLOW_REFERENCE_ONLY) AND (NOT OGL_USE_EXTERNAL_GINKGO))
-  if((NOT GINKGO_BUILD_CUDA)
-     AND (NOT GINKGO_BUILD_HIP)
-     AND (NOT GINKGO_BUILD_SYCL))
-    message(
-      FATAL_ERROR
-        "No GPU Backend was selected, set either:\n\
--DGINKGO_BUILD_CUDA=True\n\
--DGINKGO_BUILD_HIP=True\n\
--DGINKGO_BUILD_SYCL=True\n\
-or set:\n\
--DOGL_ALLOW_REFERENCE_ONLY=True\n\
-to turn off this check")
-  endif()
-endif()
-
-set(GINKGO_CHECKOUT_VERSION
-    "ogl_0600_gko190"
-    CACHE STRING "Use specific version of ginkgo")
 
 if(OGL_DEVEL_TOOLS)
   find_program(PRE_COMMIT pre-commit)
@@ -125,9 +104,9 @@ include(cmake/build_helpers.cmake)
 include(cmake/install_helpers.cmake)
 include(cmake/Sanitizer.cmake)
 include(cmake/OpenFOAM.cmake)
+include(cmake/CxxThirdParty.cmake)
 
 ginkgo_find_package(Ginkgo "Ginkgo::ginkgo" FALSE 1.8.0)
-include(cmake/ginkgo.cmake)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -O0 -ggdb")
 
@@ -274,3 +253,5 @@ install(
           ginkgo_dpcpp
           ginkgo_reference
   DESTINATION $ENV{FOAM_USER_LIBBIN})
+
+include(cmake/banner.cmake)
