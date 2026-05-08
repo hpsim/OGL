@@ -40,7 +40,12 @@ For cuda builds cuda version 12 is recommended. For older cuda versions automati
 
     mkdir build && cd build && ccmake ..
 
-By default *OGL* will fetch and build ginkgo, to specify which backend should be build you can use the following cmake flags `-DGINKGO_BUILD_CUDA`, `-DGINKGO_BUILD_OMP`, or ` -DGINKGO_BUILD_HIP`. For example to build *OGL* with *CUDA* and *OMP* support use
+By default *OGL* will fetch and build Ginkgo, using the version specified by `OGL_GINKGO_CHECKOUT_VERSION` in cmake/CxxThirdParty.cmake.
+If you want to use a specific source version of Ginkgo you can specify `-DOGL_GINKGO_DIR=<path_to_ginkgo>`.
+OGL tries to be compatible with the current Ginkgo development version, some features currently not merged into Ginkgo might be enabled by `-DGINKGO_WITH_OGL_EXTENSIONS=ON`.
+ OGL tries to detect GPU backends automatically by searching for a CUDA or HIP compiler. 
+ To override or crosscompile use `-DOGL_BUILD_CUDA`, `-DOGL_BUILD_OMP`, or ` -DOGL_BUILD_HIP`.
+For example to build *OGL* with *CUDA* and *OMP* support use
 
     cmake -DGINKGO_BUILD_CUDA=ON -DGINKGO_BUILD_OMP=ON ..
 

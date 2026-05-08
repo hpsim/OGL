@@ -35,7 +35,7 @@ option(OGL_ENABLE_SANITIZE_THREAD "Enable thread sanitizer" FALSE)
 option(OGL_ENABLE_SANITIZE_MEMORY "Enable memory sanitizer" FALSE)
 option(OGL_DEVEL_TOOLS "Add development tools to the build system" FALSE)
 
-option(GINKGO_WITH_OGL_EXTENSIONS "Whether ginkgo was build with OGL extension" FALSE)
+option(GINKGO_WITH_OGL_EXTENSIONS "Whether Ginkgo was build with OGL extension" FALSE)
 option(GINKGO_BUILD_REFERENCE "Build Ginkgo with reference backend" TRUE)
 option(GINKGO_FORCE_GPU_AWARE_MPI "Build Ginkgo using device aware MPI" TRUE)
 option(GINKGO_BUILD_SYCL "Build Ginkgo with sycl backend" FALSE)
