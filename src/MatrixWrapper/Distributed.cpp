@@ -396,12 +396,12 @@ void update_impl(
     // perform all-to-all updates first
     auto all_to_all_update = [repart_comm, ref_exec, device_exec,
                               all_to_all_update_data, host_A, force_host_buffer,
-                              exec_handler, rank]() {
+                              exec_handler]() {
         // NOTE if symmetric (get it from host_A) we can skip id=0 and wait till
         // id=1 has been copied to use device copy
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
-            auto repartAllToAll =
-                compute_repart_allToall(exec_handler, comm_pattern, rank);
+            auto repartAllToAll = compute_repart_allToall(
+                exec_handler, comm_pattern, exec_handler.get_owner_rank());
 
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
             if (id == 0 && host_A->get_symmetric()) {
