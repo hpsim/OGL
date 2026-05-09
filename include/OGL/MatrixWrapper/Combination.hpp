@@ -185,15 +185,29 @@ protected:
                       gko::dim<2> size,
                       std::vector<std::shared_ptr<gko::LinOp>> operators)
         : gko::EnableLinOp<CombinationMatrix>(exec),
-          comb_(gko::share(gko::Combination<scalar>::create(exec, size)))
+          comb_(build_combination(exec, size, operators))
     {
-        if (size[1] > 0) {
-            for (auto &op : operators) {
-                this->comb_->add_operators(
-                    gko::initialize<gko::matrix::Dense<scalar>>({1}, exec), op);
-            }
-        }
         this->set_size(size);
+    }
+
+    static std::shared_ptr<gko::Combination<scalar>> build_combination(
+        std::shared_ptr<const gko::Executor> exec, gko::dim<2> size,
+        const std::vector<std::shared_ptr<gko::LinOp>> &operators)
+    {
+        if (size[1] == 0 || operators.empty()) {
+            return gko::share(gko::Combination<scalar>::create(exec));
+        }
+        std::vector<std::shared_ptr<const gko::LinOp>> coeffs;
+        std::vector<std::shared_ptr<const gko::LinOp>> ops;
+        coeffs.reserve(operators.size());
+        ops.reserve(operators.size());
+        for (const auto &op : operators) {
+            coeffs.push_back(
+                gko::initialize<gko::matrix::Dense<scalar>>({1}, exec));
+            ops.push_back(op);
+        }
+        return gko::share(gko::Combination<scalar>::create(
+            coeffs.begin(), coeffs.end(), ops.begin(), ops.end()));
     }
 
     /* Forwarding call of apply which checks if the matrix contains any
@@ -222,6 +236,7 @@ protected:
     }
 
 private:
+    std::vector<std::shared_ptr<gko::LinOp>> coeffs_;  //
     std::shared_ptr<gko::Combination<scalar>> comb_;
 };
 

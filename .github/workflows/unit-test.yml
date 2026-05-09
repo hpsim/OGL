@@ -35,12 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(OGL_GINKGO_CHECKOUT_VERSION" cmake/CxxThirdParty.cmake|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
 

@@ -594,6 +594,7 @@ public:
                            DevicePersistentBase<gko::LinOp>>(precond_store_name)
                         .get_ptr();
 
+#ifdef GINKGO_WITH_OGL_EXTENSION
                 if (name == "Multigrid") {
                     word msg = "Update Multigrid preconditioner";
                     MLOG_1(verbose_, msg)
@@ -621,6 +622,7 @@ public:
                             ->update_matrix_value(gkodistmatrix);
                     }
                 }
+#endif
                 return ret;
             } else {
                 auto prev_precond = db_.template lookupObjectRef<

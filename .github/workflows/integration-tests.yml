@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     container: greole/ofbase
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -67,20 +67,6 @@ jobs:
       with:
         key: ws-${{inputs.version}}-${{ github.sha }}
         path: /home/runner/work/_temp/_github_home/integration
-
-
-    - name: Update OBR
-      working-directory: /github/home/
-      run: |
-         ls
-         python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade
-         pip uninstall obr -y
-         pip uninstall owls -y
-         cd /root/OBR
-         git pull origin dev
-         pip install -e .
-         obr --version
 
     - name: Generate test cases
       working-directory: /github/home/
@@ -112,7 +98,7 @@ jobs:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Source OF enviroment
       run: |
         mkdir -p $FOAM_INST_DIR
@@ -128,21 +114,10 @@ jobs:
     - name: Get Ginkgo checkout version
       shell: bash
       run: |
-        grep -A1 "set(GINKGO_CHECKOUT_VERSION" CMakeLists.txt|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
+        grep -A1 "set(OGL_GINKGO_CHECKOUT_VERSION" cmake/CxxThirdParty.cmake|tail -n1|grep -o  "[0-9a-z\-_.]*" > GINKGO_CHECKOUT_VERSION
         export GINKGO_CHECKOUT_VERSION=$(cat GINKGO_CHECKOUT_VERSION)
         echo "GINKGO_CHECKOUT_VERSION=$GINKGO_CHECKOUT_VERSION" >> $GITHUB_ENV
         echo "Ginkgo_DIR=${{inputs.foam_user_libbin}}/cmake/Ginkgo" >> $GITHUB_ENV
-
-    - name: Update OBR
-      working-directory: /github/home/
-      run: |
-         python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade
-         pip uninstall obr -y
-         pip uninstall owls -y
-         cd /root/OBR
-         git pull origin dev
-         pip install -e .
 
     - name: Cache build
       uses: actions/cache@v4
@@ -197,19 +172,7 @@ jobs:
         Case: ${{fromJson(needs.setup_integration_matrix.outputs.matrix)}}
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Update OBR
-      working-directory: /github/home/
-      run: |
-         ls
-         python3 -m pip install --upgrade pip
-         pip install setuptools --upgrade
-         pip uninstall obr -y
-         pip uninstall owls -y
-         cd /root/OBR
-         git pull origin dev
-         pip install -e .
+    - uses: actions/checkout@v6
 
     - name: Archive workspace
       uses: actions/cache@v4
