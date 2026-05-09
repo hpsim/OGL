@@ -201,8 +201,7 @@ target_sources(
           src/Solver/BiCGStab.cpp
           src/Solver/GMRES.cpp
           src/Solver/Multigrid.cpp
-          rc/Solver/IR.cpp
-)
+          src/Solver/IR.cpp)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK} ${OGL_ENABLE_SANITIZE_UB}
