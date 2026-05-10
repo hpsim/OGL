@@ -155,7 +155,7 @@ public:
                             // .with_local_weight_mtx(coarseningWeight)
                             .on(exec_))
                     .with_coarsest_solver(
-                        generate_coarse_solver(exec_, d_, verbose_))
+                        generate_coarse_solver(exec_, d_, verbose_, false))
                     .with_criteria(single_it)
                     .on(exec_));
             return wrap_schwarz(

@@ -6,7 +6,8 @@
 #include "OGL/common.hpp"
 
 std::shared_ptr<const gko::LinOpFactory> generate_coarse_solver(
-    std::shared_ptr<gko::Executor> exec, const dictionary &d, label verbose)
+    std::shared_ptr<gko::Executor> exec, const dictionary &d, label verbose,
+    bool distributed)
 {
     using dbj = gko::preconditioner::Jacobi<double, label>;
     using cg = gko::solver::Cg<scalar>;
@@ -37,8 +38,18 @@ std::shared_ptr<const gko::LinOpFactory> generate_coarse_solver(
             solveNorm);
 
     std::shared_ptr<const gko::LinOpFactory> coarsest_solver = {};
-    auto bjfac = ras::build().with_local_solver(
-        dbj::build().with_skip_sorting(true).with_max_block_size(1u).on(exec));
+    std::shared_ptr<const gko::LinOpFactory> bjfac =
+        distributed
+            ? gko::share(ras::build()
+                             .with_local_solver(dbj::build()
+                                                    .with_skip_sorting(true)
+                                                    .with_max_block_size(1u)
+                                                    .on(exec))
+                             .on(exec))
+            : gko::share(dbj::build()
+                             .with_skip_sorting(true)
+                             .with_max_block_size(1u)
+                             .on(exec));
 
     if (solver == "CG") {
         coarsest_solver = gko::share(cg::build()
