@@ -19,6 +19,18 @@ struct AllToAllPattern {
     std::vector<int> recv_offsets;
 };
 
+/* @brief computes AllToAllPattern for repartioned communincator from global
+ * allToAll pattern by discarding all zero communication before and after the
+ * repartioner scope.
+ *
+ * @param exec_handler The executor handler
+ * @param allToAll The original allToAll pattern
+ * @param start_rank the original comm_world rank
+ */
+AllToAllPattern compute_repart_allToall(const ExecutorHandler &exec_handler,
+                                        const AllToAllPattern allToAll,
+                                        label start_rank);
+
 /* @brief  This function computes the send and recv counts vectors and the send
  * and recv offsets vectors for scattering from an owner to all ranks, including
  * owner itself

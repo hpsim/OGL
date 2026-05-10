@@ -121,13 +121,15 @@ void generate_alltoall_update_data(
     std::vector<RepartDistMatrix::all_to_all_data> &update_data)
 {
     label linop_offset_store{0};
-    for (size_t i = 0; i < 3; i++) {
+    // NOTE in case of symmetric matrix 0 (upper) is same as 1 (lower)
+    // thus we can start at 1
+    label start = 0;
+    for (size_t i = start; i < 3; i++) {
         label interface_size = in->get_rows()[i].size();
         label linop_idx = (fuse) ? 0 : in->get_id()[i];
         label linop_offset = (fuse) ? linop_offset_store : 0;
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_handler, ranks_per_owner, interface_size);
-
         size_t recv_size = comm_pattern.recv_offsets.back();
 
         // NOTE Probably dont need to store linops[linop-idx] because we can
@@ -384,7 +386,7 @@ void update_impl(
     std::map<label, scalar *> linops, label verbose)
 {
     auto comm = exec_handler.get_host_comm();
-    // auto repart_comm = exec_handler.get_repart_comm();
+    auto repart_comm = exec_handler.get_repart_comm();
     auto ref_exec = exec_handler.get_ref_exec();
     auto rank = exec_handler.get_host_rank();
     auto device_exec = exec_handler.get_device_exec();
@@ -392,13 +394,63 @@ void update_impl(
     word fieldname = host_A->get_field_name();
 
     // perform all-to-all updates first
-    auto all_to_all_update = [comm, ref_exec, device_exec,
-                              all_to_all_update_data, host_A,
-                              force_host_buffer]() {
+    auto all_to_all_update = [repart_comm, ref_exec, device_exec,
+                              all_to_all_update_data, host_A, force_host_buffer,
+                              exec_handler, rank]() {
+        // NOTE if symmetric (get it from host_A) we can skip id=0 and wait till
+        // id=1 has been copied to use device copy
+        //
         for (auto [id, comm_pattern, data_ptr] : all_to_all_update_data) {
+            // auto start = std::chrono::steady_clock::now();
+            auto repartAllToAll =
+                compute_repart_allToall(exec_handler, comm_pattern, rank);
+            // auto end = std::chrono::steady_clock::now();
+            // auto delta_t =
+            // std::chrono::duration_cast<std::chrono::microseconds>(end -
+            // start).count()/1000.0; std::cout << __FILE__ << ":" << "delta t "
+            // << delta_t << " [ms]\n";
+
             auto [length, send_data_ptr] = host_A->get_interface_data(id);
-            communicate_values(ref_exec, device_exec, comm, comm_pattern,
-                               send_data_ptr, data_ptr, force_host_buffer);
+            // communicate_values(ref_exec, device_exec, repart_comm,
+            // repartAllToAll,
+            //                    send_data_ptr, data_ptr, force_host_buffer);
+            // std::cout << __FILE__ <<
+            //     " Pstream::rank " << Pstream::myProcNo() <<
+            //     " repart_rank() "  << repart_comm->rank() <<
+            //     " send_offsets.back() "  <<
+            //     " id " << id <<
+            //     repartAllToAll.send_offsets.back() << " recv_counts: "  <<
+            //     repartAllToAll.recv_counts << " recv_offsets: "  <<
+            //     repartAllToAll.recv_offsets <<
+            // std::endl;
+
+            if (id == 0 && host_A->get_symmetric()) {
+            } else {
+                MPI_Request request;
+                MPI_Igatherv(send_data_ptr, repartAllToAll.send_offsets.back(),
+                             MPI_DOUBLE, data_ptr,
+                             repartAllToAll.recv_counts.data(),
+                             repartAllToAll.recv_offsets.data(), MPI_DOUBLE, 0,
+                             repart_comm->get(), &request);
+                MPI_Wait(&request, MPI_STATUS_IGNORE);
+            }
+
+            // Perform symmetric inter device copy
+            if (id == 1 && repart_comm->rank() == 0 &&
+                host_A->get_symmetric()) {
+                auto [zid, zcomm_pattern, zdata_ptr] =
+                    all_to_all_update_data[0];
+                // copy recv size data from data_ptr to zdata_ptr
+                //
+                label recv_buffer_size = repartAllToAll.recv_offsets.back();
+                auto l_view = gko::array<scalar>::view(
+                    device_exec, recv_buffer_size, data_ptr);
+
+                auto u_view = gko::array<scalar>::view(
+                    device_exec, recv_buffer_size, zdata_ptr);
+
+                u_view = l_view;
+            }
         }
     };
 
@@ -499,7 +551,6 @@ std::shared_ptr<RepartDistMatrix> create_impl(
     label rank = exec_handler.get_host_rank();
     auto exec = exec_handler.get_ref_exec();
     auto host_comm = *exec_handler.get_host_comm().get();
-    exec_handler.init_device_comm();
     auto device_comm = *exec_handler.get_device_comm().get();
     bool owner = repartitioner->is_owner(exec_handler);
 
