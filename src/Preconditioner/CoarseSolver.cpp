@@ -38,18 +38,19 @@ std::shared_ptr<const gko::LinOpFactory> generate_coarse_solver(
             solveNorm);
 
     std::shared_ptr<const gko::LinOpFactory> coarsest_solver = {};
-    std::shared_ptr<const gko::LinOpFactory> bjfac =
-        distributed
-            ? gko::share(ras::build()
-                             .with_local_solver(dbj::build()
-                                                    .with_skip_sorting(true)
-                                                    .with_max_block_size(1u)
-                                                    .on(exec))
-                             .on(exec))
-            : gko::share(dbj::build()
-                             .with_skip_sorting(true)
-                             .with_max_block_size(1u)
-                             .on(exec));
+    std::shared_ptr<const gko::LinOpFactory> bjfac;
+    if (distributed) {
+        bjfac = gko::share(ras::build()
+                               .with_local_solver(dbj::build()
+                                                      .with_skip_sorting(true)
+                                                      .with_max_block_size(1u)
+                                                      .on(exec))
+                               .on(exec));
+    } else {
+        bjfac = gko::share(
+            dbj::build().with_skip_sorting(true).with_max_block_size(1u).on(
+                exec));
+    }
 
     if (solver == "CG") {
         coarsest_solver = gko::share(cg::build()
