@@ -56,7 +56,7 @@ public:
           maxLevels_(d.lookupOrDefault("maxLevels", label(20))),
           minRowsC_(d.lookupOrDefault("minCoarseRows", label(64000))),
           smoother_(d.lookupOrDefault("smoother", word("Jacobi"))),
-          coarsening_(d.lookupOrDefault("coarsening", word("GAMG"))),
+          coarsening_(d.lookupOrDefault("coarsening", word("PGM"))),
           maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1)))
     {
         word msg = "\nGenerate Multigrid preconditioner:\n\tmaxLevels:" +

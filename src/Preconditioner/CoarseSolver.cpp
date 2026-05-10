@@ -22,7 +22,7 @@ std::shared_ptr<const gko::LinOpFactory> generate_coarse_solver(
     auto solverDict =
         (hasSubDict) ? d.subDict("coarseSolverConfig") : dictionary{};
 
-    word solver = solverDict.lookupOrDefault("solver", word("CG"));
+    word solver = solverDict.lookupOrDefault("solver", word("Jacobi"));
     scalar solveNorm = solverDict.lookupOrDefault("relTol", scalar(1e-6));
     label maxIter = solverDict.lookupOrDefault("maxIter", label(1));
 
