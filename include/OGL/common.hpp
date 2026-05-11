@@ -9,7 +9,11 @@
 #include "regIOobject.H"
 
 #ifdef GINKGO_BUILD_CUDA
+#if __has_include("nvtx3/nvToolsExt.h")
+#include "nvtx3/nvToolsExt.h"
+#else
 #include "nvToolsExt.h"
+#endif
 #endif
 
 #include <string.h>
