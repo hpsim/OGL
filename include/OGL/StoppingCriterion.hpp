@@ -147,8 +147,6 @@ class StoppingCriterion {
 
     const label frequency_;
 
-    const word frequencyMode_;
-
     const scalar relaxationFactor_;
 
     const bool adapt_minIter_;
@@ -174,8 +172,6 @@ public:
           norm_eval_limit_(
               controlDict.lookupOrDefault("normEvalLimit", label(100))),
           frequency_(controlDict.lookupOrDefault("evalFrequency", label(1))),
-          frequencyMode_(controlDict.lookupOrDefault(
-              "evalFrequencyMode", word("relative"))),  // optimizer, fixed
           relaxationFactor_(
               controlDict.lookupOrDefault("relaxationFactor", scalar(0.6))),
           adapt_minIter_(
@@ -201,30 +197,21 @@ public:
                                   bool export_res, label prev_solve_iters,
                                   scalar prev_rel_cost) const
     {
-        word frequencyMode = "optimizer";
         label minIter = minIter_;
         label frequency = frequency_;
-        // in case of export_res all residuals need to be computed
         if (!export_res) {
             if (prev_solve_iters > 0 && adapt_minIter_ && prev_rel_cost > 0) {
                 minIter = prev_solve_iters * relaxationFactor_;
-                if (frequencyMode == "optimizer") {
-                    auto alpha = sqrt(
-                        1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *
-                        prev_rel_cost);
-                    frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
-                }
-                if (frequencyMode == "relative") {
-                    frequency = label(prev_solve_iters * 0.075) + 1;
-                }
+                auto alpha =
+                    sqrt(1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *
+                         prev_rel_cost);
+                frequency = min(norm_eval_limit_, max(1, label(1 / alpha)));
             }
         }
 
         word msg = "Creating stopping criterion with minIter " +
                    std::to_string(minIter) + " frequency " +
-                   std::to_string(frequency) + " prev_solve_iters " +
-                   std::to_string(prev_solve_iters) + " adapt_minIter_  " +
-                   std::to_string(adapt_minIter_) + " prev_rel_cost  ";
+                   std::to_string(frequency);
 
         MLOG_0(verbose, msg)
 

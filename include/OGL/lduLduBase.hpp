@@ -216,7 +216,6 @@ public:
                                            solverPerformance &solverPerf) const
     {
         bool fused = solver_controls_.lookupOrDefault<Switch>("fuse", true);
-        exec_handler_.init_device_comm();
 
         auto repartitioner = std::make_shared<Repartitioner>(
             host_matrix_wrapper_->get_local_nrows(), ranks_per_gpu_, verbose_,
@@ -308,6 +307,7 @@ public:
 
         TIME_WITH_FIELDNAME(verbose_, copy_x_back, this->fieldName(),
                             dist_x.copy_back();)
+
         auto bandwidth_copy_back =
             sizeof(scalar) * psi.size() / delta_t_copy_x_back / 1000.0;
 
@@ -334,8 +334,8 @@ public:
             std::to_string(time_per_dof) + std::string(" [ns]") +
             std::string("\n\tTime per iteration and DOF: ") +
             std::to_string(time_per_iter_and_dof) + std::string(" [ns]") +
-            std::string("\n\tRetrieve results bandwidth ");
-        std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
+            std::string("\n\tRetrieve results bandwidth ") +
+            std::to_string(bandwidth_copy_back) + std::string(" [GByte/s]");
         MLOG_0(verbose_, msg)
 
         return solverPerf;

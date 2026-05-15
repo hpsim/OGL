@@ -5,3 +5,8 @@
 build
 builds
 .vscode
+
+# local build and tooling artifacts
+build.log
+Dockerfile
+.claude/

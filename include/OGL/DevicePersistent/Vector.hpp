@@ -67,7 +67,7 @@ struct VectorInitFunctor {
         //// TODO store
         auto comm_pattern = compute_gather_to_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
-        bool host_buffer = exec_.get_gko_force_host_buffer();
+        bool host_buffer = !exec_.get_non_orig_device_comm();
 
         communicate_values(ref_exec, exec, comm, comm_pattern,
                            host_view.get_const_data(),
@@ -174,37 +174,21 @@ public:
     void copy_back()
     {
         auto exec = exec_.get_device_exec();
+        auto rank = exec_.get_host_rank();
         auto ref_exec = exec_.get_ref_exec();
-        auto repart_comm = exec_.get_repart_comm();
+        auto comm = exec_.get_host_comm();
+        bool host_buffer = !exec_.get_non_orig_device_comm();
 
         auto repartitioner = dist_matrix_->get_repartitioner();
         auto host_size = repartitioner->get_orig_size();
+        label repart_size = repartitioner->get_repart_size();
 
         auto comm_pattern = compute_scatter_from_owner_counts(
             exec_, repartitioner->get_ranks_per_gpu(), host_size);
 
-        label owner_rank = exec_.get_owner_rank();
-        auto repartAllToAll =
-            compute_repart_allToall(exec_, comm_pattern, owner_rank);
-
-        // communicate_values(exec, ref_exec, comm, comm_pattern,
-        //                    get_vector()->get_local_values(),
-        //                    const_cast<T *>(memory_), host_buffer);
-
-        label send_size = comm_pattern.send_offsets.back();
-        auto send_view = gko::array<scalar>::const_view(
-            exec, send_size, get_vector()->get_local_values());
-        auto tmp = gko::array<scalar>(exec, send_size);
-
-        tmp = send_view;
-        tmp.set_executor(ref_exec);
-
-        MPI_Request copy_back_req;
-        MPI_Iscatterv(tmp.get_data(), repartAllToAll.send_counts.data(),
-                      repartAllToAll.send_offsets.data(), MPI_DOUBLE,
-                      const_cast<T *>(memory_), repartAllToAll.recv_counts[0],
-                      MPI_DOUBLE, 0, repart_comm->get(), &copy_back_req);
-        MPI_Wait(&copy_back_req, MPI_STATUS_IGNORE);
+        communicate_values(exec, ref_exec, comm, comm_pattern,
+                           get_vector()->get_local_values(),
+                           const_cast<T *>(memory_), host_buffer);
     }
 
     /** Writes the content of the distributed vector to disk
