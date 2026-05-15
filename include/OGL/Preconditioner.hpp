@@ -8,6 +8,7 @@
 
 #include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/MatrixWrapper/Distributed.hpp"
+#include "OGL/Preconditioner/Adaptive.hpp"
 #include "OGL/Preconditioner/Cholesky.hpp"
 #include "OGL/Preconditioner/ISAI.hpp"
 #include "OGL/Preconditioner/Jacobi.hpp"

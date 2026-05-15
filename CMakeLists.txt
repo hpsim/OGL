@@ -201,7 +201,8 @@ target_sources(
           src/Solver/BiCGStab.cpp
           src/Solver/GMRES.cpp
           src/Solver/Multigrid.cpp
-          src/Solver/IR.cpp)
+          # src/Solver/IR.cpp
+)
 
 enable_sanitizers(
   OGL ${OGL_ENABLE_SANITIZE_ADDRESS} ${OGL_ENABLE_SANITIZE_LEAK} ${OGL_ENABLE_SANITIZE_UB}
@@ -249,15 +250,20 @@ add_custom_target(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   COMMENT "a target to format cmake files")
 
-install(
-  TARGETS OGL
-          ginkgo
-          ginkgo_device
-          ginkgo_hip
-          ginkgo_cuda
-          ginkgo_omp
-          ginkgo_dpcpp
-          ginkgo_reference
-  DESTINATION $ENV{FOAM_USER_LIBBIN})
+set(_ogl_install_targets OGL)
+foreach(
+  _target
+  ginkgo
+  ginkgo_device
+  ginkgo_hip
+  ginkgo_cuda
+  ginkgo_omp
+  ginkgo_dpcpp
+  ginkgo_reference)
+  if(TARGET ${_target})
+    list(APPEND _ogl_install_targets ${_target})
+  endif()
+endforeach()
+install(TARGETS ${_ogl_install_targets} DESTINATION $ENV{FOAM_USER_LIBBIN})
 
 include(cmake/banner.cmake)
