@@ -194,13 +194,14 @@ target_sources(
           src/MatrixWrapper/SparsityPattern.cpp
           src/MatrixWrapper/Distributed.cpp
           src/MatrixWrapper/Combination.cpp
+          src/Preconditioner/CoarseSolver.cpp
           src/Repartitioner.cpp
           src/Solver/CG.cpp
           src/Solver/PipeCG.cpp
           src/Solver/BiCGStab.cpp
           src/Solver/GMRES.cpp
           src/Solver/Multigrid.cpp
-  # src/Solver/IR.cpp
+          # src/Solver/IR.cpp
 )
 
 enable_sanitizers(
@@ -218,7 +219,13 @@ endif()
 if(${GINKGO_BUILD_CUDA})
   find_package(CUDAToolkit REQUIRED)
   target_compile_definitions(OGL PRIVATE GINKGO_BUILD_CUDA=1)
-  target_link_libraries(OGL PUBLIC CUDA::nvToolsExt)
+  if(TARGET CUDA::nvToolsExt)
+    target_link_libraries(OGL PUBLIC CUDA::nvToolsExt)
+  elseif(TARGET CUDA::nvtx3)
+    target_link_libraries(OGL PUBLIC CUDA::nvtx3)
+  else()
+    message(WARNING "Neither CUDA::nvToolsExt nor CUDA::nvtx3 found; NVTX annotations disabled")
+  endif()
 endif()
 
 if(OGL_DATA_VALIDATION)
@@ -243,15 +250,20 @@ add_custom_target(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   COMMENT "a target to format cmake files")
 
-install(
-  TARGETS OGL
-          ginkgo
-          ginkgo_device
-          ginkgo_hip
-          ginkgo_cuda
-          ginkgo_omp
-          ginkgo_dpcpp
-          ginkgo_reference
-  DESTINATION $ENV{FOAM_USER_LIBBIN})
+set(_ogl_install_targets OGL)
+foreach(
+  _target
+  ginkgo
+  ginkgo_device
+  ginkgo_hip
+  ginkgo_cuda
+  ginkgo_omp
+  ginkgo_dpcpp
+  ginkgo_reference)
+  if(TARGET ${_target})
+    list(APPEND _ogl_install_targets ${_target})
+  endif()
+endforeach()
+install(TARGETS ${_ogl_install_targets} DESTINATION $ENV{FOAM_USER_LIBBIN})
 
 include(cmake/banner.cmake)
