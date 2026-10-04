@@ -40,13 +40,15 @@ class Multigrid {
     word coarsening_;
     label maxIterS_;
     bool reuseHierarchy_;
+    label maxHierarchyReuses_;
 
     /* Generate the multigrid from its factory. With reuseHierarchy the
      * hierarchy recorded by the first call is kept in the registry and reused
      * by later calls, which then only recompute the coarse matrices, smoothers
      * and the coarsest solver. If the matrix no longer fits the recorded
      * hierarchy, e.g. after a change of the sparsity pattern, the recording
-     * starts again.
+     * starts again. With maxHierarchyReuses > 0 the hierarchy is recorded
+     * again from the current matrix after it has been reused that many times.
      *
      * NOTE Ginkgo requires a result of generate_reuse not to outlive its reuse
      * data. The multigrid hierarchy and its Pgm levels are independent of the
@@ -64,6 +66,9 @@ class Multigrid {
 
         using reuse_data = gko::LinOpFactory::ReuseData;
         const word reuse_store_name = store_name + "_multigrid_reuse_data";
+        // number of reuses since the hierarchy was recorded
+        const label reuses = get_multigrid_reuses(store_name, db);
+        bool record = true;
         if (!db.foundObject<regIOobject>(reuse_store_name)) {
             word msg = "Record Multigrid hierarchy for reuse";
             MLOG_0(verbose_, msg)
@@ -71,15 +76,26 @@ class Multigrid {
             new DevicePersistentBase<reuse_data>(
                 IOobject(reuse_store_name, db),
                 gko::share(factory->create_empty_reuse_data()));
+        } else if (maxHierarchyReuses_ > 0 && reuses >= maxHierarchyReuses_) {
+            word msg = "Record Multigrid hierarchy again after " +
+                       std::to_string(reuses) + " reuses";
+            MLOG_0(verbose_, msg)
+            db.lookupObjectRef<DevicePersistentBase<reuse_data>>(
+                  reuse_store_name)
+                .set_ptr(gko::share(factory->create_empty_reuse_data()));
         } else {
             word msg = "Reuse recorded Multigrid hierarchy";
             MLOG_1(verbose_, msg)
+            record = false;
         }
         auto &stored = db.lookupObjectRef<DevicePersistentBase<reuse_data>>(
             reuse_store_name);
 
         try {
-            return gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            auto ret =
+                gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            set_multigrid_reuses(store_name, db, record ? 0 : reuses + 1);
+            return ret;
         } catch (const gko::Error &e) {
             word msg = word(
                            "Recorded Multigrid hierarchy does not fit the "
@@ -87,7 +103,10 @@ class Multigrid {
                        e.what();
             MLOG_0(verbose_, msg)
             stored.set_ptr(gko::share(factory->create_empty_reuse_data()));
-            return gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            auto ret =
+                gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            set_multigrid_reuses(store_name, db, 0);
+            return ret;
         }
     }
 
@@ -110,17 +129,20 @@ public:
           smoother_(d.lookupOrDefault("smoother", word("Jacobi"))),
           coarsening_(d.lookupOrDefault("coarsening", word("PGM"))),
           maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1))),
-          reuseHierarchy_(d.lookupOrDefault<Switch>("reuseHierarchy", false))
+          reuseHierarchy_(d.lookupOrDefault<Switch>("reuseHierarchy", false)),
+          maxHierarchyReuses_(
+              d.lookupOrDefault<label>("maxHierarchyReuses", label(0)))
     {
-        word msg = "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
-                   "\n\tmaxLevels: " + std::to_string(maxLevels_) +
-                   "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
-                   "\n\tsmoother: " + smoother_ +
-                   "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
-                   "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
-                   "\n\tcoarsening: " + coarsening_ +
-                   "\n\tcycle: " + cycleName_ +
-                   "\n\treuseHierarchy: " + Switch(reuseHierarchy_).c_str();
+        word msg =
+            "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
+            "\n\tmaxLevels: " + std::to_string(maxLevels_) +
+            "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
+            "\n\tsmoother: " + smoother_ +
+            "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
+            "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
+            "\n\tcoarsening: " + coarsening_ + "\n\tcycle: " + cycleName_ +
+            "\n\treuseHierarchy: " + Switch(reuseHierarchy_).c_str() +
+            "\n\tmaxHierarchyReuses: " + std::to_string(maxHierarchyReuses_);
         MLOG_0(verbose_, msg)
     }
 
