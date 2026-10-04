@@ -7,10 +7,12 @@
 include(cmake/CPM.cmake)
 
 if(NOT DEFINED OGL_GINKGO_DIR)
-  set(OGL_GINKGO_CHECKOUT_VERSION
-      "ogl_0600_gko190"
-      CACHE STRING "Use specific version of ginkgo")
-  message(STATUS "Using CPM to get Ginkgo ${GINKGO_CHECKOUT_VERSION}")
+  if(NOT DEFINED OGL_GINKGO_CHECKOUT_VERSION)
+    set(OGL_GINKGO_CHECKOUT_VERSION
+        "ogl_0600_gko190"
+        CACHE STRING "Use specific version of ginkgo")
+  endif()
+  message(STATUS "Using CPM to get Ginkgo ${OGL_GINKGO_CHECKOUT_VERSION}")
   set(OGL_GINKGO_VIA_CPM ON)
 else()
   message(STATUS "using OGL_GINKGO_DIR ${OGL_GINKGO_DIR}")
