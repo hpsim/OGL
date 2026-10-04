@@ -142,38 +142,9 @@ public:
                            DevicePersistentBase<gko::LinOp>>(precond_store_name)
                         .get_ptr();
 
-#ifdef GINKGO_WITH_OGL_EXTENSION
-                if (name == "Multigrid") {
-                    word msg = "Update Multigrid preconditioner";
-                    MLOG_1(verbose_, msg)
-                    auto gkodistmatrix =
-                        gko::as<RepartDistMatrix>(gkomatrix)->get_dist_matrix();
-                    label rows = gko::as<gko::experimental::distributed::Matrix<
-                        scalar, label, label>>(gkodistmatrix)
-                                     ->get_local_matrix()
-                                     ->get_size()[0];
-                    if (rows == 0) return ret;
-
-                    word type = d.lookupOrDefault("type", word("Schwarz"));
-
-                    if (type == "Schwarz") {
-                        auto local_solver = std::const_pointer_cast<gko::LinOp>(
-                            gko::as<ras>(ret)->get_local_solver());
-
-                        gko::as<gko::UpdateMatrixValue>(local_solver)
-                            ->update_matrix_value(
-                                gko::as<gko::experimental::distributed::Matrix<
-                                    scalar, label, label>>(gkodistmatrix)
-                                    ->get_local_matrix());
-                    } else {
-                        gko::as<gko::UpdateMatrixValue>(ret)
-                            ->update_matrix_value(gkodistmatrix);
-                    }
-                }
-#endif
                 return ret;
             } else {
-                auto prev_precond = db_.template lookupObjectRef<
+                auto &prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
                 const label caching_period =
                     d.lookupOrDefault<label>("caching", 0);
@@ -182,9 +153,9 @@ public:
                 auto generated_precond =
                     init_preconditioner_impl(name, d, gkomatrix, device_exec);
 
-                auto precond_ptr = prev_precond.get_ptr();
-                precond_ptr = generated_precond;
-                return precond_ptr;
+                // store the new preconditioner for the next caching period
+                prev_precond.set_ptr(generated_precond);
+                return generated_precond;
             }
         }
         const label caching_period = d.lookupOrDefault<label>("caching", 0);

@@ -34,6 +34,9 @@ public:
     // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; }
 
+    // replace the underlying data
+    void set_ptr(std::shared_ptr<T> in_ptr) { ptr_ = std::move(in_ptr); }
+
     bool writeData(Ostream &) const { return false; }
 };
 
