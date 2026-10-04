@@ -12,6 +12,15 @@ FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 find_package(MPI REQUIRED)
 
+# collect Ginkgo sub-targets that actually exist (CPM source builds expose bare names; system
+# installs carry them transitively through Ginkgo::ginkgo)
+set(_ogl_test_ginkgo_targets Ginkgo::ginkgo)
+foreach(_t ginkgo_device ginkgo_hip ginkgo_reference)
+  if(TARGET ${_t})
+    list(APPEND _ogl_test_ginkgo_targets ${_t})
+  endif()
+endforeach()
+
 # generate unit test based on a test case
 macro(ogl_unit_test_case TEST CASE)
   add_executable(${TEST}_${CASE} ${TEST}.cpp)
@@ -22,10 +31,7 @@ macro(ogl_unit_test_case TEST CASE)
     GTest::gtest
     GTest::gmock
     OGL
-    Ginkgo::ginkgo
-    ginkgo_device
-    ginkgo_hip
-    ginkgo_reference
+    ${_ogl_test_ginkgo_targets}
     ${CMAKE_DL_LIBS})
 
   add_test(
@@ -44,10 +50,7 @@ macro(ogl_unit_test TEST)
     GTest::gtest
     GTest::gmock
     OGL
-    Ginkgo::ginkgo
-    ginkgo_device
-    ginkgo_hip
-    ginkgo_reference
+    ${_ogl_test_ginkgo_targets}
     ${CMAKE_DL_LIBS})
 
   add_test(

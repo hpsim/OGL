@@ -100,6 +100,9 @@ private:
     // this could be also achieved by just flipping the sign
     const scalar scaling_;
 
+    // owns the scaled copies of the coefficients if scaling_ != 1
+    std::vector<std::vector<scalar>> scaled_coeffs_;
+
     // number of local matrix rows
     const label nrows_;
 

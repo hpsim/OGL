@@ -55,6 +55,25 @@ HostMatrixWrapper::HostMatrixWrapper(
     auto comm = *exec.get_host_comm().get();
     label rank = comm.rank();
 
+    // returns a pointer to the coefficients multiplied by scaling_, since the
+    // rhs is scaled too the matrix needs to be scaled consistently
+    scaled_coeffs_.reserve(3 + interfaces.size());
+    auto scale_coeffs = [this](const scalar *coeffs,
+                               label size) -> const scalar * {
+        if (scaling_ == 1) {
+            return coeffs;
+        }
+        std::vector<scalar> scaled(size);
+        for (label i = 0; i < size; i++) {
+            scaled[i] = scaling_ * coeffs[i];
+        }
+        scaled_coeffs_.push_back(std::move(scaled));
+        return scaled_coeffs_.back().data();
+    };
+    diag_ = scale_coeffs(diag_, nrows_);
+    upper_ = scale_coeffs(upper_, upper_nnz_);
+    lower_ = scale_coeffs(lower_, upper_nnz_);
+
     using pair_dtype = std::pair<label, const scalar *>;
     // TODO this needs to be consistent with how sparsity are generated
     // so this should merged with sparsity generation
@@ -66,7 +85,7 @@ HostMatrixWrapper::HostMatrixWrapper(
         std::make_pair<label, pair_dtype>(1, {upper_nnz_, lower_}));
     // diag
     interface_ptr_.emplace(
-        std::make_pair<label, pair_dtype>(2, {nrows_, diag}));
+        std::make_pair<label, pair_dtype>(2, {nrows_, diag_}));
 
     // compute global interface idx
     label local_interface_cnt = interfaces.size();
@@ -96,7 +115,8 @@ HostMatrixWrapper::HostMatrixWrapper(
             (local_to_global_interface_idx_[rank] + i) * -1;
         interface_ptr_.emplace<label, pair_dtype>(
             std::move(global_interface_id),
-            {interface_length, interfaceBouCoeffs[i].begin()});
+            {interface_length,
+             scale_coeffs(interfaceBouCoeffs[i].begin(), interface_length)});
     }
 }
 
