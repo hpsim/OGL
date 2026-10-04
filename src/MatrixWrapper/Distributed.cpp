@@ -262,22 +262,22 @@ void RepartDistMatrix::write(const ExecutorHandler &exec_handler,
 
 
     if (fuse_) {
-        gko::as<LocalMatrixType>(dist_mtx_->get_local_matrix())
+        gko::as<LocalMatrixType>(dist_mtx_->get_diag_matrix())
             ->convert_to(local.get());
         gko::as<gko::matrix::Coo<scalar, label>>(
-            dist_mtx_->get_non_local_matrix())
+            dist_mtx_->get_off_diag_matrix())
             ->convert_to(non_local.get());
     } else {
         gko::as<CombinationMatrix<LocalMatrixType>>(
-            dist_mtx_->get_local_matrix())
+            dist_mtx_->get_diag_matrix())
             ->convert_to(local.get());
         gko::as<CombinationMatrix<LocalMatrixType>>(
-            dist_mtx_->get_non_local_matrix())
+            dist_mtx_->get_off_diag_matrix())
             ->convert_to(non_local.get());
     }
 
     if (write_global) {
-        size_t rows = dist_mtx_->get_local_matrix()->get_size()[0];
+        size_t rows = dist_mtx_->get_diag_matrix()->get_size()[0];
         auto ref_exec = exec_handler.get_ref_exec();
         auto comm = exec_handler.get_host_comm();
 

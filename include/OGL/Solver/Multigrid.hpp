@@ -145,7 +145,7 @@ public:
             gko::as<
                 gko::experimental::distributed::Matrix<scalar, label, label>>(
                 gkomatrix)
-                ->get_local_matrix();
+                ->get_diag_matrix();
 
         outerStoppingCriterionVec_.push_back(
             outerStoppingCriterion_.build_dist_stopping_criterion(

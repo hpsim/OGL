@@ -22,11 +22,12 @@
  * matrix are of RepartDistMatrix type.
  * */
 class RepartDistMatrix
-    : public gko::EnableLinOp<RepartDistMatrix>,
+    : public gko::LinOp,
+      public gko::EnableCloneable<RepartDistMatrix>,
       public gko::EnableCreateMethod<RepartDistMatrix>,
       public gko::experimental::distributed::DistributedBase {
     friend class gko::EnableCreateMethod<RepartDistMatrix>;
-    friend class gko::EnablePolymorphicObject<RepartDistMatrix, gko::LinOp>;
+    friend class gko::EnableCloneable<RepartDistMatrix>;
 
 public:
     using dist_mtx =
@@ -49,8 +50,8 @@ public:
         scalar *recv_ptr;  //
     };
 
-    using gko::EnableLinOp<RepartDistMatrix>::convert_to;
-    using gko::EnableLinOp<RepartDistMatrix>::move_to;
+    using gko::EnableCloneable<RepartDistMatrix>::convert_to;
+    using gko::EnableCloneable<RepartDistMatrix>::move_to;
 
     std::shared_ptr<const gko::LinOp> get_dist_matrix() const
     {
@@ -61,21 +62,21 @@ public:
 
     std::shared_ptr<const gko::LinOp> get_local_matrix() const
     {
-        return this->dist_mtx_->get_local_matrix();
+        return this->dist_mtx_->get_diag_matrix();
     }
 
     std::shared_ptr<const gko::LinOp> get_non_local_matrix() const
     {
-        return this->dist_mtx_->get_non_local_matrix();
+        return this->dist_mtx_->get_off_diag_matrix();
     }
 
     std::shared_ptr<const gko::LinOp> get_local() const
     {
         if (fuse_) {
-            return dist_mtx_->get_local_matrix();
+            return dist_mtx_->get_diag_matrix();
         } else {
             return gko::as<CombinationMatrix<gko::LinOp>>(
-                       dist_mtx_->get_local_matrix())
+                       dist_mtx_->get_diag_matrix())
                 ->get_operators()[0];
         }
     }
@@ -92,7 +93,7 @@ public:
             // disallowed "
             //                         "for performance reasons"
             //                      << abort(FatalError);
-            gko::EnableLinOp<RepartDistMatrix>::operator=(other);
+            gko::LinOp::operator=(other);
             this->dist_mtx_ = other.dist_mtx_;
             this->fuse_ = other.fuse_;
             this->matrix_format_ = other.matrix_format_;
@@ -115,7 +116,7 @@ public:
     {
         if (&other != this) {
             FatalErrorInFunction << "Not implemented" << abort(FatalError);
-            gko::EnableLinOp<RepartDistMatrix>::operator=(std::move(other));
+            gko::LinOp::operator=(std::move(other));
             this->fuse_ = other.fuse_;
             this->matrix_format_ = other.matrix_format_;
             this->dist_mtx_ = std::move(other.dist_mtx_);
@@ -149,7 +150,7 @@ public:
                      std::vector<reorder_map_type> reorder_maps,
                      std::vector<label> compress_to_global,
                      std::map<label, scalar *> linops)
-        : gko::EnableLinOp<RepartDistMatrix>(exec),
+        : gko::LinOp(exec),
           gko::experimental::distributed::DistributedBase(comm),
           fuse_(fuse),
           matrix_format_(matrix_format),
@@ -171,7 +172,7 @@ public:
     // Needed for distributed/polymorphic_object.hpp
     RepartDistMatrix(std::shared_ptr<const gko::Executor> exec,
                      communicator comm)
-        : gko::EnableLinOp<RepartDistMatrix>(exec),
+        : gko::LinOp(exec),
           gko::experimental::distributed::DistributedBase{comm}
     {}
 
