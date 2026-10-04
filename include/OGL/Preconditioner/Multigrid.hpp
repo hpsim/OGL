@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/Preconditioner/CoarseSolver.hpp"
 #include "OGL/Preconditioner/Schwarz.hpp"
 
@@ -38,6 +39,57 @@ class Multigrid {
     word smoother_;
     word coarsening_;
     label maxIterS_;
+    bool reuseHierarchy_;
+
+    /* Generate the multigrid from its factory. With reuseHierarchy the
+     * hierarchy recorded by the first call is kept in the registry and reused
+     * by later calls, which then only recompute the coarse matrices, smoothers
+     * and the coarsest solver. If the matrix no longer fits the recorded
+     * hierarchy, e.g. after a change of the sparsity pattern, the recording
+     * starts again.
+     *
+     * NOTE Ginkgo requires a result of generate_reuse not to outlive its reuse
+     * data. The multigrid hierarchy and its Pgm levels are independent of the
+     * reuse data and the other components do not support reuse, so the stored
+     * preconditioner does not depend on the lifetime of the reuse data.
+     */
+    std::shared_ptr<gko::LinOp> generate(
+        std::shared_ptr<const gko::LinOpFactory> factory,
+        std::shared_ptr<const gko::LinOp> mtx, const objectRegistry &db,
+        const word &store_name) const
+    {
+        if (!reuseHierarchy_) {
+            return gko::share(factory->generate(mtx));
+        }
+
+        using reuse_data = gko::LinOpFactory::ReuseData;
+        const word reuse_store_name = store_name + "_multigrid_reuse_data";
+        if (!db.foundObject<regIOobject>(reuse_store_name)) {
+            word msg = "Record Multigrid hierarchy for reuse";
+            MLOG_0(verbose_, msg)
+            // registers itself in the object registry
+            new DevicePersistentBase<reuse_data>(
+                IOobject(reuse_store_name, db),
+                gko::share(factory->create_empty_reuse_data()));
+        } else {
+            word msg = "Reuse recorded Multigrid hierarchy";
+            MLOG_1(verbose_, msg)
+        }
+        auto &stored = db.lookupObjectRef<DevicePersistentBase<reuse_data>>(
+            reuse_store_name);
+
+        try {
+            return gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+        } catch (const gko::Error &e) {
+            word msg = word(
+                           "Recorded Multigrid hierarchy does not fit the "
+                           "matrix, recording again: ") +
+                       e.what();
+            MLOG_0(verbose_, msg)
+            stored.set_ptr(gko::share(factory->create_empty_reuse_data()));
+            return gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+        }
+    }
 
 public:
     Multigrid(std::shared_ptr<gko::Executor> exec,
@@ -57,7 +109,8 @@ public:
           minRowsC_(d.lookupOrDefault("minCoarseRows", label(64000))),
           smoother_(d.lookupOrDefault("smoother", word("Jacobi"))),
           coarsening_(d.lookupOrDefault("coarsening", word("PGM"))),
-          maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1)))
+          maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1))),
+          reuseHierarchy_(d.lookupOrDefault<Switch>("reuseHierarchy", false))
     {
         word msg = "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
                    "\n\tmaxLevels: " + std::to_string(maxLevels_) +
@@ -66,14 +119,16 @@ public:
                    "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
                    "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
                    "\n\tcoarsening: " + coarsening_ +
-                   "\n\tcycle: " + cycleName_;
+                   "\n\tcycle: " + cycleName_ +
+                   "\n\treuseHierarchy: " + Switch(reuseHierarchy_).c_str();
         MLOG_0(verbose_, msg)
     }
 
-    std::shared_ptr<gko::LinOp> create(
-        /* const objectRegistry &db,
-          const ExecutorHandler &exec_handler*/
-    )
+    /* @param db  registry to keep the reuse data of the hierarchy in
+     * @param store_name  name of the system matrix the preconditioner is for
+     */
+    std::shared_ptr<gko::LinOp> create(const objectRegistry &db,
+                                       const word &store_name)
     {
         gko::solver::multigrid::cycle cycle;
         if (cycleName_ == "v") {
@@ -165,8 +220,9 @@ public:
                     .on(exec_));
             return wrap_schwarz(
                 mtx_, exec_,
-                gko::share(pre_factory->generate(
-                    gko::as<RepartDistMatrix>(mtx_)->get_local())));
+                generate(pre_factory,
+                         gko::as<RepartDistMatrix>(mtx_)->get_local(), db,
+                         store_name));
         }
 
         if (type_ == "Distributed") {
@@ -179,7 +235,7 @@ public:
             // }
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-            auto ret = gko::share(
+            auto mg_factory = gko::share(
                 mg::build()
                     .with_max_levels(static_cast<gko::uint32>(maxLevels_))
                     .with_cycle(cycle)
@@ -194,9 +250,8 @@ public:
                     .with_coarsest_solver(
                         generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
-                    .on(exec_)
-                    ->generate(gkodistmatrix));
-            return ret;
+                    .on(exec_));
+            return generate(mg_factory, gkodistmatrix, db, store_name);
         }
 
         FatalErrorInFunction << "Unknown Multigrid type: " << type_

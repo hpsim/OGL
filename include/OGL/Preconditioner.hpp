@@ -72,7 +72,7 @@ public:
         }
         if (name == "Multigrid") {
             return Multigrid(device_exec, gkomatrix, d, verbose_)
-                .create(/*db_, exec_handler*/);
+                .create(db_, sys_matrix_name_);
         }
         if (name == "ILU") {
             return LU(device_exec, gkomatrix, d, verbose_).create();

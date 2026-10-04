@@ -13,6 +13,8 @@ defineTemplateTypeNameWithName(
     "PersistentScalarVector");
 defineTemplateTypeNameWithName(DevicePersistentBase<gko::LinOp>,
                                "PersistentLinOp");
+defineTemplateTypeNameWithName(
+    DevicePersistentBase<gko::LinOpFactory::ReuseData>, "PersistentReuseData");
 
 // typedef needed  to avoid confusion with the comma separated template
 // arguments as macro arguments
