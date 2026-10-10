@@ -50,10 +50,9 @@ class Multigrid {
      * starts again. With maxHierarchyReuses > 0 the hierarchy is recorded
      * again from the current matrix after it has been reused that many times.
      *
-     * NOTE Ginkgo requires a result of generate_reuse not to outlive its reuse
-     * data. The multigrid hierarchy and its Pgm levels are independent of the
-     * reuse data and the other components do not support reuse, so the stored
-     * preconditioner does not depend on the lifetime of the reuse data.
+     * NOTE The result of generate_reuse is independent of its reuse data, so
+     * the stored preconditioner may outlive it. If generate_reuse throws, the
+     * reuse data stays usable, hence it is only replaced on a new recording.
      */
     std::shared_ptr<gko::LinOp> generate(
         std::shared_ptr<const gko::LinOpFactory> factory,

@@ -9,7 +9,7 @@ include(cmake/CPM.cmake)
 if(NOT DEFINED OGL_GINKGO_DIR)
   if(NOT DEFINED OGL_GINKGO_CHECKOUT_VERSION)
     set(OGL_GINKGO_CHECKOUT_VERSION
-        "rebased/pr-2099"
+        "develop"
         CACHE STRING "Use specific version of ginkgo")
   endif()
   message(STATUS "Using CPM to get Ginkgo ${OGL_GINKGO_CHECKOUT_VERSION}")
