@@ -131,7 +131,11 @@ struct ExecutorInitFunctor {
             label local_rank = 0;
 #ifdef WITH_ESI_VERSION
             // auto node_comm = Pstream::commInterHost();
+#if OPENFOAM >= 2506
+            auto node_comm = Pstream::commLocalNode();
+#else
             auto node_comm = Pstream::commIntraHost();
+#endif
             device_ranks = Pstream::nProcs(node_comm);
             local_rank = Pstream::myProcNo(node_comm);
 #endif
