@@ -95,6 +95,11 @@ elif [ "$GPU_VENDOR" == "intel" ]; then
     # device, so all work and synchronisation stay on one tile.
     export ZE_FLAT_DEVICE_HIERARCHY=COMPOSITE
 
+    # The libfabric provider Intel MPI picks for the interconnect fails in the container
+    # (OFI EP enable failed: Cannot allocate memory). The tests run on one node, so use
+    # the TCP provider, next to shared memory within the node.
+    export FI_PROVIDER=tcp
+
     echo "=== Configuring, building, and testing OGL on Intel ==="
     cmake --preset "${PRESET}" \
         -DCMAKE_PREFIX_PATH=/opt/ginkgo \
