@@ -1,86 +1,75 @@
 #!/usr/bin/env bash
-# ---------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------
 # SPDX-FileCopyrightText: 2023 - 2025 NeoN authors
+# SPDX-FileCopyrightText: 2026 OGL authors
 #
 # SPDX-License-Identifier: Unlicense
-# -----------------------------------------------------------------------------
-# Trigger a new LRZ GitLab CI pipeline on TUM COMA cluster for a given branch.
-#
-# Uses environment variables defined in the GitHub Actions job:
-#   LRZ_GROUP, LRZ_HOST, REPO_NAME, LRZ_GITLAB_TRIGGER_TOKEN
-#
-# Usage:
-#   ./ci/github/trigger_pipeline.sh <branch>
-# -----------------------------------------------------------------------------
-
+#----------------------------------------------------------------------------------------
+# This script triggers a LRZ GitLab CI pipeline on TUM COMA cluster for a specified project and branch.
+# Optionally, extra variables can be passed in the form: "variables[KEY]=VALUE".
+#----------------------------------------------------------------------------------------
 set -euo pipefail
 
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <branch>"
+# -----------------------------------------------------------------------------
+# Arguments
+# -----------------------------------------------------------------------------
+if [ $# -lt 4 ]; then
+  echo "Usage: $0 <project> <branch> <check_token> <trigger_token> [optional variables]"
   exit 1
 fi
 
-GROUP=greole
-HOST="gitlab-ce.lrz.de"
 PROJECT=$1
 BRANCH=$2
-CHECK_TOKEN=$3
-TRIGGER_TOKEN=$4
+CHECK_TOKEN=$3     # read_repository scope
+TRIGGER_TOKEN=$4   # LRZ GitLab trigger token
 shift 4
-VARIABLES="$@"     # Optional extra variables in the form: "variables[KEY]=VALUE"
-OGL_BRANCH="$BRANCH"
-
 
 # -----------------------------------------------------------------------------
-# Determine ogl branch on LRZ GitLab
+# Environment setup
 # -----------------------------------------------------------------------------
-OGL_PROJECT="ogl"
+: "${LRZ_HOST:?Need to set LRZ_HOST}"
+: "${LRZ_GROUP:?Need to set LRZ_GROUP}"
 
-echo "Checking if ogl branch '${BRANCH}' exists on LRZ GitLab..."
-
-# Encode branch name for safe URL use
-#ENCODED_BRANCH=$(printf '%s' "$BRANCH" | jq -sRr @uri)
-#
-## Query the ogl repo branch endpoint on LRZ GitLab
-#status_code=$(curl -s -o /dev/null -w "%{http_code}" \
-#  "https://${HOST}/api/v4/projects/${GROUP}%2F${OGL_PROJECT}/repository/branches/${ENCODED_BRANCH}")
-#
-#
-#if [ "$status_code" -eq 200 ]; then
-#  OGL_BRANCH="$BRANCH"
-#  echo "ogl branch '${BRANCH}' exists on LRZ GitLab."
-#else
-#  OGL_BRANCH="develop"
-#  echo "ogl branch '${BRANCH}' does not exist on LRZ GitLab. Using '${OGL_BRANCH}'."
-#fi
+# URL-encode branch name
+BRANCH_ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$BRANCH")
 
 # -----------------------------------------------------------------------------
-# Trigger NeoFOAM pipeline
+# The branch has just been pushed to LRZ GitLab, so it has to exist
 # -----------------------------------------------------------------------------
-echo "Triggering a new CI pipeline on branch $BRANCH in project: $GROUP/$PROJECT"
-echo "Use ogl branch: $OGL_BRANCH"
+branch_exists=$(curl -s --header "PRIVATE-TOKEN: $CHECK_TOKEN" \
+  "https://${LRZ_HOST}/api/v4/projects/${LRZ_GROUP}%2F${PROJECT}/repository/branches/${BRANCH_ENC}" \
+  | jq -r '.name // empty')
 
-# Prepare curl form data for variables
-FORM_DATA="--form ref=$BRANCH --form token=$TRIGGER_TOKEN"
-FORM_DATA="$FORM_DATA --form variables[OGL_BRANCH]=$OGL_BRANCH"
-
-for var in $VARIABLES; do
-  FORM_DATA="$FORM_DATA --form $var"
-done
-
-response=$(curl -s --request POST $FORM_DATA \
-  "https://${HOST}/api/v4/projects/${GROUP}%2F${PROJECT}/trigger/pipeline")
-
-echo "$response" | jq .
-
-pipeline_id=$(echo "$response" | jq -r '.id')
-if [ "$pipeline_id" = "null" ] || [ -z "$pipeline_id" ]; then
-  echo "Failed to trigger LRZ CI pipeline"
+if [ -z "$branch_exists" ]; then
+  echo -e "\033[31m Error: Branch '$BRANCH' does not exist in $PROJECT on LRZ GitLab. Exiting workflow.\033[0m"
   exit 1
 fi
 
-echo "Successfully triggered pipeline: $pipeline_id"
+# -----------------------------------------------------------------------------
+# Build form data
+# -----------------------------------------------------------------------------
+form_data=(--form "ref=$BRANCH" --form "token=$TRIGGER_TOKEN")
+for var in "$@"; do
+  form_data+=(--form "$var")
+done
 
+# -----------------------------------------------------------------------------
+# Trigger pipeline
+# -----------------------------------------------------------------------------
+echo "Triggering pipeline for project '$PROJECT' on branch '$BRANCH'..."
+response=$(curl -s --request POST "${form_data[@]}" \
+  "https://${LRZ_HOST}/api/v4/projects/${LRZ_GROUP}%2F${PROJECT}/trigger/pipeline")
+
+pipeline_id=$(echo "$response" | jq -r '.id')
+
+if [ -z "$pipeline_id" ] || [ "$pipeline_id" = "null" ]; then
+  echo -e "\033[31m Failed to trigger pipeline for project '$PROJECT' on branch '$BRANCH'.\033[0m"
+  echo "$response"
+  exit 1
+fi
+
+echo "Triggered pipeline $pipeline_id on branch '$BRANCH'."
+# Set GitHub Actions output
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   echo "pipeline_id=$pipeline_id" >> "$GITHUB_OUTPUT"
 fi

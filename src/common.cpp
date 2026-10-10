@@ -87,6 +87,18 @@ label get_next_caching(word sys_matrix_name, const objectRegistry &db)
                                    label(0));
 }
 
+void set_multigrid_reuses(word sys_matrix_name, const objectRegistry &db,
+                          label reuses)
+{
+    set_gko_solver_property(sys_matrix_name, db, "multigridReuses", reuses);
+}
+
+label get_multigrid_reuses(word sys_matrix_name, const objectRegistry &db)
+{
+    return get_gko_solver_property(sys_matrix_name, "multigridReuses", db,
+                                   label(0));
+}
+
 void set_solve_prev_rel_res_cost(const word sys_matrix_name,
                                  const objectRegistry &db,
                                  scalar prev_solve_rel_res_cost)

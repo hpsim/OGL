@@ -17,19 +17,19 @@
  * */
 template <typename InnerMatrixType>
 class CombinationMatrix
-    : public gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>,
+    : public gko::LinOp,
+      public gko::EnableCloneable<CombinationMatrix<InnerMatrixType>>,
       public gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>,
       public gko::ReadableFromMatrixData<scalar, label>,
       public gko::ConvertibleTo<gko::matrix::Coo<scalar, label>>,
       public gko::ConvertibleTo<gko::matrix::Csr<scalar, label>>,
       public gko::WritableToMatrixData<scalar, label> {
     friend class gko::EnableCreateMethod<CombinationMatrix<InnerMatrixType>>;
-    friend class gko::EnablePolymorphicObject<
-        CombinationMatrix<InnerMatrixType>, gko::LinOp>;
+    friend class gko::EnableCloneable<CombinationMatrix<InnerMatrixType>>;
 
 public:
-    using gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>::convert_to;
-    using gko::EnableLinOp<CombinationMatrix<InnerMatrixType>>::move_to;
+    using gko::EnableCloneable<CombinationMatrix<InnerMatrixType>>::convert_to;
+    using gko::EnableCloneable<CombinationMatrix<InnerMatrixType>>::move_to;
 
     using matrix_data = gko::matrix_data<scalar, label>;
 
@@ -50,7 +50,7 @@ public:
     CombinationMatrix &operator=(const CombinationMatrix &other)
     {
         if (&other != this) {
-            gko::EnableLinOp<CombinationMatrix>::operator=(other);
+            gko::LinOp::operator=(other);
             comb_ = other.comb_;
         }
         return *this;
@@ -64,7 +64,7 @@ public:
     CombinationMatrix &operator=(CombinationMatrix &&other)
     {
         if (&other != this) {
-            gko::EnableLinOp<CombinationMatrix>::operator=(std::move(other));
+            gko::LinOp::operator=(std::move(other));
             comb_ = std::move(other.comb_);
         }
         return *this;
@@ -177,15 +177,14 @@ public:
 
 protected:
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec)
-        : gko::EnableLinOp<CombinationMatrix>(exec),
+        : gko::LinOp(exec),
           comb_(gko::share(gko::Combination<scalar>::create(exec)))
     {}
 
     CombinationMatrix(std::shared_ptr<const gko::Executor> exec,
                       gko::dim<2> size,
                       std::vector<std::shared_ptr<gko::LinOp>> operators)
-        : gko::EnableLinOp<CombinationMatrix>(exec),
-          comb_(build_combination(exec, size, operators))
+        : gko::LinOp(exec), comb_(build_combination(exec, size, operators))
     {
         this->set_size(size);
     }

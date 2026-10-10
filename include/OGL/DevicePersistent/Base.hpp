@@ -34,8 +34,16 @@ public:
     // get a ptr to the underlying data
     std::shared_ptr<T> get_ptr() { return ptr_; }
 
+    // replace the underlying data
+    void set_ptr(std::shared_ptr<T> in_ptr) { ptr_ = std::move(in_ptr); }
+
     bool writeData(Ostream &) const { return false; }
 };
+
+// defined in Base.cpp, declared here since Multigrid.hpp creates it in other
+// translation units
+template <>
+const word DevicePersistentBase<gko::LinOpFactory::ReuseData>::typeName;
 
 /* Base class for storing ginkgo and OGL data structures in the Objectregistry
  *

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "OGL/DevicePersistent/Base.hpp"
 #include "OGL/Preconditioner/CoarseSolver.hpp"
 #include "OGL/Preconditioner/Schwarz.hpp"
 
@@ -38,6 +39,75 @@ class Multigrid {
     word smoother_;
     word coarsening_;
     label maxIterS_;
+    bool reuseHierarchy_;
+    label maxHierarchyReuses_;
+
+    /* Generate the multigrid from its factory. With reuseHierarchy the
+     * hierarchy recorded by the first call is kept in the registry and reused
+     * by later calls, which then only recompute the coarse matrices, smoothers
+     * and the coarsest solver. If the matrix no longer fits the recorded
+     * hierarchy, e.g. after a change of the sparsity pattern, the recording
+     * starts again. With maxHierarchyReuses > 0 the hierarchy is recorded
+     * again from the current matrix after it has been reused that many times.
+     *
+     * NOTE The result of generate_reuse is independent of its reuse data, so
+     * the stored preconditioner may outlive it. If generate_reuse throws, the
+     * reuse data stays usable, hence it is only replaced on a new recording.
+     */
+    std::shared_ptr<gko::LinOp> generate(
+        std::shared_ptr<const gko::LinOpFactory> factory,
+        std::shared_ptr<const gko::LinOp> mtx, const objectRegistry &db,
+        const word &store_name) const
+    {
+        if (!reuseHierarchy_) {
+            return gko::share(factory->generate(mtx));
+        }
+
+        using reuse_data = gko::LinOpFactory::ReuseData;
+        const word reuse_store_name = store_name + "_multigrid_reuse_data";
+        // number of reuses since the hierarchy was recorded
+        const label reuses = get_multigrid_reuses(store_name, db);
+        bool record = true;
+        if (!db.foundObject<regIOobject>(reuse_store_name)) {
+            word msg = "Record Multigrid hierarchy for reuse";
+            MLOG_0(verbose_, msg)
+            // registers itself in the object registry
+            new DevicePersistentBase<reuse_data>(
+                IOobject(reuse_store_name, db),
+                gko::share(factory->create_empty_reuse_data()));
+        } else if (maxHierarchyReuses_ > 0 && reuses >= maxHierarchyReuses_) {
+            word msg = "Record Multigrid hierarchy again after " +
+                       std::to_string(reuses) + " reuses";
+            MLOG_0(verbose_, msg)
+            db.lookupObjectRef<DevicePersistentBase<reuse_data>>(
+                  reuse_store_name)
+                .set_ptr(gko::share(factory->create_empty_reuse_data()));
+        } else {
+            word msg = "Reuse recorded Multigrid hierarchy";
+            MLOG_1(verbose_, msg)
+            record = false;
+        }
+        auto &stored = db.lookupObjectRef<DevicePersistentBase<reuse_data>>(
+            reuse_store_name);
+
+        try {
+            auto ret =
+                gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            set_multigrid_reuses(store_name, db, record ? 0 : reuses + 1);
+            return ret;
+        } catch (const gko::Error &e) {
+            word msg = word(
+                           "Recorded Multigrid hierarchy does not fit the "
+                           "matrix, recording again: ") +
+                       e.what();
+            MLOG_0(verbose_, msg)
+            stored.set_ptr(gko::share(factory->create_empty_reuse_data()));
+            auto ret =
+                gko::share(factory->generate_reuse(mtx, *stored.get_ptr()));
+            set_multigrid_reuses(store_name, db, 0);
+            return ret;
+        }
+    }
 
 public:
     Multigrid(std::shared_ptr<gko::Executor> exec,
@@ -57,23 +127,29 @@ public:
           minRowsC_(d.lookupOrDefault("minCoarseRows", label(64000))),
           smoother_(d.lookupOrDefault("smoother", word("Jacobi"))),
           coarsening_(d.lookupOrDefault("coarsening", word("PGM"))),
-          maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1)))
+          maxIterS_(d.lookupOrDefault("maxIterSmoother", label(1))),
+          reuseHierarchy_(d.lookupOrDefault<Switch>("reuseHierarchy", false)),
+          maxHierarchyReuses_(
+              d.lookupOrDefault<label>("maxHierarchyReuses", label(0)))
     {
-        word msg = "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
-                   "\n\tmaxLevels: " + std::to_string(maxLevels_) +
-                   "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
-                   "\n\tsmoother: " + smoother_ +
-                   "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
-                   "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
-                   "\n\tcoarsening: " + coarsening_ +
-                   "\n\tcycle: " + cycleName_;
+        word msg =
+            "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
+            "\n\tmaxLevels: " + std::to_string(maxLevels_) +
+            "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
+            "\n\tsmoother: " + smoother_ +
+            "\n\trelaxationFactor: " + std::to_string(relaxFac_) +
+            "\n\tmaxIterSmoother: " + std::to_string(maxIterS_) +
+            "\n\tcoarsening: " + coarsening_ + "\n\tcycle: " + cycleName_ +
+            "\n\treuseHierarchy: " + Switch(reuseHierarchy_).c_str() +
+            "\n\tmaxHierarchyReuses: " + std::to_string(maxHierarchyReuses_);
         MLOG_0(verbose_, msg)
     }
 
-    std::shared_ptr<gko::LinOp> create(
-        /* const objectRegistry &db,
-          const ExecutorHandler &exec_handler*/
-    )
+    /* @param db  registry to keep the reuse data of the hierarchy in
+     * @param store_name  name of the system matrix the preconditioner is for
+     */
+    std::shared_ptr<gko::LinOp> create(const objectRegistry &db,
+                                       const word &store_name)
     {
         gko::solver::multigrid::cycle cycle;
         if (cycleName_ == "v") {
@@ -165,8 +241,9 @@ public:
                     .on(exec_));
             return wrap_schwarz(
                 mtx_, exec_,
-                gko::share(pre_factory->generate(
-                    gko::as<RepartDistMatrix>(mtx_)->get_local())));
+                generate(pre_factory,
+                         gko::as<RepartDistMatrix>(mtx_)->get_local(), db,
+                         store_name));
         }
 
         if (type_ == "Distributed") {
@@ -179,7 +256,7 @@ public:
             // }
             auto gkodistmatrix =
                 gko::as<RepartDistMatrix>(mtx_)->get_dist_matrix();
-            auto ret = gko::share(
+            auto mg_factory = gko::share(
                 mg::build()
                     .with_max_levels(static_cast<gko::uint32>(maxLevels_))
                     .with_cycle(cycle)
@@ -194,9 +271,8 @@ public:
                     .with_coarsest_solver(
                         generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
-                    .on(exec_)
-                    ->generate(gkodistmatrix));
-            return ret;
+                    .on(exec_));
+            return generate(mg_factory, gkodistmatrix, db, store_name);
         }
 
         FatalErrorInFunction << "Unknown Multigrid type: " << type_

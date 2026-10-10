@@ -234,9 +234,15 @@ if(OGL_DATA_VALIDATION)
   target_compile_definitions(OGL PRIVATE DATA_VALIDATION=1)
 endif()
 
-if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO)
+# FOAM_API is only set by the ESI version, and covers installations without META-INFO, such as the
+# conda packages
+if(EXISTS $ENV{WM_PROJECT_DIR}/META-INFO OR DEFINED ENV{FOAM_API})
   message("Compile against ESI version of OpenFOAM")
   target_compile_definitions(OGL PRIVATE WITH_ESI_VERSION=1)
+  # API version of OpenFOAM, as defined by wmake, e.g. 2412
+  if(DEFINED ENV{FOAM_API})
+    target_compile_definitions(OGL PUBLIC OPENFOAM=$ENV{FOAM_API})
+  endif()
 else()
   message("Compile against FoamFoundation version of OpenFOAM")
 endif()

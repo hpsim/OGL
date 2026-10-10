@@ -21,11 +21,7 @@ class StoppingCriterion {
 
     using dist_vec = gko::experimental::distributed::Vector<scalar>;
 
-    class OpenFOAMDistStoppingCriterion
-        : public gko::EnablePolymorphicObject<OpenFOAMDistStoppingCriterion,
-                                              gko::stop::Criterion> {
-        friend class gko::EnablePolymorphicObject<OpenFOAMDistStoppingCriterion,
-                                                  gko::stop::Criterion>;
+    class OpenFOAMDistStoppingCriterion : public gko::stop::Criterion {
         using Criterion = gko::stop::Criterion;
 
     public:
@@ -107,15 +103,13 @@ class StoppingCriterion {
 
         explicit OpenFOAMDistStoppingCriterion(
             std::shared_ptr<const gko::Executor> exec)
-            : EnablePolymorphicObject<OpenFOAMDistStoppingCriterion, Criterion>(
-                  std::move(exec))
+            : Criterion(std::move(exec))
         {}
 
         explicit OpenFOAMDistStoppingCriterion(const Factory *factory,
                                                const gko::stop::CriterionArgs &)
 
-            : EnablePolymorphicObject<OpenFOAMDistStoppingCriterion, Criterion>(
-                  factory->get_executor()),
+            : Criterion(factory->get_executor()),
               parameters_{factory->get_parameters()}
         {}
 

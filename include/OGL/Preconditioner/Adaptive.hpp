@@ -12,9 +12,9 @@
 
 template <typename ValueType = gko::default_precision,
           typename IndexType = gko::int32>
-class Adaptive : public gko::EnableLinOp<Adaptive<ValueType, IndexType>> {
-    friend class gko::EnableLinOp<Adaptive>;
-    friend class gko::EnablePolymorphicObject<Adaptive, gko::LinOp>;
+class Adaptive : public gko::LinOp,
+                 public gko::EnableCloneable<Adaptive<ValueType, IndexType>> {
+    friend class gko::EnableCloneable<Adaptive>;
 
 public:
     using value_type = ValueType;
@@ -38,13 +38,13 @@ public:
 
 protected:
     explicit Adaptive(std::shared_ptr<const gko::Executor> exec)
-        : gko::EnableLinOp<Adaptive>(exec)
+        : gko::LinOp(exec)
     {}
 
     explicit Adaptive(const Factory *factory,
                       std::shared_ptr<const gko::LinOp> system_matrix)
-        : gko::EnableLinOp<Adaptive>(factory->get_executor(),
-                                     gko::transpose(system_matrix->get_size())),
+        : gko::LinOp(factory->get_executor(),
+                     gko::transpose(system_matrix->get_size())),
           parameters_{factory->get_parameters()}
     {
         this->generate(system_matrix.get(), parameters_.skip_sorting);
