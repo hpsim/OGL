@@ -2,7 +2,7 @@ name: LRZ GitLab CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [dev, main]
   pull_request:
     types: [opened, synchronize, reopened, unlabeled, labeled]
   schedule:
@@ -28,15 +28,17 @@ jobs:
       skip-amd: ${{ steps.skip-labels.outputs.skip-amd }}
       skip-intel: ${{ steps.skip-labels.outputs.skip-intel }}
 
+    # Only in hpsim/OGL and not for PRs from forks, which have no access to the tokens.
     if: >
-      github.event_name != 'pull_request' ||
-      !contains(github.event.pull_request.labels.*.name, 'skip-build')
+      github.repository == 'hpsim/OGL' &&
+      (github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-build')))
 
     env:
       LRZ_GROUP: greole
       LRZ_HOST: gitlab-ce.lrz.de
       REPO_NAME: ogl
-      OGL_REPO: ogl
       OGL_PROJECT_TOKEN: ${{ secrets.OGL_PROJECT_TOKEN }}
       OGL_TRIGGER_TOKEN: ${{ secrets.OGL_TRIGGER_TOKEN }}
       MAX_WAIT_MINUTES: 1440
@@ -120,11 +122,4 @@ jobs:
           ./ci/github/wait_pipeline.sh \
             "${{ env.REPO_NAME }}" \
             "${{ steps.trigger-ogl.outputs.pipeline_id }}" \
-            "${OGL_PROJECT_TOKEN}"
-
-      - name: Cancel running/pending NeoFOAM LRZ CI pipelines
-        run: |
-          ./ci/github/cancel_triggered_pipelines.sh \
-            "${{ env.OGL_REPO }}" \
-            "${{ steps.branch.outputs.branch }}" \
             "${OGL_PROJECT_TOKEN}"

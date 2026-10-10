@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #----------------------------------------------------------------------------------------
 # SPDX-FileCopyrightText: 2023 - 2025 NeoN authors
+# SPDX-FileCopyrightText: 2026 OGL authors
 #
 # SPDX-License-Identifier: Unlicense
 #----------------------------------------------------------------------------------------
 # This script cancels all running or pending LRZ GitLab CI pipelines on TUM COMA cluster
-# for a specified project and branch. Only pipelines triggered via the trigger token
-# (i.e., from NeoN GitHub CI) are considered.
+# for a specified project and branch.
 #----------------------------------------------------------------------------------------
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
 # Arguments
 # -----------------------------------------------------------------------------
-PROJECT=$1        # GitLab project name, e.g., "NeoN" or "NeoFOAM"
+PROJECT=$1        # GitLab project name, e.g., "ogl"
 BRANCH=$2         # Branch/ref to filter pipelines
 TOKEN=$3
 
@@ -59,19 +59,13 @@ fi
 echo "Found the following pipelines to inspect: $pipeline_ids"
 
 # -----------------------------------------------------------------------------
-# Cancel pipelines based on project type
+# Cancel all running/pending pipelines on the branch
 # -----------------------------------------------------------------------------
 for id in $pipeline_ids; do
-  echo "Inspecting pipeline $id..."
-
-  if [[ "$PROJECT" == "ogl" ]]; then
-    # Case 1: NeoN -> cancel all running/pending pipelines on the branch
-    echo "Cancelling pipeline $id (PROJECT=NeoN)..."
-    curl -s --request POST \
-      --header "PRIVATE-TOKEN: $TOKEN" \
-      "https://${LRZ_HOST}/api/v4/projects/${project_path}/pipelines/${id}/cancel" >/dev/null
-    continue
-  fi
+  echo "Cancelling pipeline $id..."
+  curl -s --request POST \
+    --header "PRIVATE-TOKEN: $TOKEN" \
+    "https://${LRZ_HOST}/api/v4/projects/${project_path}/pipelines/${id}/cancel" >/dev/null
 done
 
 echo "All applicable pipelines cancelled."
