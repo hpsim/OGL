@@ -40,6 +40,11 @@ public:
     bool writeData(Ostream &) const { return false; }
 };
 
+// defined in Base.cpp, declared here since Multigrid.hpp creates it in other
+// translation units
+template <>
+const word DevicePersistentBase<gko::LinOpFactory::ReuseData>::typeName;
+
 /* Base class for storing ginkgo and OGL data structures in the Objectregistry
  *
  * This class creates an uninitialised Ginkgo array and copies the
