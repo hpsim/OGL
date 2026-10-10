@@ -44,6 +44,74 @@ MPIEXEC="$(command -v mpiexec.mpich || command -v mpiexec || true)"
 echo "=== MPI launcher: ${MPIEXEC} ==="
 [ -n "${MPIEXEC}" ] && { "${MPIEXEC}" --version | head -4 || true; }
 
+# Smoke test: the icoFoam cavity tutorial on 2 ranks, with the pressure solved by OGL's
+# GKOCG on the given Ginkgo executor. Fails unless the run completes, every pressure
+# solve went through GKOCG, and the last pFinal solve (relTol 0) reached its tolerance.
+run_cavity_smoke_test() {
+    local executor="$1"
+    local case_dir="${PWD}/build/${PRESET}/cavity"
+    local tolerance=1e-06
+    echo "=== Cavity smoke test with GKOCG on ${executor} ==="
+
+    rm -rf "${case_dir}"
+    cp -r "${FOAM_TUTORIALS}/incompressible/icoFoam/cavity/cavity" "${case_dir}"
+    # libOGL.so is not installed, OpenFOAM loads it from the build directory
+    export LD_LIBRARY_PATH="${PWD}/build/${PRESET}:${LD_LIBRARY_PATH}"
+    (
+        cd "${case_dir}"
+        foamDictionary system/controlDict -entry libs -add '("libOGL.so")' > /dev/null
+        foamDictionary system/controlDict -entry endTime -set 0.1 > /dev/null
+        # pFinal too: foamDictionary writes pFinal's "$p" expanded, with the old solver
+        for field in p pFinal; do
+            foamDictionary system/fvSolution -entry "solvers/${field}/solver" -set GKOCG > /dev/null
+            foamDictionary system/fvSolution -entry "solvers/${field}/preconditioner" \
+                -set none > /dev/null
+            foamDictionary system/fvSolution -entry "solvers/${field}/tolerance" \
+                -set "${tolerance}" > /dev/null
+            foamDictionary system/fvSolution -entry "solvers/${field}/executor" \
+                -add "${executor}" > /dev/null
+        done
+        cat > system/decomposeParDict << 'DICT'
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+numberOfSubdomains 2;
+method          simple;
+coeffs
+{
+    n           (2 1 1);
+}
+DICT
+        blockMesh > log.blockMesh 2>&1
+        decomposePar > log.decomposePar 2>&1
+        status=0
+        "${MPIEXEC}" -np 2 icoFoam -parallel > log.icoFoam 2>&1 || status=$?
+
+        if [ "${status}" -ne 0 ] || ! grep -q "^End" log.icoFoam; then
+            echo "icoFoam failed (exit code ${status}):"
+            tail -n 50 log.icoFoam
+            exit 1
+        fi
+        solves=$(grep -c "GKOCG:  Solving for p" log.icoFoam || true)
+        others=$(grep "Solving for p," log.icoFoam | grep -vc "GKOCG:" || true)
+        last_residual=$(grep "GKOCG:  Solving for p" log.icoFoam | tail -n 1 \
+            | sed -n 's/.*Final residual = \([^,]*\),.*/\1/p')
+        echo "GKOCG pressure solves: ${solves}, other pressure solves: ${others}," \
+            "last final residual: ${last_residual}"
+        if [ "${solves}" -eq 0 ] || [ "${others}" -ne 0 ] || [ -z "${last_residual}" ] \
+            || ! awk -v r="${last_residual}" -v t="${tolerance}" 'BEGIN { exit !(r <= t) }'; then
+            echo "Cavity smoke test failed:"
+            grep "Solving for p" log.icoFoam | tail -n 10
+            exit 1
+        fi
+    )
+    echo "=== Cavity smoke test passed ==="
+}
+
 echo "=== Tool versions ==="
 cmake --version
 g++ --version || clang++ --version
@@ -61,6 +129,7 @@ if [ "$GPU_VENDOR" == "nvidia" ]; then
         -DMPIEXEC_EXECUTABLE="${MPIEXEC}"
     cmake --build --preset "${PRESET}"
     ctest --preset "${PRESET}" --output-on-failure
+    run_cavity_smoke_test cuda
 
 elif [ "$GPU_VENDOR" == "amd" ]; then
     # Set up environment
@@ -84,6 +153,7 @@ elif [ "$GPU_VENDOR" == "amd" ]; then
         -DMPIEXEC_EXECUTABLE="${MPIEXEC}"
     cmake --build --preset "${PRESET}"
     ctest --preset "${PRESET}" --output-on-failure
+    run_cavity_smoke_test hip
 
 elif [ "$GPU_VENDOR" == "intel" ]; then
     sycl-ls 2>/dev/null | grep '^\[level_zero:gpu\]'
@@ -108,6 +178,7 @@ elif [ "$GPU_VENDOR" == "intel" ]; then
         -DMPIEXEC_EXECUTABLE="${MPIEXEC}"
     cmake --build --preset "${PRESET}"
     ctest --preset "${PRESET}" --output-on-failure
+    run_cavity_smoke_test sycl
 
 else
     echo "Unknown GPU type: $GPU_VENDOR"
