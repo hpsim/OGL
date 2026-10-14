@@ -94,6 +94,30 @@ public:
         return {};
     }
 
+    /* returns the caching period to use for a newly generated
+     * preconditioner. While fewer than cachingDelay preconditioners have been
+     * generated, caching is disabled, i.e. the preconditioner is regenerated
+     * on every solve.
+     */
+    label caching_period(const dictionary &d) const
+    {
+        const label period = d.lookupOrDefault<label>("caching", 0);
+        const label caching_delay = d.lookupOrDefault<label>("cachingDelay", 0);
+        const label generations =
+            get_preconditioner_generations(sys_matrix_name_, db_);
+
+        if (generations < caching_delay) {
+            set_preconditioner_generations(sys_matrix_name_, db_,
+                                           generations + 1);
+            word msg = "Postpone preconditioner caching, generation " +
+                       std::to_string(generations + 1) + " of " +
+                       std::to_string(caching_delay);
+            LOG_1(verbose_, msg)
+            return 0;
+        }
+        return period;
+    }
+
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
@@ -146,9 +170,7 @@ public:
             } else {
                 auto &prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
-                const label caching_period =
-                    d.lookupOrDefault<label>("caching", 0);
-                set_next_caching(sys_matrix_name_, db_, caching_period);
+                set_next_caching(sys_matrix_name_, db_, caching_period(d));
 
                 auto generated_precond =
                     init_preconditioner_impl(name, d, gkomatrix, device_exec);
@@ -158,8 +180,7 @@ public:
                 return generated_precond;
             }
         }
-        const label caching_period = d.lookupOrDefault<label>("caching", 0);
-        set_next_caching(sys_matrix_name_, db_, caching_period);
+        set_next_caching(sys_matrix_name_, db_, caching_period(d));
         cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
