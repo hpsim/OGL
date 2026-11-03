@@ -82,7 +82,7 @@ updateInitGuess | false |whether to copy the initial guess to device on every so
 verbose | 0 | print out extra info. Valid values (0-2)
 ranksPerGPU | 1 | repartitioning parameter ie. how many ranks to repartition to a owner on a GPU
 executor | reference | the executor where to solve the system matrix, other options are `omp`, `cuda`, `hip`, `sycl`
-adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters
+adaptMinIter | true | based on the previous solution set minIter to be relaxationFactor*previousIters, skipped if the previous solve stopped at maxIter
 relaxationFactor | 0.8 | use relaxationFactor*previousIters as new minIters
 scaling | 1.0 | Scale the complete system by the scaling factor
 forceHostBuffer  | false | whether to copy to host before MPI calls
@@ -112,7 +112,7 @@ The following optional arguments are supported to modify the preconditioner. *No
 Argument | Default | Preconditioner
 ------------ | ------------- | -------------
 SkipSorting | True | all
-Caching | 1 | all
+Caching | 1 | all, a cached preconditioner is regenerated after a solve that did not converge
 CachingDelay | 0 | all, number of initial preconditioner generations before caching is enabled
 MaxBlockSize | 1 | block Jacobi
 SparsityPower | 1 | ISAI

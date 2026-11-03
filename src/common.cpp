@@ -101,6 +101,20 @@ label get_preconditioner_generations(word sys_matrix_name,
                                    db, label(0));
 }
 
+void set_preconditioner_from_cache(word sys_matrix_name,
+                                   const objectRegistry &db, bool from_cache)
+{
+    set_gko_solver_property(sys_matrix_name, db, "preconditionerFromCache",
+                            label(from_cache));
+}
+
+bool get_preconditioner_from_cache(word sys_matrix_name,
+                                   const objectRegistry &db)
+{
+    return get_gko_solver_property(sys_matrix_name, "preconditionerFromCache",
+                                   db, label(0)) != 0;
+}
+
 void set_multigrid_reuses(word sys_matrix_name, const objectRegistry &db,
                           label reuses)
 {

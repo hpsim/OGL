@@ -151,6 +151,9 @@ public:
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
+        set_preconditioner_from_cache(sys_matrix_name_, db_,
+                                      stored && cache > 0);
+
         if (stored) {
             if (cache > 0) {
                 word msg = "Read preconditioner from registry for " +
@@ -193,6 +196,27 @@ public:
         po->get_ptr();
 
         return generated_precond;
+    }
+
+    /* Discards the cached preconditioner if the solve using it did not
+     * converge, i.e. the next solve generates a new preconditioner. A cached
+     * preconditioner can stop fitting the matrix, since the matrix values
+     * change between solves.
+     *
+     * @param converged  whether the solve converged, has to be the same on
+     * all ranks to keep the caching state consistent
+     */
+    void check_cached_preconditioner(bool converged) const
+    {
+        if (converged ||
+            !get_preconditioner_from_cache(sys_matrix_name_, db_)) {
+            return;
+        }
+        word msg =
+            "Solve with cached preconditioner did not converge, "
+            "regenerate the preconditioner for the next solve";
+        MLOG_0(verbose_, msg)
+        set_next_caching(sys_matrix_name_, db_, 0);
     }
 };
 
