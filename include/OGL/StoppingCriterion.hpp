@@ -194,7 +194,11 @@ public:
         label minIter = minIter_;
         label frequency = frequency_;
         if (!export_res) {
-            if (prev_solve_iters > 0 && adapt_minIter_ && prev_rel_cost > 0) {
+            // a previous solve stopped by maxIter says nothing about the
+            // iterations needed, adapting to it would force at least
+            // relaxationFactor*maxIter iterations
+            if (prev_solve_iters > 0 && prev_solve_iters < maxIter_ &&
+                adapt_minIter_ && prev_rel_cost > 0) {
                 minIter = prev_solve_iters * relaxationFactor_;
                 auto alpha =
                     sqrt(1.0 / (prev_solve_iters * (1.0 - relaxationFactor_)) *

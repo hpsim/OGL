@@ -315,6 +315,23 @@ public:
         solverPerf.finalResidual() = this->get_res_norm();
         solverPerf.nIterations() = this->get_number_of_iterations();
         this->store_number_of_iterations();
+
+        if (get_preconditioner_from_cache(field_name_, db_)) {
+            // decide on rank 0 to keep the caching state of all ranks the same
+            const scalar tolerance =
+                solver_controls_.lookupOrDefault("tolerance", scalar(1e-6));
+            const scalar rel_tol =
+                solver_controls_.lookupOrDefault("relTol", scalar(1e-6));
+            const scalar final_res = solverPerf.finalResidual();
+            // a NaN residual counts as not converged
+            label converged =
+                final_res < tolerance ||
+                final_res < rel_tol * solverPerf.initialResidual();
+            exec_handler_.get_host_comm()->broadcast(
+                exec_handler_.get_ref_exec(), &converged, 1, 0);
+            this->check_cached_preconditioner(converged);
+        }
+
         auto time_for_res_norm_eval = this->get_res_norm_time() + SMALL;
         auto time_per_iter =
             delta_t_solve_ / max(this->get_number_of_iterations(), 1);
