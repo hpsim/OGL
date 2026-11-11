@@ -94,6 +94,30 @@ public:
         return {};
     }
 
+    /* returns the caching period to use for a newly generated
+     * preconditioner. While fewer than cachingDelay preconditioners have been
+     * generated, caching is disabled, i.e. the preconditioner is regenerated
+     * on every solve.
+     */
+    label caching_period(const dictionary &d) const
+    {
+        const label period = d.lookupOrDefault<label>("caching", 0);
+        const label caching_delay = d.lookupOrDefault<label>("cachingDelay", 0);
+        const label generations =
+            get_preconditioner_generations(sys_matrix_name_, db_);
+
+        if (generations < caching_delay) {
+            set_preconditioner_generations(sys_matrix_name_, db_,
+                                           generations + 1);
+            word msg = "Postpone preconditioner caching, generation " +
+                       std::to_string(generations + 1) + " of " +
+                       std::to_string(caching_delay);
+            LOG_1(verbose_, msg)
+            return 0;
+        }
+        return period;
+    }
+
     std::shared_ptr<gko::LinOp> init_preconditioner(
         std::shared_ptr<const gko::LinOp> gkomatrix,
         std::shared_ptr<gko::Executor> device_exec) const
@@ -127,6 +151,9 @@ public:
 
         auto cache = get_next_caching(sys_matrix_name_, db_);
 
+        set_preconditioner_from_cache(sys_matrix_name_, db_,
+                                      stored && cache > 0);
+
         if (stored) {
             if (cache > 0) {
                 word msg = "Read preconditioner from registry for " +
@@ -146,9 +173,7 @@ public:
             } else {
                 auto &prev_precond = db_.template lookupObjectRef<
                     DevicePersistentBase<gko::LinOp>>(precond_store_name);
-                const label caching_period =
-                    d.lookupOrDefault<label>("caching", 0);
-                set_next_caching(sys_matrix_name_, db_, caching_period);
+                set_next_caching(sys_matrix_name_, db_, caching_period(d));
 
                 auto generated_precond =
                     init_preconditioner_impl(name, d, gkomatrix, device_exec);
@@ -158,8 +183,7 @@ public:
                 return generated_precond;
             }
         }
-        const label caching_period = d.lookupOrDefault<label>("caching", 0);
-        set_next_caching(sys_matrix_name_, db_, caching_period);
+        set_next_caching(sys_matrix_name_, db_, caching_period(d));
         cache = get_next_caching(sys_matrix_name_, db_);
 
         auto generated_precond =
@@ -172,6 +196,27 @@ public:
         po->get_ptr();
 
         return generated_precond;
+    }
+
+    /* Discards the cached preconditioner if the solve using it did not
+     * converge, i.e. the next solve generates a new preconditioner. A cached
+     * preconditioner can stop fitting the matrix, since the matrix values
+     * change between solves.
+     *
+     * @param converged  whether the solve converged, has to be the same on
+     * all ranks to keep the caching state consistent
+     */
+    void check_cached_preconditioner(bool converged) const
+    {
+        if (converged ||
+            !get_preconditioner_from_cache(sys_matrix_name_, db_)) {
+            return;
+        }
+        word msg =
+            "Solve with cached preconditioner did not converge, "
+            "regenerate the preconditioner for the next solve";
+        MLOG_0(verbose_, msg)
+        set_next_caching(sys_matrix_name_, db_, 0);
     }
 };
 

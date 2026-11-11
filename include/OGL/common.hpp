@@ -132,6 +132,21 @@ void set_next_caching(word sys_matrix_name, const objectRegistry &db,
 
 label get_next_caching(word sys_matrix_name, const objectRegistry &db);
 
+/* number of preconditioner generations performed before caching starts */
+void set_preconditioner_generations(word sys_matrix_name,
+                                    const objectRegistry &db,
+                                    label generations);
+
+label get_preconditioner_generations(word sys_matrix_name,
+                                     const objectRegistry &db);
+
+/* whether the last solve used a preconditioner read from the cache */
+void set_preconditioner_from_cache(word sys_matrix_name,
+                                   const objectRegistry &db, bool from_cache);
+
+bool get_preconditioner_from_cache(word sys_matrix_name,
+                                   const objectRegistry &db);
+
 /* number of times the recorded multigrid hierarchy has been reused */
 void set_multigrid_reuses(word sys_matrix_name, const objectRegistry &db,
                           label reuses);

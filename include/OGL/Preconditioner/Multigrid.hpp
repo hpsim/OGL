@@ -134,6 +134,7 @@ public:
     {
         word msg =
             "\nGenerate Multigrid preconditioner:\n\ttype: " + type_ +
+            "\n\tskipSorting: " + Switch(skip_sorting_).c_str() +
             "\n\tmaxLevels: " + std::to_string(maxLevels_) +
             "\n\tminCoarseRows: " + std::to_string(minRowsC_) +
             "\n\tsmoother: " + smoother_ +
@@ -221,6 +222,11 @@ public:
                                  .with_criteria(smoother_it)
                                  .on(exec_));
 
+        // NOTE With skipSorting the finest level shares the system matrix
+        // instead of a sorted copy. The matrix values are updated in place
+        // between solves, so a copy would leave a cached preconditioner with
+        // smoothers on the old values while its top level residual uses the
+        // new ones. The resulting non-symmetric V-cycle makes CG stagnate.
         if (type_ == "Schwarz") {
             auto pre_factory = gko::share(
                 mg::build()
@@ -233,6 +239,7 @@ public:
                     .with_mg_level(
                         pgm::build()
                             .with_deterministic(true)
+                            .with_skip_sorting(skip_sorting_)
                             // .with_local_weight_mtx(coarseningWeight)
                             .on(exec_))
                     .with_coarsest_solver(
@@ -267,7 +274,8 @@ public:
                     .with_mg_level(
                         pgm::build()
                             // .with_local_weight_mtx(coarseningWeight)
-                            .with_deterministic(true))
+                            .with_deterministic(true)
+                            .with_skip_sorting(skip_sorting_))
                     .with_coarsest_solver(
                         generate_coarse_solver(exec_, d_, verbose_))
                     .with_criteria(single_it)
